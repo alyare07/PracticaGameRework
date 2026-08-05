@@ -1,0 +1,29 @@
+package principal.utilidades;
+
+import javax.sound.sampled.Clip;
+
+public class Sonido {
+	final private Clip sonido;
+
+	public Sonido(final String ruta) {
+		sonido = Constantes.FUNCIONES.CARGADOR_RECURSOS.cargarSonido(ruta);
+	}
+
+	public void reproducir() {
+		sonido.stop();
+		sonido.flush();
+		sonido.setMicrosecondPosition(0);
+		sonido.start();
+	}
+
+	public void repetir() {
+		sonido.stop();
+		sonido.flush();
+		sonido.setMicrosecondPosition(0);
+		sonido.loop(Clip.LOOP_CONTINUOUSLY);
+	}
+
+	public long getDuracion() {
+		return sonido.getMicrosecondLength();
+	}
+}

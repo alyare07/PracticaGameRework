@@ -119,26 +119,6 @@ public class ZoneBox extends Ente {
 		}
 		
 		
-		if(Constantes.TECLADO.TECLA_DEBUG.presionado() && Constantes.isEstadoJuego() &&Constantes.JUGADOR.getAreaDeteccion().intersects(AREA)) {
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, AREA, Color.orange);
-			if(this.ITEMS.size()>0) {
-				for(Item i : this.ITEMS) {
-					if(Constantes.JUGADOR.getAreaDeteccion().intersects(i.getArea())) {
-						DibujoDebug.dibujarRectanguloContornoRefCamara(g, i.getArea(),Color.magenta);
-					}
-					
-				}
-			}
-			final Rectangle aic = Constantes.JUGADOR.getAreaInteraccionCofre();
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, aic, Color.lightGray);
-			if(this.COFRES.size()>0) {
-				for(Cofre cofre : this.COFRES) {
-					if(Constantes.JUGADOR.getAreaInteraccionCofre().intersects(cofre.getArea())) {
-						DibujoDebug.dibujarRectanguloContornoRefCamara(g, cofre.getArea(),Color.cyan);
-					}
-				}
-			}
-		}
 	}
 
 
@@ -162,6 +142,10 @@ public class ZoneBox extends Ente {
 	
 	public ArrayList<Item> getItems() {
 		return ITEMS;
+	}
+	
+	public ArrayList<Cofre> getCofres(){
+		return this.COFRES;
 	}
 
 	public void eliminarEntidad(final Ente e) {

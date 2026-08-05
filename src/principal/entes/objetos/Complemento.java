@@ -151,7 +151,7 @@ public class Complemento extends Objeto {
 
 	@Override
 	public Rectangle getArea() {
-		return new Rectangle(getPosicionXInt(), getPosicionYInt(), getAncho(), getAlto());
+		return super.getArea();
 	}
 
 }

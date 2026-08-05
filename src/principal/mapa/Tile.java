@@ -16,6 +16,7 @@ import principal.entes.objetos.Objeto;
 import principal.maquinaestado.estados.editor.PaletaComplento;
 import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Textura;
 
 public class Tile implements Serializable {
 	private static final long serialVersionUID = -445324235886L;
@@ -43,7 +44,8 @@ public class Tile implements Serializable {
 		}
 
 		if (Constantes.TECLADO.TECLA_DEBUG_TILE.presionado() && Constantes.GLOBALES.estadoJuego) {
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.X, this.Y, LADO, LADO, Color.red);
+			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoTile), X, Y);
+			
 		}
 
 	}

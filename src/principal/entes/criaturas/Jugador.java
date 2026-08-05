@@ -9,10 +9,13 @@ import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+
 import org.json.simple.JSONObject;
 import principal.animaciones.Animaciones;
 import principal.entes.Ente;
 import principal.entes.modelos.tile.ListaModeloTile;
+import principal.entes.objetos.cofres.Cofre;
 import principal.entes.objetos.items.Consumible;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.armas.Arma;
@@ -24,6 +27,7 @@ import principal.entes.proyectil.GolpeMele;
 import principal.mapa.Mundo;
 import principal.mapa.Mapa;
 import principal.mapa.Tile;
+import principal.mapa.renderEntidades.ZoneBox;
 import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
@@ -73,7 +77,7 @@ public class Jugador extends Criatura {
 	protected final float PTS_CONSUMIR_ESTAMINA = 0.5f;
 	protected final byte LADO_INTERACCION_COFRE = 16;
 	protected final HashMap<Estado, Estado> ESTADO = new HashMap<Estado, Estado>();
-	
+	private final HashSet<Ente> CHECK_LIST_DEBUG = new HashSet<>();
 	
 	public Jugador(int x, int y, int ancho, int alto, final BufferedImage hoja) {
 		super(x, y, ancho, alto, 50, 50, hoja);
@@ -110,6 +114,7 @@ public class Jugador extends Criatura {
 		if (Constantes.TECLADO.TECLA_DEBUG.presionado() && Constantes.GLOBALES.estadoJuego) {
 			pintarAreaRecoleccion(g);
 		}
+		this.pintarAreaDeteccion(g);
 		
 		this.pintarAreaArrojar(g);
 	}
@@ -242,6 +247,7 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarRecogidaItems() {
+		this.actualizarAreaRecoleccion();
 		if (!Constantes.TECLADO.TECLA_RECOGIENDO.presionado()) {
 			return;
 		}
@@ -253,7 +259,6 @@ public class Jugador extends Criatura {
 		} else {
 			return;
 		}
-		this.actualizarAreaRecoleccion();
 		ArrayList<Item> listaItems = new ArrayList<Item>(mundo.getItemsIntersectados(this.areaRecoleccion)); 
 		for (Item item : listaItems) {
 			if (Constantes.INVENTARIO.agregarObjeto(item)) {
@@ -355,6 +360,42 @@ public class Jugador extends Criatura {
 			final Arrojadizo item = Constantes.INVENTARIO.getSlotArrojadizo().getItemArrojadizo();
 			DibujoDebug.dibujarFiguraEllipseRefCamara(g, new Rectangle(posRaton.x-item.getDiamentroAreaCaida()/2, posRaton.y - item.getDiamentroAreaCaida()/2,item.getDiamentroAreaCaida() , item.getDiamentroAreaCaida()), Color.blue);
 		}
+	}
+	
+	
+
+	private void pintarAreaDeteccion(final Graphics2D g) {
+	    if (!Constantes.TECLADO.TECLA_DEBUG.presionado() || !Constantes.isEstadoJuego()) {
+	        return;
+	    }
+
+	    this.CHECK_LIST_DEBUG.clear();
+	    
+	    final Shape areaDeteccionJugador = this.getAreaDeteccion();
+	    final Rectangle areaInteraccionCofre = this.getAreaInteraccionCofre();
+	    
+	    final ArrayList<ZoneBox> zonasIntersectadas = this.getMundo().getZonasIntersectadas(areaDeteccionJugador);
+	    for (ZoneBox zb : zonasIntersectadas) {
+	    	if (this.CHECK_LIST_DEBUG.add(zb)) {
+	    		DibujoDebug.dibujarRectanguloContornoRefCamara(g, zb.getArea(), Color.YELLOW);
+	    	}
+	        
+	        for (Item item : zb.getItems()) {
+	            if (this.CHECK_LIST_DEBUG.add(item)) {
+	                if (areaDeteccionJugador.intersects(item.getArea())) {
+	                    DibujoDebug.dibujarRectanguloContornoRefCamara(g, item.getArea(), Color.MAGENTA);
+	                }
+	            }
+	        }
+
+	        for (Cofre cofre : zb.getCofres()) {
+	            if (this.CHECK_LIST_DEBUG.add(cofre)) {
+	                if (areaInteraccionCofre.intersects(cofre.getArea())) {
+	                    DibujoDebug.dibujarRectanguloContornoRefCamara(g, cofre.getArea(), Color.CYAN);
+	                }
+	            }
+	        }
+	    }
 	}
 	
 	public Shape getAreaDeteccion() {

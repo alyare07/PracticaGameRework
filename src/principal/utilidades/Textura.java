@@ -1,7 +1,12 @@
 package principal.utilidades;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsEnvironment;
+import java.awt.Image;
+import java.awt.Transparency;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
@@ -26,6 +31,7 @@ public final class Textura {
 	private static int idSiguienteEfecto = INICIO_EFECTOS;
 	private static int idSiguienteEstructura = INICIO_ESTRUCTURAS;
 
+	public static final int idTexturaContornoTile = -3;
 	private static int getSiguienteIdTerreno() {
 		return idSiguienteTerreno++;
 	}
@@ -330,6 +336,8 @@ public final class Textura {
 	static {
 		BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
 		TEXTURAS.put(TEXTURA_TRANSPARENTE, img);
+		
+		TEXTURAS.put(idTexturaContornoTile, crearImagenRectanguloContornoEnVRAM(Constantes.LADO_TILE, Color.RED));
 	}
 
 	private Textura() {
@@ -406,5 +414,30 @@ public final class Textura {
 		HOJA_AGUA = new HojaSprite(img, Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), true);
 	}
 	
+
+	public static BufferedImage crearImagenRectanguloContornoEnVRAM(int lado, Color colorBorde) {
+	    // Crea una imagen optimizada para la tarjeta gráfica actual
+		BufferedImage debugTileImage = GraphicsEnvironment
+			    .getLocalGraphicsEnvironment()
+			    .getDefaultScreenDevice()
+			    .getDefaultConfiguration().createCompatibleImage(lado, lado, Transparency.TRANSLUCENT);
+
+	    Graphics2D gImg = (Graphics2D) debugTileImage.getGraphics();
+	    
+	    // Limpiamos la imagen para que sea transparente
+	    gImg.setComposite(AlphaComposite.Clear);
+	    gImg.fillRect(0, 0, lado, lado);
+	    
+	    // Dibujamos el contorno usando 4 fillRect simples
+	    gImg.setComposite(AlphaComposite.SrcOver);
+	    gImg.setColor(colorBorde);
+	    gImg.fillRect(0, 0, lado, 1);                  // Arriba
+	    gImg.fillRect(0, lado - 1, lado, 1);           // Abajo
+	    gImg.fillRect(0, 0, 1, lado);                  // Izquierda
+	    gImg.fillRect(lado - 1, 0, 1, lado);           // Derecha
+	    
+	    gImg.dispose(); // Liberamos los recursos del Graphics de la imagen
+	    return debugTileImage;
+	}
 
 }

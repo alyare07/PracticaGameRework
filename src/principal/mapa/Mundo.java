@@ -229,6 +229,49 @@ public class Mundo {
 		return zonas;
 	}
 	
+	public ArrayList<ZoneBox> getZonasIntersectadas(final Shape e) {
+		final ArrayList<ZoneBox> zonas = new ArrayList<ZoneBox>();
+
+		final int x = (int) e.getBounds().x;
+		final int y = (int) e.getBounds().y;
+		final int ancho = (int) e.getBounds().width;
+		final int alto = (int) e.getBounds().height;
+
+		ZoneBox zb = null;
+		// zona 1
+		zb = this.getZonaPuntoReferido(x, y);
+		if (zb != null) {
+			if ( e.intersects(zb.getArea())) {
+				zonas.add(zb);
+			}
+		}
+
+		// zona 2
+		zb = this.getZonaPuntoReferido(x + ancho, y);
+		if (zb != null) {
+			if ( e.intersects(zb.getArea())) {
+				zonas.add(zb);
+			}
+		}
+
+		// zona 3
+		zb = this.getZonaPuntoReferido(x, y + alto);
+		if (zb != null) {
+			if ( e.intersects(zb.getArea())) {
+				zonas.add(zb);
+			}
+		}
+
+		// zona 4
+		zb = this.getZonaPuntoReferido(x + ancho, y + alto);
+		if (zb != null) {
+			if ( e.intersects(zb.getArea())){
+				zonas.add(zb);
+			}
+		}
+		return zonas;
+	}
+	
 	
 	public int getCodAct() {
 		return this.codAct;

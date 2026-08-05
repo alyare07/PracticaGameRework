@@ -9,6 +9,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 
 public class DibujoDebug {
@@ -242,7 +243,9 @@ public class DibujoDebug {
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto, final Color c) {
 		objetosDibujados++;
-		g.setColor(c);
+		if (g.getColor() != c && !c.equals(g.getColor())) {
+	        g.setColor(c);
+	    }
 		g.drawRect(Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), ancho, alto);
 	}
 

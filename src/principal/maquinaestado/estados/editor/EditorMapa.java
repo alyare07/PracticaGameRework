@@ -42,7 +42,7 @@ public class EditorMapa implements EstadoJuego {
 	private final Mapa MAPA;
 	private int x;
 	private int y;
-	private final Raton RATON = SuperficieDibujo.obetenerSuperficieDibujo().RATON;
+	private final Raton RATON = SuperficieDibujo.obtenerSuperficieDibujo().RATON;
 	private Rectangle areaTileSelected;
 	private Rectangle ultimaAreaTileAlterado = new Rectangle();
 	private final Rectangle PALETA_MAPA;
@@ -127,7 +127,7 @@ public class EditorMapa implements EstadoJuego {
 
 	@Override
 	public void actualizar() {
-		RATON.actualizar(SuperficieDibujo.obetenerSuperficieDibujo());
+		RATON.actualizar(SuperficieDibujo.obtenerSuperficieDibujo());
 		final Rectangle rr = this.RATON.getRectanguloPosicionEscalado();// rectangulo raton
 		this.AREA_MOUSE_APUNTADO.x = rr.x + Constantes.CAMARA.getPosicionXInt() - Constantes.CAMARA.getMargenX();
 		this.AREA_MOUSE_APUNTADO.y = rr.y + Constantes.CAMARA.getPosicionYInt() - Constantes.CAMARA.getMargenY();

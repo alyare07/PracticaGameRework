@@ -22,7 +22,7 @@ public class GestorPrincipal {
 		enFuncionamiento = true;
 		this.SyncApsFrame = SyncApsFrame;
 		this.GE = new GestorEstados();
-		this.SD = SuperficieDibujo.obetenerSuperficieDibujo();
+		this.SD = SuperficieDibujo.obtenerSuperficieDibujo();
 		this.VENTANA = new Ventana("Juego", SD);
 		this.codActualizacion = Integer.MIN_VALUE;
 

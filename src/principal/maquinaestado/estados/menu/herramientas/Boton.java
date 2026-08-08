@@ -20,7 +20,7 @@ public class Boton extends Componente {
 
 	public Boton(final String texto, final Color color, final Rectangle r) {
 		this.AREA = r;
-		this.fondo = Textura.crearTextura(color, r.width, r.height);
+		this.fondo = Constantes.FUNCIONES.TEXTURAS_TOOLS.crearTextura(color, r.width, r.height);
 		this.texto = texto;
 	}
 
@@ -85,7 +85,7 @@ public class Boton extends Componente {
 	}
 	
 	public void establecerColorBackGround(final Color cbg) {
-		this.fondo = Textura.crearTextura(cbg, this.AREA.width, this.AREA.height);
+		this.fondo = Constantes.FUNCIONES.TEXTURAS_TOOLS.crearTextura(cbg, this.AREA.width, this.AREA.height);
 	}
 
 	public void establecerColorForeGround(final Color cfg) {

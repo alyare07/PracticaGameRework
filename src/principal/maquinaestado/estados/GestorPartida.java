@@ -2,40 +2,46 @@ package principal.maquinaestado.estados;
 
 import java.awt.Graphics2D;
 
+import principal.mapa.Mundo;
+import principal.mapa.mapas.MapaManager;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.menu.MenuPartida;
-import principal.maquinaestado.estados.pantallaCarga.GestorCargaJuego;
+import principal.maquinaestado.estados.pantallaCarga.GestorCargaMapa;
 import principal.maquinaestado.estados.pantallaCarga.PantallaCarga;
 
-public class GestorPartida implements EstadoJuego {  
+public class GestorPartida implements EstadoJuego {
+	@SuppressWarnings("unused")
 	private final GestorEstados GE;
 	private final GestorJuego GJ;
 	private final MenuPartida MP;
 	private EstadoJuego estadoActivo;
-	private final  GestorCargaJuego GCJ = new GestorCargaJuego();
+	private final GestorCargaMapa GCJ = new GestorCargaMapa();
+
 	public GestorPartida(final GestorEstados ge) {
 		this.GE = ge;
 		this.GJ = new GestorJuego(ge, this);
-		this.GCJ.cargar(this.GJ, "escenario1.json", GCJ);
+		MapaManager.setGestorPartida(this);
+		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, true, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
 //		this.GJ.partidaNueva("escenario1.json");
 		this.MP = new MenuPartida(ge, this);
-		this.estadoActivo = new PantallaCarga(GCJ,"recursos/screens/pantallaCarga1.json");
+		this.estadoActivo = new PantallaCarga(this.GCJ, "recursos/screens/pantallaCarga1.json");
 	}
-	
-	public GestorPartida(final GestorEstados ge, final String mundo) {
+
+	public GestorPartida(final GestorEstados ge, final String mapa, final boolean reset) {
 		this.GE = ge;
 		this.GJ = new GestorJuego(ge, this);
-		this.GCJ.cargar(this.GJ, "escenario1.json", GCJ);
-//		this.GJ.partidaNueva(mundo);
+		this.GCJ.cargar(this.GJ, this.GCJ, mapa, reset, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
 		this.MP = new MenuPartida(ge, this);
 		this.estadoActivo = this.GJ;
 	}
 
 	@Override
 	public void actualizar() {
-		if(this.estadoActivo instanceof PantallaCarga) {
-			if(this.GCJ.isCompleto()) {
-				this.estadoActivo = GJ;
+		if (this.estadoActivo instanceof PantallaCarga) {
+			if (this.GCJ.isCompleto()) {
+				final PantallaCarga pc = (PantallaCarga) this.estadoActivo;
+				pc.disposeMundo();
+				this.estadoActivo = this.GJ;
 			}
 		}
 		this.estadoActivo.actualizar();
@@ -53,19 +59,23 @@ public class GestorPartida implements EstadoJuego {
 	public void establecerEstadoActivoMenu() {
 		this.estadoActivo = this.MP;
 	}
+
 	public EstadoJuego getEstadoActivo() {
 		return this.estadoActivo;
 	}
-	
+
 	public GestorJuego getGestorJuego() {
 		return this.GJ;
 	}
-	
-	public void cambiarMundo(final String ruta) {
-		this.GCJ.cargar(this.GJ, ruta, GCJ);
-		this.estadoActivo = new PantallaCarga(GCJ,"recursos/screens/pantallaCarga1.json");
+
+	public void cambiarMundo(final String nombreMapa, final String nombreSpawn) {
+		this.GCJ.cargar(this.GJ, this.GCJ, nombreMapa, false, nombreSpawn);
+		this.estadoActivo = new PantallaCarga(this.GCJ, "recursos/screens/pantallaCarga1.json");
 	}
-	
-	
+
+	public void reiniciar() {
+		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, true, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
+		this.estadoActivo = new PantallaCarga(this.GCJ, "recursos/screens/pantallaCarga1.json");
+	}
 
 }

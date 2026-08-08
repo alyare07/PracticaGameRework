@@ -13,132 +13,145 @@ import principal.mapa.Tile;
 import principal.utilidades.Constantes;
 
 public class ProyectilGeneral extends Proyectil implements Serializable{
-	
-	public ProyectilGeneral(double damage, double velocidad, boolean penetrante, double alcance, Mundo mundo,
-			double x, double y, int ancho, int alto, Direccion direccion, Ente causante) {
-		super(damage, velocidad, penetrante, alcance, mundo, x, y, ancho, alto, direccion, causante);
-	}
+    protected final boolean SOLO_CONTRA_JUGADOR;
 
-	private static final long serialVersionUID = -3596461015684122157L;
-	protected final HashMap<Criatura, Criatura> perforados = new HashMap<Criatura, Criatura>();
-	
-	
-	public void actualizar() {
+    public ProyectilGeneral(final double damage, final double velocidad, final boolean penetrante, final double alcance, final Mundo mundo, final double x, final double y, final int ancho,
+	    final int alto, final Direccion direccion, final Ente causante) {
+	super(damage, velocidad, penetrante, alcance, mundo, x, y, ancho, alto, direccion, causante);
+	this.SOLO_CONTRA_JUGADOR = false;
+    }
+
+    public ProyectilGeneral(final double damage, final double velocidad, final boolean penetrante, final double alcance, final Mundo mundo, final double x, final double y, final int ancho,
+	    final int alto, final Direccion direccion, final Ente causante, final boolean soloContraJugador) {
+	super(damage, velocidad, penetrante, alcance, mundo, x, y, ancho, alto, direccion, causante);
+	this.SOLO_CONTRA_JUGADOR = soloContraJugador;
+    }
+
+    private static final long serialVersionUID = -3596461015684122157L;
+    protected final HashMap<Criatura, Criatura> perforados = new HashMap<Criatura, Criatura>();
+
+    @Override
+    public void actualizar() {
 //		System.out.println("Proyectil : "+ this.area);
-		if(!eliminado) {
-			if(this.distanciaRecorrida>= this.ALCANCE) {
-				this.eliminar();
-				return;
-			}
-			this.mover();
-			this.verificarImpacto();
-			
-		}
-		
+	if (!this.eliminado) {
+	    if (this.distanciaRecorrida >= this.ALCANCE) {
+		this.eliminar();
+		System.out.println("eliminado por distancia");
+		return;
+	    }
+	    this.mover();
+	    this.verificarImpacto();
+
 	}
-	@Override
-	public void pintar(final Graphics2D g) {
-		super.pintar(g);
+
+    }
+
+    @Override
+    public void pintar(final Graphics2D g) {
+	super.pintar(g);
+    }
+
+    protected void verificarImpacto() {
+	final Rectangle area = this.getArea();
+	if (Constantes.JUGADOR != this.CAUSANTE) {
+	    if (area.intersects(Constantes.JUGADOR.getRectangulo())) {
+
+		this.impactar(Constantes.JUGADOR);
+		if (!this.PENETRANTE) {
+		    this.eliminar();
+		    return;
+		}
+	    }
 	}
-	
-	
-	protected void verificarImpacto() {
-		final Rectangle area = this.getArea();
-		for(Criatura c : this.mundo.getCriaturasIntersectadasConEnte(this)) {
-			if(area.intersects(c.getRectangulo())) {
-				if(c == this.CAUSANTE) {
-					continue;
-				}
-				this.impactar(c);
-				if(!this.PENETRANTE) {
-					this.eliminar();
-					break;
-				}
-			}
-		}
-		
-		if(this.eliminado) {
-			return;
-		}else if(Constantes.JUGADOR != this.CAUSANTE){
-			if(area.intersects(Constantes.JUGADOR.getRectangulo())) {
-				
-				this.impactar(Constantes.JUGADOR);
-				if(!this.PENETRANTE) {
-					this.eliminar();
-					return;
-				}
-			}
-		}
-		
-		final Tile tilePosicionado = this.mundo.getMapa().getTileReferenciado(area.x, area.y);
-		if(tilePosicionado == null) { // se encuentra fuera del mapa
+
+	if (!this.SOLO_CONTRA_JUGADOR) {
+
+	    for (final Criatura c : this.mundo.getCriaturasIntersectadasConEnte(this)) {
+		if (area.intersects(c.getRectangulo())) {
+		    if (c == this.CAUSANTE) {
+			continue;
+		    }
+		    this.impactar(c);
+		    if (!this.PENETRANTE) {
 			this.eliminar();
-			return;
+			System.out.println("eliminado por impacto!");
+			break;
+		    }
 		}
-		if(!this.PENETRANTE) {
-			if (this.mundo.getMapa().intersecta(area)) {
-				this.eliminar();
-			}
-		}
+	    }
 	}
-	
-	
-	@Override
-	protected void impactar(final Criatura c) {
-		if(this.perforados.containsKey(c)) {
-			return;
-		}
-		this.perforados.put(c,c);
-		c.recibirAtaque(this.DAMAGE, CAUSANTE);
+	if (this.eliminado) {
+	    return;
 	}
 
-	@Override
-	public void eliminar() {
-		this.eliminado = true;
+	final Tile tilePosicionado = this.mundo.getTerreno().getTileReferenciado(area.x, area.y);
+	if (tilePosicionado == null) { // se encuentra fuera del terreno
+	    System.out.println("eliminado por tile null!: ");
+	    this.eliminar();
+	    return;
 	}
-
-	@Override
-	public int getPosicionXInt() {
-		return (int)this.x;
+	if (!this.PENETRANTE) {
+	    if (this.mundo.getTerreno().intersectaSolidoDijkstra(area)) {
+		System.out.println("eliminado por impacto con tile solido! " + tilePosicionado.getArea());
+		this.eliminar();
+	    }
 	}
+    }
 
-	@Override
-	public int getPosicionYInt() {
-
-		return (int)this.y;
+    @Override
+    protected void impactar(final Criatura c) {
+	if (this.perforados.containsKey(c)) {
+	    return;
 	}
+	this.perforados.put(c, c);
+	c.recibirAtaque(this.DAMAGE, this.CAUSANTE);
+    }
 
-	@Override
-	public double getPosicionX() {
-		return this.x;
-	}
+    @Override
+    public void eliminar() {
+	this.eliminado = true;
+    }
 
-	@Override
-	public double getPosicionY() {
-		return this.y;
-	}
+    @Override
+    public int getPosicionXInt() {
+	return (int) this.x;
+    }
 
-	@Override
-	public void modificarPosicionX(double desplazamientoX) {
-		
-	}
+    @Override
+    public int getPosicionYInt() {
 
-	@Override
-	public void modificarPosicionY(double desplazamientoY) {
-		
-	}
+	return (int) this.y;
+    }
 
-	@Override
-	public boolean estaEliminado() {
-		return this.eliminado;
-	}
+    @Override
+    public double getPosicionX() {
+	return this.x;
+    }
 
-	@Override
-	public void pintarAnimacionImpacto(Graphics2D g) {
-		// TODO Auto-generated method stub
-		
-	}
-	
+    @Override
+    public double getPosicionY() {
+	return this.y;
+    }
 
+    @Override
+    public void modificarPosicionX(final double desplazamientoX) {
+
+    }
+
+    @Override
+    public void modificarPosicionY(final double desplazamientoY) {
+
+    }
+
+    @Override
+    public boolean estaEliminado() {
+	return this.eliminado;
+    }
+
+    @Override
+    public void pintarAnimacionImpacto(final Graphics2D g) {
+	// TODO Auto-generated method stub
+
+    }
 
 }

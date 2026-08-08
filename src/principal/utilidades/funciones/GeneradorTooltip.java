@@ -100,7 +100,7 @@ public class GeneradorTooltip {
 	 */
 	public void dibujarTooltip(final Graphics2D g, final String texto, final Color colorLetra,
 			final Color colorFondo) {
-		final SuperficieDibujo sd = SuperficieDibujo.obtenerSuperficieDibujo();
+		final SuperficieDibujo sd = SuperficieDibujo.obetenerSuperficieDibujo();
 		final Point posicionRaton = sd.RATON.getPuntoPosicionSinEscalar();
 		final Point posicionTooltip = this.generarTooltip(posicionRaton);
 		final String pistaPosicion = this.getPosicionTooltip(posicionTooltip);
@@ -148,7 +148,7 @@ public class GeneradorTooltip {
 		final Color colorInfo = Color.lightGray;
 		final Color colorFondo = Color.black;
 		
-		final SuperficieDibujo sd = SuperficieDibujo.obtenerSuperficieDibujo();
+		final SuperficieDibujo sd = SuperficieDibujo.obetenerSuperficieDibujo();
 		final Point posicionRaton = sd.RATON.getPuntoPosicionSinEscalar();
 		final Point posicionTooltip = this.generarTooltip(posicionRaton);
 		final String pistaPosicion = this.getPosicionTooltip(posicionTooltip);

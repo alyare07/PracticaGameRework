@@ -43,6 +43,9 @@ public abstract class Item extends Objeto {
 		return this.LISTA_INFO;
 	}
 	
+	public Rectangle getArea() {
+		return new Rectangle(getPosicionXInt(), getPosicionYInt(), getAncho(), getAlto());
+	}
 	
 	protected void rellenarInfo(final ArrayList<String> listaInfo) {
 	}

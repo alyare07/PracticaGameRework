@@ -39,7 +39,7 @@ public class CajaTecla extends Componente {
 	public CajaTecla(final Rectangle area, final Color colorFondo, final Color colorTexto, final Tecla tecla) {
 		this.AREA = area;
 		this.COLOR_TEXTO = colorTexto;
-		this.FONDO = Textura.crearTextura(colorFondo, area.width, area.height);
+		this.FONDO = Constantes.FUNCIONES.TEXTURAS_TOOLS.crearTextura(colorFondo, area.width, area.height);
 		this.texto = "";
 		this.tecla = tecla;
 		this.establecerTecla(tecla.getCodigoTecla());
@@ -48,7 +48,7 @@ public class CajaTecla extends Componente {
 	public CajaTecla(final Rectangle area, final Color colorFondo, final Color colorBordes, final Color colorTexto, final Tecla tecla) {
 		this.AREA = area;
 		this.COLOR_TEXTO = colorTexto;
-		this.FONDO = Textura.crearTextura(colorFondo, area.width, area.height);
+		this.FONDO = Constantes.FUNCIONES.TEXTURAS_TOOLS.crearTextura(colorFondo, area.width, area.height);
 		final Graphics2D g = (Graphics2D) this.FONDO.getGraphics();
 		g.setColor(colorBordes);
 		g.drawRect(0, 0, area.width - 1, area.height - 1);

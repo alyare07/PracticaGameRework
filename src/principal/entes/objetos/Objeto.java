@@ -15,17 +15,14 @@ public abstract class Objeto extends Ente implements Serializable {
 	private static final long serialVersionUID = -465657672324L;
 	protected int x;
 	protected int y;
-	private final Rectangle AREA;
 
 	public Objeto(final int x, final int y) {
 		this.x = x;
 		this.y = y;
-		this.AREA = new Rectangle();
 	}
 
 	public Rectangle getArea() {
-		 this.AREA.setBounds(x, y, getAncho(), getAlto());
-		 return this.AREA;
+		return new Rectangle(x, y, getAncho(), getAlto());
 	}
 
 	public boolean intersecta(final Shape s) {

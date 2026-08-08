@@ -1,4 +1,4 @@
-package principal.utilidades.listahojasprites;
+package principal.animaciones.listaHojasSprite;
 
 import java.awt.image.BufferedImage;
 

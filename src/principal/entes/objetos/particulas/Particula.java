@@ -1,5 +1,6 @@
 package principal.entes.objetos.particulas;
 
+import java.awt.Rectangle;
 
 import principal.entes.objetos.Objeto;
 import principal.utilidades.GestorTiempo;
@@ -24,6 +25,9 @@ public abstract class Particula extends Objeto {
 		}
 	}
 	
+	public Rectangle getArea() {
+		return new Rectangle(getPosicionXInt(), getPosicionYInt(), getAncho(), getAlto());
+	}
 	
 
 }

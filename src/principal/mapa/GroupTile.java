@@ -16,6 +16,7 @@ import principal.entes.modelos.tile.ListaModeloTile;
 import principal.entes.modelos.tile.ModeloTile;
 import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Textura;
 
 public final class GroupTile extends Tile {
 	protected final HashMap<Point, Tile> TILES = new HashMap<Point, Tile>();
@@ -128,7 +129,7 @@ public final class GroupTile extends Tile {
 			tile.pintar(g);
 		}
 		if (Constantes.TECLADO.TECLA_DEBUG_GROUP_TILE.presionado() && Constantes.GLOBALES.estadoJuego) {
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.X, this.Y, LADO, LADO, Color.blue);
+			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoGroupTile), this.X, this.Y);
 		}
 	}
 
@@ -139,7 +140,7 @@ public final class GroupTile extends Tile {
 			tile.pintarEditor(g);
 		}
 		if(Constantes.GLOBALES.editorSelectGroupTile) {
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.X, this.Y, LADO, LADO, Color.blue);
+			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoGroupTile), this.X, this.Y);
 		}
 	}
 

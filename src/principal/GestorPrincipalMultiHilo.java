@@ -27,7 +27,7 @@ public class GestorPrincipalMultiHilo {
 
 	private void inicializar() {
 		this.GE = new GestorEstados();
-		this.SD = SuperficieDibujo.obtenerSuperficieDibujo();
+		this.SD = SuperficieDibujo.obetenerSuperficieDibujo();
 		this.VENTANA = new Ventana("Juego", SD);
 	}
 

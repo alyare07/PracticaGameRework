@@ -15,7 +15,7 @@ import principal.utilidades.Textura;
 public abstract class Menu implements EstadoJuego {
 	protected final GestorEstados GE;
 	protected final Dimension DIMENSION = new Dimension(Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
-	protected final BufferedImage FONDO = Textura.crearTextura(new Color(20, 20, 19), DIMENSION.width, DIMENSION.height);
+	protected final BufferedImage FONDO = Constantes.FUNCIONES.TEXTURAS_TOOLS.crearTextura(new Color(20, 20, 19), DIMENSION.width, DIMENSION.height);
 	protected final ArrayList<Componente> COMPONENTES = new ArrayList<Componente>();
 
 	public Menu(final GestorEstados ge) {

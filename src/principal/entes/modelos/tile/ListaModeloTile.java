@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 import java.util.HashMap;
 
 import principal.animaciones.Animacion;
+import principal.utilidades.Constantes;
 import principal.utilidades.HojaSprite;
 import principal.utilidades.Textura;
 
@@ -48,9 +49,9 @@ public final class ListaModeloTile {
 			HojaSprite HOJA_TERRENO = new HojaSprite("/imagenes/texturas/textura.png", 32, true);
 			BufferedImage img = new BufferedImage(Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth()*3, Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), BufferedImage.TYPE_INT_ARGB);
 			Graphics2D g = (Graphics2D)img.getGraphics();
-			g.drawImage(Textura.redimensionar(HOJA_TERRENO.getSprite(9),Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth()), 0, 0, null);
-			g.drawImage(Textura.redimensionar(HOJA_TERRENO.getSprite(10),Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth()), Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), 0, null);
-			g.drawImage(Textura.redimensionar(HOJA_TERRENO.getSprite(11),Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth()), Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth()*2, 0, null);
+			g.drawImage(Constantes.FUNCIONES.TEXTURAS_TOOLS.redimensionar(HOJA_TERRENO.getSprite(9),Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth()), 0, 0, null);
+			g.drawImage(Constantes.FUNCIONES.TEXTURAS_TOOLS.redimensionar(HOJA_TERRENO.getSprite(10),Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth()), Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), 0, null);
+			g.drawImage(Constantes.FUNCIONES.TEXTURAS_TOOLS.redimensionar(HOJA_TERRENO.getSprite(11),Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth()), Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth()*2, 0, null);
 			g.dispose();
 			Animacion animacionAgua = new Animacion(new HojaSprite(img, Textura.getTextura(Textura.TEXTURA_x32_AGUA_1).getWidth(), true), true, 750);
 			ModeloTile agua = new ModeloTile(ModeloTile.ESTADO_OBSTACULO, animacionAgua, -0.5, Textura.TEXTURA_x32_AGUA_1);

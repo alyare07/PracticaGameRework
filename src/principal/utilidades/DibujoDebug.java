@@ -8,23 +8,48 @@ import java.awt.Image;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Shape;
-import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 
-public class DibujoDebug {
+/**
+ * Clase de utilidad para operaciones de dibujo y depuración gráfica.
+ * <p>
+ * <b>Optimizaciones de Rendimiento:</b>
+ * <ul>
+ * <li>Sustituye {@link java.awt.geom.Ellipse2D} por {@link Graphics2D#drawOval}
+ * para eliminar asignaciones en el Heap.</li>
+ * <li>Aplica operaciones primitivas directas manteniendo contadores de métricas
+ * de renderizado.</li>
+ * </ul>
+ * </p>
+ */
+public final class DibujoDebug {
 
 	private static int objetosDibujados = 0;
-	
+
+	private DibujoDebug() {
+		// Clase de utilidad no instanciable
+	}
+
+	// =========================================================================
+	// DIBUJO DIRECTO (PANTALLA / ABSOLUTO)
+	// =========================================================================
+
 	public static void dibujarFigura(final Graphics2D g2D, final Shape figura, final Color color) {
 		objetosDibujados++;
 		g2D.setColor(color);
 		g2D.draw(figura);
 	}
-	
+
 	public static void dibujarFiguraEllipse(final Graphics2D g, final Rectangle area, final Color color) {
+		dibujarFiguraEllipse(g, area.x, area.y, area.width, area.height, color);
+	}
+
+	public static void dibujarFiguraEllipse(final Graphics2D g, final int x, final int y, final int ancho,
+			final int alto, final Color color) {
 		objetosDibujados++;
 		g.setColor(color);
-		g.draw(new Ellipse2D.Double(area.x, area.y, area.width, area.height));
+		// Usar drawOval previene crear objetos Ellipse2D.Double en el Heap
+		g.drawOval(x, y, ancho, alto);
 	}
 
 	public static void dibujarImagen(final Graphics2D g, final Image img, final int x, final int y) {
@@ -37,40 +62,36 @@ public class DibujoDebug {
 		g.drawImage(img, x, y, null);
 	}
 
-	public static void dibujarImagenConTransparencia(final Graphics2D g, final BufferedImage img, final int x, final int y,
-			final float alpha) {
-		objetosDibujados++;
-		Composite com = g.getComposite();
-		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,alpha));
-		g.drawImage(img,x,y, null);
-		g.setComposite(com);
-	}
-
 	public static void dibujarImagen(final Graphics2D g, final BufferedImage img, final Point p) {
-		objetosDibujados++;
-		g.drawImage(img, p.x, p.y, null);
+		dibujarImagen(g, img, p.x, p.y);
 	}
 
-	public static void dibujarString(final Graphics2D g, String s, final int x, final int y) {
+	public static void dibujarImagenConTransparencia(final Graphics2D g, final BufferedImage img, final int x,
+			final int y, final float alpha) {
+		objetosDibujados++;
+		final Composite comOriginal = g.getComposite();
+		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+		g.drawImage(img, x, y, null);
+		g.setComposite(comOriginal);
+	}
+
+	public static void dibujarString(final Graphics2D g, final String s, final int x, final int y) {
 		objetosDibujados++;
 		g.drawString(s, x, y);
 	}
 
-	public static void dibujarString(final Graphics2D g, String s, final Point p) {
-		objetosDibujados++;
-		g.drawString(s, p.x, p.y);
+	public static void dibujarString(final Graphics2D g, final String s, final Point p) {
+		dibujarString(g, s, p.x, p.y);
 	}
 
-	public static void dibujarString(final Graphics2D g, String s, final int x, final int y, final Color c) {
+	public static void dibujarString(final Graphics2D g, final String s, final int x, final int y, final Color c) {
 		objetosDibujados++;
 		g.setColor(c);
 		g.drawString(s, x, y);
 	}
 
-	public static void dibujarString(final Graphics2D g, String s, final Point p, final Color c) {
-		objetosDibujados++;
-		g.setColor(c);
-		g.drawString(s, p.x, p.y);
+	public static void dibujarString(final Graphics2D g, final String s, final Point p, final Color c) {
+		dibujarString(g, s, p.x, p.y, c);
 	}
 
 	public static void dibujarRectanguloRelleno(final Graphics2D g, final int x, final int y, final int ancho,
@@ -80,8 +101,7 @@ public class DibujoDebug {
 	}
 
 	public static void dibujarRectanguloRelleno(final Graphics2D g, final Rectangle r) {
-		objetosDibujados++;
-		g.fillRect(r.x, r.y, r.width, r.height);
+		dibujarRectanguloRelleno(g, r.x, r.y, r.width, r.height);
 	}
 
 	public static void dibujarRectanguloRelleno(final Graphics2D g, final int x, final int y, final int ancho,
@@ -92,9 +112,7 @@ public class DibujoDebug {
 	}
 
 	public static void dibujarRectanguloRelleno(final Graphics2D g, final Rectangle r, final Color c) {
-		objetosDibujados++;
-		g.setColor(c);
-		g.fillRect(r.x, r.y, r.width, r.height);
+		dibujarRectanguloRelleno(g, r.x, r.y, r.width, r.height, c);
 	}
 
 	public static void dibujarRectanguloContorno(final Graphics2D g, final int x, final int y, final int ancho,
@@ -104,8 +122,7 @@ public class DibujoDebug {
 	}
 
 	public static void dibujarRectanguloContorno(final Graphics2D g, final Rectangle r) {
-		objetosDibujados++;
-		g.drawRect(r.x, r.y, r.width, r.height);
+		dibujarRectanguloContorno(g, r.x, r.y, r.width, r.height);
 	}
 
 	public static void dibujarRectanguloContorno(final Graphics2D g, final int x, final int y, final int ancho,
@@ -116,9 +133,7 @@ public class DibujoDebug {
 	}
 
 	public static void dibujarRectanguloContorno(final Graphics2D g, final Rectangle r, final Color c) {
-		objetosDibujados++;
-		g.setColor(c);
-		g.drawRect(r.x, r.y, r.width, r.height);
+		dibujarRectanguloContorno(g, r.x, r.y, r.width, r.height, c);
 	}
 
 	public static void dibujarLinea(final Graphics2D g, final int x1, final int y1, final int x2, final int y2,
@@ -134,30 +149,28 @@ public class DibujoDebug {
 	}
 
 	public static void dibujarLinea(final Graphics2D g, final Point p1, final Point p2, final Color c) {
-		objetosDibujados++;
-		g.setColor(c);
-		g.drawLine(p1.x, p1.y, p2.x, p2.y);
+		dibujarLinea(g, p1.x, p1.y, p2.x, p2.y, c);
 	}
 
 	public static void dibujarLinea(final Graphics2D g, final Point p1, final Point p2) {
-		objetosDibujados++;
-		g.drawLine(p1.x, p1.y, p2.x, p2.y);
+		dibujarLinea(g, p1.x, p1.y, p2.x, p2.y);
 	}
-	
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	
+
+	// =========================================================================
+	// DIBUJO CON REFERENCIA A CÁMARA (MUNDO / RELATIVO)
+	// =========================================================================
+
 	public static void dibujarFiguraEllipseRefCamara(final Graphics2D g, final Rectangle area, final Color color) {
+		dibujarFiguraEllipseRefCamara(g, area.x, area.y, area.width, area.height, color);
+	}
+
+	public static void dibujarFiguraEllipseRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
+			final int alto, final Color color) {
 		objetosDibujados++;
 		g.setColor(color);
-		g.draw(new Ellipse2D.Double(Constantes.getXDesplazamientoCamara(area.x), Constantes.getYDesplazamientoCamara(area.y), area.width, area.height));
+		g.drawOval(Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), ancho, alto);
 	}
-	
-	public static void dibujarFiguraEllipseRefCamara(final Graphics2D g, final int x, final int y, final int ancho, final int alto, final Color color) {
-		objetosDibujados++;
-		g.setColor(color);
-		g.draw(new Ellipse2D.Double(Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), ancho, alto));
-	}
-	
+
 	public static void dibujarImagenRefCamara(final Graphics2D g, final Image img, final int x, final int y) {
 		objetosDibujados++;
 		g.drawImage(img, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), null);
@@ -168,40 +181,37 @@ public class DibujoDebug {
 		g.drawImage(img, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), null);
 	}
 
-	public static void dibujarImagenConTransparenciaRefCamara(final Graphics2D g, final BufferedImage img, final int x, final int y,
-			final float alpha) {
-		objetosDibujados++;
-		Composite com = g.getComposite();
-		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,alpha));
-		g.drawImage(img, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), null);
-		g.setComposite(com);
-	}
-
 	public static void dibujarImagenRefCamara(final Graphics2D g, final BufferedImage img, final Point p) {
-		objetosDibujados++;
-		g.drawImage(img, Constantes.getXDesplazamientoCamara(p.x), Constantes.getYDesplazamientoCamara(p.y), null);
+		dibujarImagenRefCamara(g, img, p.x, p.y);
 	}
 
-	public static void dibujarStringRefCamara(final Graphics2D g, String s, final int x, final int y) {
+	public static void dibujarImagenConTransparenciaRefCamara(final Graphics2D g, final BufferedImage img, final int x,
+			final int y, final float alpha) {
 		objetosDibujados++;
-		g.drawString(s,Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y));
+		final Composite comOriginal = g.getComposite();
+		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+		g.drawImage(img, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), null);
+		g.setComposite(comOriginal);
 	}
 
-	public static void dibujarStringRefCamara(final Graphics2D g, String s, final Point p) {
+	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final int x, final int y) {
 		objetosDibujados++;
-		g.drawString(s, Constantes.getXDesplazamientoCamara(p.x), Constantes.getYDesplazamientoCamara(p.y));
+		g.drawString(s, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y));
 	}
 
-	public static void dibujarStringRefCamara(final Graphics2D g, String s, final int x, final int y, final Color c) {
+	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final Point p) {
+		dibujarStringRefCamara(g, s, p.x, p.y);
+	}
+
+	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final int x, final int y,
+			final Color c) {
 		objetosDibujados++;
 		g.setColor(c);
-		g.drawString(s,Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y));
+		g.drawString(s, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y));
 	}
 
-	public static void dibujarStringRefCamara(final Graphics2D g, String s, final Point p, final Color c) {
-		objetosDibujados++;
-		g.setColor(c);
-		g.drawString(s, Constantes.getXDesplazamientoCamara(p.x), Constantes.getYDesplazamientoCamara(p.y));
+	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final Point p, final Color c) {
+		dibujarStringRefCamara(g, s, p.x, p.y, c);
 	}
 
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
@@ -211,8 +221,7 @@ public class DibujoDebug {
 	}
 
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final Rectangle r) {
-		objetosDibujados++;
-		g.fillRect(Constantes.getXDesplazamientoCamara(r.x), Constantes.getYDesplazamientoCamara(r.y), r.width, r.height);
+		dibujarRectanguloRellenoRefCamara(g, r.x, r.y, r.width, r.height);
 	}
 
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
@@ -223,9 +232,7 @@ public class DibujoDebug {
 	}
 
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final Rectangle r, final Color c) {
-		objetosDibujados++;
-		g.setColor(c);
-		g.fillRect(Constantes.getXDesplazamientoCamara(r.x), Constantes.getYDesplazamientoCamara(r.y), r.width, r.height);
+		dibujarRectanguloRellenoRefCamara(g, r.x, r.y, r.width, r.height, c);
 	}
 
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
@@ -235,8 +242,7 @@ public class DibujoDebug {
 	}
 
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final Rectangle r) {
-		objetosDibujados++;
-		g.drawRect(Constantes.getXDesplazamientoCamara(r.x), Constantes.getYDesplazamientoCamara(r.y), r.width, r.height);
+		dibujarRectanguloContornoRefCamara(g, r.x, r.y, r.width, r.height);
 	}
 
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
@@ -247,38 +253,35 @@ public class DibujoDebug {
 	}
 
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final Rectangle r, final Color c) {
-		objetosDibujados++;
-		g.setColor(c);
-		g.drawRect(Constantes.getXDesplazamientoCamara(r.x), Constantes.getYDesplazamientoCamara(r.y), r.width, r.height);
+		dibujarRectanguloContornoRefCamara(g, r.x, r.y, r.width, r.height, c);
 	}
 
 	public static void dibujarLineaRefCamara(final Graphics2D g, final int x1, final int y1, final int x2, final int y2,
 			final Color c) {
 		objetosDibujados++;
 		g.setColor(c);
-		g.drawLine(Constantes.getXDesplazamientoCamara(x1), Constantes.getYDesplazamientoCamara(y1), Constantes.getXDesplazamientoCamara(x2), Constantes.getYDesplazamientoCamara(y2));
+		g.drawLine(Constantes.getXDesplazamientoCamara(x1), Constantes.getYDesplazamientoCamara(y1),
+				Constantes.getXDesplazamientoCamara(x2), Constantes.getYDesplazamientoCamara(y2));
 	}
 
-	public static void dibujarLineaRefCamara(final Graphics2D g, final int x1, final int y1, final int x2, final int y2) {
+	public static void dibujarLineaRefCamara(final Graphics2D g, final int x1, final int y1, final int x2,
+			final int y2) {
 		objetosDibujados++;
-		g.drawLine(Constantes.getXDesplazamientoCamara(x1), Constantes.getYDesplazamientoCamara(y1), Constantes.getXDesplazamientoCamara(x2), Constantes.getYDesplazamientoCamara(y2));
+		g.drawLine(Constantes.getXDesplazamientoCamara(x1), Constantes.getYDesplazamientoCamara(y1),
+				Constantes.getXDesplazamientoCamara(x2), Constantes.getYDesplazamientoCamara(y2));
 	}
 
 	public static void dibujarLineaRefCamara(final Graphics2D g, final Point p1, final Point p2, final Color c) {
-		objetosDibujados++;
-		g.setColor(c);
-		g.drawLine(Constantes.getXDesplazamientoCamara(p1.x), Constantes.getYDesplazamientoCamara(p1.y), Constantes.getXDesplazamientoCamara(p2.x), Constantes.getYDesplazamientoCamara(p2.y));
+		dibujarLineaRefCamara(g, p1.x, p1.y, p2.x, p2.y, c);
 	}
 
 	public static void dibujarLineaRefCamara(final Graphics2D g, final Point p1, final Point p2) {
-		objetosDibujados++;
-		g.drawLine(Constantes.getXDesplazamientoCamara(p1.x), Constantes.getYDesplazamientoCamara(p1.y), Constantes.getXDesplazamientoCamara(p2.x), Constantes.getYDesplazamientoCamara(p2.y));
+		dibujarLineaRefCamara(g, p1.x, p1.y, p2.x, p2.y);
 	}
-	
-	
-	
-	
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	// =========================================================================
+	// MÉTRICAS
+	// =========================================================================
 
 	public static int getContadorObjetos() {
 		return objetosDibujados;
@@ -287,10 +290,4 @@ public class DibujoDebug {
 	public static void reiniciarContadorObjetos() {
 		objetosDibujados = 0;
 	}
-	// wrapper - envoltorio
-
-	// metodo abreviado que junte otros metodos
-
-	// devolver objeto complejo construido
-
 }

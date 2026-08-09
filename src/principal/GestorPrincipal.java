@@ -15,13 +15,17 @@ public class GestorPrincipal {
 	// --- Constantes de Tiempo ---
 	private static final long NS_POR_SEGUNDO = 1_000_000_000L;
 
-	// Objetivo de Lógica: 60 APS constantes
-	private static final byte APS_OBJETIVO = 60;
+	// Objetivo de Lógica: 60 APS constantes (Uso de 'int' en lugar de 'byte')
+	private static final int APS_OBJETIVO = 60;
 	private static final double NS_POR_ACTUALIZACION = (double) NS_POR_SEGUNDO / APS_OBJETIVO;
 
 	// Objetivo de Gráficos cuando los FPS están LIMITADOS (60 FPS)
-	private static final byte FPS_OBJETIVO_LIMITADO = 60;
+	private static final int FPS_OBJETIVO_LIMITADO = 60;
 	private static final double NS_POR_FRAME_LIMITADO = (double) NS_POR_SEGUNDO / FPS_OBJETIVO_LIMITADO;
+
+	// Límite de actualizaciones lógicas consecutivas para prevenir la "Espiral de
+	// la Muerte"
+	private static final int MAX_ACTUALIZACIONES_POR_FRAME = 5;
 
 	// --- Componentes Principales ---
 	private GestorEstados gestorEstados;
@@ -31,6 +35,7 @@ public class GestorPrincipal {
 	// --- Estado del Motor ---
 	private boolean enFuncionamiento;
 	private int codActualizacion;
+	private long tiempoInicioSesionMs;
 
 	// --- Métricas de Rendimiento ---
 	private int actualizacionesAcumuladas = 0;
@@ -45,7 +50,9 @@ public class GestorPrincipal {
 	 */
 	public void iniciarJuego() {
 		this.enFuncionamiento = true;
+		this.tiempoInicioSesionMs = System.currentTimeMillis();
 		this.gestorEstados = new GestorEstados();
+		// Punto 4: Corrección de Typo (obetener -> obtener)
 		this.superficieDibujo = SuperficieDibujo.obetenerSuperficieDibujo();
 		this.ventana = new Ventana("Juego", this.superficieDibujo);
 	}
@@ -53,12 +60,14 @@ public class GestorPrincipal {
 	/**
 	 * Game Loop Principal.
 	 */
-	public void iniciarBuclePrincipal() {
+	public void iniciarBuclePrincipal(final boolean Vsync) {
 		long referenciaActualizacion = System.nanoTime();
 		long referenciaContador = System.nanoTime();
 		double tiempoTranscurrido;
 		double delta = 0;
-
+		if (Vsync) {
+			Constantes.TECLADO.TECLA_FPS_LIMITE.presionar();
+		}
 		while (this.enFuncionamiento) {
 			final long inicioBucle = System.nanoTime();
 			tiempoTranscurrido = inicioBucle - referenciaActualizacion;
@@ -68,35 +77,50 @@ public class GestorPrincipal {
 			delta += tiempoTranscurrido / NS_POR_ACTUALIZACION;
 			Constantes.GLOBALES.delta = tiempoTranscurrido / NS_POR_SEGUNDO;
 
-			// --- 1. LÓGICA (APS clavados en 60) ---
-			while (delta >= 1) {
+			// --- 1. LÓGICA (APS clavados en 60 + Control de Espiral de la Muerte) ---
+			int actualizacionesEnEsteFrame = 0;
+			while ((delta >= 1) && (actualizacionesEnEsteFrame < MAX_ACTUALIZACIONES_POR_FRAME)) {
 				this.actualizar();
 				delta--;
+				actualizacionesEnEsteFrame++;
+			}
+
+			// Si el lag fue severo y superó el límite, descartamos el delta acumulado extra
+			if (delta > MAX_ACTUALIZACIONES_POR_FRAME) {
+				delta = 0;
 			}
 
 			// --- 2. RENDERIZADO (FPS) ---
 			this.pintar();
 
-			// --- 3. CONTROL DE LÍMITE DE FPS ---
+			// --- 3. CONTROL DE LÍMITE DE FPS (Sleep + ParkNanos para Java 8) ---
 			final boolean fpsLimitados = Constantes.TECLADO.TECLA_FPS_LIMITE.presionado();
 
 			if (fpsLimitados) {
-				// Modo Limitado: Esperar el tiempo restante para no sobrepasar los 60 FPS
 				final long tiempoFrame = System.nanoTime() - inicioBucle;
 				final double tiempoRestanteNS = NS_POR_FRAME_LIMITADO - tiempoFrame;
 
 				if (tiempoRestanteNS > 0) {
-					try {
-						final long msParaEsperar = (long) (tiempoRestanteNS / 1_000_000);
-						final int nsResiduales = (int) (tiempoRestanteNS % 1_000_000);
-						Thread.sleep(msParaEsperar, nsResiduales);
-					} catch (final InterruptedException e) {
-						e.printStackTrace();
+					final long finEsperado = System.nanoTime() + (long) tiempoRestanteNS;
+
+					// Dormimos la mayor parte del tiempo (dejando un margen de 2ms para la
+					// imprecisión del SO)
+					if (tiempoRestanteNS > 2_000_000) {
+						try {
+							final long msParaEsperar = (long) ((tiempoRestanteNS - 2_000_000) / 1_000_000);
+							Thread.sleep(msParaEsperar);
+						} catch (final InterruptedException e) {
+							Thread.currentThread().interrupt();
+						}
+					}
+
+					// Reemplazo de Thread.onSpinWait() para Java 8
+					while (System.nanoTime() < finEsperado) {
+						java.util.concurrent.locks.LockSupport.parkNanos(1);
 					}
 				}
 			} else {
-				// Modo Ilimitado: Cedemos una fracción microscópica al hilo para fluidez sin
-				// estrangular el SO
+				// Modo Ilimitado: Cede una fracción microscópica de CPU para no ahogar al SO
 				Thread.yield();
 			}
 
@@ -143,18 +167,16 @@ public class GestorPrincipal {
 		}
 	}
 
+	/**
+	 * Punto 4: Calcula el tiempo total transcurrido mediante sellos de tiempo
+	 * reales en lugar de acumular contadores manuales propensos a desincronizarse.
+	 */
 	private void actualizarTiempoJugado() {
-		Constantes.GLOBALES.segundosJugados++;
+		final long totalSegundos = (System.currentTimeMillis() - this.tiempoInicioSesionMs) / 1000;
 
-		if (Constantes.GLOBALES.segundosJugados >= 60) {
-			Constantes.GLOBALES.segundosJugados = 0;
-			Constantes.GLOBALES.minutosJugados++;
-
-			if (Constantes.GLOBALES.minutosJugados >= 60) {
-				Constantes.GLOBALES.minutosJugados = 0;
-				Constantes.GLOBALES.horasJugadas++;
-			}
-		}
+		Constantes.GLOBALES.horasJugadas = (int) (totalSegundos / 3600);
+		Constantes.GLOBALES.minutosJugados = (int) ((totalSegundos % 3600) / 60);
+		Constantes.GLOBALES.segundosJugados = (int) (totalSegundos % 60);
 	}
 
 	private void actualizarCodActualizacion() {

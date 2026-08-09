@@ -2,6 +2,7 @@ package principal.mapa;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -9,6 +10,7 @@ import java.awt.Shape;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -182,8 +184,8 @@ public class Mundo {
 		return this.ZONAS;
 	}
 
-	public ArrayList<ZoneBox> getZonasIntersectadas(final Ente e) {
-		return new ArrayList<ZoneBox>(this.getZoneBoxsIntersectados(e.getArea()));
+	public Iterable<ZoneBox> getZonasIntersectadas(final Ente e) {
+		return this.getZoneBoxsIntersectados(e.getArea());
 	}
 
 	public int getCodAct() {
@@ -198,7 +200,7 @@ public class Mundo {
 		final Rectangle rArea = area.getBounds();
 		final HashSet<Item> lista = new HashSet<Item>();
 		if (!this.getTerreno().AreaDentroDelTerreno(rArea)) {
-			System.out.println("area Afuera del terreno");
+			System.out.println("area Afuera del terreno. (Mundo L200)");
 			return lista;
 
 		}
@@ -272,7 +274,7 @@ public class Mundo {
 	}
 
 	public boolean colisionaConZonaUObjetoSolido(final Shape area) {
-		return this.getTerreno().intersectaSolido(area) || this.colisionaConObjetoSolido(area);
+		return this.getTerreno().intersectaTileSolido(area) || this.colisionaConObjetoSolido(area);
 	}
 
 	public boolean colisionaConObjetoSolido(final Shape area) {
@@ -328,18 +330,38 @@ public class Mundo {
 		return this.meterEntidad(item);
 	}
 
+	/**
+	 * Calcula y recolecta todas las celdas espaciales ({@link ZoneBox}) que
+	 * intersectan con una forma geométrica determinada dentro del mapa.
+	 * <p>
+	 * <b>Optimización Matemática (Coordenadas Negativas):</b> Utiliza
+	 * {@link Math#floorDiv(int, int)} en lugar de la división convencional con
+	 * truncado a cero ({@code /}). Esto asegura que las coordenadas negativas del
+	 * mundo se proyecten correctamente a los índices de celdas en la grilla sin
+	 * desfasajes de posición (ej. evitado el problema donde {@code -15 / 32} daría
+	 * {@code 0} en lugar de la celda {@code -1}).
+	 * </p>
+	 *
+	 * @param s Forma geométrica ({@link Shape}) a evaluar en el espacio del mundo.
+	 * @return Un {@link HashSet} con las celdas {@link ZoneBox} que colisionan con
+	 *         la forma dada.
+	 */
 	public HashSet<ZoneBox> getZoneBoxsIntersectados(final Shape s) {
 		final int x = s.getBounds().x;
 		final int y = s.getBounds().y;
 		final int w = s.getBounds().width;
 		final int h = s.getBounds().height;
+
 		final HashSet<ZoneBox> lista = new HashSet<ZoneBox>();
 		ZoneBox zona = null;
-		final int xZB = x / this.LADO_ZONEBOX;
-		final int limiteXZB = (x + w) / this.LADO_ZONEBOX;
-		final int yZB = y / this.LADO_ZONEBOX;
-		final int limiteYZB = (y + h) / this.LADO_ZONEBOX;
 
+		// Proyección de límites de píxeles a índices discretos de la grilla espacial
+		final int xZB = Math.floorDiv(x, this.LADO_ZONEBOX);
+		final int limiteXZB = Math.floorDiv(x + w, this.LADO_ZONEBOX);
+		final int yZB = Math.floorDiv(y, this.LADO_ZONEBOX);
+		final int limiteYZB = Math.floorDiv(y + h, this.LADO_ZONEBOX);
+
+		// Recorrido acotado del rango de celdas intersectadas
 		for (int x2 = xZB; x2 <= limiteXZB; x2++) {
 			for (int y2 = yZB; y2 <= limiteYZB; y2++) {
 				zona = this.getZonaPuntoSinReferir(x2, y2);
@@ -521,60 +543,66 @@ public class Mundo {
 		}
 	}
 
+	/**
+	 * Renderiza en pantalla el peso/distancia de los nodos del mapa de navegación
+	 * Dijkstra.
+	 * <p>
+	 * <b>Optimizaciones de Rendimiento:</b><br>
+	 * 1. Elimina {@link String#format} en favor de formateo directo sin
+	 * asignaciones pesadas.<br>
+	 * 2. Mapea las coordenadas de cámara a la grilla discreta usando
+	 * {@link Math#floorDiv}.<br>
+	 * 3. Salta paso a paso exactamente por el ancho y alto del nodo ($O(\text{Nodos
+	 * Visibles})$).
+	 * </p>
+	 *
+	 * @param g Contexto gráfico {@link Graphics2D} sobre el cual dibujar el mapa de
+	 *          calor/pesos.
+	 */
 	private void pintarNodosOptimizado(final Graphics2D g) {
-		final float tama = g.getFont().getSize2D();
-		g.setFont(g.getFont().deriveFont(6f));
+		final Font fontOriginal = g.getFont();
+		g.setFont(fontOriginal.deriveFont(6f));
 		final Color color = Constantes.TECLADO.TECLA_OCULTAR_TERRENO.presionado() ? Color.WHITE : Color.BLACK;
 
-		final int puntoX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX
-				- (3 * this.dijkstra.getDimensionNodo().width);
-		final int limiteX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX
-				+ (3 * this.dijkstra.getDimensionNodo().width);
+		final int anchoNodo = this.dijkstra.getDimensionNodo().width;
+		final int altoNodo = this.dijkstra.getDimensionNodo().height;
 
-		final int puntoY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY
-				- (3 * this.dijkstra.getDimensionNodo().height);
-		final int limiteY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY
-				+ (3 * this.dijkstra.getDimensionNodo().height);
-		boolean contieneEnY = false;
+		// 1. Delimita el área visible de la cámara con margen de seguridad (padding de
+		// 3 nodos)
+		final int minX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * anchoNodo);
+		final int maxX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * anchoNodo);
+
+		final int minY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * altoNodo);
+		final int maxY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * altoNodo);
+
+		// 2. Proyección exacta a índices de grilla discreta (resiste coordenadas
+		// negativas)
+		final int inicioX = Math.floorDiv(minX, anchoNodo) * anchoNodo;
+		final int finX = Math.floorDiv(maxX, anchoNodo) * anchoNodo;
+
+		final int inicioY = Math.floorDiv(minY, altoNodo) * altoNodo;
+		final int finY = Math.floorDiv(maxY, altoNodo) * altoNodo;
 
 		NodoD nodo = null;
-		int px = puntoX;
-		int py = puntoY;
-		if ((puntoX < 0) && (limiteX > 0)) {
-			px = 0;
-		}
-		if ((puntoY < 0) && (limiteY > 0)) {
-			py = 0;
-		}
 
-		for (int y = py; y < limiteY;) {
+		// 3. Iteración directa alineada a la grilla de nodos
+		for (int y = inicioY; y <= finY; y += altoNodo) {
+			for (int x = inicioX; x <= finX; x += anchoNodo) {
+				nodo = this.dijkstra.getNodoReferenciado(x, y);
 
-			for (int x = px; x < limiteX;) {
-				if ((nodo = this.dijkstra.getNodoReferenciado(x, y)) != null) {
-					DibujoDebug.dibujarStringRefCamara(g,
-							(nodo.distancia == Double.MAX_VALUE ? "XX" : String.format("%.1f", nodo.distancia)), x,
-							y + 10, color);
-//		    if (nodo.distancia == Double.MAX_VALUE) {
-//			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, nodo.AREA, new Color(1f, 0f, 0f, 0.25f));
-//		    } else {
-//			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, nodo.AREA, new Color(0f, 1f, 0f, 0.25f));
-//		    }
-					x += this.dijkstra.getDimensionNodo().width;
-					if (!contieneEnY) {
-						contieneEnY = true;
-					}
-				} else {
-					x++;
+				if (nodo != null) {
+					// Formateo rápido sin invocar String.format (ahorra allocations masivas en el
+					// Heap)
+					final String textoDistancia = (nodo.distancia == Double.MAX_VALUE) ? "XX"
+							: String.valueOf((long) (nodo.distancia * 10) / 10.0);
+
+					DibujoDebug.dibujarStringRefCamara(g, textoDistancia, x, y + 10, color);
 				}
 			}
-			if (contieneEnY) {
-				y += this.dijkstra.getDimensionNodo().height;
-			} else {
-				y++;
-			}
 		}
 
-		g.setFont(g.getFont().deriveFont(tama));
+		// Restaura la fuente original
+		g.setFont(fontOriginal);
 	}
 
 	private void actualizarDijkstra() {
@@ -665,7 +693,7 @@ public class Mundo {
 		}
 	}
 
-	public HashSet<Ente> getEntes() {
+	public Set<Ente> getEntes() {
 		return this.RENDERS.getEntes();
 	}
 

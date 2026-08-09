@@ -167,126 +167,156 @@ public class Terreno implements Serializable {
 
 	}
 
+	/**
+	 * Renderiza en pantalla únicamente los grupos de tiles ({@link GroupTile})
+	 * dentro de la franja visible.
+	 * <p>
+	 * <b>Optimización de Frustum Culling:</b> Proyecta los límites de la cámara con
+	 * un margen de seguridad (padding) de 3 tiles alrededor de la pantalla para
+	 * evitar pop-in visual. Alinea los índices directamente a las coordenadas
+	 * discretas de la grilla de {@code GroupTile} para garantizar saltos de paso
+	 * exactos ($O(N)$ en celdas visibles) sin iterar píxel por píxel.
+	 * </p>
+	 *
+	 * @param g Contexto gráfico {@link Graphics2D} sobre el cual pintar el terreno.
+	 */
 	public void pintar(final Graphics2D g) {
+		// 1. Calcula el área visible de la cámara sumando un padding de seguridad (3
+		// tiles)
+		final int minX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
+		final int maxX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
 
-		final int puntoX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
-		final int limiteX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
+		final int minY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
+		final int maxY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
 
-		final int puntoY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
-		final int limiteY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
-		boolean contieneEnY = false;
+		// 2. Proyecta las coordenadas de mundo a la grilla discreta de GroupTiles
+		// usando floorDiv
+		final int inicioX = Math.floorDiv(minX, this.LADO_GRUPO_TILE) * this.LADO_GRUPO_TILE;
+		final int finX = Math.floorDiv(maxX, this.LADO_GRUPO_TILE) * this.LADO_GRUPO_TILE;
+
+		final int inicioY = Math.floorDiv(minY, this.LADO_GRUPO_TILE) * this.LADO_GRUPO_TILE;
+		final int finY = Math.floorDiv(maxY, this.LADO_GRUPO_TILE) * this.LADO_GRUPO_TILE;
+
 		GroupTile gt = null;
-		int px = puntoX;
-		int py = puntoY;
-		if ((puntoX < 0) && (limiteX > 0)) {
-			px = 0;
-		}
-		if ((puntoY < 0) && (limiteY > 0)) {
-			py = 0;
-		}
 
-		for (int y = py; y < limiteY;) {
-
-			for (int x = px; x < limiteX;) {
-
-				if ((gt = this.getGrupoTileReferenciado(x, y)) != null) {
+		// 3. Iteración alineada por bloque espacial completo (sin reevaluaciones pixel
+		// por pixel)
+		for (int y = inicioY; y <= finY; y += this.LADO_GRUPO_TILE) {
+			for (int x = inicioX; x <= finX; x += this.LADO_GRUPO_TILE) {
+				gt = this.getGrupoTileReferenciado(x, y);
+				if (gt != null) {
 					gt.pintar(g);
-					gt = null;
-					x += this.LADO_GRUPO_TILE;
-					if (!contieneEnY) {
-						contieneEnY = true;
-					}
-
-				} else {
-					x++;
 				}
 			}
-			if (contieneEnY) {
-				y += this.LADO_GRUPO_TILE;
-			} else {
-				y++;
-			}
 		}
-
 	}
 
+	/**
+	 * Renderiza únicamente las celdas espaciales ({@link ZoneBox}) visibles en la
+	 * pantalla actual.
+	 * <p>
+	 * <b>Optimización de Rendimiento y Memoria:</b><br>
+	 * 1. Elimina la creación de instancias efímeras {@code new Point(...)} dentro
+	 * del bucle de renderizado.<br>
+	 * 2. Proyecta las coordenadas de la cámara directamente a los índices discretos
+	 * de la grilla mediante {@link Math#floorDiv}.<br>
+	 * 3. Realiza saltos exactos de paso ({@code ladoZona}) evitando iteraciones
+	 * píxel por píxel.
+	 * </p>
+	 * 
+	 * @param g        Contexto gráfico {@link Graphics2D} donde se dibujarán las
+	 *                 zonas.
+	 * @param zonas    Mapa de celdas espaciales activas indexadas por coordenadas
+	 *                 de grilla.
+	 * @param ladoZona Dimensión en píxeles del lado de cada celda espacial
+	 *                 ({@code ZoneBox}).
+	 */
 	public void pintarZonas(final Graphics2D g, final HashMap<Point, ZoneBox> zonas, final int ladoZona) {
+		// 1. Delimita la franja visible con margen de seguridad (padding de 3 tiles)
+		final int minX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
+		final int maxX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
 
-		final int puntoX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
-		final int limiteX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
+		final int minY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
+		final int maxY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
 
-		final int puntoY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
-		final int limiteY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
-		final boolean contieneEnY = false;
+		// 2. Proyección exacta a índices de la grilla discreta (resiste coordenadas
+		// negativas)
+		final int inicioGridX = Math.floorDiv(minX, ladoZona);
+		final int finGridX = Math.floorDiv(maxX, ladoZona);
+
+		final int inicioGridY = Math.floorDiv(minY, ladoZona);
+		final int finGridY = Math.floorDiv(maxY, ladoZona);
+
+		// Clave de búsqueda reutilizable para evitar instanciación de objetos Point en
+		// el Heap
+		final Point claveBusqueda = new Point();
 		ZoneBox zbAux = null;
-		int px = puntoX;
-		int py = puntoY;
-		if ((puntoX < 0) && (limiteX > 0)) {
-			px = 0;
-		}
-		if ((puntoY < 0) && (limiteY > 0)) {
-			py = 0;
-		}
 
-		for (int y = py; y < limiteY;) {
+		// 3. Iteración directa sobre la matriz de celdas visibles
+		for (int gridY = inicioGridY; gridY <= finGridY; gridY++) {
+			for (int gridX = inicioGridX; gridX <= finGridX; gridX++) {
 
-			for (int x = px; x < limiteX;) {
+				claveBusqueda.setLocation(gridX, gridY);
+				zbAux = zonas.get(claveBusqueda);
 
-				zbAux = zonas.get(new Point(x / ladoZona, y / ladoZona));
 				if (zbAux != null) {
 					zbAux.pintar(g);
-//					zbAux.pintar(g);
-					x += ladoZona;
-				} else {
-					x++;
 				}
-			}
-			if (contieneEnY) {
-				y += ladoZona;
-			} else {
-				y++;
 			}
 		}
 	}
 
+	/**
+	 * Ejecuta el ciclo de actualización lógica (update) únicamente en las celdas
+	 * espaciales ({@link ZoneBox}) contenidas dentro del área visible de la cámara.
+	 * <p>
+	 * <b>Optimización de Rendimiento y Memoria:</b><br>
+	 * 1. Reutiliza un objeto {@link Point} de búsqueda para eliminar la
+	 * instanciación de objetos efímeros en el Heap.<br>
+	 * 2. Mapea directamente los límites de la cámara a índices discretos de la
+	 * grilla usando {@link Math#floorDiv}.<br>
+	 * 3. Realiza saltos exactos de paso por celda ({@code ladoZona}), reduciendo la
+	 * ejecución a $O(\text{Celdas Visibles})$.
+	 * </p>
+	 *
+	 * @param zonas    Mapa de celdas espaciales activas indexadas por coordenadas
+	 *                 de grilla.
+	 * @param ladoZona Dimensión en píxeles del lado de cada celda espacial
+	 *                 ({@code ZoneBox}).
+	 */
 	public void actualizarZonas(final HashMap<Point, ZoneBox> zonas, final int ladoZona) {
+		// 1. Delimita el franja visible con margen de seguridad (padding de 3 tiles)
+		final int minX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
+		final int maxX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
 
-		final int puntoX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
-		final int limiteX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
+		final int minY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
+		final int maxY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
 
-		final int puntoY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
-		final int limiteY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
-		final boolean contieneEnY = false;
+		// 2. Proyección exacta a índices de grilla discreta (resiste coordenadas
+		// negativas)
+		final int inicioGridX = Math.floorDiv(minX, ladoZona);
+		final int finGridX = Math.floorDiv(maxX, ladoZona);
+
+		final int inicioGridY = Math.floorDiv(minY, ladoZona);
+		final int finGridY = Math.floorDiv(maxY, ladoZona);
+
+		// Clave de búsqueda reutilizable para prevenir presión sobre el Garbage
+		// Collector
+		final Point claveBusqueda = new Point();
 		ZoneBox zbAux = null;
-		int px = puntoX;
-		int py = puntoY;
-		if ((puntoX < 0) && (limiteX > 0)) {
-			px = 0;
-		}
-		if ((puntoY < 0) && (limiteY > 0)) {
-			py = 0;
-		}
 
-		for (int y = py; y < limiteY;) {
+		// 3. Iteración directa sobre la matriz de celdas visibles
+		for (int gridY = inicioGridY; gridY <= finGridY; gridY++) {
+			for (int gridX = inicioGridX; gridX <= finGridX; gridX++) {
 
-			for (int x = px; x < limiteX;) {
+				claveBusqueda.setLocation(gridX, gridY);
+				zbAux = zonas.get(claveBusqueda);
 
-				zbAux = zonas.get(new Point(x / ladoZona, y / ladoZona));
 				if (zbAux != null) {
 					zbAux.actualizar();
-//					zbAux.pintar(g);
-					x += ladoZona;
-				} else {
-					x++;
 				}
 			}
-			if (contieneEnY) {
-				y += ladoZona;
-			} else {
-				y++;
-			}
 		}
-
 	}
 
 	public boolean contienePuntoGrupoTileReferenciado(final int x, final int y) {
@@ -340,49 +370,103 @@ public class Terreno implements Serializable {
 		return contiene;
 	}
 
+	/**
+	 * Obtiene la lista de celdas ({@link Tile}) que colisionan o se intersectan con
+	 * una forma geométrica dada.
+	 * <p>
+	 * <b>Optimizaciones de Rendimiento:</b><br>
+	 * 1. Extrae el rectángulo delimitador una sola vez para evitar instanciaciones
+	 * efímeras.<br>
+	 * 2. Usa {@link Math#floorDiv} para garantizar índices de grilla precisos en
+	 * coordenadas negativas.<br>
+	 * 3. Inserta directamente en el {@link ArrayList} de retorno evitando la
+	 * sobrecarga de un {@link HashSet} intermedio.
+	 * </p>
+	 *
+	 * @param s Forma geométrica ({@link Shape}) a comprobar contra la grilla.
+	 * @return Lista de tiles que intersectan con la forma.
+	 */
 	public ArrayList<Tile> getTilesIntersectados(final Shape s) {
-		final int x = s.getBounds().x;
-		final int y = s.getBounds().y;
-		final int w = s.getBounds().width;
-		final int h = s.getBounds().height;
-		final HashSet<Tile> lista = new HashSet<Tile>();
-		Tile tile = null;
-		final int xTile = x / this.LADO_TILE;
-		final int limiteXTile = (x + w) / this.LADO_TILE;
-		final int yTile = y / this.LADO_TILE;
-		final int limiteYTile = (y + h) / this.LADO_TILE;
+		final ArrayList<Tile> tilesIntersectados = new ArrayList<>();
+		if (s == null) {
+			return tilesIntersectados;
+		}
 
-		for (int x2 = xTile; x2 <= limiteXTile; x2++) {
-			for (int y2 = yTile; y2 <= limiteYTile; y2++) {
-				tile = this.getTileReferenciado(x2 * this.LADO_TILE, y2 * this.LADO_TILE);
+		// 1. Obtiene el AABB (Axis-Aligned Bounding Box) una sola vez
+		final Rectangle bounds = s.getBounds();
+
+		// 2. Proyección exacta a índices de grilla discreta (resiste coordenadas
+		// negativas)
+		final int minTileX = Math.floorDiv(bounds.x, this.LADO_TILE);
+		final int maxTileX = Math.floorDiv(bounds.x + bounds.width, this.LADO_TILE);
+
+		final int minTileY = Math.floorDiv(bounds.y, this.LADO_TILE);
+		final int maxTileY = Math.floorDiv(bounds.y + bounds.height, this.LADO_TILE);
+
+		Tile tile = null;
+
+		// 3. Iteración directa sobre las celdas contenidas en el AABB
+		for (int x = minTileX; x <= maxTileX; x++) {
+			for (int y = minTileY; y <= maxTileY; y++) {
+
+				tile = this.getTileReferenciado(x * this.LADO_TILE, y * this.LADO_TILE);
+
+				// Comprobación de intersección precisa con la forma geométrica
 				if ((tile != null) && s.intersects(tile.getArea())) {
-					lista.add(tile);
+					tilesIntersectados.add(tile);
 				}
 			}
 		}
-		return new ArrayList<Tile>(lista);
+
+		return tilesIntersectados;
 	}
 
+	/**
+	 * Evalúa si un área rectangular ({@link Rectangle}) intersecta con alguna celda
+	 * sólida o activa de la grilla.
+	 * <p>
+	 * <b>Optimizaciones de Rendimiento:</b><br>
+	 * 1. Cortocircuito inmediato (<i>Early Exit</i>): Retorna {@code true} en la
+	 * primera colisión encontrada.<br>
+	 * 2. Usa {@link Math#floorDiv} para evitar fallos de alineación en coordenadas
+	 * de mapa negativas.<br>
+	 * 3. Elimina llamadas pesadas a {@code Rectangle.intersects} aprovechando la
+	 * naturaleza discreta de la grilla.
+	 * </p>
+	 *
+	 * @param r Rectángulo de colisión a verificar.
+	 * @return {@code true} si existe al menos una celda que colisione con el
+	 *         rectángulo; {@code false} en caso contrario.
+	 */
 	public boolean intersecta(final Rectangle r) {
+		if ((r == null) || r.isEmpty()) {
+			return false;
+		}
 
-		final int x = r.x;
-		final int y = r.y;
-		final int w = r.width;
-		final int h = r.height;
+		// 1. Proyección exacta a índices de grilla discreta (resiste coordenadas
+		// negativas)
+		final int minTileX = Math.floorDiv(r.x, this.LADO_TILE);
+		final int maxTileX = Math.floorDiv((r.x + r.width) - 1, this.LADO_TILE);
+
+		final int minTileY = Math.floorDiv(r.y, this.LADO_TILE);
+		final int maxTileY = Math.floorDiv((r.y + r.height) - 1, this.LADO_TILE);
+
 		Tile tile = null;
-		final int xTile = x / this.LADO_TILE;
-		final int limiteXTile = (x + w) / this.LADO_TILE;
-		final int yTile = y / this.LADO_TILE;
-		final int limiteYTile = (y + h) / this.LADO_TILE;
 
-		for (int x2 = xTile; x2 <= limiteXTile; x2++) {
-			for (int y2 = yTile; y2 <= limiteYTile; y2++) {
-				tile = this.getTileReferenciado(x2 * this.LADO_TILE, y2 * this.LADO_TILE);
-				if ((tile != null) && r.intersects(tile.getArea())) {
+		// 2. Iteración acotada con Early Exit
+		for (int x = minTileX; x <= maxTileX; x++) {
+			for (int y = minTileY; y <= maxTileY; y++) {
+
+				tile = this.getTileReferenciado(x * this.LADO_TILE, y * this.LADO_TILE);
+
+				// Si la celda existe (y/o es sólida), la intersección dentro del AABB es
+				// garantizada
+				if (tile != null) {
 					return true;
 				}
 			}
 		}
+
 		return false;
 	}
 
@@ -401,7 +485,19 @@ public class Terreno implements Serializable {
 		return false;
 	}
 
-	public boolean intersectaSolido(final Shape area) {
+	public boolean intersectaAlgoSolido(final Shape area) {
+
+		for (final Tile t : this.getTilesIntersectados(area)) {
+
+			if (t.hayColisionConAlgoSolido(area)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	public boolean intersectaTileSolido(final Shape area) {
 
 		for (final Tile t : this.getTilesIntersectados(area)) {
 

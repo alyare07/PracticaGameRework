@@ -5,7 +5,7 @@ public class Main {
 
 	public static void main(final String[] args) {
 		gp.iniciarJuego();
-		gp.iniciarBuclePrincipal();
+		gp.iniciarBuclePrincipal(true);
 
 	}
 

@@ -1,5 +1,6 @@
 package principal.utilidades;
 
+
 import javax.sound.sampled.Clip;
 
 public class Sonido {
@@ -27,3 +28,4 @@ public class Sonido {
 		return sonido.getMicrosecondLength();
 	}
 }
+

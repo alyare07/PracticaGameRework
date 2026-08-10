@@ -9,7 +9,6 @@ import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 
 import org.json.simple.JSONObject;
@@ -36,8 +35,11 @@ import principal.mapa.renderEntidades.ZoneBox;
 import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
-import principal.utilidades.SonidoMP3;
 
+/**
+ * Representa al personaje controlado por el usuario. Gestiona controles por
+ * teclado/ratón, estamina, ataques meclé/distancia e interacciones.
+ */
 public class Jugador extends Criatura {
 
 	protected final int MARGENX;
@@ -45,21 +47,21 @@ public class Jugador extends Criatura {
 	protected int desplazamientoX;
 	protected int desplazamientoY;
 	protected Tile tilePisado;
+
 	private double damage;
 	private final GestorTiempo GT_ULTIMO_ATAQUE;
 	private final GestorTiempo GT_RECUPERACION_ESTAMINA;
+
 	private static final int TIEMPO_MS_ESPERA_POR_ATAQUE = 600;
 	private static final int TIEMPO_MS_ESPERA_DIBUJADO_POR_ATAQUE = TIEMPO_MS_ESPERA_POR_ATAQUE / 2;
 	private static final int TIEMPO_MS_ESPERA_REGEN_VIDA = 5000;
 	private static final int TIEMPO_MS_ESPERA_REGEN_ESTAMINA = 2500;
+
 	private boolean dibujarAtaque;
-	private final SonidoMP3 SONIDO_HIT_GOLPE;
+
 	protected Shape areaRecoleccion;
 	protected final int recoleccionLado = 50;
-	/*
-	 * RECOMIENDO CREAR UNA CLASE GESTORA DE LOS PTS DEL JUGADOR TALES COMO LA
-	 * ESTAMINA Y LA VIDA. LIMPIAR CODIGO!
-	 */
+
 	protected final double PTS_VIDAMAX_BASE = 100;
 	protected final double PTS_DAMAGE_BASE = 5;
 	protected double estamina;
@@ -67,130 +69,133 @@ public class Jugador extends Criatura {
 	protected double puntoRecuperarEstaminaXseg;
 	protected double puntoGastarEstaminaXseg;
 	protected final float PTS_CONSUMIR_ESTAMINA = 0.5f;
+
 	protected final int ANCHO_INTERACCION_COFRE;
 	protected final int ALTO_INTERACCION_COFRE;
+
 	protected DijkstraRework DIJKSTRA;
 	protected NodoD nodoDDestino;
 	protected Lista<NodoD> recorridoD;
+
 	private boolean generarRecorridoMoverMouse;
 	private boolean moviendoPorRecorrido;
 	private final HashSet<Ente> CHECK_LIST_DEBUG = new HashSet<>();
 
 	public Jugador(final int x, final int y) {
 		super(x, y, 12, 20, 50, 50);
+
 		final int anchoSprite = 32;
 		final int altoSprite = 32;
-		this.MARGENX = Constantes.CENTROX - ((anchoSprite) / 2);
+		this.MARGENX = Constantes.CENTROX - (anchoSprite / 2);
 		this.MARGENY = Constantes.CENTROY - (altoSprite / 2);
+
 		this.establecerVidaMaxima(this.PTS_VIDAMAX_BASE);
 		this.damage = this.PTS_DAMAGE_BASE;
 		this.velocidadEstandar = 0.5;
+
 		this.GT_ULTIMO_ATAQUE = new GestorTiempo();
 		this.GT_RECUPERACION_ESTAMINA = new GestorTiempo();
 		this.dibujarAtaque = false;
-		this.SONIDO_HIT_GOLPE = new SonidoMP3("sonidos/hit_punch.mp3");
+
 		this.actualizarAreaRecoleccion();
-		this.maxEstamina = 30; // 150 - 200
+		this.maxEstamina = 30;
 		this.estamina = this.maxEstamina;
 		this.puntoRecuperarEstaminaXseg = 5;
 		this.puntoGastarEstaminaXseg = 5;
+
 		this.ANCHO_INTERACCION_COFRE = this.ANCHO + 2;
 		this.ALTO_INTERACCION_COFRE = this.ALTO + 2;
-
 	}
 
 	@Override
 	public void pintar(final Graphics2D g) {
 		Animaciones.JUGADOR.pintar(g, Constantes.getXDesplazamientoCamara(this.getPosicionXIntDibujado()),
 				Constantes.getYDesplazamientoCamara(this.getPosicionYIntDibujado()));
+
 		if (Constantes.TECLADO.TECLA_VER_COLISIONES.presionado() && Constantes.GLOBALES.estadoJuego) {
 			g.setColor(Color.BLUE);
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionMovimiento().getBounds());
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.black);
+			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getPosicionXIntDibujado(),
-					this.getPosicionYIntDibujado(), 32, 32, Color.red);
-
+					this.getPosicionYIntDibujado(), 32, 32, Color.RED);
 		}
+
 		if (Constantes.TECLADO.TECLA_DEBUG.presionado() && Constantes.GLOBALES.estadoJuego) {
 			this.pintarAreaRecoleccion(g);
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, Constantes.JUGADOR.getAreaInteraccionCofre(),
-					Color.lightGray);
+					Color.LIGHT_GRAY);
 		}
 
+		// Debug de caminos Dijkstra y A*
+		this.pintarDebugCaminos(g);
+
+		this.pintarAreaDeteccion(g);
+		this.pintarAreaArrojar(g);
+	}
+
+	private void pintarDebugCaminos(final Graphics2D g) {
+		g.setFont(g.getFont().deriveFont(7f));
+
 		if (this.recorridoD != null) {
-			g.setFont(g.getFont().deriveFont(7f));
 			int pos = 1;
-			String txt = String.valueOf(pos);
 			for (final NodoD n : this.recorridoD) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, n.AREA, Color.red);
+				final String txt = String.valueOf(pos++);
+				DibujoDebug.dibujarRectanguloContornoRefCamara(g, n.AREA, Color.RED);
 				DibujoDebug.dibujarStringRefCamara(g, txt,
 						(n.AREA.x + (n.AREA.width / 2))
 								- (Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
 						n.AREA.y + (n.AREA.height / 2)
 								+ (Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
-						Color.black);
-				pos++;
-				txt = String.valueOf(pos);
+						Color.BLACK);
 			}
-			if (this.nodoADestino != null) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoDDestino.AREA, Color.yellow);
+			if (this.nodoDDestino != null) {
+				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoDDestino.AREA, Color.YELLOW);
 			}
 		}
 
 		if (this.recorridoA != null) {
-			g.setFont(g.getFont().deriveFont(7f));
 			int pos = 1;
-			String txt = String.valueOf(pos);
 			for (final NodoA n : this.recorridoA) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, n.getAreaEnMundo(), Color.blue);
+				final String txt = String.valueOf(pos++);
+				final Rectangle areaNodo = n.getAreaEnMundo();
+				DibujoDebug.dibujarRectanguloContornoRefCamara(g, areaNodo, Color.BLUE);
 				DibujoDebug.dibujarStringRefCamara(g, txt,
-						(n.getAreaEnMundo().x + (n.getAreaEnMundo().width / 2))
+						(areaNodo.x + (areaNodo.width / 2))
 								- (Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
-						n.getAreaEnMundo().y + (n.getAreaEnMundo().height / 2)
+						areaNodo.y + (areaNodo.height / 2)
 								+ (Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
-						Color.black);
-				pos++;
-				txt = String.valueOf(pos);
+						Color.BLACK);
 			}
 			if (this.nodoADestino != null) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoADestino.getAreaEnMundo(), Color.yellow);
+				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoADestino.getAreaEnMundo(), Color.YELLOW);
 			}
 		}
-
-		this.pintarAreaDeteccion(g);
-
-		this.pintarAreaArrojar(g);
 	}
 
 	private void pintarAreaDeteccion(final Graphics2D g) {
-		if (!Constantes.TECLADO.TECLA_DEBUG.presionado() || !Constantes.isEstadoJuego()) {
+		if (!Constantes.TECLADO.TECLA_DEBUG.presionado() || !Constantes.isEstadoJuego() || (this.mundo == null)) {
 			return;
 		}
 
 		this.CHECK_LIST_DEBUG.clear();
-
 		final Shape areaDeteccionJugador = this.getAreaDeteccion();
 		final Rectangle areaInteraccionCofre = this.getAreaInteraccionCofre();
 
-		final ArrayList<ZoneBox> zonasIntersectadas = this.getMundo().getZonasIntersectadas(areaDeteccionJugador);
+		final ArrayList<ZoneBox> zonasIntersectadas = this.mundo.getZonasIntersectadas(areaDeteccionJugador);
 		for (final ZoneBox zb : zonasIntersectadas) {
 			if (this.CHECK_LIST_DEBUG.add(zb)) {
 				DibujoDebug.dibujarRectanguloContornoRefCamara(g, zb.getArea(), Color.YELLOW);
 			}
 
 			for (final Item item : zb.getItems()) {
-				if (this.CHECK_LIST_DEBUG.add(item)) {
-					if (areaDeteccionJugador.intersects(item.getArea())) {
-						DibujoDebug.dibujarRectanguloContornoRefCamara(g, item.getArea(), Color.MAGENTA);
-					}
+				if (this.CHECK_LIST_DEBUG.add(item) && areaDeteccionJugador.intersects(item.getArea())) {
+					DibujoDebug.dibujarRectanguloContornoRefCamara(g, item.getArea(), Color.MAGENTA);
 				}
 			}
 
 			for (final Cofre cofre : zb.getCofres()) {
-				if (this.CHECK_LIST_DEBUG.add(cofre)) {
-					if (areaInteraccionCofre.intersects(cofre.getArea())) {
-						DibujoDebug.dibujarRectanguloContornoRefCamara(g, cofre.getArea(), Color.CYAN);
-					}
+				if (this.CHECK_LIST_DEBUG.add(cofre) && areaInteraccionCofre.intersects(cofre.getArea())) {
+					DibujoDebug.dibujarRectanguloContornoRefCamara(g, cofre.getArea(), Color.CYAN);
 				}
 			}
 		}
@@ -205,23 +210,26 @@ public class Jugador extends Criatura {
 				this.curar(Constantes.JUGADOR.getDamage());
 			}
 		}
+
 		if (this.eliminado) {
 			return;
 		}
 
 		this.curar();
 
-		final Terreno terreno = this.mundo.getTerreno();
-		final Shape s = this.getAreaInterseccionMovimiento();
-		this.tilePisado = terreno.getTileReferenciado(s.getBounds().x + (s.getBounds().width / 2),
-				s.getBounds().y + s.getBounds().height);
+		if (this.mundo != null) {
+			final Terreno terreno = this.mundo.getTerreno();
+			final Shape s = this.getAreaInterseccionMovimiento();
+			this.tilePisado = terreno.getTileReferenciado(s.getBounds().x + (s.getBounds().width / 2),
+					s.getBounds().y + s.getBounds().height);
+		}
+
 		this.actualizarMovimientoMouseDijkstra();
 		this.actualizarMovimientoMouseAEstrella();
 		this.actualizarMovimientos();
 		this.actualizarRecogidaItems();
 		this.actualizarArrojar();
 		this.actualizarAtaque();
-
 	}
 
 	private void actualizarMovimientoMouseDijkstra() {
@@ -232,103 +240,93 @@ public class Jugador extends Criatura {
 							this.getPosicionYInt());
 					if (nodoParado != null) {
 						this.recorridoD = this.DIJKSTRA.getRecorrido(nodoParado);
-						this.nodoDDestino = this.recorridoD.getNext();
+						this.nodoDDestino = (this.recorridoD != null) ? this.recorridoD.getNext() : null;
 						if ((this.nodoDDestino == null) || this.recorridoD.isEmpty()) {
 							this.recorridoD = null;
 							this.nodoDDestino = null;
-							if (this.moviendoPorRecorrido) {
-								this.moviendoPorRecorrido = false;
-							}
+							this.moviendoPorRecorrido = false;
 						}
 					}
 					this.generarRecorridoMoverMouse = false;
 				}
 				return;
 			}
+
 			if (Constantes.TECLADO.TECLA_DEBUG.presionado() && Constantes.RATON.presionadoClickDerUnicaAct()) {
 				if (this.moviendoPorRecorrido) {
 					this.nodoDDestino = null;
 					this.recorridoD = null;
 					this.moviendoPorRecorrido = false;
 				}
+
 				final Point p = Constantes.RATON.getPuntoPosicionEscaladoConDesplazamientoCamara();
 				if (!this.mundo.getTerreno().AreaDentroDelTerreno(
 						Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara())) {
 					return;
 				}
+
 				this.DIJKSTRA.actualizar(p);
 				final NodoD n = this.DIJKSTRA.getNodoReferenciado(p.x, p.y);
 				if ((n == null) || this.mundo.colisionaConZonaUObjetoSolido(n.AREA)) {
 					return;
 				}
+
 				if (!this.DIJKSTRA.actualizando()) {
 					final NodoD nodoParado = this.DIJKSTRA.getNodoReferenciado(this.getPosicionXInt(),
 							this.getPosicionYInt());
 					if (nodoParado != null) {
 						this.recorridoD = this.DIJKSTRA.getRecorrido(nodoParado);
-						this.nodoDDestino = this.recorridoD.getNext();
+						this.nodoDDestino = (this.recorridoD != null) ? this.recorridoD.getNext() : null;
 						if ((this.nodoDDestino == null) || this.recorridoD.isEmpty()) {
 							this.recorridoD = null;
 							this.nodoDDestino = null;
-							if (this.moviendoPorRecorrido) {
-								this.moviendoPorRecorrido = false;
-							}
+							this.moviendoPorRecorrido = false;
 						}
 					}
 				} else {
 					this.generarRecorridoMoverMouse = true;
 				}
-
 			}
 		} else {
-			if (!this.moviendoPorRecorrido && ((this.recorridoD == null) || (this.nodoDDestino == null))) {
+			if (!this.moviendoPorRecorrido && (this.nodoDDestino == null)) {
 				this.recorridoD = null;
-				this.nodoDDestino = null;
 				return;
 			}
+
 			this.establecerVelocidadStardar();
 			if (Constantes.TECLADO.TECLA_CORRIENDO.presionado()) {
 				if (this.gastarEstamina()) {
 					this.velocidad = this.velocidadEstandar * 1.5;
-					if (!this.ESTADO.containsKey(Estado.CORRIENDO)) {
-						this.meterEstado(Estado.CORRIENDO);
-						this.sacarEstado(Estado.ESTANDAR);
-						this.sacarEstado(Estado.CAMINANDO);
-					}
-				}
-				if (this.tilePisado != null) {
-					this.velocidad += (ListaModeloTile.getModelo(this.tilePisado.getCodModelo())
-							.getAlteracionVelocidad());
-					if (this.velocidad < 0) {
-						this.velocidad = 0;
-					}
-
+					this.meterEstado(Estado.CORRIENDO);
+					this.removerEstado(Estado.ESTANDAR);
+					this.removerEstado(Estado.CAMINANDO);
 				}
 			} else {
 				this.recuperarEstamina();
 			}
+
+			if (this.tilePisado != null) {
+				this.velocidad = Math.max(0, this.velocidad
+						+ ListaModeloTile.getModelo(this.tilePisado.getCodModelo()).getAlteracionVelocidad());
+			}
+
 			this.moverANodoDDestino();
-			if ((this.nodoDDestino == this.recorridoD.getLast())
-					&& ((this.getPosicionXInt() == this.nodoDDestino.AREA.x)
-							&& (this.getPosicionYInt() == this.nodoDDestino.AREA.y))) {
+
+			if ((this.nodoDDestino == this.recorridoD.getLast()) && (this.getPosicionXInt() == this.nodoDDestino.AREA.x)
+					&& (this.getPosicionYInt() == this.nodoDDestino.AREA.y)) {
 				this.recorridoD = null;
 				this.nodoDDestino = null;
 				this.moviendoPorRecorrido = false;
-				this.meterEstado(Estado.ESTANDAR);
-				this.sacarEstado(Estado.CAMINANDO);
-				this.sacarEstado(Estado.CORRIENDO);
+				this.setEstadoEstandar();
 			} else if (!this.moviendoPorRecorrido) {
 				this.moviendoPorRecorrido = true;
-				this.meterEstado(Estado.CAMINANDO);
-				this.sacarEstado(Estado.ESTANDAR);
-				this.sacarEstado(Estado.CORRIENDO);
+				this.setEstadoUnico(Estado.CAMINANDO);
 			}
 		}
 	}
 
 	private void actualizarMovimientoMouseAEstrella() {
 		if ((this.recorridoA == null) || Constantes.RATON.presionadoClickDerUnicaAct()) {
-
 			if (Constantes.TECLADO.TECLA_DEBUG_TILE_INFO.presionado()
 					&& Constantes.RATON.presionadoClickDerUnicaAct()) {
 				final Point p = Constantes.RATON.getPuntoPosicionEscaladoConDesplazamientoCamara();
@@ -336,134 +334,113 @@ public class Jugador extends Criatura {
 						Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara())) {
 					return;
 				}
+
 				final NodoA n = this.aEstrella.getNodoRef(p.x, p.y);
 				if ((n == null) || this.mundo.colisionaConZonaUObjetoSolido(n.getAreaEnMundo())) {
 					return;
 				}
+
 				this.recorridoA = this.aEstrella.getRecorrido(this.getPosicionXInt(), this.getPosicionYInt(), p.x, p.y);
 				if ((this.recorridoA == null) || this.recorridoA.isEmpty()) {
 					this.recorridoA = null;
 					this.nodoADestino = null;
 					return;
 				}
+
 				this.nodoADestino = this.recorridoA.getNext();
 				if ((this.nodoADestino == null) || this.recorridoA.isEmpty()) {
 					this.recorridoA = null;
 					this.nodoADestino = null;
-					if (this.moviendoPorRecorrido) {
-						this.moviendoPorRecorrido = false;
-					}
+					this.moviendoPorRecorrido = false;
 				}
-
 			}
 		} else {
-			if (!this.moviendoPorRecorrido && ((this.recorridoA == null) || (this.nodoADestino == null))) {
+			if (!this.moviendoPorRecorrido && (this.nodoADestino == null)) {
 				this.recorridoA = null;
-				this.nodoADestino = null;
 				return;
 			}
+
 			if (Constantes.TECLADO.TECLA_DEBUG.presionado()) {
 				return;
 			}
+
 			this.establecerVelocidadStardar();
 			if (Constantes.TECLADO.TECLA_CORRIENDO.presionado()) {
 				if (this.gastarEstamina()) {
 					this.velocidad = this.velocidadEstandar * 1.5;
-					if (!this.ESTADO.containsKey(Estado.CORRIENDO)) {
-						this.meterEstado(Estado.CORRIENDO);
-						this.sacarEstado(Estado.ESTANDAR);
-						this.sacarEstado(Estado.CAMINANDO);
-					}
+					this.setEstadoCorriendo();
 				}
 			} else {
 				this.recuperarEstamina();
 			}
-			if (this.tilePisado != null) {
-				this.velocidad += (ListaModeloTile.getModelo(this.tilePisado.getCodModelo()).getAlteracionVelocidad());
-				if (this.velocidad < 0) {
-					this.velocidad = 0;
-				}
 
+			if (this.tilePisado != null) {
+				this.velocidad = Math.max(0, this.velocidad
+						+ ListaModeloTile.getModelo(this.tilePisado.getCodModelo()).getAlteracionVelocidad());
 			}
+
 			this.moverANodoADestino();
+
 			if ((this.nodoADestino == this.recorridoA.getLast())
-					&& ((this.getPosicionXInt() == this.nodoADestino.getAreaEnMundo().x)
-							&& (this.getPosicionYInt() == this.nodoADestino.getAreaEnMundo().y))) {
-				System.out.println("fin recorrido");
+					&& (this.getPosicionXInt() == this.nodoADestino.getAreaEnMundo().x)
+					&& (this.getPosicionYInt() == this.nodoADestino.getAreaEnMundo().y)) {
+
 				this.moviendoPorRecorrido = false;
 				this.recorridoA = null;
 				this.nodoADestino = null;
-				this.meterEstado(Estado.ESTANDAR);
-				this.sacarEstado(Estado.CAMINANDO);
-				this.sacarEstado(Estado.CORRIENDO);
+				this.setEstadoEstandar();
 			} else if (!this.moviendoPorRecorrido) {
 				this.moviendoPorRecorrido = true;
-				this.meterEstado(Estado.CAMINANDO);
-				this.sacarEstado(Estado.ESTANDAR);
-				this.sacarEstado(Estado.CORRIENDO);
+				this.setEstadoCaminando();
 			}
 		}
 	}
 
 	protected void moverANodoDDestino() {
-
-		if (this.getPosicionYInt() < this.nodoDDestino.AREA.y) {
-			if ((this.nodoDDestino.AREA.y - this.getPosicionYInt()) < this.velocidad) {
-				this.y = this.nodoDDestino.AREA.y;
-			} else {
-				this.modificarPosicionY(this.velocidad);
-				this.direccion = Direccion.SUR;
-//					this.y += this.velocidad;
-			}
-		} else if (this.getPosicionYInt() > this.nodoDDestino.AREA.y) {
-			if ((this.getPosicionYInt() - this.nodoDDestino.AREA.y) < this.velocidad) {
-				this.y = this.nodoDDestino.AREA.y;
-			} else {
-//					this.y -= this.velocidad;
-				this.modificarPosicionY(-this.velocidad);
-				this.direccion = Direccion.NORTE;
-			}
+		if (this.nodoDDestino == null) {
+			return;
 		}
 
-		if (this.getPosicionXInt() < this.nodoDDestino.AREA.x) {
-			if ((this.nodoDDestino.AREA.x - this.getPosicionXInt()) < this.velocidad) {
-				this.x = this.nodoDDestino.AREA.x;
-			} else {
-//					this.x += this.velocidad;
-				this.modificarPosicionX(this.velocidad);
-				this.direccion = Direccion.ESTE;
-			}
+		final Rectangle areaNodo = this.nodoDDestino.AREA;
 
-		} else if (this.getPosicionXInt() > this.nodoDDestino.AREA.x) {
-			if ((this.getPosicionXInt() - this.nodoDDestino.AREA.x) < this.velocidad) {
-				this.x = this.nodoDDestino.AREA.x;
-			} else {
-				this.modificarPosicionX(-this.velocidad);
-				this.direccion = Direccion.OESTE;
-//					this.x -= this.velocidad;
-			}
+		if (this.getPosicionYInt() < areaNodo.y) {
+			final double dist = areaNodo.y - this.getPosicionYInt();
+			this.y = (dist < this.velocidad) ? areaNodo.y : this.y + Math.min(dist, this.velocidad);
+			this.direccion = Direccion.SUR;
+		} else if (this.getPosicionYInt() > areaNodo.y) {
+			final double dist = this.getPosicionYInt() - areaNodo.y;
+			this.y = (dist < this.velocidad) ? areaNodo.y : this.y - Math.min(dist, this.velocidad);
+			this.direccion = Direccion.NORTE;
+		}
+
+		if (this.getPosicionXInt() < areaNodo.x) {
+			final double dist = areaNodo.x - this.getPosicionXInt();
+			this.x = (dist < this.velocidad) ? areaNodo.x : this.x + Math.min(dist, this.velocidad);
+			this.direccion = Direccion.ESTE;
+		} else if (this.getPosicionXInt() > areaNodo.x) {
+			final double dist = this.getPosicionXInt() - areaNodo.x;
+			this.x = (dist < this.velocidad) ? areaNodo.x : this.x - Math.min(dist, this.velocidad);
+			this.direccion = Direccion.OESTE;
 		}
 
 		if (this.nodoDDestino.compararPosicionesMundo(this.getPosicionXInt(), this.getPosicionYInt())
-				&& ((this.getPosicionXInt() == this.nodoDDestino.AREA.x)
-						&& (this.getPosicionYInt() == this.nodoDDestino.AREA.y))) {
-			if (this.recorridoD.hasNext()) {
+				&& (this.getPosicionXInt() == areaNodo.x) && (this.getPosicionYInt() == areaNodo.y)) {
+			if ((this.recorridoD != null) && this.recorridoD.hasNext()) {
 				this.nodoDDestino = this.recorridoD.getNext();
 			}
-
 		}
 	}
 
 	private void actualizarAtaque() {
-		if (!Constantes.TECLADO.TECLA_ATACANDO.presionado() && this.ESTADO.containsKey(Estado.ATACANDO)
+		if (!Constantes.TECLADO.TECLA_ATACANDO.presionado() && this.estaEstadoAtacando()
 				&& this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_POR_ATAQUE)) {
-			this.sacarEstado(Estado.ATACANDO);
+			this.removerEstado(Estado.ATACANDO);
 		}
-		if (!Constantes.TECLADO.TECLA_ATACANDO.presionado() || this.ESTADO.containsKey(Estado.ARROJANDO)) {
-			if (this.dibujarAtaque) {
-				if (this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_DIBUJADO_POR_ATAQUE)) {
-					this.dibujarAtaque = false;
-				}
+
+		if (!Constantes.TECLADO.TECLA_ATACANDO.presionado() || this.tieneEstado(Estado.ARROJANDO)) {
+			if (this.dibujarAtaque
+					&& this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_DIBUJADO_POR_ATAQUE)) {
+				this.dibujarAtaque = false;
 			}
 			return;
 		}
@@ -473,18 +450,17 @@ public class Jugador extends Criatura {
 			this.dibujarAtaque = true;
 			this.meterEstado(Estado.ATACANDO);
 			this.realizarAtaque(this.mundo);
-
 		} else if (this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_DIBUJADO_POR_ATAQUE)) {
 			this.dibujarAtaque = false;
 		}
-
 	}
 
 	private void curar() {
 		if (this.vida >= this.vidaMaxima) {
 			return;
 		}
-		if ((this.GT_CURACION.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_REGEN_VIDA))) {
+
+		if (this.GT_CURACION.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_REGEN_VIDA)) {
 			this.curar(this.vidaRegen);
 			this.GT_CURACION.establecerReferenciaTiempoActual();
 		}
@@ -492,72 +468,56 @@ public class Jugador extends Criatura {
 
 	private void realizarAtaque(final Mundo mundo) {
 		final Arma armaEquipada = this.getArmaEquipada();
+
 		if (armaEquipada instanceof Pistola) {
 			final Pistola pistola = (Pistola) armaEquipada;
-			if (this.direccion == Direccion.OESTE) {
-				pistola.disparar((int) this.x - 8, (int) this.y + 8, this.direccion, mundo, this, false);
-			} else if (this.direccion == Direccion.NORTE) {
-				pistola.disparar((int) this.x + 8, (int) this.y - 8, this.direccion, mundo, this, false);
-			} else if (this.direccion == Direccion.ESTE) {
-				pistola.disparar((int) this.x + 8, (int) this.y + 8, this.direccion, mundo, this, false);
-			} else if (this.direccion == Direccion.SUR) {
-				pistola.disparar((int) this.x + 8, (int) this.y + 8, this.direccion, mundo, this, false);
-			}
+			final int offsetX = (this.direccion == Direccion.OESTE) ? -8 : 8;
+			final int offsetY = (this.direccion == Direccion.NORTE) ? -8 : 8;
+			pistola.disparar((int) this.x + offsetX, (int) this.y + offsetY, this.direccion, mundo, this, false);
 		} else if (armaEquipada instanceof Desarmado) {
-
-//			final Pistola pistola = (Pistola) armaEquipada;
-			if (this.direccion == Direccion.OESTE) {
-				this.ataqueMele((int) this.x + 8, (int) this.y + 8, this.direccion, mundo);
-			} else if (this.direccion == Direccion.NORTE) {
-				this.ataqueMele((int) this.x + 8, (int) this.y + 8, this.direccion, mundo);
-			} else if (this.direccion == Direccion.ESTE) {
-				this.ataqueMele((int) this.x + 8, (int) this.y + 8, this.direccion, mundo);
-			} else if (this.direccion == Direccion.SUR) {
-				this.ataqueMele((int) this.x + 8, (int) this.y + 8, this.direccion, mundo);
-			}
+			// Se simplificó la verificación ya que todas las direcciones ejecutaban la
+			// misma invocación
+			this.ataqueMele((int) this.x + 8, (int) this.y + 8, this.direccion, mundo);
 		}
 	}
 
 	private void ataqueMele(final int xOrigen, final int yOrigen, final Direccion direccion, final Mundo mundo) {
 		final int alcanceAtaque = 12;
 		final int anchoAtaque = 4;
-		if (direccion == Direccion.OESTE) {
+
+		switch (direccion) {
+		case OESTE:
 			mundo.crearProyectil(new GolpeMele(this.damage, false, mundo, xOrigen - alcanceAtaque, yOrigen,
 					alcanceAtaque, anchoAtaque, direccion, this));
-		} else if (direccion == Direccion.ESTE) {
+			break;
+		case ESTE:
 			mundo.crearProyectil(new GolpeMele(this.damage, false, mundo, xOrigen, yOrigen, alcanceAtaque, anchoAtaque,
 					direccion, this));
-		} else if (direccion == Direccion.NORTE) {
+			break;
+		case NORTE:
 			mundo.crearProyectil(new GolpeMele(this.damage, false, mundo, xOrigen - (anchoAtaque / 2),
 					yOrigen - alcanceAtaque, anchoAtaque, alcanceAtaque, direccion, this));
-		} else {
+			break;
+		case SUR:
+		default:
 			mundo.crearProyectil(new GolpeMele(this.damage, false, mundo, xOrigen - (anchoAtaque / 2), yOrigen,
 					anchoAtaque, alcanceAtaque, direccion, this));
+			break;
 		}
-
 	}
 
-//    private void atacar(final Criatura c, final Mundo esc) {
-//	c.recibirAtaque(this.damage, this);
-//	final int x = c.getPosicionXInt() + (c.getRectangulo().width / 2);
-//	final int y = this.getPosicionYInt() + (c.getRectangulo().height - 4);
-//	this.SONIDO_HIT_GOLPE.reproducir();
-//	esc.agregarParticula(new Sangre(x, y));
-//    }
-
 	private void actualizarRecogidaItems() {
-		if (!Constantes.TECLADO.TECLA_RECOGIENDO.presionado()) {
-			return;
-		}
-		if (this.tilePisado == null) {
+		if (!Constantes.TECLADO.TECLA_RECOGIENDO.presionado() || (this.tilePisado == null)) {
 			return;
 		}
 		if (!Constantes.TECLEO_RECOGIDA.transcurrioMiliSegundos(300)) {
 			return;
 		}
+
 		Constantes.TECLEO_RECOGIDA.establecerReferenciaTiempoActual();
 		this.actualizarAreaRecoleccion();
-		final ArrayList<Item> listaItems = new ArrayList<Item>(this.mundo.getItemsIntersectados(this.areaRecoleccion));
+
+		final ArrayList<Item> listaItems = new ArrayList<>(this.mundo.getItemsIntersectados(this.areaRecoleccion));
 		for (final Item item : listaItems) {
 			if (Constantes.INVENTARIO.agregarObjeto(item)) {
 				if (item instanceof Consumible) {
@@ -583,8 +543,9 @@ public class Jugador extends Criatura {
 				Constantes.INVENTARIO.getSlotArrojadizo().eliminarObjeto();
 			}
 		}
-		if (!Constantes.INVENTARIO.getSlotArrojadizo().contieneItem() && this.ESTADO.containsKey(Estado.ARROJANDO)) {
-			this.sacarEstado(Estado.ARROJANDO);
+
+		if (!Constantes.INVENTARIO.getSlotArrojadizo().contieneItem() && this.tieneEstado(Estado.ARROJANDO)) {
+			this.removerEstado(Estado.ARROJANDO);
 		}
 	}
 
@@ -605,37 +566,31 @@ public class Jugador extends Criatura {
 	}
 
 	private boolean gastarEstamina() {
-		boolean puedeCorrer = false;
 		if ((this.estamina - this.PTS_CONSUMIR_ESTAMINA) > 0) {
 			if (this.estamina < (this.puntoGastarEstaminaXseg / 60)) {
 				this.estamina = 0;
-				puedeCorrer = false;
-			} else {
-				this.estamina -= (this.puntoGastarEstaminaXseg / 60);
-				puedeCorrer = true;
+				return false;
 			}
-
+			this.estamina -= (this.puntoGastarEstaminaXseg / 60);
 			this.GT_RECUPERACION_ESTAMINA.establecerReferenciaTiempoActual();
+			return true;
 		}
-		return puedeCorrer;
+		return false;
 	}
 
 	private void recuperarEstamina() {
-		if (!this.ESTADO.containsKey(Estado.CORRIENDO)
+		if (!this.estaEstadoCorriendo()
 				&& this.GT_RECUPERACION_ESTAMINA.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_REGEN_ESTAMINA)) {
+
 			if ((this.estamina < this.maxEstamina)
 					&& ((this.estamina + this.puntoRecuperarEstaminaXseg) <= this.maxEstamina)) {
-				// EN ESTOS CASOS TAMBIEN SE PODRIA USAR UN GESTOR_TIEMPO PARA TENER UN MEJOR
-				// CONTROL DE ESTAS COSAS COMO LA VELOCIDAD DE RECUPERACION.
-				if (this.ESTADO.containsKey(Estado.CAMINANDO)) {
+				if (this.estaEstadoCaminando()) {
 					this.estamina += (this.puntoRecuperarEstaminaXseg / 60) / 2;
 				} else if (this.estamina >= (this.maxEstamina / 2)) {
-					this.estamina += (this.puntoRecuperarEstaminaXseg / 60)
-							+ ((this.puntoRecuperarEstaminaXseg / 60) / 2);
+					this.estamina += (this.puntoRecuperarEstaminaXseg / 60) * 1.5;
 				} else {
 					this.estamina += (this.puntoRecuperarEstaminaXseg / 60);
 				}
-
 			} else {
 				this.estamina = this.maxEstamina;
 			}
@@ -648,8 +603,9 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarAreaRecoleccion() {
-		this.areaRecoleccion = new Ellipse2D.Double((this.x - (this.recoleccionLado / 2)) + (this.ANCHO / 2),
-				(this.y - (this.recoleccionLado / 2)) + (this.ALTO / 2), this.recoleccionLado, this.recoleccionLado);
+		this.areaRecoleccion = new Ellipse2D.Double((this.x - (this.recoleccionLado / 2.0)) + (this.ANCHO / 2.0),
+				(this.y - (this.recoleccionLado / 2.0)) + (this.ALTO / 2.0), this.recoleccionLado,
+				this.recoleccionLado);
 	}
 
 	private void pintarAreaRecoleccion(final Graphics2D g) {
@@ -658,7 +614,7 @@ public class Jugador extends Criatura {
 				new Rectangle((this.getPosicionXInt() - (this.recoleccionLado / 2)) + (this.ANCHO / 2),
 						(this.getPosicionYInt() - (this.recoleccionLado / 2)) + (this.ALTO / 2), this.recoleccionLado,
 						this.recoleccionLado),
-				Color.cyan);
+				Color.CYAN);
 	}
 
 	private void pintarAreaArrojar(final Graphics2D g) {
@@ -669,7 +625,7 @@ public class Jugador extends Criatura {
 					new Rectangle(posRaton.x - (item.getDiamentroAreaCaida() / 2),
 							posRaton.y - (item.getDiamentroAreaCaida() / 2), item.getDiamentroAreaCaida(),
 							item.getDiamentroAreaCaida()),
-					Color.blue);
+					Color.BLUE);
 		}
 	}
 
@@ -678,14 +634,12 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarMovimientos() {
-
 		boolean enMovimiento = false;
 		boolean corriendo = false;
 
-		// movimiento en eje x e y
 		this.establecerVelocidadStardar();
-		if (Constantes.TECLADO.TECLA_CORRIENDO.presionado()) {
 
+		if (Constantes.TECLADO.TECLA_CORRIENDO.presionado()) {
 			if (Constantes.TECLADO.TECLA_ARRIBA.presionado() || Constantes.TECLADO.TECLA_ABAJO.presionado()
 					|| Constantes.TECLADO.TECLA_DERECHA.presionado()
 					|| Constantes.TECLADO.TECLA_IZQUIERDA.presionado()) {
@@ -697,68 +651,51 @@ public class Jugador extends Criatura {
 		} else {
 			this.recuperarEstamina();
 		}
-		if (this.tilePisado != null) {
-			this.velocidad += (ListaModeloTile.getModelo(this.tilePisado.getCodModelo()).getAlteracionVelocidad());
-			if (this.velocidad < 0) {
-				this.velocidad = 0;
-			}
 
+		if (this.tilePisado != null) {
+			this.velocidad = Math.max(0, this.velocidad
+					+ ListaModeloTile.getModelo(this.tilePisado.getCodModelo()).getAlteracionVelocidad());
 		}
 
+		// Movimiento por teclado
 		if (Constantes.TECLADO.TECLA_ARRIBA.presionado()) {
-
-			if (!(((int) (this.y - this.velocidad)) < 0) && !(this.mundo
-					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 2)))) {
+			if ((((int) (this.y - this.velocidad)) >= 0) && !this.mundo
+					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 2))) {
 				this.modificarPosicionY(-this.velocidad);
 			}
-			if (!enMovimiento) {
-				enMovimiento = true;
-			}
+			enMovimiento = true;
 			this.direccion = Direccion.NORTE;
-
 		}
-		if (Constantes.TECLADO.TECLA_ABAJO.presionado()) {
 
-			if (!((this.y + this.velocidad) > (this.mundo.getTerreno().getAlto() - this.ALTO)) && !(this.mundo
-					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 3)))) {
+		if (Constantes.TECLADO.TECLA_ABAJO.presionado()) {
+			if (((this.y + this.velocidad) <= (this.mundo.getTerreno().getAlto() - this.ALTO)) && !this.mundo
+					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 3))) {
 				this.modificarPosicionY(this.velocidad);
 			}
-			if (!enMovimiento) {
-				enMovimiento = true;
-			}
+			enMovimiento = true;
 			this.direccion = Direccion.SUR;
 		}
 
 		if (Constantes.TECLADO.TECLA_IZQUIERDA.presionado()) {
-
-			if (!((this.x - this.velocidad) < 0) && !(this.mundo
-					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, -1)))) {
+			if (((this.x - this.velocidad) >= 0) && !this.mundo
+					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, -1))) {
 				this.modificarPosicionX(-this.velocidad);
 			}
-			if (!enMovimiento) {
-				enMovimiento = true;
-			}
+			enMovimiento = true;
 			this.direccion = Direccion.OESTE;
 		}
-		if (Constantes.TECLADO.TECLA_DERECHA.presionado()) {
 
-			if (!((this.x + this.velocidad) > (this.mundo.getTerreno().getAncho() - this.ANCHO)) && !(this.mundo
-					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 1)))) {
+		if (Constantes.TECLADO.TECLA_DERECHA.presionado()) {
+			if (((this.x + this.velocidad) <= (this.mundo.getTerreno().getAncho() - this.ANCHO)) && !this.mundo
+					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 1))) {
 				this.modificarPosicionX(this.velocidad);
 			}
-			if (!enMovimiento) {
-				enMovimiento = true;
-			}
+			enMovimiento = true;
 			this.direccion = Direccion.ESTE;
 		}
 
-		if (this.mundo.colisionaConObjetoSolidoPeroEnZonaNoSolida(this.getAreaInterseccionMovimiento())) {
-			if (!this.atrasDeComplemento) {
-				this.atrasDeComplemento = true;
-			}
-		} else if (this.atrasDeComplemento) {
-			this.atrasDeComplemento = false;
-		}
+		this.atrasDeComplemento = this.mundo
+				.colisionaConObjetoSolidoPeroEnZonaNoSolida(this.getAreaInterseccionMovimiento());
 
 		if (enMovimiento && this.moviendoPorRecorrido) {
 			this.moviendoPorRecorrido = false;
@@ -768,40 +705,29 @@ public class Jugador extends Criatura {
 			this.nodoADestino = null;
 		}
 
+		// Actualización de estados según el movimiento
 		if (corriendo) {
-			this.meterEstado(Estado.CORRIENDO);
-			this.sacarEstado(Estado.CAMINANDO);
-			this.sacarEstado(Estado.ESTANDAR);
+			this.setEstadoCorriendo();
 		} else {
-			this.sacarEstado(Estado.CORRIENDO);
-		}
-
-		if (!enMovimiento && this.moviendoPorRecorrido) {
-
-			if (!this.ESTADO.containsKey(Estado.CORRIENDO)) {
-				this.meterEstado(Estado.CAMINANDO);
-				this.sacarEstado(Estado.ESTANDAR);
-				this.sacarEstado(Estado.CORRIENDO);
-			}
-			return;
+			this.removerEstado(Estado.CORRIENDO);
 		}
 
 		if (!enMovimiento) {
-			this.meterEstado(Estado.ESTANDAR);
-			this.sacarEstado(Estado.CAMINANDO);
-			this.sacarEstado(Estado.CORRIENDO);
-		} else if (!this.ESTADO.containsKey(Estado.CORRIENDO)) {
-			this.meterEstado(Estado.CAMINANDO);
-			this.sacarEstado(Estado.ESTANDAR);
-			this.sacarEstado(Estado.CORRIENDO);
+			if (this.moviendoPorRecorrido) {
+				if (!this.estaEstadoCorriendo()) {
+					this.setEstadoCaminando();
+				}
+			} else {
+				this.setEstadoEstandar();
+			}
+		} else if (!this.estaEstadoCorriendo()) {
+			this.setEstadoCaminando();
 		}
-
 	}
 
 	public boolean pistolaEquipada() {
 		return (Constantes.INVENTARIO.getArmaEquipada() instanceof Arma)
-				&& !(Constantes.INVENTARIO.getArmaEquipada() instanceof Desarmado); // cambiar Arma por pistola en un
-		// futuro
+				&& !(Constantes.INVENTARIO.getArmaEquipada() instanceof Desarmado);
 	}
 
 	public Arma getArmaEquipada() {
@@ -810,18 +736,19 @@ public class Jugador extends Criatura {
 
 	@Override
 	protected void pintarIndicadorVida(final Graphics2D g) {
-		final int posicionX = this.MARGENX;
-		final int posicionY = this.MARGENY;
-		final Rectangle indicador = new Rectangle(posicionX - 1, posicionY - 5, this.ANCHO + 2, 4);
+		final int posX = this.MARGENX;
+		final int posY = this.MARGENY;
+
+		final Rectangle indicador = new Rectangle(posX - 1, posY - 5, this.ANCHO + 2, 4);
 		final int porcentajeVida = (int) ((this.vida * 100) / this.vidaMaxima);
-		final int pocentajeBarraVidaActual = (porcentajeVida * this.ANCHO) / 100;
-		final Rectangle barraVidaActual = new Rectangle(posicionX, posicionY - 4, pocentajeBarraVidaActual, 2);
+		final int porcentajeBarraActual = (porcentajeVida * this.ANCHO) / 100;
+		final Rectangle barraVidaActual = new Rectangle(posX, posY - 4, porcentajeBarraActual, 2);
+
 		DibujoDebug.dibujarRectanguloRelleno(g, indicador, Color.BLACK);
 		DibujoDebug.dibujarRectanguloRelleno(g, barraVidaActual, Color.RED);
 
 		g.setFont(g.getFont().deriveFont(4f));
-		DibujoDebug.dibujarString(g, String.valueOf(this.vida) + "/" + String.valueOf(this.vidaMaxima), posicionX,
-				posicionY - 6, Color.white);
+		DibujoDebug.dibujarString(g, (int) this.vida + "/" + (int) this.vidaMaxima, posX, posY - 6, Color.WHITE);
 		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 	}
 
@@ -848,9 +775,7 @@ public class Jugador extends Criatura {
 	public void establecerPosicion(final int x, final int y) {
 		this.x = x;
 		this.y = y;
-		if (this.moviendoPorRecorrido) {
-			this.moviendoPorRecorrido = false;
-		}
+		this.moviendoPorRecorrido = false;
 	}
 
 	public int getPosicionXParado() {
@@ -887,29 +812,19 @@ public class Jugador extends Criatura {
 		return new Rectangle2D.Double((int) this.x + 2, (int) this.y + 12, 8, 8);
 	}
 
-	/**
-	 * Obtiene el shape del area de interseccion del jugador en base a un
-	 * desplazamiento.
-	 * 
-	 * @param desplazamiento El valor del desplazamiento.
-	 * @param direccion      El sentido del desplazamiento -> -1 = izquierda. 1 =
-	 *                       Derecha. 2 = Norte. 3 = Sur.
-	 * @return El shape de interseccion del jugador.
-	 */
 	public Shape getAreaInterseccionMovimiento(final double desplazamiento, final int direccion) {
-		if (direccion == -1) {
+		switch (direccion) {
+		case -1:
 			return new Rectangle2D.Double(((int) this.x + 2) - desplazamiento, (int) this.y + 12, 8, 8);
-		}
-		if (direccion == 1) {
+		case 1:
 			return new Rectangle2D.Double((int) this.x + 2 + desplazamiento, (int) this.y + 12, 8, 8);
-		}
-		if (direccion == 2) {
+		case 2:
 			return new Rectangle2D.Double((int) this.x + 2, ((int) this.y + 12) - desplazamiento, 8, 8);
-		}
-		if (direccion == 3) {
+		case 3:
 			return new Rectangle2D.Double((int) this.x + 2, (int) this.y + 12 + desplazamiento, 8, 8);
+		default:
+			return new Rectangle2D.Double((int) this.x + 2, (int) this.y + 12, 8, 8);
 		}
-		return new Rectangle2D.Double((int) this.x + 2, (int) this.y + 12, 8, 8);
 	}
 
 	@Override
@@ -919,10 +834,6 @@ public class Jugador extends Criatura {
 
 	public String getVelocidad() {
 		return String.format("%.2f", this.velocidad);
-	}
-
-	public HashMap<Estado, Estado> getEstado() {
-		return this.ESTADO;
 	}
 
 	@Override
@@ -942,14 +853,6 @@ public class Jugador extends Criatura {
 	}
 
 	@Override
-	public void reducirVida(final double damage) {
-		super.reducirVida(damage);
-		if (this.eliminado) {
-
-		}
-	}
-
-	@Override
 	public Rectangle getArea() {
 		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), this.ANCHO, this.ALTO);
 	}
@@ -961,7 +864,9 @@ public class Jugador extends Criatura {
 		this.damage = this.PTS_DAMAGE_BASE;
 		this.setMundo(mundo);
 		Constantes.INVENTARIO.vaciar();
-		this.mundo.moverJugadorPuntoComienzo();
+		if (this.mundo != null) {
+			this.mundo.moverJugadorPuntoComienzo();
+		}
 	}
 
 	@Override
@@ -975,10 +880,9 @@ public class Jugador extends Criatura {
 	@Override
 	public void setMundo(final Mundo mundo) {
 		super.setMundo(mundo);
-		this.DIJKSTRA = new DijkstraRework(mundo, new Dimension(this.ANCHO, this.ALTO));
-		if (this.moviendoPorRecorrido) {
-			this.moviendoPorRecorrido = false;
+		if (this.mundo != null) {
+			this.DIJKSTRA = new DijkstraRework(mundo, new Dimension(this.ANCHO, this.ALTO));
 		}
+		this.moviendoPorRecorrido = false;
 	}
-
 }

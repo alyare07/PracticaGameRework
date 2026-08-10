@@ -475,9 +475,6 @@ public class Terreno implements Serializable {
 		for (final Tile t : this.getTilesIntersectados(area)) {
 
 			if (area.intersects(t.getArea()) && t.esSolidoDijkstra()) {
-				if ((t.getArea().x == 16) && (t.getArea().y == 176)) {
-					System.out.println("tile encontrado");
-				}
 				return true;
 			}
 		}

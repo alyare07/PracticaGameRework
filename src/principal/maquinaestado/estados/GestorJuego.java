@@ -30,7 +30,8 @@ import principal.maquinaestado.estados.pantallaCarga.cargaMapa;
 import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
-import principal.utilidades.SonidoMP3;
+import principal.utilidades.audio.musica.GestorMusica;
+import principal.utilidades.audio.musica.IDMusica;
 
 public final class GestorJuego implements EstadoJuego, cargaMapa {
 	protected final GestorEstados GE;
@@ -43,7 +44,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	private boolean mostrarPantallaMuerte;
 	private final Raton RATON = Constantes.RATON;
-	private SonidoMP3 sonidoFondo;
 
 	private final MotorIGU motoIGU;
 
@@ -52,6 +52,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.GP = gp;
 		this.GT_MOSTRAR_PANTALLA_MUERTE = new GestorTiempo();
 		this.motoIGU = new MotorIGU();
+		GestorMusica.reproducirMusicaFondoPrincipal(IDMusica.FONDO_FOREST);
 	}
 
 	@Override
@@ -65,9 +66,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		if (Constantes.GLOBALES.pausa) {
-//	    this.sonidoFondo.pausar();
+			GestorMusica.actualizarMusicaFondoPrincipal(false);
 			return;
 		}
+		GestorMusica.actualizarMusicaFondoPrincipal(true);
 		// COD PRUEBA
 		this.actualizarCambioCamaraConEntes();
 		// FIN COD PRUEBA
@@ -83,7 +85,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			this.mapa.actualizar();
 			this.actualizarEventos();
 		} else {
-//	    this.sonidoFondo.pausar();
 		}
 
 		this.verificarPantallaMuerte();
@@ -125,6 +126,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	private boolean detectarCambioAMenu() {
 		if (Constantes.TECLADO.TECLA_ESCAPE.presionado()) {
+			GestorMusica.actualizarMusicaFondoPrincipal(false);
 			if (Constantes.INVENTARIO.esVisible()) {
 				Constantes.INVENTARIO.ocultar();
 				Constantes.TECLADO.TECLA_ESCAPE.soltar();

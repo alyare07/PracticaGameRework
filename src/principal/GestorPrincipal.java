@@ -4,6 +4,8 @@ import principal.graficos.SuperficieDibujo;
 import principal.graficos.Ventana;
 import principal.maquinaestado.GestorEstados;
 import principal.utilidades.Constantes;
+import principal.utilidades.audio.musica.GestorMusica;
+import principal.utilidades.audio.sonido.GestorSonido;
 
 /**
  * Núcleo principal del juego (Game Loop). Mantiene las actualizaciones lógicas
@@ -43,6 +45,8 @@ public class GestorPrincipal {
 
 	public GestorPrincipal() {
 		this.codActualizacion = Integer.MIN_VALUE;
+		GestorSonido.cargarSonidosDesdeJSON("sonidos/Sonidos.json");
+		GestorMusica.cargarMusicasDesdeJSON("sonidos/Musicas.json");
 	}
 
 	/**

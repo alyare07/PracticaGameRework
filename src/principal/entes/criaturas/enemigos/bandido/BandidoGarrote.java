@@ -38,7 +38,7 @@ public class BandidoGarrote extends Bandido {
 		if (this.pintarAtaque) {
 			this.ANIMACION.pintar(g, this.getPosicionXIntDibujado(), this.getPosicionYIntDibujado(), this.direccion,
 					AnimacionesBandido.GARROTE_ATACANDO, this.atrasDeComplemento, true);
-		} else if (!this.ESTADO.containsKey(Estado.CAMINANDO)) {
+		} else if (!this.estaEstadoCaminando()) {
 			this.ANIMACION.pintar(g, this.getPosicionXIntDibujado(), this.getPosicionYIntDibujado(), this.direccion,
 					AnimacionesBandido.GARROTE_ESTANDAR, this.atrasDeComplemento, true);
 		} else {

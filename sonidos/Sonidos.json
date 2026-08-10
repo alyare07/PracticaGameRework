@@ -1,0 +1,26 @@
+{
+  "efectos.explosion_1": {
+    "ruta": "sonidos/explosion1.mp3",
+    "volumen": 1.0
+  },
+  "efectos.criatura_muerta": {
+    "ruta": "sonidos/dead_criature.mp3",
+    "volumen": 1.0
+  },
+  "efectos.disparo_pistola": {
+    "ruta": "sonidos/DisparoPistola.mp3",
+    "volumen": 0.9
+  },
+  "efectos.sin_municion": {
+    "ruta": "sonidos/SinMunicion.mp3",
+    "volumen": 0.8
+  },
+  "efectos.golpe_1": {
+    "ruta": "sonidos/hit_punch.mp3",
+    "volumen": 1.0
+  },
+  "efectos.golpe_2": {
+    "ruta": "sonidos/hit_punch_2.mp3",
+    "volumen": 1.0
+  }
+}

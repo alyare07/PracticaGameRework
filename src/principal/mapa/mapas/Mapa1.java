@@ -3,9 +3,11 @@ package principal.mapa.mapas;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.io.File;
+import java.util.Random;
 
 import org.json.simple.JSONObject;
 
+import principal.entes.criaturas.enemigos.bandido.Bandido;
 import principal.entes.criaturas.enemigos.bandido.BandidoGarrote;
 import principal.entes.criaturas.enemigos.bandido.BandidoGranadero;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
@@ -67,66 +69,67 @@ public class Mapa1 extends Mapa {
 		this.mundoActual.meterEntidad(new BandidoGarrote(876, 220, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 50, 50, this.mundoActual));
-//		this.generarEnemigosParaPrueba(500);
+		this.generarEnemigosParaPrueba(100);
 
 //	this.mundoActual.agregarCriatura(new Enemigo(976, 90, 16, 16, 50, 50,
 //		Constantes.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida("/imagenes/sprites/jugadores.png").getSubimage(48, 48, 48, 48), this.mundoActual));
 
 	}
 
-//	public void generarEnemigosParaPrueba(final int cantidadDeseada) {
-//		if (this.mundoActual == null) {
-//			return;
-//		}
-//
-//		final Random random = new Random();
-//
-//		// Límites del mapa restando 50px de seguridad
-//		final int anchoLimite = Math.max(1, this.mundoActual.getTerreno().getAncho() - 50);
-//		final int altoLimite = Math.max(1, this.mundoActual.getTerreno().getAlto() - 50);
-//
-//		// Dimensiones de la colisión del Bandido
-//		final int anchoBandido = 12;
-//		final int altoBandido = 20;
-//
-//		// Rectangle auxiliar reutilizable para validar posición sin instanciar objetos
-//		// en el Heap
-//		final Rectangle areaPrueba = new Rectangle(0, 0, anchoBandido, altoBandido);
-//
-//		int generados = 0;
-//		int intentos = 0;
-//		// Evita bucle infinito si el mapa estuviera casi cubierto de sólidos
-//		final int intentosMaximos = cantidadDeseada * 100;
-//
-//		while ((generados < cantidadDeseada) && (intentos < intentosMaximos)) {
-//			intentos++;
-//
-//			// Coordenadas aleatorias entre 0 y los límites del mapa
-//			final int posX = random.nextInt(anchoLimite);
-//			final int posY = random.nextInt(altoLimite);
-//
-//			// Posicionamos la caja de colisión auxiliar en la posición aleatoria
-//			areaPrueba.setLocation(posX, posY);
-//
-//			// Verificamos si en esa posición colisiona con el terreno o con un objeto
-//			// sólido (árbol, etc.)
-//			final boolean colisionaTerreno = this.mundoActual.getTerreno().intersectaSolidoDijkstra(areaPrueba);
-//			final boolean colisionaObjeto = this.mundoActual.colisionaConObjetoSolido(areaPrueba);
-//
-//			// Si la zona está libre de colisiones
-//			if (!colisionaTerreno && !colisionaObjeto) {
-//				// Instanciamos y agregamos la entidad
-//				final Bandido enemigo = new BandidoGranadero(posX, posY, anchoBandido, altoBandido, this.mundoActual);
-//				this.mundoActual.meterEntidad(enemigo);
-//				generados++;
-//			}
-//		}
-//
-//		System.out.println("--- PRUEBA DE RENDIMIENTO ---");
-//		System.out.println("Enemigos solicitados: " + cantidadDeseada);
-//		System.out.println("Enemigos colocados exitosamente: " + generados);
-//		System.out.println("Intentos totales: " + intentos);
-//	}
+	public void generarEnemigosParaPrueba(final int cantidadDeseada) {
+		if (this.mundoActual == null) {
+			return;
+		}
+
+		final Random random = new Random();
+
+		// Límites del mapa restando 50px de seguridad
+		final int anchoLimite = Math.max(1, this.mundoActual.getTerreno().getAncho() - 50);
+		final int altoLimite = Math.max(1, this.mundoActual.getTerreno().getAlto() - 50);
+		System.out.println(anchoLimite);
+		System.out.println(altoLimite);
+		// Dimensiones de la colisión del Bandido
+		final int anchoBandido = 12;
+		final int altoBandido = 20;
+
+		// Rectangle auxiliar reutilizable para validar posición sin instanciar objetos
+		// en el Heap
+		final Rectangle areaPrueba = new Rectangle(0, 0, anchoBandido, altoBandido);
+
+		int generados = 0;
+		int intentos = 0;
+		// Evita bucle infinito si el mapa estuviera casi cubierto de sólidos
+		final int intentosMaximos = cantidadDeseada * 100;
+
+		while ((generados < cantidadDeseada) && (intentos < intentosMaximos)) {
+			intentos++;
+
+			// Coordenadas aleatorias entre 0 y los límites del mapa
+			final int posX = random.nextInt(anchoLimite);
+			final int posY = random.nextInt(altoLimite);
+
+			// Posicionamos la caja de colisión auxiliar en la posición aleatoria
+			areaPrueba.setLocation(posX, posY);
+
+			// Verificamos si en esa posición colisiona con el terreno o con un objeto
+			// sólido (árbol, etc.)
+			final boolean colisionaTerreno = this.mundoActual.getTerreno().intersectaSolidoDijkstra(areaPrueba);
+			final boolean colisionaObjeto = this.mundoActual.colisionaConObjetoSolido(areaPrueba);
+
+			// Si la zona está libre de colisiones
+			if (!colisionaTerreno && !colisionaObjeto) {
+				// Instanciamos y agregamos la entidad
+				final Bandido enemigo = new BandidoGarrote(posX, posY, anchoBandido, altoBandido, this.mundoActual);
+				this.mundoActual.meterEntidad(enemigo);
+				generados++;
+			}
+		}
+
+		System.out.println("--- PRUEBA DE RENDIMIENTO ---");
+		System.out.println("Enemigos solicitados: " + cantidadDeseada);
+		System.out.println("Enemigos colocados exitosamente: " + generados);
+		System.out.println("Intentos totales: " + intentos);
+	}
 
 	@Override
 	public String[] getNombreMundos() {

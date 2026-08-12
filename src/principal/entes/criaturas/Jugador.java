@@ -214,6 +214,7 @@ public class Jugador extends Criatura {
 
 	@Override
 	public void actualizar() {
+
 		if (Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())) {
 			if (Constantes.RATON.presionadoClickIzqUnicaAct()) {
 				Constantes.CAMARA.setEntidadEnfocada(this);
@@ -395,16 +396,14 @@ public class Jugador extends Criatura {
 
 			this.moverANodoADestino();
 
-			if ((this.nodoADestino == this.recorridoA.getLast())
+			if (!this.recorridoA.isEmpty() && (this.nodoADestino == this.recorridoA.getLast())
 					&& (this.nodoADestino.compararPosicionesMundo(this.getPosicionXInt(), this.getPosicionYInt(),
 							this.getMundo().getAEstrellaX12X20().getDimensionNodoA()))) {
 
 				this.moviendoPorRecorrido = false;
 				this.nodoADestino = null;
 				this.setEstadoEstandar();
-				if (this.recorridoA.size() > 0) {
-					this.recorridoA.clear();
-				}
+				this.recorridoA.clear();
 			} else if (!this.moviendoPorRecorrido) {
 				this.moviendoPorRecorrido = true;
 				this.setEstadoCaminando();
@@ -660,7 +659,7 @@ public class Jugador extends Criatura {
 					|| Constantes.TECLADO.TECLA_DERECHA.presionado()
 					|| Constantes.TECLADO.TECLA_IZQUIERDA.presionado()) {
 				if (this.gastarEstamina()) {
-					this.velocidad = this.velocidadEstandar * 1.5;
+					this.velocidad = this.velocidadEstandar * 3.5;
 					corriendo = true;
 				}
 			}

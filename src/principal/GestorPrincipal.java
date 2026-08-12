@@ -146,7 +146,7 @@ public class GestorPrincipal {
 	 */
 	private void actualizar() {
 		Constantes.RATON.actualizar(this.superficieDibujo);
-		Constantes.TECLADO.actualizarEstadosTeclas();
+		Constantes.TECLADO.actualizar();
 		this.gestorEstados.actualizar();
 		Constantes.CAMARA.actualizar();
 

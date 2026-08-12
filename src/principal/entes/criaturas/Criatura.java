@@ -81,7 +81,6 @@ public abstract class Criatura extends Ente {
 	protected int margenXFinalSprite;
 	protected int margenYFinalSprite;
 
-	// Atributo corregido
 	protected final ArrayDeque<NodoA> recorridoA;
 
 	protected NodoA nodoADestino;
@@ -181,24 +180,45 @@ public abstract class Criatura extends Ente {
 	}
 
 	protected void pintarIndicadorVida(final Graphics2D g) {
-		final int posX = this.getPosicionXInt();
-		final int posY = this.getPosicionYInt();
-		// BUSCAR LA FORMA DE DEJAR DE CREAR NUEVOS RECTANGLE EN EL ACT
-		final Rectangle indicador = new Rectangle(posX - 1, posY - 5, this.ANCHO + 2, 4);
-		final int porcentajeVida = (int) ((this.vida * 100) / this.vidaMaxima);
-		final int porcentajeBarraActual = (porcentajeVida * this.ANCHO) / 100;
-		final Rectangle barraVidaActual = new Rectangle(posX, posY - 4, porcentajeBarraActual, 2);
+		if (this.estaEstadoPersiguiendo() || this.estaEstadoAtacando()) {
+			this.pintarRectanguloBarraVida(g);
 
-		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, indicador, Color.BLACK);
-		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, barraVidaActual, Color.RED);
+		} else if (Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara()
+				.intersects(this.getPosicionX(), this.getPosicionY(), this.ANCHO, this.ALTO)) {
+			this.pintarRectanguloBarraVida(g);
+			this.pintarValorVida(g);
+			return;
+		}
+		if (Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getPosicionX(),
+				this.getPosicionY(), this.ANCHO, this.ALTO)) {
+			this.pintarRectanguloBarraVida(g);
+			this.pintarValorVida(g);
+		}
+	}
 
+	private void pintarValorVida(final Graphics2D g) {
 		g.setFont(g.getFont().deriveFont(4f));
 		final String texto = (int) this.vida + "/" + (int) this.vidaMaxima;
 		final int anchoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
 
-		final int xTexto = posX + ((this.ANCHO - anchoTexto) / 2);
-		DibujoDebug.dibujarStringRefCamara(g, texto, xTexto, posY - 6, Color.WHITE);
+		final int xTexto = this.getPosicionXInt() + ((this.ANCHO - anchoTexto) / 2);
+		DibujoDebug.dibujarStringRefCamara(g, texto, xTexto, this.getPosicionYInt() - 6, Color.WHITE);
 		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
+	}
+
+	private void pintarRectanguloBarraVida(final Graphics2D g) {
+		this.getPosicionXInt();
+		this.getPosicionYInt();
+		// BUSCAR LA FORMA DE DEJAR DE CREAR NUEVOS RECTANGLE EN EL ACT
+		final Rectangle indicador = new Rectangle(this.getPosicionXInt() - 1, this.getPosicionYInt() - 5,
+				this.ANCHO + 2, 4);
+		final int porcentajeVida = (int) ((this.vida * 100) / this.vidaMaxima);
+		final int porcentajeBarraActual = (porcentajeVida * this.ANCHO) / 100;
+		final Rectangle barraVidaActual = new Rectangle(this.getPosicionXInt(), this.getPosicionYInt() - 4,
+				porcentajeBarraActual, 2);
+
+		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, indicador, Color.BLACK);
+		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, barraVidaActual, Color.RED);
 	}
 
 	// --- MOVIMIENTO Y NAVEGACIÓN ---

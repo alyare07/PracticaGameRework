@@ -2,7 +2,6 @@ package principal.controles;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
@@ -15,244 +14,263 @@ import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
 
-public class Raton extends MouseAdapter{
-    private final Point posicion;
-    private boolean click;
-    private boolean presionadoDerecho;
-    private boolean presionadoIzquierdo;
-    private Rectangle puntoPresionado;
-    private final GestorTiempo GT = new GestorTiempo();
-    private int tiempoMsEspera = 0;
-    private boolean presionadoDerUnicaAct;
-    private boolean presionadoIzqUnicaAct;
-    private boolean disponibleParaPresionarIzqUnicaAct = true;
-    private boolean disponibleParaPresionarDerUnicaAct = true;
+/**
+ * Gestor de entrada para el mouse.
+ * <p>
+ * Maneja eventos de posición, clics sostenidos y pulsaciones únicas por frame,
+ * optimizado para minimizar el consumo de CPU y la presión sobre el Garbage
+ * Collector.
+ * </p>
+ */
+public class Raton extends MouseAdapter {
 
-    public Raton() {
-	this.posicion = new Point();
-	this.click = false;
-    }
+	private final Point posicion;
+	private volatile boolean click;
+	private volatile boolean presionadoDerecho;
+	private volatile boolean presionadoIzquierdo;
 
-    private void actualizarPresionadosUnicaVez() {
-	if (this.presionadoDerecho) {
-	    if (this.presionadoDerUnicaAct) {
-		this.presionadoDerUnicaAct = false;
-		this.disponibleParaPresionarDerUnicaAct = false;
-	    } else if (this.disponibleParaPresionarDerUnicaAct) {
-		this.presionadoDerUnicaAct = true;
-	    }
-	} else if (!this.disponibleParaPresionarDerUnicaAct) {
-	    this.presionadoDerUnicaAct = false;
-	    this.disponibleParaPresionarDerUnicaAct = true;
+	private volatile boolean presionadoDerUnicaAct;
+	private volatile boolean presionadoIzqUnicaAct;
+	private volatile boolean disponibleParaPresionarIzqUnicaAct = true;
+	private volatile boolean disponibleParaPresionarDerUnicaAct = true;
+	private volatile boolean latchIzq = false;
+	private volatile boolean latchDer = false;
+	private Rectangle puntoPresionado;
+	private final GestorTiempo GT = new GestorTiempo();
+	private int tiempoMsEspera = 0;
+
+	public Raton() {
+		this.posicion = new Point();
+		this.click = false;
+		this.puntoPresionado = new Rectangle(0, 0, 1, 1);
 	}
 
-	if (this.presionadoIzquierdo) {
-	    if (this.presionadoIzqUnicaAct) {
-		this.presionadoIzqUnicaAct = false;
-		this.disponibleParaPresionarIzqUnicaAct = false;
-	    } else if (this.disponibleParaPresionarIzqUnicaAct) {
-		this.presionadoIzqUnicaAct = true;
-	    }
-	} else if (!this.disponibleParaPresionarIzqUnicaAct) {
-	    this.presionadoIzqUnicaAct = false;
-	    this.disponibleParaPresionarIzqUnicaAct = true;
-	}
-    }
-
-    public void actualizar(final SuperficieDibujo sd) {
-	this.actualizarPosicion(sd);
-	this.actualizarPresionadosUnicaVez();
-
-    }
-
-    public void dibujar(final Graphics2D g) {
-	DibujoDebug.dibujarString(g, "RX: " + this.posicion.x, 20, 200, Color.RED);
-	DibujoDebug.dibujarString(g, "RY: " + this.posicion.y, 20, 210, Color.red);
-	DibujoDebug.dibujarRectanguloContorno(g, this.getRectanguloPosicionEscalado(), Color.BLUE);
-    }
-
-    private void actualizarPosicion(final SuperficieDibujo sd) {
-	final Point posicionInicial = MouseInfo.getPointerInfo().getLocation();
-	SwingUtilities.convertPointFromScreen(posicionInicial, sd);
-	this.posicion.setLocation(posicionInicial);
-    }
-
-    /**
-     * El punto donde se ubica el puntero. No tiene en cuenta el escalado de la
-     * pantalla. NO se tiene en cuenta el desplazamiento de la camara!
-     * 
-     * @return El punto donde se ubica el puntero (SIN ESCALAR)
-     */
-    public Point getPuntoPosicionSinEscalar() {
-	return this.posicion;
-    }
-
-    /**
-     * El punto donde se ubica el puntero. Se tiene en cuenta el escalado de la
-     * pantalla. NO se tiene en cuenta el desplazamiento de la camara!
-     * 
-     * @return El punto donde se ubica el puntero (ESCALADO)
-     */
-    public Point getPuntoPosicionEscalado() {
-	return new Point((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X), (int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y));
-    }
-
-    /**
-     * El area donde se ubica el puntero. Se tiene en cuenta el escalado de la
-     * pantalla. NO se tiene en cuenta el desplazamiento de la camara!
-     * 
-     * @return El area donde se ubica el puntero (ESCALADO)
-     */
-    public Rectangle getRectanguloPosicionEscalado() {
-	final Rectangle area = new Rectangle((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X), (int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y), 1, 1);
-	return area;
-    }
-
-    /**
-     * El area donde se ubica el puntero. Se tiene en cuenta el escalado de la
-     * pantalla. Se tiene en cuenta el desplazamiento de la camara!
-     * 
-     * @return El area donde se ubica el puntero (ESCALADO Y CON DESPLAZAMIENTO
-     *         CAMARA)
-     */
-    public Rectangle getRectanguloPosicionEscaladoConDesplazamientoCamara() {
-	return new Rectangle((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X) + Constantes.CAMARA.getPosicionXInt() - Constantes.CAMARA.getMargenX(),
-		(int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y + Constantes.CAMARA.getPosicionYInt() - Constantes.CAMARA.getMargenY()), 1, 1);
-    }
-
-    public Point getPuntoPosicionEscaladoConDesplazamientoCamara() {
-	return new Point((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X) + Constantes.CAMARA.getPosicionXInt() - Constantes.CAMARA.getMargenX(),
-		(int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y + Constantes.CAMARA.getPosicionYInt() - Constantes.CAMARA.getMargenY()));
-    }
-
-    @Override
-    public void mouseClicked(final MouseEvent e) {
-	if (this.GT.transcurrioMiliSegundos(this.tiempoMsEspera)) {
-	    if (!this.click) {
-		this.tiempoMsEspera = 0;
-		this.click = true;
-	    }
-	}
-
-    }
-
-    @Override
-    public void mousePressed(final MouseEvent e) {
-	if (this.GT.transcurrioMiliSegundos(this.tiempoMsEspera)) {
-	    this.GT.establecerReferenciaTiempoActual();
-	    if (!(this.presionadoDerecho || this.presionadoIzquierdo)) {
-		this.tiempoMsEspera = 0;
-		if (SwingUtilities.isLeftMouseButton(e)) {
-		    this.presionadoIzquierdo = true;
-		} else if (SwingUtilities.isRightMouseButton(e)) {
-		    this.presionadoDerecho = true;
+	/**
+	 * Consume las acciones de pulsación única después de haber sido leídas en el
+	 * ciclo actual.
+	 */
+	private void actualizarPresionadosUnicaVez() {
+		if (this.latchIzq) {
+			this.presionadoIzqUnicaAct = true;
+			this.latchIzq = false; // Consumimos la señal del evento
+		} else {
+			this.presionadoIzqUnicaAct = false;
 		}
+
+		if (this.latchDer) {
+			this.presionadoDerUnicaAct = true;
+			this.latchDer = false; // Consumimos la señal del evento
+		} else {
+			this.presionadoDerUnicaAct = false;
+		}
+	}
+
+	public void actualizar(final SuperficieDibujo sd) {
+		this.actualizarPresionadosUnicaVez();
+	}
+
+	public void dibujar(final Graphics2D g) {
+		DibujoDebug.dibujarString(g, "RX: " + this.posicion.x, 20, 200, Color.RED);
+		DibujoDebug.dibujarString(g, "RY: " + this.posicion.y, 20, 210, Color.RED);
+		DibujoDebug.dibujarRectanguloContorno(g, this.getRectanguloPosicionEscalado(), Color.BLUE);
+	}
+
+	// -----------------------------------------------------------------------
+	// EVENTOS DE NAVEGACIÓN Y MOVIMIENTO (Escuchados por Swing AWT)
+	// Nota: Para que estos métodos funcionen, la SuperficieDibujo debe hacer:
+	// "sd.addMouseListener(raton);" y "sd.addMouseMotionListener(raton);"
+	// -----------------------------------------------------------------------
+
+	@Override
+	public void mouseMoved(final MouseEvent e) {
+		this.posicion.setLocation(e.getPoint());
+	}
+
+	@Override
+	public void mouseDragged(final MouseEvent e) {
+		this.posicion.setLocation(e.getPoint());
+	}
+
+	@Override
+	public void mouseClicked(final MouseEvent e) {
+		if (this.GT.transcurrioMiliSegundos(this.tiempoMsEspera)) {
+			if (!this.click) {
+				this.tiempoMsEspera = 0;
+				this.click = true;
+			}
+		}
+	}
+
+	@Override
+	public void mousePressed(final MouseEvent e) {
+		if (!this.GT.transcurrioMiliSegundos(this.tiempoMsEspera)) {
+			return;
+		}
+
+		this.GT.establecerReferenciaTiempoActual();
+		this.tiempoMsEspera = 0;
+
+		if (SwingUtilities.isLeftMouseButton(e)) {
+			this.presionadoIzquierdo = true;
+			this.latchIzq = true; // Levantamos el pestillo para el próximo frame
+		} else if (SwingUtilities.isRightMouseButton(e)) {
+			this.presionadoDerecho = true;
+			this.latchDer = true; // Levantamos el pestillo para el próximo frame
+		}
+
 		this.puntoPresionado = this.getRectanguloPosicionEscalado();
-	    }
-
 	}
 
-    }
-
-    @Override
-    public void mouseReleased(final MouseEvent e) {
-	this.presionadoDerecho = false;
-	this.presionadoIzquierdo = false;
-	if (SwingUtilities.isLeftMouseButton(e)) {
-	    this.disponibleParaPresionarIzqUnicaAct = true;
+	@Override
+	public void mouseReleased(final MouseEvent e) {
+		if (SwingUtilities.isLeftMouseButton(e)) {
+			this.presionadoIzquierdo = false;
+			this.latchIzq = false;
+		}
+		if (SwingUtilities.isRightMouseButton(e)) {
+			this.presionadoDerecho = false;
+			this.latchDer = false;
+		}
 	}
-	if (SwingUtilities.isRightMouseButton(e)) {
-	    this.disponibleParaPresionarDerUnicaAct = true;
+
+	// -----------------------------------------------------------------------
+	// CONSULTAS DE POSICIÓN
+	// -----------------------------------------------------------------------
+
+	/**
+	 * El punto donde se ubica el puntero. No tiene en cuenta el escalado de la
+	 * pantalla. NO se tiene en cuenta el desplazamiento de la cámara.
+	 * 
+	 * @return El punto donde se ubica el puntero (SIN ESCALAR)
+	 */
+	public Point getPuntoPosicionSinEscalar() {
+		return this.posicion;
 	}
-    }
 
-    public boolean getClick() {
-	return this.click;
-    }
-
-    public void reiniciarClick() {
-	if (this.click) {
-	    this.click = false;
+	/**
+	 * El punto donde se ubica el puntero. Se tiene en cuenta el escalado de la
+	 * pantalla. NO se tiene en cuenta el desplazamiento de la cámara.
+	 * 
+	 * @return El punto donde se ubica el puntero (ESCALADO)
+	 */
+	public Point getPuntoPosicionEscalado() {
+		return new Point((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X),
+				(int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y));
 	}
-    }
 
-    /**
-     * Verifica si el click izquierdo del mouse esta presionado en dicho momento.
-     * 
-     * @return TRUE si el click izquierdo esta presionado. FALSE si el click
-     *         izquierdo no esta presionado
-     */
-    public boolean presionadoClickIzq() {
-	return this.presionadoIzquierdo;
-    }
+	/**
+	 * El área donde se ubica el puntero. Se tiene en cuenta el escalado de la
+	 * pantalla. NO se tiene en cuenta el desplazamiento de la cámara.
+	 * 
+	 * @return El área donde se ubica el puntero (ESCALADO)
+	 */
+	public Rectangle getRectanguloPosicionEscalado() {
+		return new Rectangle((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X),
+				(int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y), 1, 1);
+	}
 
-    /**
-     * Verifica si el click derecho del mouse esta presionado en dicho momento.
-     * 
-     * @return TRUE si el click derecho esta presionado. FALSE si el click derecho
-     *         no esta presionado
-     */
-    public boolean presionadoClickDer() {
-	return this.presionadoDerecho;
-    }
+	/**
+	 * El área donde se ubica el puntero. Se tiene en cuenta el escalado de la
+	 * pantalla y el desplazamiento de la cámara.
+	 * 
+	 * @return El área donde se ubica el puntero (ESCALADO Y CON DESPLAZAMIENTO
+	 *         CÁMARA)
+	 */
+	public Rectangle getRectanguloPosicionEscaladoConDesplazamientoCamara() {
+		return new Rectangle(
+				((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X) + Constantes.CAMARA.getPosicionXInt())
+						- Constantes.CAMARA.getMargenX(),
+				((int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y) + Constantes.CAMARA.getPosicionYInt())
+						- Constantes.CAMARA.getMargenY(),
+				1, 1);
+	}
 
-    /**
-     * Verifica si el click izquierdo del mouse esta presionado en dicha
-     * actualizacion. Los click por actualizacion solo se tendran en cuenta en una
-     * unica actualizacion. Para un siguiente click se debera dejar de presionar el
-     * mouse y realizar nuevamente el clik.
-     * 
-     * @return TRUE si el click izquierdo esta presionado en dicha actualizacion.
-     *         FALSE si el click izquierdo no esta presionado en dicha actualizacion
-     */
-    public boolean presionadoClickIzqUnicaAct() {
-	return this.presionadoIzqUnicaAct;
-    }
+	public Point getPuntoPosicionEscaladoConDesplazamientoCamara() {
+		return new Point(
+				((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X) + Constantes.CAMARA.getPosicionXInt())
+						- Constantes.CAMARA.getMargenX(),
+				((int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y) + Constantes.CAMARA.getPosicionYInt())
+						- Constantes.CAMARA.getMargenY());
+	}
 
-    /**
-     * Verifica si el click derecho del mouse esta presionado en dicha
-     * actualizacion. Los click por actualizacion solo se tendran en cuenta en una
-     * unica actualizacion. Para un siguiente click se debera dejar de presionar el
-     * mouse y realizar nuevamente el clik.
-     * 
-     * @return TRUE si el click derecho esta presionado en dicha actualizacion.
-     *         FALSE si el click derecho no esta presionado en dicha actualizacion
-     */
-    public boolean presionadoClickDerUnicaAct() {
-	return this.presionadoDerUnicaAct;
-    }
+	// -----------------------------------------------------------------------
+	// ESTADOS Y GETTERS
+	// -----------------------------------------------------------------------
 
-    /**
-     * Area expresado en Rectangulo donde esta presionado el mouse. Este metodo
-     * tiene en cuenta el escalado de la pantalla! NO se tiene en cuenta el
-     * desplazamiento de la camara!
-     * 
-     * @return El punto donde se presiono, pero expresado en Rectangle.
-     */
-    public Rectangle getPuntoPresionado() {
-	return this.puntoPresionado;
-    }
+	public boolean getClick() {
+		return this.click;
+	}
 
-    /**
-     * Duerme el detector de click y presionados durante el tiempo especificado.
-     * 
-     * @param ms El tiempo en milisegundos a dormir el mouse.
-     */
-    public void dormirMS(final int ms) {
-	this.tiempoMsEspera = ms;
-	this.GT.establecerReferenciaTiempoActual();
-    }
+	public void reiniciarClick() {
+		this.click = false;
+	}
 
-    /**
-     * Suelta todos los click que haya en el momento.
-     */
-    public void soltar() {
-	this.presionadoIzquierdo = false;
-	this.presionadoDerecho = false;
-	this.presionadoIzqUnicaAct = false;
-	this.presionadoDerUnicaAct = false;
-	this.disponibleParaPresionarIzqUnicaAct = true;
-	this.disponibleParaPresionarDerUnicaAct = true;
-    }
+	/**
+	 * Verifica si el click izquierdo del mouse está presionado en dicho momento.
+	 * 
+	 * @return TRUE si el clic izquierdo está presionado.
+	 */
+	public boolean presionadoClickIzq() {
+		return this.presionadoIzquierdo;
+	}
 
+	/**
+	 * Verifica si el click derecho del mouse está presionado en dicho momento.
+	 * 
+	 * @return TRUE si el clic derecho está presionado.
+	 */
+	public boolean presionadoClickDer() {
+		return this.presionadoDerecho;
+	}
+
+	/**
+	 * Verifica si el click izquierdo del mouse se presionó en esta actualización.
+	 * Solo retorna TRUE durante un único ciclo por cada pulsación.
+	 * 
+	 * @return TRUE si el clic izquierdo se activó en esta actualización.
+	 */
+	public boolean presionadoClickIzqUnicaAct() {
+		return this.presionadoIzqUnicaAct;
+	}
+
+	/**
+	 * Verifica si el click derecho del mouse se presionó en esta actualización.
+	 * Solo retorna TRUE durante un único ciclo por cada pulsación.
+	 * 
+	 * @return TRUE si el clic derecho se activó en esta actualización.
+	 */
+	public boolean presionadoClickDerUnicaAct() {
+		return this.presionadoDerUnicaAct;
+	}
+
+	/**
+	 * Área expresada en Rectángulo donde está presionado el mouse (escalado).
+	 * 
+	 * @return El punto presionado expresado en Rectangle.
+	 */
+	public Rectangle getPuntoPresionado() {
+		return this.puntoPresionado;
+	}
+
+	/**
+	 * Duerme la detección de clics y presionados durante el tiempo especificado.
+	 * 
+	 * @param ms El tiempo en milisegundos a dormir el mouse.
+	 */
+	public void dormirMS(final int ms) {
+		this.tiempoMsEspera = ms;
+		this.GT.establecerReferenciaTiempoActual();
+	}
+
+	/**
+	 * Suelta todos los clics y reinicia los estados de pulsación.
+	 */
+	public void soltar() {
+		this.presionadoIzquierdo = false;
+		this.presionadoDerecho = false;
+		this.presionadoIzqUnicaAct = false;
+		this.presionadoDerUnicaAct = false;
+		this.latchIzq = false;
+		this.latchDer = false;
+	}
 }

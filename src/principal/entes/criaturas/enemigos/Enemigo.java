@@ -69,23 +69,27 @@ public abstract class Enemigo extends Criatura {
 	@Override
 	public void actualizar() {
 		this.curar();
+		if (Constantes.TECLADO.TECLA_DIJKSTRA.presionado()) {
 
-		// 1. Evaluación de detección del jugador o reacción a ataques recibidos
-		final boolean jugadorDetectado = this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getRectangulo());
-		final boolean bajoAtaque = this.recibiendoAtaque();
+			// 1. Evaluación de detección del jugador o reacción a ataques recibidos
+			final boolean jugadorDetectado = this.getAreaDeteccionLogica()
+					.intersects(Constantes.JUGADOR.getRectangulo());
+			final boolean bajoAtaque = this.recibiendoAtaque();
 
-		if (jugadorDetectado || bajoAtaque) {
-			if (!this.tieneEstado(Estado.PERSIGUIENDO) && !this.tieneEstado(Estado.ATACANDO)) {
-				this.meterEstado(Estado.PERSIGUIENDO);
-				this.removerEstado(Estado.ESTANDAR);
-				this.enAccion = false; // Cancela patrulla pasiva
-				this.recorridoA.clear();
+			if (jugadorDetectado || bajoAtaque) {
+				if (!this.tieneEstado(Estado.PERSIGUIENDO) && !this.tieneEstado(Estado.ATACANDO)) {
+					this.meterEstado(Estado.PERSIGUIENDO);
+					this.removerEstado(Estado.ESTANDAR);
+					this.enAccion = false; // Cancela patrulla pasiva
+					this.recorridoA.clear();
+				}
+				this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
 			}
-			this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
 		}
 
 		// 2. Transición de decisiones: Combate/Persecución vs Patrulla Pasiva
-		if (this.tieneEstado(Estado.PERSIGUIENDO) || this.tieneEstado(Estado.ATACANDO)) {
+		if (Constantes.TECLADO.TECLA_DIJKSTRA.presionado()
+				&& (this.tieneEstado(Estado.PERSIGUIENDO) || this.tieneEstado(Estado.ATACANDO))) {
 			this.actualizarAtaque();
 		} else {
 			this.tomarAccion();

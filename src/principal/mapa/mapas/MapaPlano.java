@@ -19,51 +19,52 @@ import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 
-public class MapaPlano extends Mapa{
-    public static final String NOMBRE_MAPA = "Mapa Plano";
-    public static final String EXTERIOR = "Exterior";
+public class MapaPlano extends Mapa {
+	public static final String NOMBRE_MAPA = "Mapa Plano";
+	public static final String EXTERIOR = "Exterior";
 
-    public MapaPlano(final GestorCarga gc, final int porcentajeCarga, final GestorPartida gp) {
-	super(gc, porcentajeCarga, gp);
-    }
+	public MapaPlano(final GestorCarga gc, final int porcentajeCarga, final GestorPartida gp) {
+		super(gc, porcentajeCarga, gp);
+	}
 
-    public MapaPlano(final GestorCarga gc, final int porcentajeCarga, final GestorPartida gp, final JSONObject jsonMapa) {
-	super(gc, porcentajeCarga, gp, jsonMapa);
-    }
+	public MapaPlano(final GestorCarga gc, final int porcentajeCarga, final GestorPartida gp,
+			final JSONObject jsonMapa) {
+		super(gc, porcentajeCarga, gp, jsonMapa);
+	}
 
-    @Override
-    protected void establecerMundos(final GestorCarga gc, final int porcentajeCarga) {
-	gc.setDetalleCarga("Generando terreno");
-	final Terreno t = new Terreno(70, 70, 16, ListaModeloTile.COD_CESPED_2);
-	this.MUNDOS.put(EXTERIOR, new Mundo(new Escenario(t, "[]", "[]", "[]", "[]"), new Point(326, 268)));
-    }
+	@Override
+	protected void establecerMundos(final GestorCarga gc, final int porcentajeCarga) {
+		gc.setDetalleCarga("Generando terreno");
+		final Terreno t = new Terreno(1000, 1000, 16, ListaModeloTile.COD_CESPED_2);
+		this.MUNDOS.put(EXTERIOR, new Mundo(new Escenario(t, "[]", "[]", "[]", "[]"), new Point(326, 268)));
+	}
 
-    @Override
-    protected void establecerMundoActual() {
-	this.mundoActual = this.MUNDOS.get(EXTERIOR);
-    }
+	@Override
+	protected void establecerMundoActual() {
+		this.mundoActual = this.MUNDOS.get(EXTERIOR);
+	}
 
-    @Override
-    protected void cargarFuncionalidadesPropias() {
-	final GestorJuego jg = this.GP.getGestorJuego();
-	this.mundoActual.meterEntidad(new CofreMediano(30, 100));
-	this.mundoActual.meterEntidad(new Complemento(300, 200, ListaModeloComplemento.COD_CASA_1));
+	@Override
+	protected void cargarFuncionalidadesPropias() {
+		final GestorJuego jg = this.GP.getGestorJuego();
+		this.mundoActual.meterEntidad(new CofreMediano(30, 100));
+		this.mundoActual.meterEntidad(new Complemento(300, 200, ListaModeloComplemento.COD_CASA_1));
 
-	final ZonaTP zonaTP2 = new ZonaTP(new Rectangle(184, 215, 20, 20), null);
-	zonaTP2.setPuertaTP(new PuertaMapa(MapaManager.MAPA_1, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true, this.GP));
-	this.mundoActual.meterEntidad(zonaTP2);
-	jg.meterEvento(new EventoJugadorZonaTP(zonaTP2, jg, true));
-    }
+		final ZonaTP zonaTP2 = new ZonaTP(new Rectangle(184, 215, 20, 20), null);
+		zonaTP2.setPuertaTP(new PuertaMapa(MapaManager.MAPA_1, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true, this.GP));
+		this.mundoActual.meterEntidad(zonaTP2);
+		jg.meterEvento(new EventoJugadorZonaTP(zonaTP2, jg, true));
+	}
 
-    @Override
-    public String[] getNombreMundos() {
-	final String[] lista = { EXTERIOR };
-	return lista;
-    }
+	@Override
+	public String[] getNombreMundos() {
+		final String[] lista = { EXTERIOR };
+		return lista;
+	}
 
-    @Override
-    public String getNombre() {
-	return NOMBRE_MAPA;
-    }
+	@Override
+	public String getNombre() {
+		return NOMBRE_MAPA;
+	}
 
 }

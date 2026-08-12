@@ -32,6 +32,8 @@ public class SuperficieDibujo extends Canvas {
 		this.setPreferredSize(new Dimension(ancho, alto));
 		this.addKeyListener(Constantes.TECLADO);
 		this.addMouseListener(this.RATON);
+		this.addMouseMotionListener(this.RATON); // <--- Imprescindible para mouseMoved / mouseDragged
+
 		this.setFocusable(true);
 		this.requestFocus();
 	}

@@ -2,10 +2,14 @@ package principal.controles;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -16,28 +20,10 @@ import principal.utilidades.Constantes;
 
 public class Teclado implements KeyListener {
 
-//	public boolean arriba = false;
-//	public boolean abajo = false;
-//	public boolean izquierda = false;
-//	public boolean derecha = false;
-//	public boolean recogiendo = false;
-//	public boolean corriendo = false;
-//	public boolean debug = false;
-//	public boolean verColisiones = false;
-//	public boolean dijkstra = false;
-//	public boolean dijkstraInfo = false;
-//	public boolean guardarMapa = false;
-//	public boolean debugTile = false;
-//	public boolean debugTileInfo = false;
-//	public boolean debugGroupTile = false;
-//	public boolean ocultarTerreno = false;
-//	public boolean ocultarComplementos = false;
-//	public boolean verAlcanceAtaque = false;
-//	public boolean atacando = false;
-//	public boolean scape = false;
 	public final File ARCHIVO_CONFIG = new File("Config.dat");
 	public final ArrayList<Tecla> TECLAS = new ArrayList<Tecla>();
 	public final HashMap<String, Tecla> TECLAS_MODIFICABLES = new HashMap<String, Tecla>();
+
 	public final Tecla TECLA_ARRIBA;
 	public final Tecla TECLA_ABAJO;
 	public final Tecla TECLA_IZQUIERDA;
@@ -61,8 +47,13 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_ESCAPE;
 	public final Tecla TECLA_PUNTO;
 	public final TeclaAccionCondicionada TECLA_INVENTARIO;
-	public boolean[] teclas = new boolean[300];
-	private final boolean[] teclasPresionadasAnterior = new boolean[300];
+
+	/**
+	 * Arreglo ampliado a 512 elementos para prevenir fuera de rango en teclas
+	 * especiales
+	 */
+	public boolean[] teclas = new boolean[512];
+	private final boolean[] teclasPresionadasAnterior = new boolean[512];
 
 	public Teclado() {
 		this.TECLA_ARRIBA = new Tecla(KeyEvent.VK_UP, "Mover Arriba");
@@ -86,8 +77,8 @@ public class Teclado implements KeyListener {
 		this.TECLA_ATACANDO = new Tecla(KeyEvent.VK_SPACE, "Atacar");
 		this.TECLA_ESCAPE = new Tecla(KeyEvent.VK_ESCAPE, "Escape");
 		this.TECLA_PUNTO = new Tecla(KeyEvent.VK_PERIOD, "Punto");
-		this.TECLA_INVENTARIO = new TeclaAccionCondicionada(KeyEvent.VK_I, true, "Inventario") {
 
+		this.TECLA_INVENTARIO = new TeclaAccionCondicionada(KeyEvent.VK_I, "Inventario") {
 			@Override
 			public boolean condicion() {
 				return !Constantes.GLOBALES.pausa;
@@ -103,7 +94,6 @@ public class Teclado implements KeyListener {
 		};
 
 		this.TECLA_PAUSA = new TeclaAccionCondicionada(KeyEvent.VK_P, "Pausa") {
-
 			@Override
 			public boolean condicion() {
 				return true;
@@ -112,14 +102,13 @@ public class Teclado implements KeyListener {
 			@Override
 			public void accionar() {
 				Constantes.GLOBALES.pausa = !Constantes.GLOBALES.pausa;
-
 			}
 		};
+
 		this.cargarTeclasALista();
 		this.cargarTeclasAListaModificables();
 
-		System.out.println("Config Teclado cargada? " + String.valueOf(this.cargarConfig()));
-
+		System.out.println("Config Teclado cargada? " + this.cargarConfig());
 	}
 
 	private void cargarTeclasALista() {
@@ -159,19 +148,30 @@ public class Teclado implements KeyListener {
 		this.TECLAS_MODIFICABLES.put(this.TECLA_INVENTARIO.nombre, this.TECLA_INVENTARIO);
 	}
 
-	// COD DE PRUEBA
-	public void actualizarEstadosTeclas() {
+	/**
+	 * Debe llamarse al inicio de cada frame en el Game Loop para actualizar los
+	 * estados de pulsación única.
+	 */
+	public void actualizar() {
+		for (final Tecla t : this.TECLAS) {
+			t.actualizar();
+		}
 		System.arraycopy(this.teclas, 0, this.teclasPresionadasAnterior, 0, this.teclas.length);
 	}
 
 	public boolean isTeclaPresionadaUnaVez(final int codigoTecla) {
-		return this.teclas[codigoTecla] && !this.teclasPresionadasAnterior[codigoTecla];
+		if ((codigoTecla >= 0) && (codigoTecla < this.teclas.length)) {
+			return this.teclas[codigoTecla] && !this.teclasPresionadasAnterior[codigoTecla];
+		}
+		return false;
 	}
 
 	public boolean isTeclaPresionadaUnaVez(final Tecla tecla) {
-		return this.teclas[tecla.codigoTecla] && !this.teclasPresionadasAnterior[tecla.codigoTecla];
+		if (tecla == null) {
+			return false;
+		}
+		return this.isTeclaPresionadaUnaVez(tecla.getCodigoTecla());
 	}
-	// FIN COD PRUEBA
 
 	@Override
 	public void keyTyped(final KeyEvent e) {
@@ -179,26 +179,27 @@ public class Teclado implements KeyListener {
 
 	@Override
 	public void keyPressed(final KeyEvent e) {
-		if ((e.getKeyCode() >= 0) && (e.getKeyCode() < this.teclas.length)) {
-			this.teclas[e.getKeyCode()] = true;
+		final int code = e.getKeyCode();
+		if ((code >= 0) && (code < this.teclas.length)) {
+			this.teclas[code] = true;
 		}
 
 		for (final Tecla t : this.TECLAS) {
-			if (t.getCodigoTecla() == e.getKeyCode()) {
+			if (t.getCodigoTecla() == code) {
 				t.presionar();
 			}
 		}
-
 	}
 
 	@Override
 	public void keyReleased(final KeyEvent e) {
-		if ((e.getKeyCode() >= 0) && (e.getKeyCode() < this.teclas.length)) {
-			this.teclas[e.getKeyCode()] = false;
+		final int code = e.getKeyCode();
+		if ((code >= 0) && (code < this.teclas.length)) {
+			this.teclas[code] = false;
 		}
 
 		for (final Tecla t : this.TECLAS) {
-			if ((t.getCodigoTecla() == e.getKeyCode()) && !t.accionarInvertible) {
+			if (t.getCodigoTecla() == code) {
 				t.soltar();
 			}
 		}
@@ -211,12 +212,6 @@ public class Teclado implements KeyListener {
 		return false;
 	}
 
-	/**
-	 * Obtiene todos los seteos del teclado en un json. en el json la clave seria el
-	 * nombre de la tecla y el valor el codigo de la tecla.
-	 * 
-	 * @return El json de todas las teclas modificables.
-	 */
 	protected JSONObject getConfigJson() {
 		final JSONObject jo = new JSONObject();
 		for (final Tecla t : this.TECLAS_MODIFICABLES.values()) {
@@ -225,80 +220,54 @@ public class Teclado implements KeyListener {
 		return jo;
 	}
 
-	/**
-	 * Establece a todas las teclas modificables los valores pasados en el json. En
-	 * el json la clave seria el nombre de la tecla y el valor el codigo de la
-	 * tecla.
-	 * 
-	 * @param jo El json con los valores de las teclas modificables a establecer.
-	 */
 	protected void establecerConfig(final JSONObject jo) {
+		if (jo == null) {
+			return;
+		}
 		for (final Tecla t : this.TECLAS_MODIFICABLES.values()) {
 			if (jo.containsKey(t.nombre)) {
-				t.establecerCodigoTecla(Integer.parseInt(jo.get(t.nombre).toString()));
+				try {
+					t.establecerCodigoTecla(((Number) jo.get(t.nombre)).intValue());
+				} catch (final Exception e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}
 
-	/**
-	 * Carga el archivo con la configuracion del teclado para las tecla
-	 * modificables. Si no se puede cargar dejara la configuracion por defecto.
-	 * 
-	 * @return TRUE si se pudo carga la configuracion o FALSE si no se pudo.
-	 */
 	protected boolean cargarConfig() {
 		if (!this.ARCHIVO_CONFIG.exists()) {
 			return false;
 		}
-		FileReader fr = null;
-		boolean exito = false;
-		try {
-			fr = new FileReader(this.ARCHIVO_CONFIG);
-			int code;
-			final StringBuilder txt = new StringBuilder();
-			while ((code = fr.read()) != -1) {
-				txt.append((char) code);
+
+		try (final BufferedReader reader = new BufferedReader(
+				new InputStreamReader(new FileInputStream(this.ARCHIVO_CONFIG), StandardCharsets.UTF_8))) {
+
+			final StringBuilder sb = new StringBuilder();
+			String linea;
+			while ((linea = reader.readLine()) != null) {
+				sb.append(linea);
 			}
-			final JSONObject jo = (JSONObject) (new JSONParser()).parse(txt.toString());
+
+			final JSONObject jo = (JSONObject) (new JSONParser()).parse(sb.toString());
 			this.establecerConfig(jo);
-			exito = true;
+			return true;
 		} catch (final Exception e) {
-			exito = false;
-		} finally {
-			if (fr == null) {
-				return false;
-			}
-			try {
-				fr.close();
-			} catch (final IOException e) {
-				e.printStackTrace();
-			}
+			e.printStackTrace();
+			return false;
 		}
-		return exito;
 	}
 
-	/**
-	 * Guarda el archivo con el json de la configuracion de las teclas modificables.
-	 */
 	public void guardarConfig() {
 		final JSONObject jo = this.getConfigJson();
-		FileWriter fw = null;
-		try {
-			fw = new FileWriter(this.ARCHIVO_CONFIG);
-			fw.write(jo.toJSONString().replaceAll(",", ",\n"));
+		try (final BufferedWriter writer = new BufferedWriter(
+				new OutputStreamWriter(new FileOutputStream(this.ARCHIVO_CONFIG), StandardCharsets.UTF_8))) {
+
+			writer.write(jo.toJSONString().replaceAll(",", ",\n"));
 			System.out.println("Config guardada? True");
-		} catch (final IOException e) {
+		} catch (final Exception e) {
 			e.printStackTrace();
 			System.out.println("Config guardada? False");
-		} finally {
-			try {
-				fw.flush();
-				fw.close();
-			} catch (final IOException e) {
-				e.printStackTrace();
-			}
-
 		}
 	}
-
 }

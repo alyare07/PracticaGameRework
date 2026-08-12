@@ -20,8 +20,12 @@ import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.Textura;
 
+/**
+ * Representa la unidad celda individual (Tile) del mapa.
+ */
 public class Tile implements Serializable {
 	private static final long serialVersionUID = -445324235886L;
+
 	protected final int LADO;
 	protected final int X;
 	protected final int Y;
@@ -37,21 +41,21 @@ public class Tile implements Serializable {
 		this.AREA = new Rectangle(x, y, lado, lado);
 	}
 
-	// VER DESPLAZAMIENTOS!DIBUJODEBUG LO HACE SOLO!
 	public void pintar(final Graphics2D g) {
 		if (!Constantes.TECLADO.TECLA_OCULTAR_TERRENO.presionado()) {
-			if (!ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE).contieneAnimacion()) {
-				DibujoDebug.dibujarImagenRefCamara(g, this.getTexturaImagen(), this.X, this.Y);
-			} else {
-				ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE).getAnimacion().pintar(g, this.X, this.Y, true);
+			final ModeloTile modelo = ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE);
+			if (modelo != null) {
+				if (!modelo.contieneAnimacion()) {
+					DibujoDebug.dibujarImagenRefCamara(g, modelo.getTextura(), this.X, this.Y);
+				} else {
+					modelo.getAnimacion().pintar(g, this.X, this.Y, true);
+				}
 			}
 		}
 
 		if (Constantes.TECLADO.TECLA_DEBUG_TILE.presionado() && Constantes.GLOBALES.estadoJuego) {
 			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
-
 		}
-
 	}
 
 	public void pintarEditor(final Graphics2D g) {
@@ -67,6 +71,10 @@ public class Tile implements Serializable {
 	}
 
 	public void meterObjetoSolido(final Objeto obj) {
+		if (obj == null) {
+			return;
+		}
+
 		if (obj.getArea().intersects(this.AREA)) {
 			if (obj instanceof Complemento) {
 				final Complemento c = (Complemento) obj;
@@ -82,7 +90,7 @@ public class Tile implements Serializable {
 	}
 
 	public void sacarObjetoSolido(final Objeto obj) {
-		if (this.OBJETOS_SOLIDADOS.containsKey(obj)) {
+		if (obj != null) {
 			this.OBJETOS_SOLIDADOS.remove(obj);
 		}
 	}
@@ -96,16 +104,18 @@ public class Tile implements Serializable {
 	}
 
 	public boolean contieneObjetosSolidos() {
-		return this.getCantObjetosSolidos() > 0;
+		return !this.OBJETOS_SOLIDADOS.isEmpty();
 	}
 
-	/*
-	 * REVEER LA PARTE DE LAS COLOCACIONES SEGUN POSICIONAMIENTO
-	 */
 	public Point getPosicionSegunZonaYArea(final int codigoZonaPosicion, final Objeto obj) {
 		final Point punto = new Point();
+		if (obj == null) {
+			return punto;
+		}
+
 		final int ancho = obj.getAncho();
 		final int alto = obj.getAlto();
+
 		switch (codigoZonaPosicion) {
 		case PaletaComplento.POSICIONAMIENTO_CENTRO:
 			if ((ancho == this.LADO) && (alto == this.LADO)) {
@@ -124,15 +134,20 @@ public class Tile implements Serializable {
 	}
 
 	public boolean intersecta(final Rectangle area) {
+		if (area == null) {
+			return false;
+		}
 		return area.intersects(this.AREA);
 	}
 
 	public int getEstado() {
-		return ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE).getEstado();
+		final ModeloTile m = ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE);
+		return (m != null) ? m.getEstado() : 0;
 	}
 
 	public int getCodigoTextura() {
-		return ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE).getCodTextura();
+		final ModeloTile m = ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE);
+		return (m != null) ? m.getCodTextura() : 0;
 	}
 
 	public Rectangle getArea() {
@@ -156,7 +171,8 @@ public class Tile implements Serializable {
 	}
 
 	public BufferedImage getTexturaImagen() {
-		return ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE).getTextura();
+		final ModeloTile m = ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE);
+		return (m != null) ? m.getTextura() : null;
 	}
 
 	public Point getPosicion() {
@@ -171,7 +187,6 @@ public class Tile implements Serializable {
 		if (this.getEstado() == ModeloTile.ESTADO_OBSTACULO) {
 			return true;
 		}
-
 		return this.contieneObjetosSolidos();
 	}
 
@@ -180,19 +195,21 @@ public class Tile implements Serializable {
 	}
 
 	public boolean hayColisionConAlgoSolido(final Shape s) {
+		if (s == null) {
+			return false;
+		}
+
 		if (this.esSolido()) {
 			return true;
 		}
 		if (this.contieneObjetosSolidos()) {
 			for (final Objeto obj : this.OBJETOS_SOLIDADOS.values()) {
-				if (obj.intersecta(s)) {
-					return true;
+				if ((obj != null) && obj.intersecta(s)) {
+					return true; // Retorno temprano al primer objeto sólido encontrado
 				}
 			}
-			return false;
 		}
 		return false;
-
 	}
 
 	public void pintarContorno(final Graphics2D g, final Color color) {
@@ -209,16 +226,15 @@ public class Tile implements Serializable {
 	}
 
 	public static Tile crearDesdeJson(final JSONObject json) {
-		final int x = Integer.parseInt(json.get("x").toString());
-		final int y = Integer.parseInt(json.get("y").toString());
-		final int codModelo = Integer.parseInt(json.get("codModelo").toString());
+		final int x = ((Number) json.get("x")).intValue();
+		final int y = ((Number) json.get("y")).intValue();
+		final int codModelo = ((Number) json.get("codModelo")).intValue();
 		return new Tile(x, y, Constantes.LADO_TILE, codModelo);
 	}
 
 	@Override
 	public String toString() {
-		return "Tile [AREA= x: " + this.AREA.x + " ,y:  " + this.AREA.y + " , W: " + this.AREA.width + " ,H: "
+		return "Tile [AREA= x: " + this.AREA.x + " ,y: " + this.AREA.y + " , W: " + this.AREA.width + " ,H: "
 				+ this.AREA.height + ", MODELO_TILE=" + ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE) + "]";
 	}
-
 }

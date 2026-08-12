@@ -5,6 +5,7 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.util.ArrayDeque;
 import java.util.EnumSet;
 import java.util.Random;
 import java.util.Set;
@@ -13,8 +14,6 @@ import org.json.simple.JSONObject;
 
 import principal.entes.Ente;
 import principal.entes.objetos.particulas.Sangre;
-import principal.ia.Lista;
-import principal.ia.aEstrella.AEstrella;
 import principal.ia.aEstrella.NodoA;
 import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
@@ -82,8 +81,9 @@ public abstract class Criatura extends Ente {
 	protected int margenXFinalSprite;
 	protected int margenYFinalSprite;
 
-	protected Lista<NodoA> recorridoA;
-	protected AEstrella aEstrella;
+	// Atributo corregido
+	protected final ArrayDeque<NodoA> recorridoA;
+
 	protected NodoA nodoADestino;
 	protected int destinoX;
 	protected int destinoY;
@@ -126,6 +126,7 @@ public abstract class Criatura extends Ente {
 		this.GT_CURACION = new GestorTiempo();
 		this.vidaRegen = 1.0;
 		this.direccion = Direccion.ESTE;
+		this.recorridoA = new ArrayDeque<NodoA>();
 	}
 
 	// --- MÉTODOS DE DIBUJO ---
@@ -143,27 +144,38 @@ public abstract class Criatura extends Ente {
 		}
 
 		// Renderizado del camino A* en modo debug
-		if ((Constantes.CAMARA.getEntidadEnfocada() == this) && (this.recorridoA != null)) {
+		if ((Constantes.CAMARA.getEntidadEnfocada() == this)
+				&& (!this.recorridoA.isEmpty() || (this.nodoADestino != null))) {
 			g.setFont(g.getFont().deriveFont(7f));
+
+			final Dimension dimNodo = this.getMundo().getAEstrellaX12X20().getDimensionNodoA();
+			final int anchoTile = dimNodo.width;
+			final int altoTile = dimNodo.height;
+
 			int pos = 1;
 
+			// Iteración limpia sobre la cola sin consumirla
 			for (final NodoA n : this.recorridoA) {
-				final Rectangle areaNodo = n.getAreaEnMundo();
+				final int xMundo = n.getXNodo() * anchoTile;
+				final int yMundo = n.getYNodo() * altoTile;
 				final String txt = String.valueOf(pos);
 
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, areaNodo, Color.MAGENTA);
+				DibujoDebug.dibujarRectanguloContornoRefCamara(g, new Rectangle(xMundo, yMundo, anchoTile, altoTile),
+						Color.MAGENTA);
 
-				final int xTexto = (areaNodo.x + (areaNodo.width / 2))
+				final int xTexto = (xMundo + (anchoTile / 2))
 						- (Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2);
-				final int yTexto = areaNodo.y + (areaNodo.height / 2)
+				final int yTexto = (yMundo + (altoTile / 2))
 						+ (Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2);
 
 				DibujoDebug.dibujarStringRefCamara(g, txt, xTexto, yTexto, Color.BLACK);
 				pos++;
 			}
 
+			// Destino inmediato en Amarillo
 			if (this.nodoADestino != null) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoADestino.getAreaEnMundo(), Color.YELLOW);
+				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoADestino.getXNodo() * anchoTile,
+						this.nodoADestino.getYNodo() * altoTile, anchoTile, altoTile, Color.YELLOW);
 			}
 		}
 	}
@@ -171,7 +183,7 @@ public abstract class Criatura extends Ente {
 	protected void pintarIndicadorVida(final Graphics2D g) {
 		final int posX = this.getPosicionXInt();
 		final int posY = this.getPosicionYInt();
-
+		// BUSCAR LA FORMA DE DEJAR DE CREAR NUEVOS RECTANGLE EN EL ACT
 		final Rectangle indicador = new Rectangle(posX - 1, posY - 5, this.ANCHO + 2, 4);
 		final int porcentajeVida = (int) ((this.vida * 100) / this.vidaMaxima);
 		final int porcentajeBarraActual = (porcentajeVida * this.ANCHO) / 100;
@@ -190,44 +202,45 @@ public abstract class Criatura extends Ente {
 	}
 
 	// --- MOVIMIENTO Y NAVEGACIÓN ---
-
 	protected void moverANodoADestino() {
 		if (this.nodoADestino == null) {
 			return;
 		}
 
-		final Rectangle areaDestino = this.nodoADestino.getAreaEnMundo();
+		final Dimension dimNodo = this.getMundo().getAEstrellaX12X20().getDimensionNodoA();
+
+		final int destX = this.nodoADestino.getXNodo() * dimNodo.width;
+		final int destY = this.nodoADestino.getYNodo() * dimNodo.height;
+
 		final int posCurrX = this.getPosicionXInt();
 		final int posCurrY = this.getPosicionYInt();
 
 		// Movimiento Vertical
-		if (posCurrY < areaDestino.y) {
-			final double dist = areaDestino.y - posCurrY;
-			this.y = (dist < this.velocidad) ? areaDestino.y : this.y + Math.min(dist, this.velocidad);
+		if (posCurrY < destY) {
+			final double dist = destY - posCurrY;
+			this.y = (dist < this.velocidad) ? destY : this.y + Math.min(dist, this.velocidad);
 			this.direccion = Direccion.SUR;
-		} else if (posCurrY > areaDestino.y) {
-			final double dist = posCurrY - areaDestino.y;
-			this.y = (dist < this.velocidad) ? areaDestino.y : this.y - Math.min(dist, this.velocidad);
+		} else if (posCurrY > destY) {
+			final double dist = posCurrY - destY;
+			this.y = (dist < this.velocidad) ? destY : this.y - Math.min(dist, this.velocidad);
 			this.direccion = Direccion.NORTE;
 		}
 
 		// Movimiento Horizontal
-		if (posCurrX < areaDestino.x) {
-			final double dist = areaDestino.x - posCurrX;
-			this.x = (dist < this.velocidad) ? areaDestino.x : this.x + Math.min(dist, this.velocidad);
+		if (posCurrX < destX) {
+			final double dist = destX - posCurrX;
+			this.x = (dist < this.velocidad) ? destX : this.x + Math.min(dist, this.velocidad);
 			this.direccion = Direccion.ESTE;
-		} else if (posCurrX > areaDestino.x) {
-			final double dist = posCurrX - areaDestino.x;
-			this.x = (dist < this.velocidad) ? areaDestino.x : this.x - Math.min(dist, this.velocidad);
+		} else if (posCurrX > destX) {
+			final double dist = posCurrX - destX;
+			this.x = (dist < this.velocidad) ? destX : this.x - Math.min(dist, this.velocidad);
 			this.direccion = Direccion.OESTE;
 		}
 
-		// Cambio al siguiente nodo del camino si se alcanzó el actual
-		if (this.nodoADestino.compararPosicionesMundo(this.getPosicionXInt(), this.getPosicionYInt())
-				&& (this.getPosicionXInt() == areaDestino.x) && (this.getPosicionYInt() == areaDestino.y)) {
-			if ((this.recorridoA != null) && this.recorridoA.hasNext()) {
-				this.nodoADestino = this.recorridoA.getNext();
-			}
+		// Llegada exacta al tile -> Extraer el siguiente nodo de la cola
+		if ((posCurrX == destX) && (posCurrY == destY)) {
+			// poll() asigna el siguiente nodo o null si ya no quedan más pasos
+			this.nodoADestino = this.recorridoA.poll();
 		}
 	}
 
@@ -288,6 +301,20 @@ public abstract class Criatura extends Ente {
 
 	public void sanar() {
 		this.vida = this.vidaMaxima;
+	}
+
+	public void calcularRutaAEstrella(final int xObjetivo, final int yObjetivo) {
+		if (this.mundo == null) {
+			return;
+		}
+
+		// A* poblará la cola recorridoA
+		this.mundo.getAEstrellaX12X20().getRecorrido(this.getPosicionXInt(), this.getPosicionYInt(), xObjetivo,
+				yObjetivo, this.recorridoA);
+
+		// .poll() extrae el primer paso y lo remueve de la cola. Si la cola está vacía,
+		// devuelve null.
+		this.nodoADestino = this.recorridoA.poll();
 	}
 
 	// --- GESTIÓN DE ESTADOS ---
@@ -477,6 +504,11 @@ public abstract class Criatura extends Ente {
 		}
 	}
 
+	protected void reiniciarRecorridoAEstrella() {
+		this.recorridoA.clear();
+		this.nodoADestino = null;
+	}
+
 	protected void setDireccionMirandoCriatura(final Criatura c) {
 		this.direccion = Constantes.FUNCIONES.getDireccionMirando(this.getPosicionXInt(), this.getPosicionYInt(),
 				c.getPosicionXInt(), c.getPosicionYInt());
@@ -507,9 +539,6 @@ public abstract class Criatura extends Ente {
 	@Override
 	public void setMundo(final Mundo mundo) {
 		super.setMundo(mundo);
-		if (this.mundo != null) {
-			this.aEstrella = new AEstrella(this.mundo, new Dimension(this.ANCHO, this.ALTO));
-		}
 	}
 
 	public int getCentroX() {

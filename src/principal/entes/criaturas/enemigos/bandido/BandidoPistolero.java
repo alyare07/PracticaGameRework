@@ -2,7 +2,6 @@ package principal.entes.criaturas.enemigos.bandido;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.Rectangle;
 
 import principal.animaciones.criaturas.AnimacionesBandido;
@@ -10,28 +9,22 @@ import principal.entes.criaturas.Jugador;
 import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.entes.objetos.items.armas.distancia.fuego.municiones.Municion;
-import principal.ia.dijkstra.NodoD;
 import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 
+/**
+ * Variación del enemigo Bandido enfocado en combate a distancia con arma de fuego.
+ * Dispara únicamente cuando la línea de tiro recta hasta el jugador está 100% libre de obstáculos.
+ */
 public class BandidoPistolero extends Bandido {
-
-	private static final byte RECTANGULO_INTERSECCION_PISTOLA_1 = -1;
-	private static final byte RECTANGULO_INTERSECCION_PISTOLA_3 = 1;
-	private static final byte RECTANGULO_INTERSECCION_PISTOLA_NONE = Byte.MIN_VALUE;
 
 	private final int rangoDisparo = 248;
 	private final Pistola pistola;
 
-	// ==========================================
-	// SCRATCHPADS: INSTANCIAS DE REUSO (0 GC)
-	// ==========================================
-	private final Rectangle rPistola1 = new Rectangle();
+	// Scratchpad de reuso para verificar línea de tiro (0 GC)
 	private final Rectangle rPistola2 = new Rectangle();
-	private final Rectangle rPistola3 = new Rectangle();
 	private final Rectangle rPistolaDistancia = new Rectangle();
-	private final Point puntoNodoAuxiliar = new Point();
 
 	public BandidoPistolero(final double x, final double y, final double vida, final double vidaMaxima,
 			final Mundo mundo) {
@@ -55,11 +48,7 @@ public class BandidoPistolero extends Bandido {
 		super.pintar(g);
 
 		if (Constantes.TECLADO.TECLA_DEBUG.presionado()) {
-			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getRectanguloInterseccionPistola1(this.rangoDisparo),
-					Color.red);
 			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getRectanguloInterseccionPistola2(this.rangoDisparo),
-					Color.red);
-			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getRectanguloInterseccionPistola3(this.rangoDisparo),
 					Color.red);
 		}
 	}
@@ -74,16 +63,59 @@ public class BandidoPistolero extends Bandido {
 		}
 	}
 
+	/**
+	 * Evalúa si existe una línea de tiro recta (Norte, Sur, Este u Oeste)
+	 * completamente libre de árboles o paredes sólidas entre el bandido y el jugador.
+	 */
+	private boolean tieneLineaDeTiroLimpia(final Jugador jugador) {
+		final double diffX = jugador.getCentroX() - this.getCentroX();
+		final double diffY = jugador.getCentroY() - this.getCentroY();
+		final double distanciaMundo = Math.hypot(diffX, diffY);
+
+		// Fuera del alcance del arma
+		if (distanciaMundo > this.rangoDisparo) {
+			return false;
+		}
+
+		// Comprobar si el jugador está alineado dentro del ancho del sprite
+		final boolean alineadoHorizontal = Math.abs(diffY) <= (this.ALTO / 2.0);
+		final boolean alineadoVertical = Math.abs(diffX) <= (this.ANCHO / 2.0);
+
+		if (!alineadoHorizontal && !alineadoVertical) {
+			return false; // No están alineados en línea recta
+		}
+
+		// Determinar la dirección de tiro
+		if (alineadoHorizontal) {
+			this.direccion = (diffX > 0) ? Direccion.ESTE : Direccion.OESTE;
+		} else {
+			this.direccion = (diffY > 0) ? Direccion.SUR : Direccion.NORTE;
+		}
+
+		// Generar rectángulo de distancia hasta el jugador
+		final int dist = (int) (alineadoHorizontal ? Math.abs(diffX) : Math.abs(diffY));
+		final Rectangle rLineaFuego = this.getRectanguloInterseccionPistola2(dist);
+
+		// Si intersecta cualquier árbol u objeto sólido, la línea NO está limpia
+		return !this.mundo.colisionaConZonaUObjetoSolido(rLineaFuego);
+	}
+
+	/**
+	 * Lógica de ataque a distancia con arma de fuego.
+	 */
 	@Override
 	protected void actualizarAtaque() {
-		if (this.realizandoAtaque
-				&& this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
-			if (this.enAccion) {
-				this.enAccion = false;
+		// --- FASE 1: Disparo y tiempo de recuperación ---
+		if (this.realizandoAtaque) {
+			if (this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
+				if (this.enAccion) {
+					this.enAccion = false;
+				}
+				this.pistola.disparar(this.getCentroX(), this.getCentroY(), this.direccion, this.mundo, this, true);
+				this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
+				this.realizandoAtaque = false;
+				this.removerEstado(Estado.ATACANDO);
 			}
-			this.pistola.disparar(this.getCentroX(), this.getCentroY(), this.direccion, this.mundo, this, true);
-			this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
-			this.realizandoAtaque = false;
 			return;
 		}
 
@@ -91,156 +123,36 @@ public class BandidoPistolero extends Bandido {
 			return;
 		}
 
-		if (this.atacando) {
-			this.meterEstado(Estado.ATACANDO);
+		// --- FASE 2: Detección, disparo o navegación Dijkstra ---
+		final Jugador jugador = Constantes.JUGADOR;
+		final boolean jugadorEnVision = this.getAreaDeteccionLogica().intersects(jugador.getRectangulo());
+		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
-			if (this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getRectangulo()) && this
-					.getRectanguloInterseccionPistola2(this.rangoDisparo).intersects(Constantes.JUGADOR.getArea())) {
+		if (jugadorEnVision || dentroTiempoBusqueda) {
+			if (jugadorEnVision && this.tieneLineaDeTiroLimpia(jugador)) {
+				// ¡Línea de tiro 100% limpia sin árboles! Detenerse y disparar
+				this.meterEstado(Estado.ATACANDO);
+				this.removerEstado(Estado.CAMINANDO);
+				this.removerEstado(Estado.PERSIGUIENDO);
 
 				if (this.GT_ATAQUE_INICIAL_COOLDOWN.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
 					if (!this.realizandoAtaque) {
 						this.realizandoAtaque = true;
-						this.removerEstado(Estado.CAMINANDO);
-						this.removerEstado(Estado.PERSIGUIENDO);
+						this.GT_CARGA_ATAQUE.establecerReferenciaTiempoActual();
 					}
-				} else if (!this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getArea())) {
-					this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
 				}
 				this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
-
-			} else if (this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getArea())
-					|| !this.GE_FUERA_DE_RANGO.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango())) {
-
-				final byte codR = this.getCodRectanguloInterseccionPistolaDiferenteNodo();
-
-				if (codR != RECTANGULO_INTERSECCION_PISTOLA_NONE) {
-					final Point p = this.getPuntoNodoInterseccionDeLosRectangulos(codR);
-					if ((p != null) && (this.mundo != null) && (this.mundo.getDijkstra() != null)) {
-						final NodoD n = this.mundo.getDijkstra().getNodoReferenciado(p.x, p.y);
-
-						if ((n != null) && (n.AREA != null)) {
-							final int posNodoX = n.AREA.x;
-							final int posNodoY = n.AREA.y;
-
-							// Corrección del movimiento sin instanciar objetos
-							if (this.y < posNodoY) {
-								this.modificarPosicionY(this.velocidad);
-								if ((posNodoY - this.y) <= 0.25) {
-									this.y = posNodoY;
-								}
-							} else if (this.y > posNodoY) {
-								this.modificarPosicionY(-this.velocidad);
-								if ((this.y - posNodoY) <= 0.25) {
-									this.y = posNodoY;
-								}
-							}
-
-							if (this.x < posNodoX) {
-								this.modificarPosicionX(this.velocidad);
-								if ((posNodoX - this.x) <= 0.25) {
-									this.x = posNodoX;
-								}
-							} else if (this.x > posNodoX) {
-								this.modificarPosicionX(-this.velocidad);
-								if ((this.x - posNodoX) <= 0.25) {
-									this.x = posNodoX;
-								}
-							}
-						}
-					}
-				} else {
-					this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
-					this.meterEstado(Estado.CAMINANDO);
-					this.meterEstado(Estado.PERSIGUIENDO);
-				}
 
 			} else {
-				this.atacando = false;
-				this.pendienteADijkstra = false;
-				if ((this.mundo != null) && (this.mundo.getDijkstra() != null)) {
-					this.mundo.getDijkstra().reducirEntidadesPendientes();
-				}
-			}
-		} else {
-			if (!this.tieneEstado(Estado.ESTANDAR)) {
-				this.setEstadoUnico(Estado.ESTANDAR);
-			}
-
-			if (this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getRectangulo())) {
-				this.GT_ATAQUE_INICIAL_COOLDOWN.establecerReferenciaTiempoActual();
-				this.atacando = true;
+				// Línea bloqueada por árboles o desalineado -> Rodear el bosque usando Dijkstra
+				this.removerEstado(Estado.ATACANDO);
+				this.meterEstado(Estado.PERSIGUIENDO);
+				this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
 				this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
 			}
+		} else {
+			this.desactivarModoAgresivo();
 		}
-	}
-
-	private byte getCodRectanguloInterseccionPistolaDiferenteNodo() {
-		final Jugador jugador = Constantes.JUGADOR;
-
-		// CORREGIDO: Ahora asigna r1, r2 y r3 correctamente sin copy-paste bug
-		final Rectangle r1 = this.getRectanguloInterseccionPistola1(this.rangoDisparo);
-		final Rectangle r3 = this.getRectanguloInterseccionPistola3(this.rangoDisparo);
-
-		if (jugador.getArea().intersects(r1)) {
-			if (!this.mundo.colisionaConZonaUObjetoSolido(r1) || !this.mundo.colisionaConZonaUObjetoSolido(
-					this.getRectanguloInterseccionPistolaDistaciaHastaJugador(RECTANGULO_INTERSECCION_PISTOLA_1))) {
-				return RECTANGULO_INTERSECCION_PISTOLA_1;
-			}
-		} else if (jugador.getArea().intersects(r3)) {
-			if (!this.mundo.colisionaConZonaUObjetoSolido(r3) || !this.mundo.colisionaConZonaUObjetoSolido(
-					this.getRectanguloInterseccionPistolaDistaciaHastaJugador(RECTANGULO_INTERSECCION_PISTOLA_3))) {
-				return RECTANGULO_INTERSECCION_PISTOLA_3;
-			}
-		}
-		return RECTANGULO_INTERSECCION_PISTOLA_NONE;
-	}
-
-	private Point getPuntoNodoInterseccionDeLosRectangulos(final byte codRect) {
-		final int posX = this.getPosicionXInt();
-		final int posY = this.getPosicionYInt();
-
-		if (codRect == RECTANGULO_INTERSECCION_PISTOLA_1) {
-			if ((this.direccion == Direccion.OESTE) || (this.direccion == Direccion.ESTE)) {
-				this.puntoNodoAuxiliar.setLocation(posX, posY - (this.ALTO / 2) - 1);
-			} else { // NORTE o SUR
-				this.puntoNodoAuxiliar.setLocation(posX - (this.ANCHO / 2) - 1, posY);
-			}
-			return this.puntoNodoAuxiliar;
-		}
-		if (codRect == RECTANGULO_INTERSECCION_PISTOLA_3) {
-			if ((this.direccion == Direccion.OESTE) || (this.direccion == Direccion.ESTE)) {
-				this.puntoNodoAuxiliar.setLocation(posX, posY + this.ALTO + 1);
-			} else { // NORTE o SUR
-				this.puntoNodoAuxiliar.setLocation(posX + this.ANCHO + 1, posY);
-			}
-			return this.puntoNodoAuxiliar;
-		}
-		return null;
-	}
-
-	private Rectangle getRectanguloInterseccionPistola1(final int rango) {
-		final int posX = this.getPosicionXInt();
-		final int posY = this.getPosicionYInt();
-
-		switch (this.direccion) {
-		case OESTE:
-			this.rPistola1.setBounds(posX - rango, (posY + (this.ALTO / 2)) - this.ALTO - 1, rango + (this.ANCHO / 2),
-					1);
-			break;
-		case NORTE:
-			this.rPistola1.setBounds((posX + (this.ANCHO / 2)) - this.ANCHO - 1, posY - rango, 1,
-					rango + (this.ALTO / 2));
-			break;
-		case ESTE:
-			this.rPistola1.setBounds(posX + (this.ANCHO / 2), (posY + (this.ALTO / 2)) - this.ALTO - 1,
-					rango + (this.ANCHO / 2), 1);
-			break;
-		case SUR:
-			this.rPistola1.setBounds((posX + (this.ANCHO / 2)) - this.ANCHO - 1, posY + (this.ALTO / 2), 1,
-					rango + (this.ALTO / 2));
-			break;
-		}
-		return this.rPistola1;
 	}
 
 	private Rectangle getRectanguloInterseccionPistola2(final int rango) {
@@ -249,90 +161,22 @@ public class BandidoPistolero extends Bandido {
 
 		switch (this.direccion) {
 		case OESTE:
-			this.rPistola2.setBounds(posX - rango, posY + (this.ALTO / 2), rango + (this.ANCHO / 2), 1);
+			this.rPistola2.setBounds(posX - rango, posY, rango, this.ALTO);
 			break;
 		case NORTE:
-			this.rPistola2.setBounds(posX + (this.ANCHO / 2), posY - rango, 1, rango + (this.ALTO / 2));
+			this.rPistola2.setBounds(posX, posY - rango, this.ANCHO, rango);
 			break;
 		case ESTE:
-			this.rPistola2.setBounds(posX + (this.ANCHO / 2), posY + (this.ALTO / 2), rango + (this.ANCHO / 2), 1);
+			this.rPistola2.setBounds(posX + this.ANCHO, posY, rango, this.ALTO);
 			break;
 		case SUR:
-			this.rPistola2.setBounds(posX + (this.ANCHO / 2), posY + (this.ALTO / 2), 1, rango + (this.ALTO / 2));
+			this.rPistola2.setBounds(posX, posY + this.ALTO, this.ANCHO, rango);
 			break;
 		}
 		return this.rPistola2;
 	}
 
-	private Rectangle getRectanguloInterseccionPistola3(final int rango) {
-		final int posX = this.getPosicionXInt();
-		final int posY = this.getPosicionYInt();
-
-		switch (this.direccion) {
-		case OESTE:
-			this.rPistola3.setBounds(posX - rango, posY + (this.ALTO / 2) + this.ALTO + 1, rango + (this.ANCHO / 2), 1);
-			break;
-		case NORTE:
-			this.rPistola3.setBounds(posX + (this.ANCHO / 2) + this.ANCHO + 1, posY - rango, 1,
-					rango + (this.ALTO / 2));
-			break;
-		case ESTE:
-			this.rPistola3.setBounds(posX + (this.ANCHO / 2), posY + (this.ALTO / 2) + this.ALTO + 1,
-					rango + (this.ANCHO / 2), 1);
-			break;
-		case SUR:
-			this.rPistola3.setBounds(posX + (this.ANCHO / 2) + this.ANCHO + 1, posY + (this.ALTO / 2), 1,
-					rango + (this.ALTO / 2));
-			break;
-		}
-		return this.rPistola3;
-	}
-
-	private Rectangle getRectanguloInterseccionPistolaDistaciaHastaJugador(final byte codRecct) {
-		int dist = 0;
-		final Jugador jugador = Constantes.JUGADOR;
-
-		if (codRecct == RECTANGULO_INTERSECCION_PISTOLA_1) {
-			switch (this.direccion) {
-			case OESTE:
-				dist = this.getCentroX() - jugador.getCentroX();
-				break;
-			case NORTE:
-				dist = this.getCentroY() - jugador.getCentroY();
-				break;
-			case ESTE:
-				dist = jugador.getCentroX() - this.getCentroX();
-				break;
-			case SUR:
-				dist = jugador.getCentroY() - this.getCentroY();
-				break;
-			}
-			return this.getRectanguloInterseccionPistola1(dist);
-
-		}
-		if (codRecct == RECTANGULO_INTERSECCION_PISTOLA_3) {
-			switch (this.direccion) {
-			case OESTE:
-				dist = this.getCentroX() - jugador.getCentroX();
-				break;
-			case NORTE:
-				dist = this.getCentroY() - jugador.getCentroY();
-				break;
-			case ESTE:
-				dist = jugador.getCentroX() - this.getCentroX();
-				break;
-			case SUR:
-				dist = jugador.getCentroY() - this.getCentroY();
-				break;
-			}
-			return this.getRectanguloInterseccionPistola3(dist);
-		}
-
-		// Reutilizamos el objeto rPistolaDistancia para retornar un vacio seguro en
-		// caso extremo
-		this.rPistolaDistancia.setBounds(0, 0, 0, 0);
-		return this.rPistolaDistancia;
-	}
+	// --- Métodos de Contrato Melee (No utilizados por pistolero) ---
 
 	@Override
 	protected double getYRangoAtaqueMele() {

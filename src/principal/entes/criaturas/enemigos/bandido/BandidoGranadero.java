@@ -9,8 +9,14 @@ import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
 import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
 
+/**
+ * Variación del enemigo Bandido enfocado en ataques a distancia utilizando
+ * granadas.
+ */
 public class BandidoGranadero extends Bandido {
+
 	private final Granada granada;
+	private final Ellipse2D.Double areaDeteccionLogica = new Ellipse2D.Double();
 
 	public BandidoGranadero(final double x, final double y, final double vida, final double vidaMaxima,
 			final Mundo mundo) {
@@ -22,6 +28,7 @@ public class BandidoGranadero extends Bandido {
 
 	@Override
 	public void actualizar() {
+		// Recarga automática para mantener munición infinita en el enemigo
 		if (this.granada.getCantidad() <= 1) {
 			this.granada.establecerCantidad(100);
 		}
@@ -44,76 +51,88 @@ public class BandidoGranadero extends Bandido {
 		}
 	}
 
+	/**
+	 * Implementación específica de ataque a distancia. Orienta al enemigo hacia el
+	 * jugador y lanza la granada al finalizar la carga.
+	 */
 	@Override
 	protected void actualizarAtaque() {
-		if (this.realizandoAtaque
-				&& this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
-			if (this.enAccion) {
+		// --- FASE 1: Lanzamiento y recuperación del disparo ---
+		if (this.realizandoAtaque) {
+			if (this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
 				this.enAccion = false;
+
+				// Arrojar granada apuntando al centro de la caja de colisión del jugador
+				final int targetX = Constantes.JUGADOR.getPosicionXInt() + (Constantes.JUGADOR.getAncho() / 2);
+				final int targetY = Constantes.JUGADOR.getPosicionYInt() + (Constantes.JUGADOR.getAlto() / 2);
+
+				this.granada.arrojar(targetX, targetY, this.direccion, this.mundo, this, false);
+
+				this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
+				this.realizandoAtaque = false;
+				this.removerEstado(Estado.ATACANDO);
+				this.removerEstado(Estado.ARROJANDO);
 			}
-			// Ataque del enemigo al jugador
-			this.granada.arrojar(Constantes.JUGADOR.getPosicionXInt() + (Constantes.JUGADOR.getAncho() / 2),
-					Constantes.JUGADOR.getPosicionYInt() + (Constantes.JUGADOR.getAlto() / 2), this.direccion,
-					this.mundo, this, false);
-			this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
-			this.realizandoAtaque = false;
 			return;
 		}
+
 		if (!this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
 			return;
 		}
 
-		if (this.atacando) {
+		// --- FASE 2: Evaluación de visión y toma de decisiones ---
+		final boolean jugadorEnVisión = this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getRectangulo());
+		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
+				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
-			this.meterEstado(Estado.ATACANDO);
-			if (this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getRectangulo())) {
+		if (jugadorEnVisión || dentroTiempoBusqueda) {
+			if (jugadorEnVisión) {
+				// El jugador está en rango de tiro (300px) -> Detenerse, apuntar y cargar
+				// ataque
+				this.meterEstado(Estado.ATACANDO);
+				this.meterEstado(Estado.ARROJANDO);
+				this.removerEstado(Estado.CAMINANDO);
+				this.removerEstado(Estado.PERSIGUIENDO);
+
+				// Orientación visual hacia la posición del jugador
+				this.direccion = Constantes.FUNCIONES.getDireccionMirando(this.getPosicionXInt(),
+						this.getPosicionYInt(), Constantes.JUGADOR.getPosicionXInt(),
+						Constantes.JUGADOR.getPosicionYInt(), true);
+
 				if (this.GT_ATAQUE_INICIAL_COOLDOWN.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
-
-					// realiza la carga del ataque
 					if (!this.realizandoAtaque) {
 						this.realizandoAtaque = true;
-						this.direccion = Constantes.FUNCIONES.getDireccionMirando(this.getPosicionXInt(),
-								this.getPosicionYInt(), Constantes.JUGADOR.getPosicionXInt(),
-								Constantes.JUGADOR.getPosicionYInt(), true);
-						this.removerEstado(Estado.CAMINANDO);
-						this.removerEstado(Estado.PERSIGUIENDO);
-						this.removerEstado(Estado.CORRIENDO);
+						this.GT_CARGA_ATAQUE.establecerReferenciaTiempoActual();
 					}
-
-				} else if (!this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getArea())) {
-					this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
-				}
-				this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
-			} else if (!this.GE_FUERA_DE_RANGO.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango())) {
-				if (!this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getArea())) {
-					this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
-					this.setEstadoCaminando();
-					this.meterEstado(Estado.PERSIGUIENDO);
 				}
 			} else {
-				this.atacando = false;
-				this.pendienteADijkstra = false;
-				this.mundo.getDijkstra().reducirEntidadesPendientes();
+				// Perdió línea de visión directa pero sigue en persecución -> Acercarse con
+				// Dijkstra
+				this.removerEstado(Estado.ATACANDO);
+				this.removerEstado(Estado.ARROJANDO);
+				this.meterEstado(Estado.PERSIGUIENDO);
+
+				this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
 			}
 		} else {
-			if (!this.estaEstadoEstandar()) {
-				this.setEstadoEstandar();
-			}
-
-			if (this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getRectangulo())) {
-				this.GT_ATAQUE_INICIAL_COOLDOWN.establecerReferenciaTiempoActual();
-				this.atacando = true;
-				this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
-			}
+			// El jugador escapó y terminó el tiempo de gracia -> Volver a estado pasivo
+			this.desactivarModoAgresivo();
 		}
 	}
 
+	/**
+	 * Retorna el área de detección reutilizando una única instancia de Ellipse2D
+	 * para prevenir la creación continua de objetos en la memoria Heap.
+	 */
 	@Override
 	public Ellipse2D getAreaDeteccionLogica() {
-		return new Ellipse2D.Double((this.x - (this.areaDeteccionAncho / 2)) + (this.ANCHO / 2),
-				(this.y - (this.areaDeteccionAlto / 2)) + (this.ALTO / 2), this.areaDeteccionAncho,
+		this.areaDeteccionLogica.setFrame((this.x - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0),
+				(this.y - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0), this.areaDeteccionAncho,
 				this.areaDeteccionAlto);
+		return this.areaDeteccionLogica;
 	}
+
+	// --- Métodos de Contrato Melee (No utilizados por atacantes a distancia) ---
 
 	@Override
 	protected double getXRangoAtaqueMele() {
@@ -135,6 +154,8 @@ public class BandidoGranadero extends Bandido {
 		return 0;
 	}
 
+	// --- Tiempos de Recarga y Animación ---
+
 	@Override
 	protected int getTiempoMsEsperaAtaqueInicial() {
 		return this.getTiempoMsEsperaRetomarAtaque();
@@ -144,5 +165,4 @@ public class BandidoGranadero extends Bandido {
 	protected int getTiempoMsEsperaRetomarAtaque() {
 		return 1350;
 	}
-
 }

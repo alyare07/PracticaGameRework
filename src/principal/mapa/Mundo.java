@@ -28,6 +28,7 @@ import principal.entes.objetos.items.Item;
 import principal.entes.objetos.particulas.Particula;
 import principal.entes.proyectil.Proyectil;
 import principal.entes.proyectil.ProyectilGeneral;
+import principal.ia.aEstrella.AEstrella;
 import principal.ia.dijkstra.DijkstraRework;
 import principal.ia.dijkstra.NodoD;
 import principal.mapa.escenario.Escenario;
@@ -53,6 +54,7 @@ public class Mundo {
 	protected final ArrayList<Particula> PARTICULAS = new ArrayList<Particula>();
 	protected final ArrayList<Proyectil> PROYECTILES = new ArrayList<Proyectil>();
 	protected final DijkstraRework dijkstra;
+	protected final AEstrella AESTRELLA_X12X20;
 	protected int codAct;
 	protected int codPintado;
 	public static final String CLAVE_PUNTO_SPAWN_COMIENZO = "Comienzo";
@@ -71,6 +73,7 @@ public class Mundo {
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
 		this.dijkstra.actualizar(new Point(this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getX(),
 				this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getY()));
+		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(12, 20));
 	}
 
 	public Mundo(final Escenario esc, final Point comienzo, final GestorCarga gc, final int porcentajeCarga) {
@@ -108,6 +111,7 @@ public class Mundo {
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
 		this.dijkstra.actualizar(new Point(this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getX(),
 				this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getY()));
+		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(12, 20));
 	}
 
 	public Mundo(final Terreno terrenoSoloParaEDITOR) {
@@ -115,6 +119,7 @@ public class Mundo {
 		this.RENDERS = new MapRender(this);
 		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(new Point(), CLAVE_PUNTO_SPAWN_COMIENZO));
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
+		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(12, 20));
 		this.generarZonas();
 	}
 
@@ -593,8 +598,16 @@ public class Mundo {
 				if (nodo != null) {
 					// Formateo rápido sin invocar String.format (ahorra allocations masivas en el
 					// Heap)
-					final String textoDistancia = (nodo.distancia == Double.MAX_VALUE) ? "XX"
-							: String.valueOf((long) (nodo.distancia * 10) / 10.0);
+					final int readBuf = this.dijkstra.getBufferLecturaIndex();
+					final int codCompleto = this.dijkstra.getCodActCompleto();
+
+					// Si el nodo fue procesado en el pulso actual, leemos su distancia; de lo
+					// contrario es "XX"
+					final double distanciaReal = (nodo.getCodAct(readBuf) == codCompleto) ? nodo.getDistancia(readBuf)
+							: Double.MAX_VALUE;
+
+					final String textoDistancia = (distanciaReal == Double.MAX_VALUE) ? "XX"
+							: String.valueOf((long) (distanciaReal * 10) / 10.0);
 
 					DibujoDebug.dibujarStringRefCamara(g, textoDistancia, x, y + 10, color);
 				}
@@ -716,6 +729,10 @@ public class Mundo {
 		for (final Spawn spawn : lista) {
 			this.PUNTOS_SPAWN_JUGADOR.put(spawn.getNombre(), spawn);
 		}
+	}
+
+	public AEstrella getAEstrellaX12X20() {
+		return this.AESTRELLA_X12X20;
 	}
 
 	public void eliminarCriaturas() {

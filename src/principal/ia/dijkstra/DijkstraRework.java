@@ -3,69 +3,128 @@ package principal.ia.dijkstra;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.util.ArrayDeque;
-import java.util.Queue;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import principal.ia.Lista;
 import principal.mapa.Mundo;
 
 /**
- * Sistema de búsqueda de caminos (Pathfinding) optimizado mediante
- * Dijkstra/BFS. Utiliza una matriz 2D para accesos O(1) y cálculo asíncrono
- * para mantener el rendimiento.
+ * Sistema de búsqueda de caminos (Pathfinding) masivo basado en el algoritmo de
+ * Dijkstra.
+ * 
+ * ¿Por qué usar Dijkstra en lugar de A*? Mientras que A* calcula el camino de
+ * UN personaje hacia UN destino, Dijkstra genera un "Mapa de Flujo" o "Campo de
+ * Distancias" desde el objetivo (ej. el Jugador) hacia TODAS las casillas del
+ * mapa. Esto permite que DECENAS o CIENTOS de enemigos persigan al jugador
+ * usando una sola consulta de cálculo, optimizando enormemente el rendimiento.
+ * 
+ * Arquitectura Multihilo con Doble Búfer: El cálculo se realiza en un hilo
+ * secundario (`ExecutorService`) para no congelar los fotogramas del juego.
+ * Para evitar que el hilo del juego lea datos a medio calcular, se usará un
+ * esquema de Doble Búfer: - El hilo secundario escribe los resultados en el
+ * "Búfer de Escritura" (Write Buffer). - El hilo del juego lee los caminos del
+ * "Búfer de Lectura" (Read Buffer). - Cuando el hilo secundario termina,
+ * conmuta los búferes atómicamente sin pausar el juego.
  */
 public class DijkstraRework {
 
-	// --- Atributos de Configuración y Referencias ---
-	public final Mundo MUNDO;
-	private final Dimension DIMENSION_NODO;
+	// Costos de movimiento (Movimiento recto = 1.0, Movimiento en diagonal = √2 ≈
+	// 1.414)
+	private static final double COSTO_ORTOGONAL = 1.0;
+	private static final double COSTO_DIAGONAL = 1.4142135623730951;
 
-	// --- Estado de la Matriz ---
-	public int xUltimoNodo;
-	public int yUltimoNodo;
-	public int cantNodoVisitados = 0;
-	public int entidadesAlPendiente = 0;
+	// Desplazamientos para consultar las 8 direcciones adyacentes de un nodo
+	private static final int[] OFFSET_X = { -1, 0, 1, -1, 1, -1, 0, 1 };
+	private static final int[] OFFSET_Y = { -1, -1, -1, 0, 0, 1, 1, 1 };
+
+	// Costos precalculados en el mismo orden que los offsets para acelerar
+	// búsquedas
+	private static final double[] COSTOS = { COSTO_DIAGONAL, COSTO_ORTOGONAL, COSTO_DIAGONAL, COSTO_ORTOGONAL,
+			COSTO_ORTOGONAL, COSTO_DIAGONAL, COSTO_ORTOGONAL, COSTO_DIAGONAL };
+
+	private final Mundo mundo;
+	private final Dimension dimensionNodo;
+
+	// Límites máximos en la grilla del mapa
+	private int xUltimoNodo;
+	private int yUltimoNodo;
+
+	// Contadores atómicos (Thread-Safe): Se pueden modificar desde varios hilos sin
+	// riesgo de corrupción
+	private final AtomicInteger cantNodoVisitados = new AtomicInteger(0);
+	private final AtomicInteger entidadesAlPendiente = new AtomicInteger(0);
+
+	// Control de frecuencia de actualización (Throttle): No hace falta recalcular
+	// Dijkstra en cada FPS.
+	// Se actualizará cada 30 ticks (aproximadamente cada medio segundo a 60 FPS).
+	private static final int INTERVALO_TICKS_ACTUALIZACION = 30;
+	private int contadorTicks = 0;
 
 	/**
-	 * Identificador de actualización del pulso actual (evita limpiar la matriz a
-	 * cada frame).
+	 * Código/Número de la última generación de cálculo que ha sido completada con
+	 * éxito. La palabra clave 'volatile' garantiza que cuando este entero cambie en
+	 * el hilo secundario, el hilo principal del juego lo detecte inmediatamente en
+	 * memoria.
 	 */
-	private byte codAct;
+	private volatile int codActCompleto = 0;
 
-	/** Matriz bidimensional de nodos para búsquedas instantáneas O(1). */
+	/** Matriz de nodos que conforman el mapa. */
 	private NodoD[][] nodos;
 
-	/** Último nodo objetivo procesado (generalmente la posición del jugador). */
-	private NodoD ultimoNodoPosObjetivo;
-
-	// --- Control Concurrente / Hilos ---
-	protected final Lock lock = new ReentrantLock();
-	private volatile boolean actualizando;
+	/**
+	 * Último nodo donde se posicionó el objetivo principal (ej. la posición del
+	 * jugador).
+	 */
+	private volatile NodoD ultimoNodoPosObjetivo;
 
 	/**
-	 * Executor dedicado de un solo hilo para procesar el cálculo en segundo plano.
+	 * Flag atómico para evitar lanzar múltiples tareas de procesamiento de Dijkstra
+	 * en paralelo si la anterior no ha terminado.
 	 */
+	private final AtomicBoolean actualizando = new AtomicBoolean(false);
+
+	/** Servicio para ejecutar tareas pesadas en un hilo secundario dedicado. */
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
+	/**
+	 * Estructura auxiliar interna utilizada dentro de la Cola de Prioridad del
+	 * algoritmo Dijkstra.
+	 */
+	private static final class PathNode {
+		private final NodoD nodo;
+		private final double distancia;
+
+		public PathNode(final NodoD nodo, final double distancia) {
+			this.nodo = nodo;
+			this.distancia = distancia;
+		}
+	}
+
+	/**
+	 * Constructor e inicializador de la grilla Dijkstra.
+	 *
+	 * @param mundo     Referencia al mundo del juego.
+	 * @param dimension Tamaño físico en píxeles de cada nodo.
+	 */
 	public DijkstraRework(final Mundo mundo, final Dimension dimension) {
-		this.DIMENSION_NODO = dimension;
-		this.MUNDO = mundo;
-		this.codAct = Byte.MIN_VALUE;
+		this.mundo = mundo;
+		this.dimensionNodo = dimension;
 		this.generarNodos();
 	}
 
 	/**
-	 * Inicializa la matriz bidimensional de nodos según las dimensiones del
-	 * terreno. Evalúa obstáculos permanentes del mapa al momento de la creación.
+	 * Inicializa la grilla de nodos analizando qué casillas son obstáculos
+	 * permanentes desde el inicio.
 	 */
 	private void generarNodos() {
-		this.xUltimoNodo = (this.MUNDO.getTerreno().getAncho() - this.DIMENSION_NODO.width) / this.DIMENSION_NODO.width;
-		this.yUltimoNodo = (this.MUNDO.getTerreno().getAlto() - this.DIMENSION_NODO.height)
-				/ this.DIMENSION_NODO.height;
+		this.xUltimoNodo = (this.mundo.getTerreno().getAncho() - this.dimensionNodo.width) / this.dimensionNodo.width;
+		this.yUltimoNodo = (this.mundo.getTerreno().getAlto() - this.dimensionNodo.height) / this.dimensionNodo.height;
 
 		this.nodos = new NodoD[this.xUltimoNodo + 1][this.yUltimoNodo + 1];
 
@@ -73,143 +132,223 @@ public class DijkstraRework {
 			for (int y = 0; y <= this.yUltimoNodo; y++) {
 				final boolean esPermaSolido = this.verificarSiEsteNodoVaSerPermaSolido(x, y);
 				final Point pos = new Point(x, y);
-
-				this.nodos[x][y] = new NodoD(pos, this.DIMENSION_NODO, esPermaSolido);
+				this.nodos[x][y] = new NodoD(pos, this.dimensionNodo, esPermaSolido);
 			}
 		}
 	}
 
 	/**
-	 * Dispara la actualización del mapa de distancias Dijkstra hacia una posición
-	 * objetivo.
+	 * Solicita la actualización periódica del mapa de Dijkstra apuntando a la nueva
+	 * posición del objetivo. Se ejecuta en el Hilo Principal del juego.
 	 *
-	 * @param posicionObjetivo Coordenadas en píxeles del objetivo (Ej. Posición del
-	 *                         Jugador).
+	 * @param posicionObjetivo Posición en píxeles hacia donde deben orientarse los
+	 *                         caminos (ej. el jugador).
 	 */
 	public void actualizar(final Point posicionObjetivo) {
-		if (this.actualizando) {
+		if (posicionObjetivo == null) {
 			return;
 		}
 
-		final int posRefX = posicionObjetivo.x / this.DIMENSION_NODO.width;
-		final int posRefY = posicionObjetivo.y / this.DIMENSION_NODO.height;
+		// Temporizador Ticks: Limitamos la frecuencia para ahorrar recursos del
+		// procesador
+		this.contadorTicks++;
+		if (this.contadorTicks < INTERVALO_TICKS_ACTUALIZACION) {
+			return;
+		}
+		this.contadorTicks = 0;
 
+		// Si ya hay un cálculo de Dijkstra ejecutándose en el hilo secundario,
+		// descartamos este tick.
+		// `compareAndSet(false, true)` cambia de false a true de forma atómica.
+		if (!this.actualizando.compareAndSet(false, true)) {
+			return;
+		}
+
+		final int posRefX = posicionObjetivo.x / this.dimensionNodo.width;
+		final int posRefY = posicionObjetivo.y / this.dimensionNodo.height;
+
+		// Validamos que el objetivo esté dentro de los límites del mapa
 		if ((posRefX < 0) || (posRefX > this.xUltimoNodo) || (posRefY < 0) || (posRefY > this.yUltimoNodo)) {
+			this.actualizando.set(false);
 			return;
 		}
 
-		final NodoD n = this.nodos[posRefX][posRefY];
-		if ((n == null) || (n == this.ultimoNodoPosObjetivo)) {
+		NodoD nodoObjetivo = this.nodos[posRefX][posRefY];
+
+		// Si la posición exacta del objetivo es un obstáculo, buscamos un nodo libre
+		// cercano
+		if ((nodoObjetivo == null) || nodoObjetivo.isInmodificable() || this.colisiona(nodoObjetivo)) {
+			nodoObjetivo = this.getNodoCercano(posicionObjetivo.x, posicionObjetivo.y);
+		}
+
+		// Si sigue siendo inválido o el objetivo no ha cambiado de casilla, liberamos
+		// el flag y salimos
+		if ((nodoObjetivo == null) || nodoObjetivo.isInmodificable() || (nodoObjetivo == this.ultimoNodoPosObjetivo)) {
+			this.actualizando.set(false);
 			return;
 		}
 
-		// Configuración sincrónica previa al procesamiento asíncrono
-		this.actualizarCodAct();
-		n.distancia = 0;
-		n.nodoProcedente = null;
-		n.setCodAct(this.codAct);
-		this.ultimoNodoPosObjetivo = n;
-		this.actualizando = true;
+		final NodoD targetFinal = nodoObjetivo;
 
-		// Delegación del cálculo intensivo al Executor en segundo plano
+		// --- ENVIAMOS LA TAREA PESADA AL HILO SECUNDARIO ---
 		this.executor.submit(() -> {
 			try {
-				this.lock.lock();
-				this.procesarDijkstraBFS(posRefX, posRefY, n);
+				final int nuevoCodAct = this.codActCompleto + 1;
+
+				// MATEMÁTICA DEL DOBLE BÚFER:
+				// Si `nuevoCodAct` es par (ej. 2), `2 % 2 = 0` -> Escribe en Búfer 0.
+				// Si `nuevoCodAct` es impar (ej. 3), `3 % 2 = 1` -> Escribe en Búfer 1.
+				final int writeBuf = Math.abs(nuevoCodAct % 2);
+
+				// Seteamos la distancia inicial del objetivo en 0
+				targetFinal.setDistancia(writeBuf, 0);
+				targetFinal.setNodoProcedente(writeBuf, null);
+				targetFinal.setCodAct(writeBuf, nuevoCodAct);
+
+				// Ejecutamos la expansión de distancias de Dijkstra
+				this.procesarDijkstra(targetFinal, nuevoCodAct, writeBuf);
+
+				// Al finalizar todo el mapa:
+				this.ultimoNodoPosObjetivo = targetFinal;
+
+				// ¡CONMUTACIÓN ATÓMICA DE BÚFER!
+				// Al actualizar `codActCompleto`, instantáneamente el hilo del juego leerá el
+				// nuevo búfer sin pausar nada.
+				this.codActCompleto = nuevoCodAct;
 			} catch (final Exception e) {
-				e.printStackTrace();
+				Thread.currentThread().interrupt();
 			} finally {
-				this.actualizando = false;
-				this.lock.unlock();
+				// Indicamos que el hilo secundario ha quedado libre para una nueva consulta
+				this.actualizando.set(false);
 			}
 		});
 	}
 
 	/**
-	 * Algoritmo de inundación BFS que asigna las distancias más cortas hacia el
-	 * objetivo.
+	 * Algoritmo Dijkstra en reversa: Empieza en el objetivo (distancia = 0) y va
+	 * propagando la distancia acumulada hacia afuera. Escribe la nueva generación
+	 * exclusivamente en el búfer asignado (`writeBuf`).
 	 */
-	private void procesarDijkstraBFS(final int startX, final int startY, final NodoD objetivo) {
-		final Queue<NodoD> cola = new ArrayDeque<>();
-		cola.add(objetivo);
+	private void procesarDijkstra(final NodoD objetivo, final int nuevoCodAct, final int writeBuf) {
+		// Cola de prioridad que ordena los nodos por la menor distancia calculada
+		final PriorityQueue<PathNode> pq = new PriorityQueue<>(Comparator.comparingDouble(p -> p.distancia));
 
-		while (!cola.isEmpty()) {
-			final NodoD n = cola.poll();
-			final int xNodo = n.POSICION.x;
-			final int yNodo = n.POSICION.y;
+		pq.add(new PathNode(objetivo, 0.0));
+		int visitadosContador = 0;
 
-			// Bucle para evaluar los 8 vecinos adyacentes (incluyendo diagonales)
-			for (int y = yNodo - 1; y <= (yNodo + 1); y++) {
-				if ((y < 0) || (y > this.yUltimoNodo)) {
+		while (!pq.isEmpty()) {
+			final PathNode actual = pq.poll();
+			final NodoD n = actual.nodo;
+
+			// Si encontramos un camino registrado previamente más corto que este, ignoramos
+			// este camino obsoleto
+			if (actual.distancia > n.getDistancia(writeBuf)) {
+				continue;
+			}
+
+			final int xNodo = n.getPosicion().x;
+			final int yNodo = n.getPosicion().y;
+
+			// Evaluamos las 8 celdas vecinas
+			for (int i = 0; i < OFFSET_X.length; i++) {
+				final int nx = xNodo + OFFSET_X[i];
+				final int ny = yNodo + OFFSET_Y[i];
+
+				// Validamos límites del mapa
+				if ((nx < 0) || (nx > this.xUltimoNodo) || (ny < 0) || (ny > this.yUltimoNodo)) {
 					continue;
 				}
 
-				for (int x = xNodo - 1; x <= (xNodo + 1); x++) {
-					if ((x < 0) || (x > this.xUltimoNodo) || ((x == xNodo) && (y == yNodo))) {
-						continue;
-					}
+				final NodoD nodoAct = this.nodos[nx][ny];
 
-					final NodoD nodoAct = this.nodos[x][y];
+				// Omitimos obstáculo o pared
+				if ((nodoAct == null) || nodoAct.isInmodificable() || this.colisiona(nodoAct)) {
+					continue;
+				}
 
-					// Ignorar nodos inexistentes o con colisiones fijas del terreno
-					if ((nodoAct == null) || nodoAct.inmodificable) {
-						continue;
-					}
+				// Evitamos atravesar esquinas formadas por paredes
+				if (this.esDiagonal(OFFSET_X[i], OFFSET_Y[i])
+						&& this.hayBloqueoEnEsquina(xNodo, yNodo, OFFSET_X[i], OFFSET_Y[i])) {
+					continue;
+				}
 
-					// Ignorar si el nodo ya se procesó en el pulso actual
-					if (nodoAct.getCodAct() == this.codAct) {
-						continue;
-					}
+				final double nuevaDistancia = n.getDistancia(writeBuf) + COSTOS[i];
 
-					// Evaluar si existe colisión dinámica en el frame actual
-					if (this.colisiona(nodoAct)) {
-						nodoAct.distancia = Double.MAX_VALUE;
-						nodoAct.nodoProcedente = null;
-						nodoAct.setCodAct(this.codAct);
-						continue;
-					}
+				// Si el vecino pertenece a una búsqueda vieja o si encontramos una ruta hacia
+				// él más corta:
+				if ((nodoAct.getCodAct(writeBuf) != nuevoCodAct) || (nuevaDistancia < nodoAct.getDistancia(writeBuf))) {
 
-					// Calcular distancia acumulada y encolar
-					final double distCalculada = n.distancia + n.POSICION.distance(nodoAct.POSICION);
-					nodoAct.distancia = distCalculada;
-					nodoAct.nodoProcedente = n;
-					nodoAct.setCodAct(this.codAct);
+					// Actualizamos los datos en el BÚFER DE ESCRITURA
+					nodoAct.setDistancia(writeBuf, nuevaDistancia);
 
-					this.cantNodoVisitados++;
-					cola.add(nodoAct);
+					// La flecha 'nodoProcedente' apunta de regreso HACIA el objetivo (para que las
+					// IA sepan hacia dónde caminar)
+					nodoAct.setNodoProcedente(writeBuf, n);
+					nodoAct.setCodAct(writeBuf, nuevoCodAct);
+
+					visitadosContador++;
+					pq.add(new PathNode(nodoAct, nuevaDistancia));
 				}
 			}
 		}
+		// Guardamos la cantidad de nodos escaneados para métricas/depuración
+		this.cantNodoVisitados.set(visitadosContador);
+	}
+
+	private boolean esDiagonal(final int dx, final int dy) {
+		return (dx != 0) && (dy != 0);
 	}
 
 	/**
-	 * Verifica si una celda contiene un obstáculo permanente en el mundo al
-	 * generarse el mapa.
+	 * Previene que las entidades atraviesen en diagonal dos esquinas de obstáculos
+	 * sólidos.
+	 */
+	private boolean hayBloqueoEnEsquina(final int x, final int y, final int dx, final int dy) {
+		final int xLat = x + dx;
+		final int yLat = y + dy;
+
+		boolean solidoX = false;
+		if ((xLat >= 0) && (xLat <= this.xUltimoNodo)) {
+			final NodoD nX = this.nodos[xLat][y];
+			solidoX = (nX != null) && (nX.isInmodificable() || this.colisiona(nX));
+		}
+
+		boolean solidoY = false;
+		if ((yLat >= 0) && (yLat <= this.yUltimoNodo)) {
+			final NodoD nY = this.nodos[x][yLat];
+			solidoY = (nY != null) && (nY.isInmodificable() || this.colisiona(nY));
+		}
+
+		return solidoX || solidoY;
+	}
+
+	/**
+	 * Verifica si una celda es un obstáculo que jamás cambiará durante el juego.
 	 */
 	private boolean verificarSiEsteNodoVaSerPermaSolido(final int xMatriz, final int yMatriz) {
-		final int xPx = xMatriz * this.DIMENSION_NODO.width;
-		final int yPx = yMatriz * this.DIMENSION_NODO.height;
+		final int xPx = xMatriz * this.dimensionNodo.width;
+		final int yPx = yMatriz * this.dimensionNodo.height;
 
-		final Rectangle areaNodo = new Rectangle(xPx, yPx, this.DIMENSION_NODO.width, this.DIMENSION_NODO.height);
-		final boolean terrenoSolido = this.MUNDO.getTerreno().intersectaSolidoDijkstra(areaNodo);
-		final boolean colisionaObjeto = this.MUNDO.colisionaConAlgoSolidoPermanente(areaNodo);
-
-		return terrenoSolido || colisionaObjeto;
+		final Rectangle areaNodo = new Rectangle(xPx, yPx, this.dimensionNodo.width, this.dimensionNodo.height);
+		return this.mundo.getTerreno().intersectaSolidoDijkstra(areaNodo)
+				|| this.mundo.colisionaConAlgoSolidoPermanente(areaNodo);
 	}
 
 	/**
-	 * Verifica si un nodo colisiona con el terreno o con objetos sólidos dinámicos.
+	 * Verifica colisión en tiempo real (útil si hay puertas u objetos
+	 * destructibles/dinámicos).
 	 */
 	private boolean colisiona(final NodoD n) {
-		return this.MUNDO.getTerreno().intersectaSolidoDijkstra(n.AREA) || this.MUNDO.colisionaConObjetoSolido(n.AREA);
+		return this.mundo.getTerreno().intersectaSolidoDijkstra(n.getArea())
+				|| this.mundo.colisionaConObjetoSolido(n.getArea());
 	}
 
 	/**
-	 * Obtiene el nodo exacto en la matriz basándose en coordenadas de píxeles.
+	 * Convierte coordenadas en píxeles a su respectivo nodo en la matriz.
 	 */
 	public NodoD getNodoReferenciado(final int x, final int y) {
-		final int nx = x / this.DIMENSION_NODO.width;
-		final int ny = y / this.DIMENSION_NODO.height;
+		final int nx = x / this.dimensionNodo.width;
+		final int ny = y / this.dimensionNodo.height;
 
 		if ((nx < 0) || (nx > this.xUltimoNodo) || (ny < 0) || (ny > this.yUltimoNodo)) {
 			return null;
@@ -218,31 +357,53 @@ public class DijkstraRework {
 	}
 
 	/**
-	 * Evalúa las 8 casillas vecinas alrededor de unas coordenadas y retorna la que
-	 * posea menor distancia.
+	 * Busca el nodo transitable más cercano a unas coordenadas de píxeles. Realiza
+	 * la lectura garantizando el aislamiento del hilo gracias a `readBuf`.
 	 */
 	public NodoD getNodoCercano(final int x, final int y) {
-		final int xPosRefNodo = x / this.DIMENSION_NODO.width;
-		final int yPosRefNodo = y / this.DIMENSION_NODO.height;
+		final int targetCodAct = this.codActCompleto;
+
+		// Determinamos el índice del BÚFER DE LECTURA activo
+		final int readBuf = Math.abs(targetCodAct % 2);
+
+		final int xPosRefNodo = x / this.dimensionNodo.width;
+		final int yPosRefNodo = y / this.dimensionNodo.height;
+
+		if ((xPosRefNodo < 0) || (xPosRefNodo > this.xUltimoNodo) || (yPosRefNodo < 0)
+				|| (yPosRefNodo > this.yUltimoNodo)) {
+			return null;
+		}
+
+		final NodoD nodoActual = this.nodos[xPosRefNodo][yPosRefNodo];
+
+		// Si el nodo actual está actualizado y es transitable
+		if ((nodoActual != null) && (nodoActual.getCodAct(readBuf) == targetCodAct)
+				&& (nodoActual.getDistancia(readBuf) != Double.MAX_VALUE)) {
+			if (nodoActual.getDistancia(readBuf) == 0) {
+				return nodoActual;
+			}
+			if (nodoActual.getNodoProcedente(readBuf) != null) {
+				return nodoActual.getNodoProcedente(readBuf);
+			}
+		}
 
 		NodoD nodoCercano = null;
 
-		for (int yNodo = yPosRefNodo - 1; yNodo <= (yPosRefNodo + 1); yNodo++) {
-			if ((yNodo < 0) || (yNodo > this.yUltimoNodo)) {
+		// Si la posición buscada era un obstáculo, escaneamos los 8 vecinos para dar el
+		// nodo libre más cercano
+		for (int i = 0; i < OFFSET_X.length; i++) {
+			final int nx = xPosRefNodo + OFFSET_X[i];
+			final int ny = yPosRefNodo + OFFSET_Y[i];
+
+			if ((nx < 0) || (nx > this.xUltimoNodo) || (ny < 0) || (ny > this.yUltimoNodo)) {
 				continue;
 			}
 
-			for (int xNodo = xPosRefNodo - 1; xNodo <= (xPosRefNodo + 1); xNodo++) {
-				if ((xNodo < 0) || (xNodo > this.xUltimoNodo) || ((xPosRefNodo == xNodo) && (yPosRefNodo == yNodo))) {
-					continue;
-				}
-
-				final NodoD nodoAux = this.nodos[xNodo][yNodo];
-				if ((nodoAux != null) && (nodoAux.distancia != Double.MAX_VALUE)
-						&& (nodoAux.getCodAct() == this.codAct)) {
-					if ((nodoCercano == null) || (nodoAux.distancia < nodoCercano.distancia)) {
-						nodoCercano = nodoAux;
-					}
+			final NodoD nodoAux = this.nodos[nx][ny];
+			if ((nodoAux != null) && (nodoAux.getDistancia(readBuf) != Double.MAX_VALUE)
+					&& (nodoAux.getCodAct(readBuf) == targetCodAct)) {
+				if ((nodoCercano == null) || (nodoAux.getDistancia(readBuf) < nodoCercano.getDistancia(readBuf))) {
+					nodoCercano = nodoAux;
 				}
 			}
 		}
@@ -250,83 +411,94 @@ public class DijkstraRework {
 	}
 
 	/**
-	 * Retorna el recorrido completo desde una posición en píxeles hasta el
-	 * objetivo.
+	 * Obtiene el camino completo a seguir desde unas coordenadas del mundo (en
+	 * píxeles).
 	 */
 	public Lista<NodoD> getRecorrido(final int x, final int y) {
-		final Lista<NodoD> recorrido = new Lista<NodoD>();
 		final NodoD nodoProx = this.getNodoReferenciado(x, y);
-
-		if ((nodoProx != null) && !this.MUNDO.colisionaConObjetoSolido(nodoProx.AREA)) {
-			this.generarRecorrido(recorrido, nodoProx);
-		}
-		return recorrido;
+		return this.getRecorrido(nodoProx);
 	}
 
 	/**
-	 * Retorna el recorrido completo desde un nodo específico hasta el objetivo.
+	 * Genera una lista de pasos partiendo de un nodo específico hacia el objetivo
+	 * actual.
+	 *
+	 * @param nodoActual Nodo donde se encuentra la entidad (enemigo/NPC).
+	 * @return Una lista ordenada de nodos a recorrer.
 	 */
 	public Lista<NodoD> getRecorrido(final NodoD nodoActual) {
-		final Lista<NodoD> recorrido = new Lista<NodoD>();
+		final Lista<NodoD> recorrido = new Lista<>();
+		final int readBuf = Math.abs(this.codActCompleto % 2);
 
-		if ((nodoActual != null) && !this.MUNDO.colisionaConObjetoSolido(nodoActual.AREA)) {
-			this.generarRecorrido(recorrido, nodoActual);
+		if ((nodoActual != null) && !this.mundo.colisionaConObjetoSolido(nodoActual.getArea())) {
+			this.generarRecorridoIterativo(recorrido, nodoActual, readBuf);
 		}
 		return recorrido;
 	}
 
 	/**
-	 * Construye recursivamente la lista del camino siguiendo las referencias de
-	 * 'nodoProcedente'.
+	 * Recorre los nodos enlazados mediante `nodoProcedente` desde la posición de la
+	 * entidad hasta llegar al destino final.
 	 */
-	private void generarRecorrido(final Lista<NodoD> lista, final NodoD nodo) {
-		if ((nodo != null) && (nodo.nodoProcedente != null)) {
-			lista.add(nodo);
-			this.generarRecorrido(lista, nodo.nodoProcedente);
-		} else if (nodo == this.ultimoNodoPosObjetivo) {
-			lista.add(nodo);
+	private void generarRecorridoIterativo(final List<NodoD> lista, final NodoD inicio, final int readBuf) {
+		NodoD actual = inicio;
+		while (actual != null) {
+			lista.add(actual);
+			if (actual == this.ultimoNodoPosObjetivo) {
+				break;
+			}
+			actual = actual.getNodoProcedente(readBuf);
 		}
 	}
 
-	// --- Control del Código de Actualización ---
-	private void actualizarCodAct() {
-		if (this.codAct < Byte.MAX_VALUE) {
-			this.codAct++;
-		} else {
-			this.codAct = Byte.MIN_VALUE;
-		}
+	// --- MÉTODOS DE ESTADO Y CONTADORES DE CONCURRENCIA ---
+
+	/**
+	 * @return El índice (0 o 1) del búfer que el hilo del juego está leyendo
+	 *         actualmente.
+	 */
+	public int getBufferLecturaIndex() {
+		return Math.abs(this.codActCompleto % 2);
 	}
 
-	// --- Métodos de Estado y Contadores ---
+	/**
+	 * @return El número de la última generación de búsqueda completada.
+	 */
+	public int getCodActCompleto() {
+		return this.codActCompleto;
+	}
+
 	public void aumentarEntidadesPendientes() {
-		this.entidadesAlPendiente++;
+		this.entidadesAlPendiente.incrementAndGet();
 	}
 
 	public void reducirEntidadesPendientes() {
-		if ((this.entidadesAlPendiente - 1) >= 0) {
-			this.entidadesAlPendiente--;
-		}
+		this.entidadesAlPendiente.updateAndGet(val -> Math.max(0, val - 1));
 	}
 
-	public boolean actualizando() {
-		return this.actualizando;
+	public boolean isActualizando() {
+		return this.actualizando.get();
 	}
 
 	public boolean hayEntidadesAlPendiente() {
-		return this.entidadesAlPendiente > 0;
+		return this.entidadesAlPendiente.get() > 0;
+	}
+
+	public int getCantNodoVisitados() {
+		return this.cantNodoVisitados.get();
 	}
 
 	public Dimension getDimensionNodo() {
-		return this.DIMENSION_NODO;
+		return this.dimensionNodo;
 	}
 
 	public Mundo getMundo() {
-		return this.MUNDO;
+		return this.mundo;
 	}
 
 	/**
-	 * Detiene el executor del hilo de cálculo de forma segura al destruir o cambiar
-	 * el Mundo.
+	 * Apaga de manera limpia el servicio de hilos secundarios. Debe llamarse al
+	 * cerrar el juego.
 	 */
 	public void destruir() {
 		this.executor.shutdown();

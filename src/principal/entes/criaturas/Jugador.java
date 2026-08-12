@@ -140,34 +140,45 @@ public class Jugador extends Criatura {
 			int pos = 1;
 			for (final NodoD n : this.recorridoD) {
 				final String txt = String.valueOf(pos++);
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, n.AREA, Color.RED);
+				DibujoDebug.dibujarRectanguloContornoRefCamara(g, n.getXMundo(), n.getYMundo(), n.getAncho(),
+						n.getAlto(), Color.RED);
 				DibujoDebug.dibujarStringRefCamara(g, txt,
-						(n.AREA.x + (n.AREA.width / 2))
+						(n.getXMundo() + (n.getAncho() / 2))
 								- (Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
-						n.AREA.y + (n.AREA.height / 2)
+						n.getYMundo() + (n.getAlto() / 2)
 								+ (Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
 						Color.BLACK);
 			}
 			if (this.nodoDDestino != null) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoDDestino.AREA, Color.YELLOW);
+				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoDDestino.getXMundo(),
+						this.nodoDDestino.getYMundo(), this.nodoDDestino.getAncho(), this.nodoDDestino.getAlto(),
+						Color.YELLOW);
 			}
 		}
 
 		if (this.recorridoA != null) {
 			int pos = 1;
+			int xNodoAux;
+			int yNodoAux;
+			final int wNodoAux = this.getMundo().getAEstrellaX12X20().getDimensionNodoA().width;
+			final int hNodoAux = this.getMundo().getAEstrellaX12X20().getDimensionNodoA().height;
 			for (final NodoA n : this.recorridoA) {
+				xNodoAux = n.getXNodo() * wNodoAux;
+				yNodoAux = n.getYNodo() * hNodoAux;
 				final String txt = String.valueOf(pos++);
-				final Rectangle areaNodo = n.getAreaEnMundo();
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, areaNodo, Color.BLUE);
+				DibujoDebug.dibujarRectanguloContornoRefCamara(g, xNodoAux, yNodoAux, wNodoAux, hNodoAux, Color.BLUE);
 				DibujoDebug.dibujarStringRefCamara(g, txt,
-						(areaNodo.x + (areaNodo.width / 2))
+						(xNodoAux + (wNodoAux / 2))
 								- (Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
-						areaNodo.y + (areaNodo.height / 2)
-								+ (Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
+						yNodoAux + (hNodoAux / 2) + (Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
 						Color.BLACK);
 			}
 			if (this.nodoADestino != null) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoADestino.getAreaEnMundo(), Color.YELLOW);
+				DibujoDebug.dibujarRectanguloContornoRefCamara(g,
+						this.nodoADestino.getXNodo() * this.getMundo().getAEstrellaX12X20().getDimensionNodoA().width,
+						this.nodoADestino.getYNodo() * this.getMundo().getAEstrellaX12X20().getDimensionNodoA().height,
+						this.getMundo().getAEstrellaX12X20().getDimensionNodoA().width,
+						this.getMundo().getAEstrellaX12X20().getDimensionNodoA().height, Color.YELLOW);
 			}
 		}
 	}
@@ -235,7 +246,7 @@ public class Jugador extends Criatura {
 	private void actualizarMovimientoMouseDijkstra() {
 		if ((this.recorridoD == null) || Constantes.RATON.presionadoClickDerUnicaAct()) {
 			if (this.generarRecorridoMoverMouse && !Constantes.RATON.presionadoClickDerUnicaAct()) {
-				if (!this.DIJKSTRA.actualizando()) {
+				if (!this.DIJKSTRA.isActualizando()) {
 					final NodoD nodoParado = this.DIJKSTRA.getNodoReferenciado(this.getPosicionXInt(),
 							this.getPosicionYInt());
 					if (nodoParado != null) {
@@ -267,11 +278,12 @@ public class Jugador extends Criatura {
 
 				this.DIJKSTRA.actualizar(p);
 				final NodoD n = this.DIJKSTRA.getNodoReferenciado(p.x, p.y);
-				if ((n == null) || this.mundo.colisionaConZonaUObjetoSolido(n.AREA)) {
+				if ((n == null) || this.mundo.colisionaConZonaUObjetoSolido(
+						new Rectangle(n.getXMundo(), n.getYMundo(), n.getAncho(), n.getAlto()))) {
 					return;
 				}
 
-				if (!this.DIJKSTRA.actualizando()) {
+				if (!this.DIJKSTRA.isActualizando()) {
 					final NodoD nodoParado = this.DIJKSTRA.getNodoReferenciado(this.getPosicionXInt(),
 							this.getPosicionYInt());
 					if (nodoParado != null) {
@@ -312,8 +324,8 @@ public class Jugador extends Criatura {
 
 			this.moverANodoDDestino();
 
-			if ((this.nodoDDestino == this.recorridoD.getLast()) && (this.getPosicionXInt() == this.nodoDDestino.AREA.x)
-					&& (this.getPosicionYInt() == this.nodoDDestino.AREA.y)) {
+			if ((this.nodoDDestino == this.recorridoD.getLast())
+					&& (this.nodoDDestino.compararPosicionesMundo(this.getPosicionXInt(), this.getPosicionYInt()))) {
 				this.recorridoD = null;
 				this.nodoDDestino = null;
 				this.moviendoPorRecorrido = false;
@@ -335,28 +347,30 @@ public class Jugador extends Criatura {
 					return;
 				}
 
-				final NodoA n = this.aEstrella.getNodoRef(p.x, p.y);
-				if ((n == null) || this.mundo.colisionaConZonaUObjetoSolido(n.getAreaEnMundo())) {
+				final NodoA n = this.getMundo().getAEstrellaX12X20().getNodoRef(p.x, p.y);
+				if ((n == null) || this.mundo.colisionaConZonaUObjetoSolido(
+						new Rectangle(n.getXNodo() * this.getMundo().getAEstrellaX12X20().getDimensionNodoA().width,
+								n.getYNodo() * this.getMundo().getAEstrellaX12X20().getDimensionNodoA().height,
+								this.getMundo().getAEstrellaX12X20().getDimensionNodoA().width,
+								this.getMundo().getAEstrellaX12X20().getDimensionNodoA().width))) {
 					return;
 				}
 
-				this.recorridoA = this.aEstrella.getRecorrido(this.getPosicionXInt(), this.getPosicionYInt(), p.x, p.y);
+				this.getMundo().getAEstrellaX12X20().getRecorrido(this.getPosicionXInt(), this.getPosicionYInt(), p.x,
+						p.y, this.recorridoA);
 				if ((this.recorridoA == null) || this.recorridoA.isEmpty()) {
-					this.recorridoA = null;
 					this.nodoADestino = null;
 					return;
 				}
 
-				this.nodoADestino = this.recorridoA.getNext();
+				this.nodoADestino = this.recorridoA.poll();
 				if ((this.nodoADestino == null) || this.recorridoA.isEmpty()) {
-					this.recorridoA = null;
 					this.nodoADestino = null;
 					this.moviendoPorRecorrido = false;
 				}
 			}
 		} else {
 			if (!this.moviendoPorRecorrido && (this.nodoADestino == null)) {
-				this.recorridoA = null;
 				return;
 			}
 
@@ -382,13 +396,15 @@ public class Jugador extends Criatura {
 			this.moverANodoADestino();
 
 			if ((this.nodoADestino == this.recorridoA.getLast())
-					&& (this.getPosicionXInt() == this.nodoADestino.getAreaEnMundo().x)
-					&& (this.getPosicionYInt() == this.nodoADestino.getAreaEnMundo().y)) {
+					&& (this.nodoADestino.compararPosicionesMundo(this.getPosicionXInt(), this.getPosicionYInt(),
+							this.getMundo().getAEstrellaX12X20().getDimensionNodoA()))) {
 
 				this.moviendoPorRecorrido = false;
-				this.recorridoA = null;
 				this.nodoADestino = null;
 				this.setEstadoEstandar();
+				if (this.recorridoA.size() > 0) {
+					this.recorridoA.clear();
+				}
 			} else if (!this.moviendoPorRecorrido) {
 				this.moviendoPorRecorrido = true;
 				this.setEstadoCaminando();
@@ -401,7 +417,7 @@ public class Jugador extends Criatura {
 			return;
 		}
 
-		final Rectangle areaNodo = this.nodoDDestino.AREA;
+		final Rectangle areaNodo = this.nodoDDestino.getArea();
 
 		if (this.getPosicionYInt() < areaNodo.y) {
 			final double dist = areaNodo.y - this.getPosicionYInt();
@@ -571,7 +587,7 @@ public class Jugador extends Criatura {
 				this.estamina = 0;
 				return false;
 			}
-			this.estamina -= (this.puntoGastarEstaminaXseg / 60);
+//			this.estamina -= (this.puntoGastarEstaminaXseg / 60);
 			this.GT_RECUPERACION_ESTAMINA.establecerReferenciaTiempoActual();
 			return true;
 		}
@@ -701,7 +717,9 @@ public class Jugador extends Criatura {
 			this.moviendoPorRecorrido = false;
 			this.recorridoD = null;
 			this.nodoDDestino = null;
-			this.recorridoA = null;
+			if (this.recorridoA.size() > 0) {
+				this.recorridoA.clear();
+			}
 			this.nodoADestino = null;
 		}
 
@@ -838,7 +856,7 @@ public class Jugador extends Criatura {
 
 	@Override
 	public void recibirAtaque(final double damage, final Ente causante) {
-		this.reducirVida(damage);
+//		this.reducirVida(damage);
 		super.recibirAtaque(damage, causante);
 	}
 

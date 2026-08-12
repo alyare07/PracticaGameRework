@@ -1,8 +1,8 @@
 package principal.entes.criaturas.enemigos;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.geom.Ellipse2D;
 
@@ -23,7 +23,7 @@ import principal.utilidades.audio.sonido.IDSonido;
 
 /**
  * Base abstracta para todos los enemigos del juego. Implementa la IA agresiva y
- * pasiva (patrulla aleatoria y persecución por Dijkstra/A*).
+ * pasiva basada en máquina de estados y navegación Dijkstra/A*.
  */
 public abstract class Enemigo extends Criatura {
 
@@ -37,7 +37,6 @@ public abstract class Enemigo extends Criatura {
 
 	protected double areaDeteccionAncho;
 	protected double areaDeteccionAlto;
-	protected boolean atacando;
 	protected double ataque = 25;
 	protected boolean realizandoAtaque;
 	protected Rectangle rangoAtaqueMele;
@@ -60,7 +59,7 @@ public abstract class Enemigo extends Criatura {
 		this.GT_RETOMAR_ATAQUE = new GestorTiempo();
 
 		this.velocidad = 0.25;
-		this.meterEstado(Estado.ESTANDAR);
+		this.setEstadoUnico(Estado.ESTANDAR);
 		this.mundo = mundo;
 
 		this.destinoX = (int) x;
@@ -71,17 +70,28 @@ public abstract class Enemigo extends Criatura {
 	public void actualizar() {
 		this.curar();
 
-		if (Constantes.TECLADO.TECLA_DIJKSTRA.presionado()) {
-			this.actualizarAtaque();
-			if (!this.estaEstadoAtacando()) {
-				this.tomarAccion();
-			} else if (this.enAccion) {
-				this.enAccion = false;
-				this.recorridoA = null;
-				this.nodoADestino = null;
+		// 1. Evaluación de detección del jugador o reacción a ataques recibidos
+		final boolean jugadorDetectado = this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getRectangulo());
+		final boolean bajoAtaque = this.recibiendoAtaque();
+
+		if (jugadorDetectado || bajoAtaque) {
+			if (!this.tieneEstado(Estado.PERSIGUIENDO) && !this.tieneEstado(Estado.ATACANDO)) {
+				this.meterEstado(Estado.PERSIGUIENDO);
+				this.removerEstado(Estado.ESTANDAR);
+				this.enAccion = false; // Cancela patrulla pasiva
+				this.recorridoA.clear();
 			}
+			this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
 		}
 
+		// 2. Transición de decisiones: Combate/Persecución vs Patrulla Pasiva
+		if (this.tieneEstado(Estado.PERSIGUIENDO) || this.tieneEstado(Estado.ATACANDO)) {
+			this.actualizarAtaque();
+		} else {
+			this.tomarAccion();
+		}
+
+		// Curación/Daño en modo prueba mediante click derecho
 		if (Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())
 				&& Constantes.RATON.presionadoClickDerUnicaAct()) {
 			this.curar(Constantes.JUGADOR.getDamage());
@@ -91,21 +101,28 @@ public abstract class Enemigo extends Criatura {
 				&& this.mundo.colisionaConObjetoSolidoPeroEnZonaNoSolida(this.getArea());
 	}
 
+	/**
+	 * Gestiona las fases de ataque cuerpo a cuerpo, persecución por Dijkstra y
+	 * abandono del combate según la máquina de estados.
+	 */
 	protected void actualizarAtaque() {
-		if (this.realizandoAtaque
-				&& this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
-			this.enAccion = false;
+		// --- FASE 1: Ejecución y recuperación del golpe cargado ---
+		if (this.realizandoAtaque) {
+			if (this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
+				this.enAccion = false;
 
-			final Rectangle rangoMele = this.rangoAtaqueMele;
-			this.rangoAtaqueMele = null;
+				final Rectangle rangoMele = this.rangoAtaqueMele;
+				this.rangoAtaqueMele = null;
 
-			if ((rangoMele != null) && (this.mundo != null)) {
-				this.mundo.crearProyectil(new GolpeMeleContraJugador(this.ataque, false, this.mundo, rangoMele.x,
-						rangoMele.y, rangoMele.width, rangoMele.height, this.direccion, this));
+				if ((rangoMele != null) && (this.mundo != null)) {
+					this.mundo.crearProyectil(new GolpeMeleContraJugador(this.ataque, false, this.mundo, rangoMele.x,
+							rangoMele.y, rangoMele.width, rangoMele.height, this.direccion, this));
+				}
+
+				this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
+				this.realizandoAtaque = false;
+				this.removerEstado(Estado.ATACANDO);
 			}
-
-			this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
-			this.realizandoAtaque = false;
 			return;
 		}
 
@@ -113,45 +130,132 @@ public abstract class Enemigo extends Criatura {
 			return;
 		}
 
-		if (this.atacando) {
-			this.meterEstado(Estado.ATACANDO);
+		// --- FASE 2: Evaluación de rangos y movimiento ---
+		final boolean jugadorEnRangoVision = this.getAreaDeteccionLogica()
+				.intersects(Constantes.JUGADOR.getRectangulo());
+		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
+				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
-			if (this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getRectangulo())) {
-				if (this.rangoAtaqueMele != null) {
-					if (this.GT_ATAQUE_INICIAL_COOLDOWN
-							.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
-						if (!this.realizandoAtaque) {
-							this.realizandoAtaque = true;
-							final Direccion dAtaque = this.getDireccionAtaqueMele();
-							if (dAtaque != null) {
-								this.direccion = dAtaque;
-							} else {
-								this.GT_CARGA_ATAQUE.establecerReferenciaTiempoActual();
-							}
-						}
+		if (jugadorEnRangoVision || dentroTiempoBusqueda) {
+			// Comprobar si el jugador está dentro de algún rango Melee de ataque
+			this.rangoAtaqueMele = this.obtenerRangoAtaqueMeleValido();
+
+			if (this.rangoAtaqueMele != null) {
+				// En rango Melee -> Iniciar secuencia de ataque
+				this.meterEstado(Estado.ATACANDO);
+
+				if (this.GT_ATAQUE_INICIAL_COOLDOWN.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
+					this.realizandoAtaque = true;
+					final Direccion dAtaque = this.getDireccionAtaqueMele();
+					if (dAtaque != null) {
+						this.direccion = dAtaque;
+					} else {
+						this.GT_CARGA_ATAQUE.establecerReferenciaTiempoActual();
 					}
-					return;
 				}
-				this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
-				this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
-			} else if (!this.GE_FUERA_DE_RANGO.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango())) {
-				this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
 			} else {
-				this.atacando = false;
-				this.pendienteADijkstra = false;
-				this.mundo.getDijkstra().reducirEntidadesPendientes();
+				// Fuera de rango Melee -> Mover hacia el jugador con Dijkstra
+				this.removerEstado(Estado.ATACANDO);
+				this.meterEstado(Estado.PERSIGUIENDO);
+				this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
 			}
 		} else {
-			if (!this.estaEstadoEstandar()) {
-				this.setEstadoEstandar();
+			// El jugador escapó y expiró el tiempo de búsqueda -> Retornar a estado pasivo
+			this.desactivarModoAgresivo();
+		}
+	}
+
+	/**
+	 * Desplaza la criatura de forma fluida mediante vectores hacia el nodo más
+	 * cercano provisto por Dijkstra.
+	 */
+	protected NodoD moverEnAtaque(final DijkstraRework d, final Terreno terreno) {
+		if (d == null) {
+			return null;
+		}
+
+		if (!this.pendienteADijkstra) {
+			this.pendienteADijkstra = true;
+			d.aumentarEntidadesPendientes();
+		}
+
+		// 1. Centro actual de la criatura
+		final double centroX = this.x + (this.ANCHO / 2.0);
+		final double centroY = this.y + (this.ALTO / 2.0);
+
+		// 2. Consultar el nodo Dijkstra correspondiente al centro
+		final NodoD n = d.getNodoCercano((int) centroX, (int) centroY);
+
+		if (this.ant != n) {
+			this.ant = n;
+		}
+		if (n == null) {
+			return null;
+		}
+
+		// 3. Punto objetivo al CENTRO del nodo destino
+		final double targetX = n.getXMundo() + (n.getAncho() / 2.0);
+		final double targetY = n.getYMundo() + (n.getAlto() / 2.0);
+
+		// 4. Vector de desplazamiento continuo
+		final double diffX = targetX - centroX;
+		final double diffY = targetY - centroY;
+		final double distanciaMundo = Math.hypot(diffX, diffY);
+
+		// 5. Movimiento continuo sin zonas muertas de frenado
+		if (distanciaMundo > 0) {
+			final double paso = Math.min(this.velocidad, distanciaMundo);
+			final double dirX = (diffX / distanciaMundo) * paso;
+			final double dirY = (diffY / distanciaMundo) * paso;
+
+			// Desplazamiento en X e Y solo si existe variación real
+			if (Math.abs(dirX) > 0.001) {
+				this.modificarPosicionX(dirX);
+			}
+			if (Math.abs(dirY) > 0.001) {
+				this.modificarPosicionY(dirY);
 			}
 
-			if (this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getRectangulo())) {
-				this.atacando = true;
-				this.GT_ATAQUE_INICIAL_COOLDOWN.establecerReferenciaTiempoActual();
-				this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
+			// 6. Asignar la dirección AL FINAL para que 'modificarPosicionY' no la
+			// sobreescriba
+			if (Math.abs(diffX) > Math.abs(diffY)) {
+				this.direccion = (diffX > 0) ? Direccion.ESTE : Direccion.OESTE;
+			} else if (Math.abs(diffY) > 0.01) {
+				this.direccion = (diffY > 0) ? Direccion.SUR : Direccion.NORTE;
+			}
+
+			this.setEstadoCaminando();
+		}
+
+		return n;
+	}
+
+	/**
+	 * Limpia los estados de agresividad y libera la referencia pendiente en
+	 * Dijkstra.
+	 */
+	protected void desactivarModoAgresivo() {
+		this.removerEstado(Estado.ATACANDO);
+		this.removerEstado(Estado.PERSIGUIENDO);
+		this.setEstadoEstandar();
+
+		if (this.pendienteADijkstra && (this.mundo != null) && (this.mundo.getDijkstra() != null)) {
+			this.pendienteADijkstra = false;
+			this.mundo.getDijkstra().reducirEntidadesPendientes();
+		}
+	}
+
+	/**
+	 * Evalúa los 4 rangos de ataque Melee y retorna el primero que colisione con el
+	 * jugador.
+	 */
+	protected Rectangle obtenerRangoAtaqueMeleValido() {
+		for (final Rectangle r : this.rangosAtaqueMele()) {
+			if ((r != null) && r.intersects(Constantes.JUGADOR.getArea())) {
+				return r;
 			}
 		}
+		return null;
 	}
 
 	protected void tomarAccion() {
@@ -164,12 +268,11 @@ public abstract class Enemigo extends Criatura {
 			return;
 		}
 
-		// Selección aleatoria limpia sin redefinir semillas constantemente
 		this.accion = ALEATORIO.nextBoolean() ? ACCION_ESPERAR : ACCION_MOVER;
 		this.enAccion = true;
 
 		if (this.accion == ACCION_ESPERAR) {
-			this.recorridoA = null;
+			this.reiniciarRecorridoAEstrella();
 			this.generarTiempoDeEspera();
 			this.esperar();
 		} else {
@@ -182,7 +285,7 @@ public abstract class Enemigo extends Criatura {
 		if (this.GT_ESPERA.transcurrioMiliSegundos(this.tiempoAccionEsperaMs)) {
 			this.enAccion = false;
 		}
-		if (!this.estaEstadoEstandar()) {
+		if (!this.tieneEstado(Estado.ESTANDAR)) {
 			this.setEstadoEstandar();
 		}
 	}
@@ -192,6 +295,84 @@ public abstract class Enemigo extends Criatura {
 		final int maxMs = 10000;
 		this.tiempoAccionEsperaMs = ALEATORIO.nextInt((maxMs - minMs) + 1) + minMs;
 		this.GT_ESPERA.establecerReferenciaTiempoActual();
+	}
+
+	/**
+	 * Selecciona un destino aleatorio para la patrulla utilizando A*. Reutiliza el
+	 * mismo Rectangle para evitar asignaciones continuas en la memoria Heap.
+	 */
+	protected void cambiarDestinoAlAzar() {
+		if ((this.mundo == null) || (this.getMundo().getAEstrellaX12X20() == null)) {
+			return;
+		}
+
+		boolean destinoFactible = false;
+		final int desplazamiento = this.mundo.getTerreno().ladoTile() * 3;
+
+		final int minX = this.getPosicionXInt() - desplazamiento;
+		final int maxX = this.getPosicionXInt() + desplazamiento;
+		final int minY = this.getPosicionYInt() - desplazamiento;
+		final int maxY = this.getPosicionYInt() + desplazamiento;
+
+		int intentos = 0;
+		final Dimension dimNodoA = this.getMundo().getAEstrellaX12X20().getDimensionNodoA();
+		final Rectangle areaPrueba = new Rectangle(0, 0, dimNodoA.width, dimNodoA.height);
+
+		while (!destinoFactible && (intentos < 20)) {
+			intentos++;
+
+			this.destinoX = ALEATORIO.nextInt((maxX - minX) + 1) + minX;
+			this.destinoY = ALEATORIO.nextInt((maxY - minY) + 1) + minY;
+
+			final NodoA nodoDestino = this.getMundo().getAEstrellaX12X20().getNodoRef(this.destinoX, this.destinoY);
+
+			if (nodoDestino != null) {
+				areaPrueba.x = nodoDestino.getXNodo() * dimNodoA.width;
+				areaPrueba.y = nodoDestino.getYNodo() * dimNodoA.height;
+
+				if (!this.mundo.colisionaConZonaUObjetoSolido(areaPrueba)) {
+					this.getMundo().getAEstrellaX12X20().getRecorrido(this.getPosicionXInt(), this.getPosicionYInt(),
+							this.destinoX, this.destinoY, this.recorridoA);
+					if ((this.recorridoA != null) && !this.recorridoA.isEmpty()) {
+						destinoFactible = true;
+					}
+				}
+			}
+		}
+
+		if (destinoFactible && !this.recorridoA.isEmpty()) {
+			this.nodoADestino = this.recorridoA.poll();
+		}
+	}
+
+	protected void moverLugarRandom() {
+		if ((this.recorridoA == null) || this.recorridoA.isEmpty()) {
+			this.enAccion = false;
+			return;
+		}
+
+		if ((this.nodoADestino != null) && this.nodoADestino.compararPosicionesMundo(this.getPosicionXInt(),
+				this.getPosicionYInt(), this.getMundo().getAEstrellaX12X20().getDimensionNodoA())) {
+			if (this.recorridoA.isEmpty()) {
+				this.nodoADestino = this.recorridoA.poll();
+			}
+		}
+
+		final NodoA ultimoNodo = this.recorridoA.getLast();
+		final boolean llegoAlFinal = (this.nodoADestino == ultimoNodo)
+				&& (this.getPosicionXInt() == (ultimoNodo.getXNodo()
+						* this.getMundo().getAEstrellaX12X20().getDimensionNodoA().width))
+				&& (this.getPosicionYInt() == (ultimoNodo.getYNodo()
+						* this.getMundo().getAEstrellaX12X20().getDimensionNodoA().height));
+
+		if (llegoAlFinal) {
+			this.enAccion = false;
+		} else {
+			this.moverANodoADestino();
+			if (!this.estaEstadoCaminando()) {
+				this.setEstadoCaminando();
+			}
+		}
 	}
 
 	@Override
@@ -224,125 +405,6 @@ public abstract class Enemigo extends Criatura {
 			this.curar(this.vidaRegen);
 			this.GT_CURACION.establecerReferenciaTiempoActual();
 		}
-	}
-
-	protected void cambiarDestinoAlAzar() {
-		if (this.mundo == null) {
-			return;
-		}
-
-		boolean destinoFactible = false;
-		final int desplazamiento = this.mundo.getTerreno().ladoTile() * 3;
-
-		final int minX = this.getPosicionXInt() - desplazamiento;
-		final int maxX = this.getPosicionXInt() + desplazamiento;
-		final int minY = this.getPosicionYInt() - desplazamiento;
-		final int maxY = this.getPosicionYInt() + desplazamiento;
-
-		int intentos = 0;
-
-		while (!destinoFactible && (intentos < 20)) {
-			intentos++;
-
-			this.destinoX = ALEATORIO.nextInt((maxX - minX) + 1) + minX;
-			this.destinoY = ALEATORIO.nextInt((maxY - minY) + 1) + minY;
-
-			final NodoA nodoDestino = this.aEstrella.getNodoRef(this.destinoX, this.destinoY);
-
-			if ((nodoDestino != null) && !this.mundo.colisionaConZonaUObjetoSolido(nodoDestino.getAreaEnMundo())) {
-				this.recorridoA = this.aEstrella.getRecorrido(this.getPosicionXInt(), this.getPosicionYInt(),
-						this.destinoX, this.destinoY);
-				if ((this.recorridoA != null) && !this.recorridoA.isEmpty()) {
-					destinoFactible = true;
-				}
-			}
-		}
-
-		if (destinoFactible && this.recorridoA.hasNext()) {
-			this.nodoADestino = this.recorridoA.getNext();
-		}
-	}
-
-	protected void moverLugarRandom() {
-		if ((this.recorridoA == null) || this.recorridoA.isEmpty()) {
-			this.enAccion = false;
-			return;
-		}
-
-		if ((this.nodoADestino != null)
-				&& this.nodoADestino.compararPosicionesMundo(this.getPosicionXInt(), this.getPosicionYInt())) {
-			if (this.recorridoA.hasNext()) {
-				this.nodoADestino = this.recorridoA.getNext();
-			}
-		}
-
-		final NodoA ultimoNodo = this.recorridoA.getLast();
-		final boolean llegoAlFinal = (this.nodoADestino == ultimoNodo)
-				&& (this.getPosicionXInt() == ultimoNodo.getAreaEnMundo().x)
-				&& (this.getPosicionYInt() == ultimoNodo.getAreaEnMundo().y);
-
-		if (llegoAlFinal) {
-			this.enAccion = false;
-		} else {
-			this.moverANodoADestino();
-			if (!this.estaEstadoCaminando()) {
-				this.setEstadoCaminando();
-			}
-		}
-	}
-
-	protected NodoD moverEnAtaque(final DijkstraRework d, final Terreno terreno) {
-		if ((this.ant != null) && (this.ant.distancia == 0)) {
-			for (final Rectangle r : this.rangosAtaqueMele()) {
-				if (r.intersects(Constantes.JUGADOR.getArea())) {
-					this.rangoAtaqueMele = r;
-					return null;
-				}
-			}
-		}
-
-		this.rangoAtaqueMele = null;
-
-		if (!this.pendienteADijkstra) {
-			this.pendienteADijkstra = true;
-			d.aumentarEntidadesPendientes();
-		}
-
-		final NodoD n = d.getNodoCercano((int) this.x, (int) this.y);
-		if (this.ant != n) {
-			this.ant = n;
-		}
-		if (n == null) {
-			return null;
-		}
-
-		final Point posNodo = new Point(n.AREA.x, n.AREA.y);
-
-		if (this.y < posNodo.y) {
-			this.modificarPosicionY(this.velocidad);
-			if ((posNodo.y - this.y) <= 0.25) {
-				this.y = posNodo.y;
-			}
-		} else if (this.y > posNodo.y) {
-			this.modificarPosicionY(-this.velocidad);
-			if ((this.y - posNodo.y) <= 0.25) {
-				this.y = posNodo.y;
-			}
-		}
-
-		if (this.x < posNodo.x) {
-			this.modificarPosicionX(this.velocidad);
-			if ((posNodo.x - this.x) <= 0.25) {
-				this.x = posNodo.x;
-			}
-		} else if (this.x > posNodo.x) {
-			this.modificarPosicionX(-this.velocidad);
-			if ((this.x - posNodo.x) <= 0.25) {
-				this.x = posNodo.x;
-			}
-		}
-
-		return n;
 	}
 
 	public Ellipse2D getAreaDeteccionLogica() {
@@ -412,7 +474,7 @@ public abstract class Enemigo extends Criatura {
 		this.reducirVida(damage);
 		if (causante instanceof Jugador) {
 			this.GT_ATACADO.establecerReferenciaTiempoActual();
-			this.atacando = true;
+			this.meterEstado(Estado.PERSIGUIENDO);
 			this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
 		}
 		super.recibirAtaque(damage, causante);
@@ -431,6 +493,7 @@ public abstract class Enemigo extends Criatura {
 	@Override
 	public void eliminar() {
 		GestorSonido.reproducir(IDSonido.CRIATURA_MUERTA);
+		this.desactivarModoAgresivo();
 		this.eliminado = true;
 	}
 }

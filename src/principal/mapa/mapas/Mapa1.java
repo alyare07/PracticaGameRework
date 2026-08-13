@@ -69,13 +69,16 @@ public class Mapa1 extends Mapa {
 		this.mundoActual.meterEntidad(new BandidoGarrote(876, 220, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 50, 50, this.mundoActual));
-		this.generarEnemigosParaPrueba(100);
-
-//	this.mundoActual.agregarCriatura(new Enemigo(976, 90, 16, 16, 50, 50,
-//		Constantes.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida("/imagenes/sprites/jugadores.png").getSubimage(48, 48, 48, 48), this.mundoActual));
+//		this.generarEnemigosParaPrueba(100);
 
 	}
 
+	/***
+	 * METODO DE PRUEBA PARA PROBAR RENDIMIENTO CON X CANTIDAD DE CRIATURAS EN EL
+	 * MUNDO
+	 * 
+	 * @param cantidadDeseada
+	 */
 	public void generarEnemigosParaPrueba(final int cantidadDeseada) {
 		if (this.mundoActual == null) {
 			return;

@@ -651,7 +651,6 @@ public class Mundo {
 			p.actualizar();
 			if (p.estaEliminado()) {
 				this.PROYECTILES.remove(i);
-				System.out.println("remove proyectil: " + p.getClass().getName());
 			}
 		}
 	}

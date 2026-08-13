@@ -112,7 +112,7 @@ public class Pistola extends Arma {
 	protected void rellenarInfo(final ArrayList<String> listaInfo) {
 		listaInfo.add("Daño de impacto  " + this.damage + "pts de vida.");
 		listaInfo.add("Alcance del disparo  " + this.alcance + "mts.");
-		listaInfo.add("Arma del tipo penetrante  " + this.esPenetrante());
+		listaInfo.add("Arma del tipo penetrante  " + (this.esPenetrante() ? "Si" : "No"));
 
 	}
 

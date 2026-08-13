@@ -442,12 +442,16 @@ public class DijkstraRework {
 	 */
 	private void generarRecorridoIterativo(final List<NodoD> lista, final NodoD inicio, final int readBuf) {
 		NodoD actual = inicio;
-		while (actual != null) {
+		final int limitePasos = this.xUltimoNodo * this.yUltimoNodo; // Máximo número de casillas del mapa
+		int pasos = 0;
+
+		while ((actual != null) && (pasos < limitePasos)) {
 			lista.add(actual);
 			if (actual == this.ultimoNodoPosObjetivo) {
 				break;
 			}
 			actual = actual.getNodoProcedente(readBuf);
+			pasos++;
 		}
 	}
 

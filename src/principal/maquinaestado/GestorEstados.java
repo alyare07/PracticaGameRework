@@ -19,162 +19,163 @@ import principal.maquinaestado.estados.menu.MenuEditorNuevo;
 import principal.maquinaestado.estados.menu.MenuPrincipal;
 import principal.utilidades.Constantes;
 
-public class GestorEstados{
-    public static final int NUMERO_ESTADO_PRUEBA = -1;
-    public static final int NUMERO_ESTADO_PARTIDA = 0;
-    public static final int NUMERO_ESTADO_MENU = 1;
-    public static final int NUMERO_ESTADO_EDITOR_MAPA = 2;
-    public static final int NUMERO_ESTADO_MENU_EDITOR_MAPA = 3;
-    public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES = 4;
-    public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA = 5;
+/**
+ * Máquina de Estados Finita (FSM) que gestiona el ciclo de vida, transiciones,
+ * actualización y renderizado del estado activo del juego.
+ */
+public class GestorEstados {
 
-    private final EstadoJuego[] estados;
-    private EstadoJuego estadoActual;
+	public static final int NUMERO_ESTADO_PRUEBA = -1;
+	public static final int NUMERO_ESTADO_PARTIDA = 0;
+	public static final int NUMERO_ESTADO_MENU = 1;
+	public static final int NUMERO_ESTADO_EDITOR_MAPA = 2;
+	public static final int NUMERO_ESTADO_MENU_EDITOR_MAPA = 3;
+	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES = 4;
+	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA = 5;
 
-    public GestorEstados() {
-	this.estados = new EstadoJuego[3];
-	this.estados[1] = new MenuPrincipal(this);
+	/**
+	 * Estado nulo/vacío reutilizable para evitar instanciaciones efímeras en la
+	 * recolección de basura
+	 */
+	private static final EstadoJuego ESTADO_VACIO = new EstadoJuego() {
+		@Override
+		public void pintar(final Graphics2D g) {
+		}
 
-	this.establecerEstadoActual(NUMERO_ESTADO_MENU);
-//		establecerEstadoActual(NUMERO_ESTADO_PRUEBA);
-    }
-
-    public void pintar(final Graphics2D g) {
-	this.estadoActual.pintar(g);
-    }
-
-    public void actualizar() {
-	this.estadoActual.actualizar();
-    }
-
-    public void establecerEstadoActual(final int numeroEstado) {
-	if (numeroEstado == NUMERO_ESTADO_PARTIDA) {
-
-	} else {
-	    Constantes.GLOBALES.estadoJuego = false;
-	}
-	switch (numeroEstado) {
-	case NUMERO_ESTADO_PARTIDA:
-	    Constantes.GLOBALES.estadoJuego = true;
-	    this.estadoActual = this.estados[0];
-	    break;
-	case NUMERO_ESTADO_MENU:
-	    if (this.estados.length <= 1) {
-		break;
-	    }
-	    Constantes.GLOBALES.estadoJuego = false;
-	    this.estadoActual = this.estados[1];
-	    break;
-	case NUMERO_ESTADO_EDITOR_MAPA:
-	    if (this.estados.length <= 1) {
-		break;
-	    }
-	    this.editorMapaSeleccion();
-	    break;
-	case NUMERO_ESTADO_MENU_CONFIGURACIONES:
-	    this.estadoActual = new MenuConfiguracion(this);
-	    break;
-	case NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA:
-	    this.estadoActual = new MenuConfiguracionEnPartida(this);
-	    break;
-	case NUMERO_ESTADO_PRUEBA:
-//			this.estadoActual = new EstadoPruebaVacio();
-	    this.estadoActual = new EstadoPrueba();
-	    break;
-	}
-
-    }
-
-    public void editorMapaSeleccion() {
-	Constantes.GLOBALES.estadoJuego = false;
-	this.estados[2] = new MenuEdirorSeleccion(this);
-	this.estadoActual = this.estados[2];
-    }
-
-    public void editorMapa(final int cantAncho, final int cantAlto, final int idModeloTile) {
-	Constantes.GLOBALES.estadoJuego = false;
-	this.estados[2] = new EditorMapa(Constantes.LADO_TILE, cantAncho, cantAlto, idModeloTile, this);
-	this.estadoActual = this.estados[2];
-    }
-
-    public void editorMapa(final Terreno mapa) {
-	Constantes.GLOBALES.estadoJuego = false;
-	this.estados[2] = new EditorMapa(mapa, this);
-	this.estadoActual = this.estados[2];
-    }
-
-    public void editorMapaNuevoMenu() {
-	Constantes.GLOBALES.estadoJuego = false;
-	this.estados[2] = new MenuEditorNuevo(this);
-	this.estadoActual = this.estados[2];
-    }
-
-    public void disposeEditor() {
-	this.estados[2] = new EstadoJuego() {
-
-	    @Override
-	    public void pintar(final Graphics2D g) {
-	    }
-
-	    @Override
-	    public void actualizar() {
-		System.out.println("Editor ANONIMO");
-	    }
+		@Override
+		public void actualizar() {
+		}
 	};
-    }
 
-    public void iniciarPartidaNueva() {
-	Constantes.GLOBALES.estadoJuego = true;
-	this.estados[0] = new GestorPartida(this);
-	this.estadoActual = this.estados[0];
-	Constantes.INVENTARIO.vaciar();
-	Constantes.INVENTARIO.ocultar();
-    }
+	private final EstadoJuego[] estados;
+	private EstadoJuego estadoActual;
 
-    public void seleccionarMundo() {
-	final File directorio = new File("mundos\\");
-	if (!directorio.exists()) {
-	    directorio.mkdirs();
+	public GestorEstados() {
+		this.estados = new EstadoJuego[3];
+		this.estados[1] = new MenuPrincipal(this);
+		this.establecerEstadoActual(NUMERO_ESTADO_MENU);
 	}
 
-	final JFileChooser selector = new JFileChooser();
-	selector.setCurrentDirectory(new File(directorio.getAbsolutePath()));
-	final FileNameExtensionFilter filtro = new FileNameExtensionFilter("Mundos", "mp", "esc");
-	selector.setFileFilter(filtro);
+	public void pintar(final Graphics2D g) {
+		if (this.estadoActual != null) {
+			this.estadoActual.pintar(g);
+		}
+	}
 
-	selector.setApproveButtonText("Seleccionar");
+	public void actualizar() {
+		if (this.estadoActual != null) {
+			this.estadoActual.actualizar();
+		}
+	}
 
-	if (selector.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-	    final File seleccion = selector.getSelectedFile();
-	    if (seleccion != null && seleccion.exists()) {
+	public void establecerEstadoActual(final int numeroEstado) {
+		// Sincronizar el flag global de estado de partida
+		Constantes.GLOBALES.estadoJuego = (numeroEstado == NUMERO_ESTADO_PARTIDA);
+
+		switch (numeroEstado) {
+		case NUMERO_ESTADO_PARTIDA:
+			this.estadoActual = this.estados[0];
+			break;
+		case NUMERO_ESTADO_MENU:
+			if (this.estados.length > 1) {
+				this.estadoActual = this.estados[1];
+			}
+			break;
+		case NUMERO_ESTADO_EDITOR_MAPA:
+			if (this.estados.length > 1) {
+				this.editorMapaSeleccion();
+			}
+			break;
+		case NUMERO_ESTADO_MENU_CONFIGURACIONES:
+			this.estadoActual = new MenuConfiguracion(this);
+			break;
+		case NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA:
+			this.estadoActual = new MenuConfiguracionEnPartida(this);
+			break;
+		case NUMERO_ESTADO_PRUEBA:
+			this.estadoActual = new EstadoPrueba();
+			break;
+		default:
+			break;
+		}
+	}
+
+	public void editorMapaSeleccion() {
+		Constantes.GLOBALES.estadoJuego = false;
+		this.estados[2] = new MenuEdirorSeleccion(this);
+		this.estadoActual = this.estados[2];
+	}
+
+	public void editorMapa(final int cantAncho, final int cantAlto, final int idModeloTile) {
+		Constantes.GLOBALES.estadoJuego = false;
+		this.estados[2] = new EditorMapa(Constantes.LADO_TILE, cantAncho, cantAlto, idModeloTile, this);
+		this.estadoActual = this.estados[2];
+	}
+
+	public void editorMapa(final Terreno mapa) {
+		Constantes.GLOBALES.estadoJuego = false;
+		this.estados[2] = new EditorMapa(mapa, this);
+		this.estadoActual = this.estados[2];
+	}
+
+	public void editorMapaNuevoMenu() {
+		Constantes.GLOBALES.estadoJuego = false;
+		this.estados[2] = new MenuEditorNuevo(this);
+		this.estadoActual = this.estados[2];
+	}
+
+	public void disposeEditor() {
+		this.estados[2] = ESTADO_VACIO;
+		if (this.estadoActual == this.estados[2]) {
+			this.establecerEstadoActual(NUMERO_ESTADO_MENU);
+		}
+	}
+
+	public void iniciarPartidaNueva() {
 		Constantes.GLOBALES.estadoJuego = true;
-		this.estados[0] = new GestorPartida(this, seleccion.getAbsolutePath(), true);
+		this.estados[0] = new GestorPartida(this);
 		this.estadoActual = this.estados[0];
 		Constantes.INVENTARIO.vaciar();
 		Constantes.INVENTARIO.ocultar();
-	    }
-	} else {
-	    JOptionPane.showMessageDialog(selector, "No se ha podido cargar el mundo seleccionado!", "Error al cargar mundo", JOptionPane.WARNING_MESSAGE);
 	}
 
-    }
+	public void seleccionarMundo() {
+		// Ruta compatible entre todos los sistemas operativos (Windows, Linux, macOS)
+		final File directorio = new File("mundos");
+		if (!directorio.exists()) {
+			directorio.mkdirs();
+		}
 
-    public void disposePartida() {
-	this.estados[0] = new EstadoJuego() {
+		final JFileChooser selector = new JFileChooser(directorio);
+		final FileNameExtensionFilter filtro = new FileNameExtensionFilter("Mundos (*.mp, *.esc)", "mp", "esc");
+		selector.setFileFilter(filtro);
+		selector.setApproveButtonText("Seleccionar");
 
-	    @Override
-	    public void pintar(final Graphics2D g) {
-	    }
+		final int resultado = selector.showOpenDialog(null);
 
-	    @Override
-	    public void actualizar() {
-		System.out.println("Partida ANONIMA");
-	    }
-	};
-    }
+		if (resultado == JFileChooser.APPROVE_OPTION) {
+			final File seleccion = selector.getSelectedFile();
+			if ((seleccion != null) && seleccion.exists()) {
+				Constantes.GLOBALES.estadoJuego = true;
+				this.estados[0] = new GestorPartida(this, seleccion.getAbsolutePath(), true);
+				this.estadoActual = this.estados[0];
+				Constantes.INVENTARIO.vaciar();
+				Constantes.INVENTARIO.ocultar();
+			}
+		} else if (resultado == JFileChooser.ERROR_OPTION) {
+			JOptionPane.showMessageDialog(null, "No se ha podido cargar el mundo seleccionado!",
+					"Error al cargar mundo", JOptionPane.WARNING_MESSAGE);
+		}
+	}
 
-    public EstadoJuego getEstadoActual() {
-	return this.estadoActual;
-    }
+	public void disposePartida() {
+		this.estados[0] = ESTADO_VACIO;
+		if (this.estadoActual == this.estados[0]) {
+			this.establecerEstadoActual(NUMERO_ESTADO_MENU);
+		}
+	}
 
+	public EstadoJuego getEstadoActual() {
+		return this.estadoActual;
+	}
 }

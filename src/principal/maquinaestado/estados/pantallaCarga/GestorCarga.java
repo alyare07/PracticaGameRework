@@ -1,53 +1,41 @@
 package principal.maquinaestado.estados.pantallaCarga;
 
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
+/**
+ * Controla el estado de progreso (0% a 100%) y detalle textual de una tarea de
+ * carga asíncrona. Usamos variables {@code volatile} para lectura/escritura
+ * thread-safe instantánea entre hilos.
+ */
 public abstract class GestorCarga {
-	protected int porcentaje;
-	protected boolean completo;
+
+	protected volatile int porcentaje;
+	protected volatile boolean completo;
+	protected volatile String detalleCarga = "Iniciando carga...";
 	protected Thread hiloCarga;
-	protected Lock lock = new ReentrantLock();
-	protected String detalleCarga = "";
+
 	public int getPorcentaje() {
 		return this.porcentaje;
 	}
-	
+
 	public boolean isCompleto() {
 		return this.completo;
 	}
-	
+
 	public void setCompleto(final boolean completo) {
-		this.lock.lock();
-		try {
-			this.completo = completo;
-			if(completo) this.porcentaje = 100;
-		} finally {
-			this.lock.unlock();
+		this.completo = completo;
+		if (completo) {
+			this.porcentaje = 100;
 		}
 	}
-	
+
 	public String getDetalleCarga() {
 		return this.detalleCarga;
 	}
-	
+
 	public void setPorcentajeCarga(final int porcentaje) {
-		this.lock.lock();
-		try {
-			this.porcentaje = porcentaje;
-		} finally {
-			this.lock.unlock();
-		}
-	}
-	
-	public void setDetalleCarga(final String detalleCarga) {
-		this.lock.lock();
-		try {
-			this.detalleCarga = detalleCarga;
-		} finally {
-			this.lock.unlock();
-		}
-		
+		this.porcentaje = Math.min(100, Math.max(0, porcentaje));
 	}
 
+	public void setDetalleCarga(final String detalleCarga) {
+		this.detalleCarga = (detalleCarga != null) ? detalleCarga : "";
+	}
 }

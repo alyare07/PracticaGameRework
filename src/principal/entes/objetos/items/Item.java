@@ -12,7 +12,6 @@ import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
-import principal.utilidades.funciones.GeneradorTooltip;
 
 public abstract class Item extends Objeto {
 	private static final long serialVersionUID = -451309412394893821L;
@@ -20,7 +19,7 @@ public abstract class Item extends Objeto {
 	public static final int COD_ITEM_CONSUMIBLE = 2;
 	protected final ArrayList<String> LISTA_INFO;
 
-	public Item(int x, int y) {
+	public Item(final int x, final int y) {
 		super(x, y);
 		this.LISTA_INFO = new ArrayList<String>();
 	}
@@ -37,46 +36,47 @@ public abstract class Item extends Objeto {
 	public abstract int getTipoItem();
 
 	public abstract String getNombre();
-	
-	
-	public  ArrayList<String> getInfo(){
+
+	public ArrayList<String> getInfo() {
 		return this.LISTA_INFO;
 	}
-	
+
+	@Override
 	public Rectangle getArea() {
-		return new Rectangle(getPosicionXInt(), getPosicionYInt(), getAncho(), getAlto());
+		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(), this.getAlto());
 	}
-	
+
 	protected void rellenarInfo(final ArrayList<String> listaInfo) {
 	}
 
 	@Override
 	public void pintar(final Graphics2D g) {
 		if (Constantes.TECLADO.TECLA_VER_COLISIONES.presionado() && Constantes.isEstadoJuego()) {
-			final Rectangle area = getArea();
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g,area, Color.ORANGE);
+			final Rectangle area = this.getArea();
+			DibujoDebug.dibujarRectanguloContornoRefCamara(g, area, Color.ORANGE);
 		}
 	}
-	
-	protected abstract  JSONObject exportarParaJSON();
-	
+
+	protected abstract JSONObject exportarParaJSON();
+
 	public abstract String exportarTipoItem();
-	
+
 	@SuppressWarnings("unchecked")
 	public JSONObject getJsonItem() {
-		JSONObject datosItem = exportarParaJSON();
-		JSONObject item = new JSONObject();
-		item.put("tipo", exportarTipoItem());
+		final JSONObject datosItem = this.exportarParaJSON();
+		final JSONObject item = new JSONObject();
+		item.put("tipo", this.exportarTipoItem());
 		item.put("entiti", datosItem);
 		return item;
 	}
-	
+
 	public static Item crearItemDesdeJson(final JSONObject json) {
 		Item i = null;
-		if(json.get("tipo").toString().equals(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Pistola.class))) {
-			i = Pistola.crearDesdeJson((JSONObject)json.get("entiti"));
-		}else if(json.get("tipo").toString().equals(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Consumible.class))) {
-			i = Consumible.crearConsumible((JSONObject)json.get("entiti"));
+		if (json.get("tipo").toString().equals(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Pistola.class))) {
+			i = Pistola.crearDesdeJson((JSONObject) json.get("entiti"));
+		} else if (json.get("tipo").toString()
+				.equals(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Consumible.class))) {
+			i = Consumible.crearConsumible((JSONObject) json.get("entiti"));
 		}
 		return i;
 	}

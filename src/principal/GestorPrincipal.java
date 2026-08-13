@@ -1,5 +1,7 @@
 package principal;
 
+import java.util.concurrent.locks.LockSupport;
+
 import principal.graficos.SuperficieDibujo;
 import principal.graficos.Ventana;
 import principal.maquinaestado.GestorEstados;
@@ -17,7 +19,7 @@ public class GestorPrincipal {
 	// --- Constantes de Tiempo ---
 	private static final long NS_POR_SEGUNDO = 1_000_000_000L;
 
-	// Objetivo de Lógica: 60 APS constantes (Uso de 'int' en lugar de 'byte')
+	// Objetivo de Lógica: 60 APS constantes
 	private static final int APS_OBJETIVO = 60;
 	private static final double NS_POR_ACTUALIZACION = (double) NS_POR_SEGUNDO / APS_OBJETIVO;
 
@@ -56,7 +58,6 @@ public class GestorPrincipal {
 		this.enFuncionamiento = true;
 		this.tiempoInicioSesionMs = System.currentTimeMillis();
 		this.gestorEstados = new GestorEstados();
-		// Punto 4: Corrección de Typo (obetener -> obtener)
 		this.superficieDibujo = SuperficieDibujo.obetenerSuperficieDibujo();
 		this.ventana = new Ventana("Juego", this.superficieDibujo);
 	}
@@ -69,9 +70,15 @@ public class GestorPrincipal {
 		long referenciaContador = System.nanoTime();
 		double tiempoTranscurrido;
 		double delta = 0;
-		if (Vsync) {
+
+		// El delta para físicas/movimiento lógicas a 60 Hz siempre es 1/60 de segundo
+		Constantes.GLOBALES.delta = 1.0 / APS_OBJETIVO;
+
+		// Si se solicita VSync y el límite no está activo, se activa
+		if (Vsync && !Constantes.TECLADO.TECLA_FPS_LIMITE.presionado()) {
 			Constantes.TECLADO.TECLA_FPS_LIMITE.presionar();
 		}
+
 		while (this.enFuncionamiento) {
 			final long inicioBucle = System.nanoTime();
 			tiempoTranscurrido = inicioBucle - referenciaActualizacion;
@@ -79,18 +86,18 @@ public class GestorPrincipal {
 
 			// Acumulador de delta para clavar las actualizaciones a 60 Hz
 			delta += tiempoTranscurrido / NS_POR_ACTUALIZACION;
-			Constantes.GLOBALES.delta = tiempoTranscurrido / NS_POR_SEGUNDO;
 
 			// --- 1. LÓGICA (APS clavados en 60 + Control de Espiral de la Muerte) ---
 			int actualizacionesEnEsteFrame = 0;
-			while ((delta >= 1) && (actualizacionesEnEsteFrame < MAX_ACTUALIZACIONES_POR_FRAME)) {
+			while ((delta >= 1.0) && (actualizacionesEnEsteFrame < MAX_ACTUALIZACIONES_POR_FRAME)) {
 				this.actualizar();
 				delta--;
 				actualizacionesEnEsteFrame++;
 			}
 
-			// Si el lag fue severo y superó el límite, descartamos el delta acumulado extra
-			if (delta > MAX_ACTUALIZACIONES_POR_FRAME) {
+			// Si el lag fue severo y alcanzó el límite máximo, descartamos el retraso
+			// acumulado
+			if (actualizacionesEnEsteFrame >= MAX_ACTUALIZACIONES_POR_FRAME) {
 				delta = 0;
 			}
 
@@ -107,8 +114,7 @@ public class GestorPrincipal {
 				if (tiempoRestanteNS > 0) {
 					final long finEsperado = System.nanoTime() + (long) tiempoRestanteNS;
 
-					// Dormimos la mayor parte del tiempo (dejando un margen de 2ms para la
-					// imprecisión del SO)
+					// Dormimos la mayor parte del tiempo (margen de 2ms para la imprecisión del SO)
 					if (tiempoRestanteNS > 2_000_000) {
 						try {
 							final long msParaEsperar = (long) ((tiempoRestanteNS - 2_000_000) / 1_000_000);
@@ -118,9 +124,9 @@ public class GestorPrincipal {
 						}
 					}
 
-					// Reemplazo de Thread.onSpinWait() para Java 8
+					// Espera activa de alta precisión con LockSupport
 					while (System.nanoTime() < finEsperado) {
-						java.util.concurrent.locks.LockSupport.parkNanos(1);
+						LockSupport.parkNanos(1);
 					}
 				}
 			} else {
@@ -128,15 +134,15 @@ public class GestorPrincipal {
 				Thread.yield();
 			}
 
-			// --- 4. MÉTRICAS (Contador cada 1 segundo) ---
-			if ((System.nanoTime() - referenciaContador) > NS_POR_SEGUNDO) {
+			// --- 4. MÉTRICAS (Contador cada 1 segundo exacto sin deriva temporal) ---
+			if ((inicioBucle - referenciaContador) >= NS_POR_SEGUNDO) {
 				this.actualizarTiempoJugado();
 				Constantes.GLOBALES.aps = this.actualizacionesAcumuladas;
 				Constantes.GLOBALES.fps = this.framesAcumulados;
 
 				this.actualizacionesAcumuladas = 0;
 				this.framesAcumulados = 0;
-				referenciaContador = System.nanoTime();
+				referenciaContador += NS_POR_SEGUNDO;
 			}
 		}
 	}
@@ -172,8 +178,7 @@ public class GestorPrincipal {
 	}
 
 	/**
-	 * Punto 4: Calcula el tiempo total transcurrido mediante sellos de tiempo
-	 * reales en lugar de acumular contadores manuales propensos a desincronizarse.
+	 * Calcula el tiempo total transcurrido mediante sellos de tiempo reales.
 	 */
 	private void actualizarTiempoJugado() {
 		final long totalSegundos = (System.currentTimeMillis() - this.tiempoInicioSesionMs) / 1000;

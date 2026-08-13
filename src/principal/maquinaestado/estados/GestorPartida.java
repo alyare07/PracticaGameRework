@@ -1,6 +1,7 @@
 package principal.maquinaestado.estados;
 
 import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 
 import principal.mapa.Mundo;
 import principal.mapa.mapas.MapaManager;
@@ -8,6 +9,7 @@ import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.menu.MenuPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCargaMapa;
 import principal.maquinaestado.estados.pantallaCarga.PantallaCarga;
+import principal.utilidades.Constantes;
 
 public class GestorPartida implements EstadoJuego {
 	@SuppressWarnings("unused")
@@ -16,6 +18,8 @@ public class GestorPartida implements EstadoJuego {
 	private final MenuPartida MP;
 	private EstadoJuego estadoActivo;
 	private final GestorCargaMapa GCJ = new GestorCargaMapa();
+	private final BufferedImage FONDO_CARGA = Constantes.FUNCIONES.CARGADOR_RECURSOS
+			.cargarImagenCompatibleOpaca("/imagenes/FondoCarga.png");
 
 	public GestorPartida(final GestorEstados ge) {
 		this.GE = ge;
@@ -24,7 +28,7 @@ public class GestorPartida implements EstadoJuego {
 		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, true, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
 //		this.GJ.partidaNueva("escenario1.json");
 		this.MP = new MenuPartida(ge, this);
-		this.estadoActivo = new PantallaCarga(this.GCJ, "recursos/screens/pantallaCarga1.json");
+		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 	}
 
 	public GestorPartida(final GestorEstados ge, final String mapa, final boolean reset) {
@@ -70,12 +74,12 @@ public class GestorPartida implements EstadoJuego {
 
 	public void cambiarMundo(final String nombreMapa, final String nombreSpawn) {
 		this.GCJ.cargar(this.GJ, this.GCJ, nombreMapa, false, nombreSpawn);
-		this.estadoActivo = new PantallaCarga(this.GCJ, "recursos/screens/pantallaCarga1.json");
+		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 	}
 
 	public void reiniciar() {
 		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, true, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
-		this.estadoActivo = new PantallaCarga(this.GCJ, "recursos/screens/pantallaCarga1.json");
+		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 	}
 
 }

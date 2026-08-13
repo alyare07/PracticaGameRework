@@ -76,7 +76,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Constantes.JUGADOR.actualizar();
 
 		if (!Constantes.JUGADOR.estaEliminado()) {
-//	    this.sonidoFondo.actualizar(!Constantes.GLOBALES.pausa);
 			Constantes.INVENTARIO.actualizar(this.RATON);
 			if (Constantes.GLOBALES.viendoCofre) {
 				Constantes.GLOBALES.inventarioVault.actualizar(this.RATON, this.mapa.getMundoActual(),
@@ -246,33 +245,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.mapa.getMundoActual().meterEntidad(zonaTP2);
 		this.EVENTOS.add(new EventoJugadorZonaTP(zonaTP, this, true));
 		this.EVENTOS.add(new EventoJugadorZonaTP(zonaTP2, this, true));
-//		
-//		Cofre cofre = new CofreMediano(Constantes.JUGADOR.getPosicionXInt()+70, Constantes.JUGADOR.getPosicionYInt());
-//		cofre.meterItem(new PocionVidaMenor(4));
-//		cofre.meterItem(new PocionVidaMenor(1));
-//		cofre.meterItem(new PocionVidaMenor(7));
-//		cofre.meterItem(new PocionVidaMenor(6));
-//		cofre.meterItem(new Pistola(ListaModelosItem.COD_EQUIPABLE_ARMA, new Municion(8, 3)));
-//		this.mundo.meterEntidad(cofre);
-//		{
-//			JSONArray lista = new JSONArray();
-//			lista.add(cofre.exportarParaJson());
-//			
-//			String jsonExpEncriptado = Constantes.FUNCIONES.ENCRIPTADOR_STRING.encriptar(lista.toJSONString());
-//			File ruta = new File("jsonprueba.json");
-//			PrintWriter pw = null;
-//			try {
-//				pw = new PrintWriter(ruta);
-//				pw.print(jsonExpEncriptado);
-//				pw.flush();
-//				System.out.println("Json exportado en:  "+ ruta);
-//			} catch (IOException e) {
-//				System.out.println("Error al exportar escenario: "+ e.getMessage());
-//			}finally {
-//				pw.close();
-//			}
-//		}
-//		System.exit(0);
 
 		this.mapa.getMundoActual().meterEntidad(new Complemento(773, 177, ListaModeloComplemento.COD_CASA_1));
 	}
@@ -284,27 +256,57 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	@Override
 	public void cargarMapa(final GestorCarga gc, final String nombreMapa, final boolean reset,
 			final String nombreSpawn) {
-		this.mapa = MapaManager.cargarMapa(nombreMapa, gc);
-		// SACAR EL ELIMINADO DEL JUGADOR Y DEMAS
+		if (gc != null) {
+			gc.setPorcentajeCarga(10);
+			gc.setDetalleCarga("Cargando mapa " + nombreMapa);
+		}
 
+		// 1. Carga del mapa y escenario
+		this.mapa = MapaManager.cargarMapa(nombreMapa, gc);
+
+		if ((this.mapa == null) || (this.mapa.getMundoActual() == null)) {
+			System.err.println("Error crítico: El mapa cargado es nulo.");
+			if (gc != null) {
+				gc.setCompleto(true);
+			}
+			return;
+		}
+
+		if (gc != null) {
+			gc.setPorcentajeCarga(80);
+			gc.setDetalleCarga("Configurando jugador y mundo");
+		}
+
+		// 2. Establecer posición del jugador y mundo
 		if (reset) {
 			Constantes.JUGADOR.restablecerYCambiarMundo(this.mapa.getMundoActual());
 		} else {
 			Constantes.JUGADOR.setMundo(this.mapa.getMundoActual());
 		}
-		this.mapa.getMundoActual().getSpawn(nombreSpawn).moverJugadorCentrado();
+
+		// Mover jugador al punto de Spawn
+		if (this.mapa.getMundoActual().getSpawn(nombreSpawn) != null) {
+			this.mapa.getMundoActual().getSpawn(nombreSpawn).moverJugadorCentrado();
+		}
+
+		// Configuración de Cámara e Inventario
 		Constantes.CAMARA.setEntidadEnfocada(Constantes.JUGADOR);
 		Constantes.CAMARA.habilitarGestorLimite();
-//////////////VER ACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 		Constantes.INVENTARIO.establecerMundo(this.mapa.getMundoActual());
 		Constantes.RATON.soltar();
-//	this.agregarObjetosAlMundo();
+
+		// Activar Pathfinding de IA
 		if (!Constantes.TECLADO.TECLA_DIJKSTRA.presionado()) {
 			Constantes.TECLADO.TECLA_DIJKSTRA.presionar();
 		}
-//	this.sonidoFondo = new SonidoMP3("sonidos/forest.mp3");
+
 		Constantes.GLOBALES.partidaIniciada = true;
-		gc.setCompleto(true);
+
+		// 3. Finalizar carga
+		if (gc != null) {
+			gc.setDetalleCarga("¡Carga completa!");
+			gc.setCompleto(true);
+		}
 	}
 
 	private void pintarTiempoJugado(final Graphics2D g) {

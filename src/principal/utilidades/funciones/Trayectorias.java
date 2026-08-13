@@ -1,105 +1,92 @@
 package principal.utilidades.funciones;
 
-import java.awt.Point;
-import java.util.ArrayList;
-
 import principal.utilidades.Constantes;
 
+/**
+ * Clase de utilidad para el cálculo matemático de trayectorias lineales y
+ * curvas de Bézier 2D.
+ */
+public final class Trayectorias {
 
-public class Trayectorias {
-	
-	protected Trayectorias() {
-		
+	public Trayectorias() {
 	}
-	
-	/**
-	 * Genera un vector[2][valor] -> [0] da los [valor X] , [1] da los [valor Y]. La cantidad de coordenadas 
-	 * dependera de la velocidad especificada. La trayectoria sera en forma de arco (0° a 90° o 90° a 180°).
-	 * @param px1 El punto X del primer punto
-	 * @param py1 El punto Y del primer punto
-	 * @param px2 El punto X del segundo punto
-	 * @param py2 El punto Y del segundo punto
-	 * @param tiempoMsTrayectoriaEnAnchoJuego El tiempo en milisegundos que se tardaria en desplazar hasta el final de 0 hasta el anchoJuego.
-	 * @return El vector con cada posicion xy: vector[0] contiene las X. vector[1] contiene las Y. Ej -> vector[0][0] y vector[1][0] seria una coordena (x = vector[0][0],y = vector[1][0]).
-	 * 			la cantidad de valores que hay de X e Y dependera de vector[0].length o vector[1].length ambos daran la misma cantidad de valores.
-	 */
-	 public int[][] getTrayectoiaBezier(int px1, int py1, int px2, int py2, final double tiempoMsTrayectoriaEnAnchoJuego) {
-		final int aps = 60;
-		final int MS_X_SEGUNDOS = 1000;	
-		final double cantApsParaElTiempoEnAnchoPantalla = (tiempoMsTrayectoriaEnAnchoJuego/MS_X_SEGUNDOS)*aps;
-		final double dist = calcularDistancia(px1, py1, px2, py2);
-		final double cantApsParaElTiempoEnDistanciaEntrePuntos = dist <= (Constantes.ANCHO_JUEGO/4) ? dist * (cantApsParaElTiempoEnAnchoPantalla*1.5) / Constantes.ANCHO_JUEGO: dist * cantApsParaElTiempoEnAnchoPantalla / Constantes.ANCHO_JUEGO;
-		final double vel = (1/cantApsParaElTiempoEnDistanciaEntrePuntos);
-		
-	 	int x1 = 0;
-        int y1 = 0;
-        int x2 = 0;
-        int y2 = 0;
-		if(this.calcularDistancia(px1, py1, 0, 0) < this.calcularDistancia(px2, py2, 0, 0)){
-			x1 = px1;
-	        y1 = py1;
-	        x2 = px2;
-	        y2 = py2;
-		}else {
-			x1 = px2;
-	        y1 = py2;
-	        x2 = px1;
-	        y2 = py1;
-		}
-		
-    	ArrayList<Point> puntos = new ArrayList<Point>();
-    	int x3 = (x1 + x2) / 2;
-        int y3 = Math.min(y1, y2) - 20;
-        for (double t = 0; t <= 1; t += vel) {
-            double x = (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * x3 + t * t * x2;
-            double y = (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * y3 + t * t * y2;
-            puntos.add(new Point((int)x,(int) y));
-        }
-        int[][] coords = new int[2][puntos.size()];
-        int i = 0;
-        for(Point p : puntos) {
-        	coords[0][i] = p.x;
-        	coords[1][i] = p.y;
-        	i++;
-        }
-        return coords;
-    }
-	 
-	 //-----------------------HACER QUE TAMBIEN TENGA COMO PARAMETRO LA VELOCIDAD. IGUAL QUE getTrayectoiaBezier().
-	 public int[][] getTrayectoiaLineal(int px1, int py1, int px2, int py2) {
-		 	int x1 = 0;
-	        int y1 = 0;
-	        int x2 = 0;
-	        int y2 = 0;
-			if(this.calcularDistancia(px1, py1, 0, 0) < this.calcularDistancia(px2, py2, 0, 0)){
-				x1 = px1;
-		        y1 = py1;
-		        x2 = px2;
-		        y2 = py2;
-			}else {
-				x1 = px2;
-		        y1 = py2;
-		        x2 = px1;
-		        y2 = py1;
-			}
-	    	ArrayList<Point> puntos = new ArrayList<Point>();
-	    	for (double t = 0; t <= 1; t += 0.01) {
-	            double x = x1 + t * (x2 - x1);
-	            double y = y1 + t * (y2 - y1);
-	            puntos.add(new Point((int)x,(int) y));
-	        }
-	        int[][] coords = new int[2][puntos.size()];
-	        int i = 0;
-	        for(Point p : puntos) {
-	        	coords[0][i] = p.x;
-	        	coords[1][i] = p.y;
-	        	i++;
-	        }
-	        return coords;
-	    }
-	 
-	 public double calcularDistancia(double x1, double y1, double x2, double y2) {
-	        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-	    }
 
+	/**
+	 * Genera una trayectoria parabólica (Bézier cuadrática) desde el origen hasta
+	 * el destino.
+	 *
+	 * @param px1                             x Origen
+	 * @param py1                             y Origen
+	 * @param px2                             x Destino
+	 * @param py2                             y Destino
+	 * @param tiempoMsTrayectoriaEnAnchoJuego Tiempo en MS que tardaría en cruzar la
+	 *                                        pantalla completa.
+	 * @return Matriz [2][pasos]: [0] contiene las coordenadas X, [1] contiene las
+	 *         Y.
+	 */
+	public int[][] getTrayectoiaBezier(final int px1, final int py1, final int px2, final int py2,
+			final double tiempoMsTrayectoriaEnAnchoJuego) {
+
+		final int aps = 60;
+		final int msPorSegundo = 1000;
+		final double cantApsAncho = (tiempoMsTrayectoriaEnAnchoJuego / msPorSegundo) * aps;
+		final double dist = this.calcularDistancia(px1, py1, px2, py2);
+
+		final double cantApsDistancia = (dist <= (Constantes.ANCHO_JUEGO / 4.0))
+				? (dist * (cantApsAncho * 1.5)) / Constantes.ANCHO_JUEGO
+				: (dist * cantApsAncho) / Constantes.ANCHO_JUEGO;
+
+		final double vel = Math.max(0.005, 1.0 / Math.max(1.0, cantApsDistancia));
+		final int pasos = (int) Math.ceil(1.0 / vel) + 1;
+
+		// Asignación de memoria directa $O(1)$ sin instanciar objetos Point ni
+		// ArrayList
+		final int[][] coords = new int[2][pasos];
+
+		// Punto de control para el arco (parábola). La altura del arco se adapta a la
+		// distancia
+		final double x3 = (px1 + px2) / 2.0;
+		final double alturaArco = Math.max(25.0, dist * 0.25);
+		final double y3 = Math.min(py1, py2) - alturaArco;
+
+		int i = 0;
+		for (double t = 0.0; (t <= 1.0) && (i < pasos); t += vel) {
+			final double oneMinusT = 1.0 - t;
+			final double x = (oneMinusT * oneMinusT * px1) + (2 * oneMinusT * t * x3) + (t * t * px2);
+			final double y = (oneMinusT * oneMinusT * py1) + (2 * oneMinusT * t * y3) + (t * t * py2);
+
+			coords[0][i] = (int) Math.round(x);
+			coords[1][i] = (int) Math.round(y);
+			i++;
+		}
+
+		// Aseguramos que el último punto coincida exactamente con el destino
+		coords[0][pasos - 1] = px2;
+		coords[1][pasos - 1] = py2;
+
+		return coords;
+	}
+
+	/**
+	 * Genera una trayectoria recta uniforme de P1 a P2.
+	 */
+	public int[][] getTrayectoiaLineal(final int px1, final int py1, final int px2, final int py2, final int pasos) {
+		final int cantPasos = Math.max(2, pasos);
+		final int[][] coords = new int[2][cantPasos];
+
+		for (int i = 0; i < cantPasos; i++) {
+			final double t = (double) i / (cantPasos - 1);
+			coords[0][i] = (int) Math.round(px1 + (t * (px2 - px1)));
+			coords[1][i] = (int) Math.round(py1 + (t * (py2 - py1)));
+		}
+
+		return coords;
+	}
+
+	/**
+	 * Calcula la distancia euclidiana entre dos puntos $O(1)$.
+	 */
+	public double calcularDistancia(final double x1, final double y1, final double x2, final double y2) {
+		return Math.hypot(x2 - x1, y2 - y1);
+	}
 }

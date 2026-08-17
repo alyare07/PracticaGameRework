@@ -9,6 +9,7 @@ import org.json.simple.parser.ParseException;
 
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
+import principal.inventario.vault.InventarioVault.EstadoInventario;
 import principal.utilidades.Constantes;
 
 public class CofreMediano extends Cofre {
@@ -17,19 +18,18 @@ public class CofreMediano extends Cofre {
 	private final int ANCHO = 16;
 	private final int ALTO = 16;
 
-	public CofreMediano(int x, int y) {
+	public CofreMediano(final int x, final int y) {
 		super(x, y, 6, 4, "Cofre Mediano");
 	}
-	
+
 	@Override
 	public BufferedImage getTextura() {
-		if(this.getEstado() == EstadoCofre.CERRADO) {
+		if (this.getInventario().getEstadoInventario() == EstadoInventario.CERRADO) {
 			return Constantes.LISTA_HOJAS_SPRITES.COFRES.getCofreCerrado();
-		}else {
-			return Constantes.LISTA_HOJAS_SPRITES.COFRES.getCofreAbierto();
 		}
+		return Constantes.LISTA_HOJAS_SPRITES.COFRES.getCofreAbierto();
 	}
-	
+
 	@Override
 	public int getAncho() {
 		return this.ANCHO;
@@ -42,7 +42,7 @@ public class CofreMediano extends Cofre {
 
 	@Override
 	public Objeto copiar() {
-		return new CofreMediano(x, y);// COPIAR TAMBIEN EL INVENTARIO
+		return new CofreMediano(this.x, this.y);// COPIAR TAMBIEN EL INVENTARIO
 	}
 
 	@Override
@@ -54,28 +54,30 @@ public class CofreMediano extends Cofre {
 	protected String getTipoCofre() {
 		return Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(CofreMediano.class);
 	}
-	
+
 	public static CofreMediano crearDesdeJson(final JSONObject json) {
 		final int x = Integer.parseInt(json.get("x").toString());
 		final int y = Integer.parseInt(json.get("y").toString());
-		JSONParser parse = new JSONParser();
+		final JSONParser parse = new JSONParser();
 		JSONArray listaItemsJson = null;
 		try {
-			listaItemsJson = (JSONArray) parse.parse(json.get(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class)).toString());
-		} catch (ParseException e) {
+			listaItemsJson = (JSONArray) parse
+					.parse(json.get(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class)).toString());
+		} catch (final ParseException e) {
 			listaItemsJson = new JSONArray();
 		}
-		CofreMediano cofre = new CofreMediano(x, y);
+		final CofreMediano cofre = new CofreMediano(x, y);
 		Item i = null;
-		for(Object obj : listaItemsJson) {
-			if(obj instanceof JSONObject) {
-				i = Item.crearItemDesdeJson((JSONObject)obj);
-				if(i == null) continue;
+		for (final Object obj : listaItemsJson) {
+			if (obj instanceof JSONObject) {
+				i = Item.crearItemDesdeJson((JSONObject) obj);
+				if (i == null) {
+					continue;
+				}
 				cofre.meterItem(i);
 			}
 		}
 		return cofre;
 	}
-
 
 }

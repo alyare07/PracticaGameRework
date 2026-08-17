@@ -15,7 +15,7 @@ public class GlobalesDinamicas {
 	public double delta;
 	public boolean partidaIniciada;
 	public boolean editorSelectGroupTile;
-	public boolean viendoCofre;
+	public boolean viendoContenedor;
 	public InventarioVault inventarioVault;
 	public int ladoTile = 16;
 //	public Mapa mapa = new Mapa(1, 1, 1);

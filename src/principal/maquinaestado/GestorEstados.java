@@ -9,7 +9,6 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 import principal.mapa.Terreno;
 import principal.maquinaestado.estados.EstadoJuego;
-import principal.maquinaestado.estados.EstadoPrueba;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.editor.EditorMapa;
 import principal.maquinaestado.estados.menu.MenuConfiguracion;
@@ -92,9 +91,6 @@ public class GestorEstados {
 		case NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA:
 			this.estadoActual = new MenuConfiguracionEnPartida(this);
 			break;
-		case NUMERO_ESTADO_PRUEBA:
-			this.estadoActual = new EstadoPrueba();
-			break;
 		default:
 			break;
 		}
@@ -135,8 +131,8 @@ public class GestorEstados {
 		Constantes.GLOBALES.estadoJuego = true;
 		this.estados[0] = new GestorPartida(this);
 		this.estadoActual = this.estados[0];
-		Constantes.INVENTARIO.vaciar();
-		Constantes.INVENTARIO.ocultar();
+		Constantes.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
+		Constantes.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
 	}
 
 	public void seleccionarMundo() {
@@ -159,8 +155,8 @@ public class GestorEstados {
 				Constantes.GLOBALES.estadoJuego = true;
 				this.estados[0] = new GestorPartida(this, seleccion.getAbsolutePath(), true);
 				this.estadoActual = this.estados[0];
-				Constantes.INVENTARIO.vaciar();
-				Constantes.INVENTARIO.ocultar();
+				Constantes.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
+				Constantes.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
 			}
 		} else if (resultado == JFileChooser.ERROR_OPTION) {
 			JOptionPane.showMessageDialog(null, "No se ha podido cargar el mundo seleccionado!",

@@ -7,12 +7,12 @@ import principal.animaciones.listaHojasSprite.ListaHojaSprites;
 import principal.controles.Raton;
 import principal.controles.Teclado;
 import principal.entes.criaturas.Jugador;
-import principal.inventario.Inventario;
 import principal.mapa.renderEntidades.camara.Camara;
 import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.editor.EditorMapa;
 import principal.utilidades.funciones.Funciones;
+import principal.utilidades.inventario.GestorInventario;
 
 public class Constantes {
 	public static final int ANCHO_JUEGO = 640;
@@ -41,8 +41,8 @@ public class Constantes {
 	public static final Funciones FUNCIONES = new Funciones();
 //	public static final Mapa MAPA = GLOBALES.mapa;
 	public static final Jugador JUGADOR = new Jugador(0, 0);
-	public static final Inventario INVENTARIO = new Inventario();
 //	public static final String RUTA_TEXTURA = "/imagenes/texturas/textura.png";
+	public static final GestorInventario GESTOR_INVENTARIO = new GestorInventario();
 	public static final HojaSprite HOJA_JUGADORES = new HojaSprite("/imagenes/sprites/jugadores.png", 32, false);
 	public static final int LADO_CURSOR = 4;
 	public static final ListaHojaSprites LISTA_HOJAS_SPRITES = new ListaHojaSprites();

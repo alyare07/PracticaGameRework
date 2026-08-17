@@ -1,0 +1,130 @@
+
+🗺️ 1. MAPA ESTRUCTURAL DE RELACIONES (JERARQUÍA DE CLASES)
+
+                            +-----------------------------------+
+                            |         GestorInventario          |
+                            |   (Fachada / Mediador Maestro)    |
+                            +-----------------+-----------------+
+                                              |
+         +------------------------------------+------------------------------------+
+         |                                    |                                    |
+         | (1) Posee                          | (2) Referencia Dinámica            | (3) Posee
+         v                                    v                                    v
++------------------+                +--------------------+               +-------------------+
+|    Inventario    |                |  InventarioVault   |               |    ItemPuntero    |
+| (Ventana Jugador)|                | (Cofres / Terceros)|               | (Ítem en Cursor)  |
++--------+---------+                +---------+----------+               +---------+---------+
+         |                                    |                                    |
+         |-- SlotArrojadizo (Virtual)         |-- Contenedor (Interface)           |-- Item sostenido
+         |                                    |    └─ Ente (Posición/Mundo)        |-- Slot de origen
+         |-- SlotManager (Orquestador)        |                                    |
+              |                               └─ ArrayList<Slot> (Dinámico)        | (Interactúa con)
+              |-- LISTA_ALMACEN (30 Slots)                                         |
+              |-- LISTA_HOTBAR  (10 Slots) <====== (Reflejo Proxy) =======+        |
+              |-- LISTA_EQUIPO   (5 Slots)                                |        |
+              |    ├─ SlotArma                                            |        |
+              |    ├─ SlotCabeza                                          |        |
+              |    ├─ SlotCuerpo                                          |        |
+              |    ├─ SlotAccesorio 1                                     |        |
+              |    └─ SlotAccesorio 2                                     |        |
+              |                                                           |        |
+              └─ LISTA_IGU (HUD Inferior en Pantalla) --------------------+        |
+                   └─ 10 SlotIGU + 1 SlotIGU Arma                                  |
+                                                                                   |
+                                          =========================================+
+                                          |
+                                          v
+                    +-------------------------------------------+
+                    |             Slot (Clase Base)             |
+                    |  - puedeAceptar(Item) -> Regla de Admisión|
+                    |  - puedeExtraer()     -> Regla de Salida  |
+                    |  - pintar() / pintarTooltip()             |
+                    +-------------------------------------------+
+                    
+🔄 2. DIAGRAMA DE FLUJO: ACCIONES DE RATÓN (INPUT PIPELINE)
+A. Clic Izquierdo (Arrastrar, Depositar e Intercambiar)
+
+[ Clic Izquierdo en Pantalla ]
+                                             |
+                                 ¿Hay ítem en el Puntero?
+                                /                        \
+                              (NO)                       (SÍ)
+                              /                            \
+              ¿Clic sobre algún Slot?               ¿Clic sobre algún Slot?
+                   /          \                          /          \
+                 (NO)         (SÍ)                     (NO)         (SÍ)
+                  |            |                        |            |
+             [ Ignorar ]   ¿Slot tiene ítem        [ Soltar Ítem  ¿Slot Destino
+                           y puede extraer?          al Suelo       está vacío?
+                            /            \          en Mundo ]     /          \
+                          (NO)          (SÍ)                     (SÍ)         (NO)
+                           |             |                        |            |
+                      [ Ignorar ]   [ Agarrar Ítem          ¿Destino acepta?  [ SWAP BIDIRECCIONAL ]
+                                    y vaciar Slot ]          /            \   ¿Destino acepta ítem A
+                                                           (SÍ)          (NO)   Y Origen acepta ítem B?
+                                                            |             |      /                 \
+                                                       [ Depositar ]  [Rechazar](SÍ)              (NO)
+                                                                                  |                 |
+                                                                           [ Intercambiar      [ Rechazar
+                                                                             ítems de lugar ]    Acción ]
+                                                                             
+Clic Derecho (Acciones Rápidas / Atajos)
+
+[ Clic Derecho sobre un Slot ]
+                                           |
+                                  ¿El Slot tiene Ítem?
+                                      /          \
+                                    (NO)         (SÍ)
+                                     |            |
+                                [ Ignorar ]   ¿Qué tipo de Ítem es?
+                                             /          |          \
+                             +--------------+           |           +--------------+
+                             |                          |                          |
+                       [ ARMA ]                   [ CONSUMIBLE ]             [ ARROJADIZO ]
+                             |                          |                          |
+                     ¿Está en SlotArma?        [ Aplicar efecto al          [ Pasar ítem a
+                     /                \          Jugador y restar           SlotArrojadizo y
+                   (SÍ)               (NO)           cantidad ]              cerrar ventana
+                    |                  |                                     para apuntar ]
+             [ Desequipar ]     [ Equipar en SlotArma
+             (Buscar primer     e intercambiar con la
+              slot vacío)        que estaba puesta) ]
+              
+🎨 3. PIPELINE DE RENDERIZADO Y CAPAS (Z-ORDER)
+Para evitar que los textos o el ítem del cursor queden tapados por los fondos de las ventanas, el motor sigue este orden estricto de renderizado:
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ CAPA 3: Ítem en Puntero (Plano Superior Absoluto)                               │
+│  └─ ItemPuntero.pintar(g, mousePos) -> Dibuja el sprite sobre las coordenadas X,Y│
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ CAPA 2: Textos y Tooltips Flotantes                                             │
+│  ├─ InventarioVault.pintarTooltips(g) -> Cuadro flotante con estadísticas       │
+│  └─ Inventario.pintarTooltips(g)      -> Cuadro flotante con estadísticas       │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ CAPA 1: Fondos, Marcos y Cuadrículas de Slots                                   │
+│  ├─ InventarioVault.pintar(g) -> Fondo gris, marco y celdas del cofre           │
+│  └─ Inventario.pintar(g)      -> Si abierto: Ventana completa + Slots           │
+│                                  Si cerrado: HUD Inferior (SlotIGU)             │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ CAPA 0: Mundo del Juego (Tiles de Terreno, Criaturas, Cofres en el mapa)        │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+4. CICLO DE VIDA Y ROLLBACK DE CONTENEDORES (COFRES / VAULTS)
+
++-------------------------------------------------------------------------------+
+| 1. APERTURA                                                                   |
+|   Jugador en rango + Tecla 'E' -> Estado = ABIERTO                            |
+|   -> GestorInventario.abrirInventarioTercero(cofre)                           |
+|   -> InventarioJugador.hacerVisible()                                         |
++-------------------------------------------------------------------------------+
+                                       |
+                                       v
++-------------------------------------------------------------------------------+
+| 2. CIERRE SEGURO & ROLLBACK (Protección contra duplicaciones/pérdidas)        |
+|   Desencadenantes: Jugador se aleja, cierra inventario o presiona 'E'         |
+|   -> Estado = CERRADO                                                         |
+|   -> GestorInventario.eliminarInventarioTercero(mundo):                       |
+|       * ¿El puntero sostenía un ítem sacado de este cofre?                    |
+|           ├─ (SÍ) -> Cancela arrastre y devuelve el ítem a su slot de origen  |
+|           │          (Si el slot se llenó, lo arroja al suelo del cofre).     |
+|           └─ (NO) -> El jugador conserva el ítem que tenía en el cursor.      |
++-------------------------------------------------------------------------------+

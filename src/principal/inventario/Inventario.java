@@ -11,288 +11,325 @@ import principal.entes.objetos.items.Consumible;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.Portable;
 import principal.entes.objetos.items.armas.Arma;
-import principal.inventario.equipamiento.SlotArma;
 import principal.inventario.equipamiento.SlotManager;
 import principal.inventario.slot.Slot;
 import principal.inventario.slot.SlotArrojadizo;
-import principal.inventario.vault.InventarioVault;
 import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
+import principal.utilidades.inventario.ItemPuntero;
 
-public class Inventario{
-    private final int X;
-    private final int Y;
-    private final int ANCHO;
-    private final int ALTO;
-    private final Rectangle ZONA_INFO_JUGADOR;
-    private final Rectangle ZONA_SLOTS_ALMACEN;
-    private final Rectangle ZONA_SLOTS_PRINCIPALES;
-    private final Rectangle ZONA_SLOTS_EQUIPAMIENTOS;
-    private final Rectangle AREA_PERSONAJE;
-    private final int MARGEN_GENERAL;
-    private boolean visible;
-    private Item itemSeleccionado;
-    private Slot slotOrigenItemSeleccionado;
-    private Point posicionPuntero;
-    private Mundo mundo;
-    private final GestorTiempo GE_RATON_PRESIONO;
-    private boolean activarItemDisponible;
-    private Slot slotItemInventarioTerceroSeleccionado;
-    public static final int TIEMPO_ACTUALIZACION_RATON_PRESIONADO = 500;
-    private final SlotManager SLOT_MANAGER;
-    public static final Color GRIS_TRANSPARENTE = new Color(80, 53, 67, 150);
-    public static final Color NEGRO_TRANSPARENTE = new Color(43, 24, 34, 80);
-    public static final Color BLANCO_TRANSPARENTE = new Color(255, 255, 255, 100);
-    private final SlotArrojadizo SLOT_ARROJADIZO = new SlotArrojadizo();
+/**
+ * Ventana central y gestor del inventario principal del jugador.
+ * 
+ * <p>
+ * <b>Arquitectura y Ciclo de Vida Dual (Modo Ventana vs. Modo HUD):</b>
+ * </p>
+ * <ul>
+ * <li><b>Modo Ventana Abierta ({@code visible == true}):</b> Renderiza el panel
+ * completo con todas las secciones (ranuras de equipamiento, almacén, barra de
+ * acceso rápido, cuadro de estadísticas y previsualización animada del
+ * personaje).</li>
+ * <li><b>Modo HUD / Hotbar ({@code visible == false}):</b> Desactiva la ventana
+ * principal y delega la interacción exclusivamente al HUD inferior en pantalla
+ * a través de {@link SlotManager#actualizarIGU(Raton)} y
+ * {@link SlotManager#pintarSlotsIGU(Graphics2D)}.</li>
+ * <li><b>Partición Geométrica Inmutable (Zero-GC):</b> Las regiones de la
+ * interfaz (almacén, equipo, barra rápida) se calculan una sola vez en el
+ * constructor y se reutilizan durante toda la partida.</li>
+ * <li><b>Centrado y Compensación de Sprite del Personaje:</b> Alinea la
+ * animación activa del jugador dentro de {@link #AREA_PERSONAJE} compensando
+ * los márgenes internos de renderizado del sprite.</li>
+ * </ul>
+ * 
+ * @author Copiloto Técnico / Arquitectura del Motor
+ * @version 1.0 (Vanilla Java 8)
+ * @see SlotManager
+ * @see SlotArrojadizo
+ * @see ItemPuntero
+ */
+public class Inventario {
 
-    public Inventario() {
+	/***/
+	/* ========================================================================= */
+	/* 1. CONSTANTES GRÁFICAS Y TEMPORIZADORES (GC FRIENDLY) */
+	/* ========================================================================= */
+	/***/
+	public static final int TIEMPO_ACTUALIZACION_RATON_PRESIONADO = 500;
+	public static final Color GRIS_TRANSPARENTE = new Color(80, 53, 67, 150);
+	public static final Color NEGRO_TRANSPARENTE = new Color(43, 24, 34, 80);
+	public static final Color BLANCO_TRANSPARENTE = new Color(255, 255, 255, 100);
+	private static final Color COLOR_BORDE = Color.LIGHT_GRAY;
 
-	this.ANCHO = 202;
-	this.ALTO = 110;
-	this.X = Constantes.CENTROX - this.ANCHO / 2;
-//		this.Y = Constantes.CENTROY - ALTO / 2;
-	this.Y = Constantes.CENTROY;
+	/***/
+	/* ========================================================================= */
+	/* 2. LÍMITES GEOMÉTRICOS Y PARTICIONADO DE ZONAS */
+	/* ========================================================================= */
+	/***/
+	private final int X;
+	private final int Y;
+	private final int ANCHO;
+	private final int ALTO;
+	private final int MARGEN_GENERAL;
 
-	this.MARGEN_GENERAL = 2;
-	this.ZONA_INFO_JUGADOR = new Rectangle(this.X, this.Y, this.ANCHO, 25);
+	private final Rectangle AREA_TOTAL;
+	private final Rectangle ZONA_INFO_JUGADOR;
+	private final Rectangle ZONA_SLOTS_ALMACEN;
+	private final Rectangle ZONA_SLOTS_PRINCIPALES;
+	private final Rectangle ZONA_SLOTS_EQUIPAMIENTOS;
+	private final Rectangle AREA_PERSONAJE;
 
-	this.ZONA_SLOTS_EQUIPAMIENTOS = new Rectangle(this.ZONA_INFO_JUGADOR.x + 25, this.Y + 1, this.ANCHO - 24, 18);
+	/***/
+	/* ========================================================================= */
+	/* 3. ESTADO Y GESTORES AUXILIARES */
+	/* ========================================================================= */
+	/***/
+	private boolean visible;
+	private Mundo mundo;
+	private final GestorTiempo GE_RATON_PRESIONO;
+	private boolean activarItemDisponible;
+	private final SlotManager SLOT_MANAGER;
+	private final SlotArrojadizo SLOT_ARROJADIZO;
 
-	this.ZONA_SLOTS_ALMACEN = new Rectangle(this.X, this.ZONA_INFO_JUGADOR.y + this.ZONA_INFO_JUGADOR.height, this.ANCHO, 62); // this.Y + 20;
-	this.ZONA_SLOTS_PRINCIPALES = new Rectangle(this.X, this.ZONA_SLOTS_ALMACEN.y + this.ZONA_SLOTS_ALMACEN.height, this.ANCHO, 22);// this.Y + 82;
-	this.AREA_PERSONAJE = new Rectangle(this.X + 2, this.Y + 2, 22, 22);
+	/**
+	 * Construye la ventana del inventario, centra las dimensiones en pantalla y
+	 * calcula las regiones rectangulares de cada subpanel.
+	 */
+	public Inventario() {
+		this.ANCHO = 202;
+		this.ALTO = 110;
+		this.X = Constantes.CENTROX - (this.ANCHO / 2);
+		this.Y = Constantes.CENTROY;
+		this.MARGEN_GENERAL = 2;
 
-	this.SLOT_MANAGER = new SlotManager(this, this.MARGEN_GENERAL, this.ZONA_SLOTS_ALMACEN, this.ZONA_SLOTS_PRINCIPALES, this.ZONA_SLOTS_EQUIPAMIENTOS);
+		// 1. Límites globales y subsecciones
+		this.AREA_TOTAL = new Rectangle(this.X, this.Y, this.ANCHO, this.ALTO);
+		this.ZONA_INFO_JUGADOR = new Rectangle(this.X, this.Y, this.ANCHO, 25);
+		this.ZONA_SLOTS_EQUIPAMIENTOS = new Rectangle(this.ZONA_INFO_JUGADOR.x + 25, this.Y + 1, this.ANCHO - 24, 18);
+		this.ZONA_SLOTS_ALMACEN = new Rectangle(this.X, this.ZONA_INFO_JUGADOR.y + this.ZONA_INFO_JUGADOR.height,
+				this.ANCHO, 62);
+		this.ZONA_SLOTS_PRINCIPALES = new Rectangle(this.X, this.ZONA_SLOTS_ALMACEN.y + this.ZONA_SLOTS_ALMACEN.height,
+				this.ANCHO, 22);
+		this.AREA_PERSONAJE = new Rectangle(this.X + 2, this.Y + 2, 22, 22);
 
-//		this.GRIS_TRANSPARENTE = new Color(80, 53, 67, 200);
-//		this.NEGRO_TRANSPARENTE = new Color(43, 24, 34, 200);
-	this.GE_RATON_PRESIONO = new GestorTiempo();
-	this.activarItemDisponible = true;
-    }
+		// 2. Administrador central de casillas
+		this.SLOT_MANAGER = new SlotManager(this, this.MARGEN_GENERAL, this.ZONA_SLOTS_ALMACEN,
+				this.ZONA_SLOTS_PRINCIPALES, this.ZONA_SLOTS_EQUIPAMIENTOS);
 
-    public int getX() {
-	return this.X;
-    }
-
-    public int getY() {
-	return this.Y;
-    }
-
-    public int getAncho() {
-	return this.ANCHO;
-    }
-
-    public int getAlto() {
-	return this.ALTO;
-    }
-
-    public void establecerMundo(final Mundo mundo) {
-	this.mundo = mundo;
-    }
-
-    public void pintar(final Graphics2D g) {
-	if (!this.visible) {
-	    this.SLOT_MANAGER.pintarSlotsIGU(g);
-	    return;
-	}
-	this.pintarInventario(g);
-	this.pintarItemSeleccionadoEnPuntero(g);
-	this.pintarItemSeleccionadoEnPunteroInventarioTercero(g);
-    }
-
-    private void pintarInventario(final Graphics2D g) {
-	DibujoDebug.dibujarRectanguloRelleno(g, this.ZONA_INFO_JUGADOR, GRIS_TRANSPARENTE);
-	DibujoDebug.dibujarRectanguloRelleno(g, this.ZONA_SLOTS_ALMACEN, GRIS_TRANSPARENTE);
-	DibujoDebug.dibujarRectanguloRelleno(g, this.ZONA_SLOTS_PRINCIPALES, NEGRO_TRANSPARENTE);
-	DibujoDebug.dibujarRectanguloRelleno(g, this.AREA_PERSONAJE, BLANCO_TRANSPARENTE);
-	DibujoDebug.dibujarRectanguloContorno(g, this.X, this.Y, this.ANCHO, this.ALTO, Color.lightGray);
-	this.SLOT_MANAGER.pintar(g);
-	Animaciones.JUGADOR.pintar(g, (this.AREA_PERSONAJE.x + (this.AREA_PERSONAJE.width - Constantes.JUGADOR.getAncho()) / 2 - Constantes.JUGADOR.getMargenXSprite()),
-		this.AREA_PERSONAJE.y - Constantes.JUGADOR.getMargenYSprite() + (this.AREA_PERSONAJE.height - Constantes.JUGADOR.getAlto()) / 2);
-    }
-
-    private void pintarItemSeleccionadoEnPunteroInventarioTercero(final Graphics2D g) {
-	if (this.slotItemInventarioTerceroSeleccionado != null && this.slotItemInventarioTerceroSeleccionado.contieneItem()) {
-	    DibujoDebug.dibujarImagen(g, this.slotItemInventarioTerceroSeleccionado.getItem().getTextura(), this.posicionPuntero);
-	}
-    }
-
-    private void pintarItemSeleccionadoEnPuntero(final Graphics2D g) {
-	if (this.itemSeleccionado == null || this.slotOrigenItemSeleccionado == null || this.posicionPuntero == null) {
-	    return;
-	}
-	DibujoDebug.dibujarImagen(g, this.itemSeleccionado.getTextura(), this.posicionPuntero);
-    }
-
-    public void actualizar(final Raton raton) {
-	if (!this.visible) {
-	    if (this.itemSeleccionado != null) {
-		this.itemSeleccionado = null;
-	    }
-	    if (this.slotOrigenItemSeleccionado != null) {
-		this.slotOrigenItemSeleccionado = null;
-	    }
-	    this.SLOT_MANAGER.actualizarIGU(raton);
-	    this.SLOT_ARROJADIZO.actualizar(raton);
-	    return;
-	}
-	this.SLOT_ARROJADIZO.actualizar(raton);
-	this.posicionPuntero = raton.getPuntoPosicionEscalado();
-	this.SLOT_MANAGER.actualizar(raton, this.GE_RATON_PRESIONO, TIEMPO_ACTUALIZACION_RATON_PRESIONADO, this.posicionPuntero, this.mundo);
-	this.intercambioInventarioExterno(raton);
-    }
-
-    public boolean agregarObjeto(final Item item) {
-	switch (item.getTipoItem()) {
-	case Item.COD_ITEM_CONSUMIBLE:
-	    return this.SLOT_MANAGER.agregarConsumible((Consumible) item);
-	case Item.COD_ITEM_PORTABLE:
-	    return this.SLOT_MANAGER.agregarPortable((Portable) item);
-	default:
-	    return false;
+		this.GE_RATON_PRESIONO = new GestorTiempo();
+		this.activarItemDisponible = true;
+		this.SLOT_ARROJADIZO = new SlotArrojadizo();
 	}
 
-    }
+	/***/
+	/* ========================================================================= */
+	/* 4. ACTUALIZACIÓN LÓGICA (60 APS) */
+	/* ========================================================================= */
+	/***/
 
-    private void intercambioInventarioExterno(final Raton raton) {
-	if (Constantes.GLOBALES.viendoCofre && raton.getRectanguloPosicionEscalado().intersects(Constantes.GLOBALES.inventarioVault.getArea())) {
-	    final InventarioVault invExt = Constantes.GLOBALES.inventarioVault;
-	    if (this.slotOrigenItemSeleccionado != null && this.slotOrigenItemSeleccionado.contieneItem()) {
-		if (invExt.getSlotItemInventarioTerceroSeleccionado() != this.slotOrigenItemSeleccionado) {
-		    invExt.setSlotItemInventarioTerceroSeleccionado(this.slotOrigenItemSeleccionado);
+	/**
+	 * Actualiza el estado lógico del inventario o del HUD según la visibilidad
+	 * activa.
+	 * 
+	 * @param raton       Instancia del controlador del ratón.
+	 * @param itemPuntero Controlador del ítem sostenido por el cursor.
+	 * @param mundo       Referencia al mundo activo.
+	 */
+	public void actualizar(final Raton raton, final ItemPuntero itemPuntero, final Mundo mundo) {
+		if (raton == null) {
+			return;
 		}
-		if (raton.presionadoClickIzq() && this.GE_RATON_PRESIONO.transcurrioMiliSegundos(TIEMPO_ACTUALIZACION_RATON_PRESIONADO)) {
-//					System.out.println("click dentro del area invExt2");
-		    this.GE_RATON_PRESIONO.establecerReferenciaTiempoActual();
-		    invExt.getGestorTiempo().establecerReferenciaTiempoActual();
 
-		    final Slot slotApuntadoInvExt = invExt.getSlot(raton.getPuntoPosicionEscalado());
-
-		    if (this.slotOrigenItemSeleccionado instanceof SlotArma) {
-			if (!((slotApuntadoInvExt != null && slotApuntadoInvExt.contieneItem() && slotApuntadoInvExt.getItem() instanceof Arma)
-				|| (slotApuntadoInvExt != null && !slotApuntadoInvExt.contieneItem()))) {
-			    this.deseleccionar();
-			    invExt.deseleccionarSlot();
-			    return;
-			}
-		    }
-
-		    if (slotApuntadoInvExt != null) {
-//						System.out.println("CASO B1");
-			if (slotApuntadoInvExt.contieneItem()) {
-//							System.out.println("CASO B1.1");
-			    final Item aux = slotApuntadoInvExt.getItem();
-			    slotApuntadoInvExt.establecerObjeto(this.slotOrigenItemSeleccionado.getItem());
-			    this.slotOrigenItemSeleccionado.establecerObjeto(aux);
-			    invExt.setSlotItemInventarioTerceroSeleccionado(null);
-			    this.deseleccionar();
-			    invExt.deseleccionarSlots();
-			} else {
-//							System.out.println("CASO B1.2 : "+ this.getSlotOrigenItemSeleccionado().getItem().getNombre());
-			    slotApuntadoInvExt.establecerObjeto(this.slotOrigenItemSeleccionado.getItem());
-			    this.slotOrigenItemSeleccionado.eliminarObjeto();
-			    this.deseleccionar();
-			    invExt.deseleccionarSlots();
-			}
-		    } else {
-			this.deseleccionar();
-			invExt.deseleccionarSlot();
-		    }
-
+		// Si el inventario está cerrado, actualizar únicamente la barra de acceso
+		// rápido del HUD
+		if (!this.visible) {
+			this.SLOT_MANAGER.actualizarIGU(raton);
+			this.SLOT_ARROJADIZO.actualizar(raton);
+			return;
 		}
-	    }
+
+		// Si el inventario está abierto, actualizar ventana completa y ranura de
+		// arrojadizos
+		this.SLOT_ARROJADIZO.actualizar(raton);
+		this.SLOT_MANAGER.actualizar(raton, this.GE_RATON_PRESIONO, TIEMPO_ACTUALIZACION_RATON_PRESIONADO, itemPuntero,
+				mundo);
 	}
 
-	if (Constantes.GLOBALES.viendoCofre) {
-	    if (Constantes.GLOBALES.inventarioVault.getSlotOrigenItemSeleccionado() == null && this.slotItemInventarioTerceroSeleccionado != null) {
-		this.slotItemInventarioTerceroSeleccionado = null;
-	    }
-	    if (this.slotOrigenItemSeleccionado == null && Constantes.GLOBALES.inventarioVault.getSlotItemInventarioTerceroSeleccionado() != null) {
-		Constantes.GLOBALES.inventarioVault.deseleccionarSlot();
-	    }
+	/***/
+	/* ========================================================================= */
+	/* 5. PASADAS DE RENDERIZADO (GRAPHICS2D) */
+	/* ========================================================================= */
+	/***/
+
+	/**
+	 * Dibuja la base visual del inventario (Capa 1). Si la ventana está cerrada,
+	 * dibuja el HUD inferior.
+	 * 
+	 * @param g Contexto gráfico 2D activo.
+	 */
+	public void pintar(final Graphics2D g) {
+		if (!this.visible) {
+			this.SLOT_MANAGER.pintarSlotsIGU(g);
+			return;
+		}
+		this.pintarInventario(g);
 	}
-    }
 
-    public SlotArrojadizo getSlotArrojadizo() {
-	return this.SLOT_ARROJADIZO;
-    }
+	/**
+	 * Dibuja los tooltips informativos por encima de las ventanas (Capa 2).
+	 * 
+	 * @param g Contexto gráfico 2D activo.
+	 */
+	public void pintarTooltips(final Graphics2D g) {
+		if (!this.visible) {
+			this.SLOT_MANAGER.pintarTooltipIGU(g);
+			return;
+		}
+		this.SLOT_MANAGER.pintarTooltip(g);
+	}
 
-    public Rectangle getArea() {
-	return new Rectangle(this.X, this.Y, this.ANCHO, this.ALTO);
-    }
+	/**
+	 * Renderiza los paneles de fondo, las casillas y el sprite animado del jugador.
+	 */
+	private void pintarInventario(final Graphics2D g) {
+		// 1. Fondos de secciones
+		DibujoDebug.dibujarRectanguloRelleno(g, this.ZONA_INFO_JUGADOR, GRIS_TRANSPARENTE);
+		DibujoDebug.dibujarRectanguloRelleno(g, this.ZONA_SLOTS_ALMACEN, GRIS_TRANSPARENTE);
+		DibujoDebug.dibujarRectanguloRelleno(g, this.ZONA_SLOTS_PRINCIPALES, NEGRO_TRANSPARENTE);
+		DibujoDebug.dibujarRectanguloRelleno(g, this.AREA_PERSONAJE, BLANCO_TRANSPARENTE);
+		DibujoDebug.dibujarRectanguloContorno(g, this.X, this.Y, this.ANCHO, this.ALTO, COLOR_BORDE);
 
-    public void hacerVisible() {
-	this.visible = true;
-    }
+		// 2. Grilla de slots
+		this.SLOT_MANAGER.pintar(g);
 
-    public void ocultar() {
-	this.visible = false;
-    }
+		// 3. Previsualización del jugador centrada con compensación de offset
+		if ((Constantes.JUGADOR != null) && (Animaciones.JUGADOR != null)) {
+			final int xAnim = (this.AREA_PERSONAJE.x
+					+ ((this.AREA_PERSONAJE.width - Constantes.JUGADOR.getAncho()) / 2))
+					- Constantes.JUGADOR.getMargenXSprite();
+			final int yAnim = (this.AREA_PERSONAJE.y - Constantes.JUGADOR.getMargenYSprite())
+					+ ((this.AREA_PERSONAJE.height - Constantes.JUGADOR.getAlto()) / 2);
 
-    public boolean esVisible() {
-	return this.visible;
-    }
+			Animaciones.JUGADOR.pintar(g, xAnim, yAnim);
+		}
+	}
 
-    public void invertirVisibilidad() {
-	this.visible = !this.visible;
-    }
+	/***/
+	/* ========================================================================= */
+	/* 6. GESTIÓN DE ÍTEMS Y ACCIONES DEL JUGADOR */
+	/* ========================================================================= */
+	/***/
 
-    public void deseleccionar() {
-	this.slotOrigenItemSeleccionado = null;
-	this.itemSeleccionado = null;
-	this.slotItemInventarioTerceroSeleccionado = null;
-    }
+	/**
+	 * Agrega un nuevo ítem al inventario derivándolo según su tipo (Consumible o
+	 * Portable).
+	 * 
+	 * @param item Ítem a guardar.
+	 * @return {@code true} si fue agregado con éxito; {@code false} si no hubo
+	 *         espacio.
+	 */
+	public boolean agregarObjeto(final Item item) {
+		if (item == null) {
+			return false;
+		}
+		switch (item.getTipoItem()) {
+		case Item.COD_ITEM_CONSUMIBLE:
+			return this.SLOT_MANAGER.agregarConsumible((Consumible) item);
+		case Item.COD_ITEM_PORTABLE:
+			return this.SLOT_MANAGER.agregarPortable((Portable) item);
+		default:
+			return false;
+		}
+	}
 
-    public Slot getSlotOrigenItemSeleccionado() {
-	return this.slotOrigenItemSeleccionado;
-    }
+	/**
+	 * Obtiene el slot bajo una coordenada específica de pantalla.
+	 */
+	public Slot getSlot(final Point posicion) {
+		return this.SLOT_MANAGER.getSlot(posicion);
+	}
 
-    public void setSlotOrigenItemSeleccionado(final Slot slot) {
-	this.slotOrigenItemSeleccionado = slot;
-    }
+	/**
+	 * Equipa un arma directamente en la ranura de equipamiento.
+	 */
+	public Arma equiparArma(final Arma arma) {
+		return this.SLOT_MANAGER.equiparArma(arma);
+	}
 
-    public Item getItemSeleccionado() {
-	return this.itemSeleccionado;
-    }
+	/**
+	 * Obtiene el arma equipada actualmente.
+	 */
+	public Item getArmaEquipada() {
+		return this.SLOT_MANAGER.getArmaEquipada();
+	}
 
-    public void setItemSeleccionado(final Item item) {
-	this.itemSeleccionado = item;
-    }
+	/**
+	 * Vacía por completo el inventario.
+	 */
+	public void vaciar() {
+		this.SLOT_MANAGER.vaciar();
+	}
 
-    public Slot getSlotInventarioTerceroSeleccionado() {
-	return this.slotItemInventarioTerceroSeleccionado;
-    }
+	/***/
+	/* ========================================================================= */
+	/* 7. VISIBILIDAD, LÍMITES Y ACCESORES */
+	/* ========================================================================= */
+	/***/
 
-    public GestorTiempo getGestorTiempoRaton() {
-	return this.GE_RATON_PRESIONO;
-    }
+	public SlotArrojadizo getSlotArrojadizo() {
+		return this.SLOT_ARROJADIZO;
+	}
 
-    public void setSlotInventarioTerceroSeleccionado(final Slot s) {
-	this.slotItemInventarioTerceroSeleccionado = s;
-    }
+	public Rectangle getArea() {
+		return this.AREA_TOTAL;
+	}
 
-    public void vaciar() {
-	this.SLOT_MANAGER.vaciar();
-    }
+	public void hacerVisible() {
+		this.visible = true;
+	}
 
-    public Item getArmaEquipada() {
+	public void ocultar() {
+		this.visible = false;
+	}
 
-	return this.SLOT_MANAGER.getArmaEquipada();
+	public boolean esVisible() {
+		return this.visible;
+	}
 
-    }
+	public void invertirVisibilidad() {
+		this.visible = !this.visible;
+	}
 
-    public Arma equiparArma(final Arma arma) {
-	return this.SLOT_MANAGER.equiparArma(arma);
-    }
+	public GestorTiempo getGestorTiempoRaton() {
+		return this.GE_RATON_PRESIONO;
+	}
 
-    public void setActivarItemDisponible(final boolean activarItemDisponible) {
-	this.activarItemDisponible = activarItemDisponible;
-    }
+	public void setActivarItemDisponible(final boolean activarItemDisponible) {
+		this.activarItemDisponible = activarItemDisponible;
+	}
 
-    public boolean getActivarItemDisponible() {
-	return this.activarItemDisponible;
-    }
+	public boolean getActivarItemDisponible() {
+		return this.activarItemDisponible;
+	}
 
+	public int getX() {
+		return this.X;
+	}
+
+	public int getY() {
+		return this.Y;
+	}
+
+	public int getAncho() {
+		return this.ANCHO;
+	}
+
+	public int getAlto() {
+		return this.ALTO;
+	}
+
+	public void establecerMundo(final Mundo mundo) {
+		this.mundo = mundo;
+	}
 }

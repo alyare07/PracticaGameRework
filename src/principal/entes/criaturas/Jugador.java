@@ -534,7 +534,7 @@ public class Jugador extends Criatura {
 
 		final ArrayList<Item> listaItems = new ArrayList<>(this.mundo.getItemsIntersectados(this.areaRecoleccion));
 		for (final Item item : listaItems) {
-			if (Constantes.INVENTARIO.agregarObjeto(item)) {
+			if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(item)) {
 				if (item instanceof Consumible) {
 					if (((Consumible) item).getCantidad() == 0) {
 						item.eliminar();
@@ -547,19 +547,21 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarArrojar() {
-		if (Constantes.INVENTARIO.getSlotArrojadizo().contieneItem()) {
+		if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()) {
 			this.meterEstado(Estado.ARROJANDO);
 			if (Constantes.RATON.presionadoClickIzqUnicaAct()) {
 				final Rectangle areaRaton = Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
-				final Arrojadizo item = Constantes.INVENTARIO.getSlotArrojadizo().getItemArrojadizo();
+				final Arrojadizo item = Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo()
+						.getItemArrojadizo();
 				item.arrojar(areaRaton.x, areaRaton.y, this.direccion, this.mundo, this, false);
-				Constantes.INVENTARIO.getSlotArrojadizo().eliminarObjeto();
+				Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().eliminarObjeto();
 			} else if (Constantes.RATON.presionadoClickDerUnicaAct()) {
-				Constantes.INVENTARIO.getSlotArrojadizo().eliminarObjeto();
+				Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().eliminarObjeto();
 			}
 		}
 
-		if (!Constantes.INVENTARIO.getSlotArrojadizo().contieneItem() && this.tieneEstado(Estado.ARROJANDO)) {
+		if (!Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()
+				&& this.tieneEstado(Estado.ARROJANDO)) {
 			this.removerEstado(Estado.ARROJANDO);
 		}
 	}
@@ -633,9 +635,10 @@ public class Jugador extends Criatura {
 	}
 
 	private void pintarAreaArrojar(final Graphics2D g) {
-		if (Constantes.INVENTARIO.getSlotArrojadizo().contieneItem()) {
+		if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()) {
 			final Rectangle posRaton = Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
-			final Arrojadizo item = Constantes.INVENTARIO.getSlotArrojadizo().getItemArrojadizo();
+			final Arrojadizo item = Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo()
+					.getItemArrojadizo();
 			DibujoDebug.dibujarFiguraEllipseRefCamara(g,
 					new Rectangle(posRaton.x - (item.getDiamentroAreaCaida() / 2),
 							posRaton.y - (item.getDiamentroAreaCaida() / 2), item.getDiamentroAreaCaida(),
@@ -743,12 +746,12 @@ public class Jugador extends Criatura {
 	}
 
 	public boolean pistolaEquipada() {
-		return (Constantes.INVENTARIO.getArmaEquipada() instanceof Arma)
-				&& !(Constantes.INVENTARIO.getArmaEquipada() instanceof Desarmado);
+		return (Constantes.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada() instanceof Arma)
+				&& !(Constantes.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada() instanceof Desarmado);
 	}
 
 	public Arma getArmaEquipada() {
-		return (Arma) Constantes.INVENTARIO.getArmaEquipada();
+		return (Arma) Constantes.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada();
 	}
 
 	@Override
@@ -880,7 +883,7 @@ public class Jugador extends Criatura {
 		this.sanar();
 		this.damage = this.PTS_DAMAGE_BASE;
 		this.setMundo(mundo);
-		Constantes.INVENTARIO.vaciar();
+		Constantes.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
 		if (this.mundo != null) {
 			this.mundo.moverJugadorPuntoComienzo();
 		}

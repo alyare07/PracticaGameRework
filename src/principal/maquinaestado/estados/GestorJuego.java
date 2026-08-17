@@ -1,6 +1,7 @@
 package principal.maquinaestado.estados;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Shape;
@@ -76,14 +77,15 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Constantes.JUGADOR.actualizar();
 
 		if (!Constantes.JUGADOR.estaEliminado()) {
-			Constantes.INVENTARIO.actualizar(this.RATON);
-			if (Constantes.GLOBALES.viendoCofre) {
-				Constantes.GLOBALES.inventarioVault.actualizar(this.RATON, this.mapa.getMundoActual(),
-						Constantes.GLOBALES.viendoCofre);
-			}
+			// 1. Actualización centralizada de inventarios (Jugador, Tercero/Vault y
+			// Puntero)
+			Constantes.GESTOR_INVENTARIO.actualizar(this.RATON, this.mapa.getMundoActual());
+
+			// 2. Actualización de mapa y eventos
 			this.mapa.actualizar();
 			this.actualizarEventos();
 		} else {
+			// Lógica en caso de jugador eliminado (ej: game over o respawn)
 		}
 
 		this.verificarPantallaMuerte();
@@ -126,8 +128,8 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	private boolean detectarCambioAMenu() {
 		if (Constantes.TECLADO.TECLA_ESCAPE.presionado()) {
 			GestorMusica.actualizarMusicaFondoPrincipal(false);
-			if (Constantes.INVENTARIO.esVisible()) {
-				Constantes.INVENTARIO.ocultar();
+			if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
+				Constantes.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
 				Constantes.TECLADO.TECLA_ESCAPE.soltar();
 				return false;
 			}
@@ -143,33 +145,62 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		if (!Constantes.GLOBALES.partidaIniciada) {
 			return;
 		}
+
+		// 1. Capa de Mundo y Debug
 		this.mapa.pintar(g);
 		this.pintarDebug(g);
-		Constantes.JUGADOR.pintar(g);
-		if (!Constantes.JUGADOR.estaEliminado()) {
-			if (Constantes.GLOBALES.viendoCofre) {
-				Constantes.GLOBALES.inventarioVault.pintar(g);
-			}
-			Constantes.INVENTARIO.pintar(g);
 
+		// 2. Capa de Entidades
+		Constantes.JUGADOR.pintar(g);
+
+		// 3. Capa de Inventarios, Contenedores y Tooltips
+		if (!Constantes.JUGADOR.estaEliminado()) {
+			this.pintarInventarios(g);
 		}
 
+		// 4. Capa de HUD / IGU permanente
 		this.motoIGU.pintar(g);
 
+		// 5. Capa de Overlays y Fin de Partida
+		this.pintarPantallaDerrota(g);
+	}
+
+	/**
+	 * Gestiona el orden estricto de capas (Z-Order) de los inventarios: Pasada 1:
+	 * Fondos y Slots de todas las ventanas abiertas. Pasada 2: Tooltips y Punteros
+	 * flotantes por encima de cualquier ventana.
+	 */
+	private void pintarInventarios(final Graphics2D g) {
+		// Pasada 1: Ventanas y Grillas (Fondo y slots de Jugador y Tercero si está
+		// abierto)
+		Constantes.GESTOR_INVENTARIO.pintar(g);
+
+		// Pasadas 2 y 3: Tooltips e Ítem sostenido en el Puntero (Capa superior
+		// absoluta)
+		Constantes.GESTOR_INVENTARIO.pintarTooltipsYPuntero(g, this.RATON.getPuntoPosicionEscalado());
+	}
+
+	/**
+	 * Dibuja la pantalla de derrota si el jugador ha muerto.
+	 */
+	private void pintarPantallaDerrota(final Graphics2D g) {
 		if (this.mostrarPantallaMuerte && this.GT_MOSTRAR_PANTALLA_MUERTE
 				.transcurrioMiliSegundos(this.TIEMPO_MS_ESPERA_MOSTRAR_PANTALLA_MUERTE)) {
 			final String texto = "DERROTA";
 			final float tamanoLetra = 48f;
-			final Color color = Color.red;
-			g.setFont(g.getFont().deriveFont(tamanoLetra));
+			final Color color = Color.RED;
+
+			final Font fuenteOriginal = g.getFont();
+			g.setFont(fuenteOriginal.deriveFont(tamanoLetra));
+
 			final int anchoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
 			final int altoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, texto);
 			final int x = Constantes.CENTROX - (anchoTexto / 2);
 			final int y = Constantes.CENTROY - (altoTexto / 2);
-			DibujoDebug.dibujarString(g, texto, x, y, color);
-			g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
-		}
 
+			DibujoDebug.dibujarString(g, texto, x, y, color);
+			g.setFont(fuenteOriginal);
+		}
 	}
 
 	private void pintarDebug(final Graphics2D g) {
@@ -292,7 +323,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		// Configuración de Cámara e Inventario
 		Constantes.CAMARA.setEntidadEnfocada(Constantes.JUGADOR);
 		Constantes.CAMARA.habilitarGestorLimite();
-		Constantes.INVENTARIO.establecerMundo(this.mapa.getMundoActual());
+		Constantes.GESTOR_INVENTARIO.getInventarioJugador().establecerMundo(this.mapa.getMundoActual());
 		Constantes.RATON.soltar();
 
 		// Activar Pathfinding de IA

@@ -86,8 +86,9 @@ public class Teclado implements KeyListener {
 
 			@Override
 			public void accionar() {
-				Constantes.INVENTARIO.invertirVisibilidad();
-				if ((Constantes.GLOBALES.inventarioVault != null) && !Constantes.INVENTARIO.esVisible()) {
+				Constantes.GESTOR_INVENTARIO.getInventarioJugador().invertirVisibilidad();
+				if ((Constantes.GLOBALES.inventarioVault != null)
+						&& !Constantes.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
 					Constantes.GLOBALES.inventarioVault.cerrar();
 				}
 			}

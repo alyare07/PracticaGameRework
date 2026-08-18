@@ -1,7 +1,5 @@
 package principal.mapa.renderEntidades.camara;
 
-import java.awt.Rectangle;
-
 import principal.entes.Ente;
 import principal.utilidades.Constantes;
 
@@ -172,12 +170,26 @@ public class GestorDeLimites extends Ente {
 		return this.eliminado;
 	}
 
+//	@Override
+//	public Rectangle getArea() {
+//		if ((this.entidadEnfocada != null) && (this.entidadEnfocada.getArea() != null)) {
+//			final Rectangle a = this.entidadEnfocada.getArea();
+//			return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), a.width, a.height);
+//		}
+//		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), 1, 1);
+//	}
+
 	@Override
-	public Rectangle getArea() {
-		if ((this.entidadEnfocada != null) && (this.entidadEnfocada.getArea() != null)) {
-			final Rectangle a = this.entidadEnfocada.getArea();
-			return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), a.width, a.height);
-		}
-		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), 1, 1);
+	public int getAncho() {
+		return ((this.entidadEnfocada != null) && (this.entidadEnfocada.getArea() != null))
+				? this.entidadEnfocada.getArea().width
+				: 1;
+	}
+
+	@Override
+	public int getAlto() {
+		return ((this.entidadEnfocada != null) && (this.entidadEnfocada.getArea() != null))
+				? this.entidadEnfocada.getArea().height
+				: 1;
 	}
 }

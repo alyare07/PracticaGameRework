@@ -9,12 +9,13 @@ public abstract class Ente {
 	protected boolean eliminado;
 	protected long codRender;
 	protected Mundo mundo;
-	
+	protected final Rectangle AREA_ENTE_RETORNO = new Rectangle();
+
 	public void actualizar() {
-		
+
 	}
 
-	public void pintar(Graphics2D g) {
+	public void pintar(final Graphics2D g) {
 
 	}
 
@@ -35,21 +36,29 @@ public abstract class Ente {
 	public abstract boolean estaEliminado();
 
 	public long getCodRender() {
-		return codRender;
+		return this.codRender;
 	}
 
-	public void setCodRender(long cod) {
+	public void setCodRender(final long cod) {
 		this.codRender = cod;
 	}
-	
+
 	public void setMundo(final Mundo mundo) {
 		this.mundo = mundo;
 	}
+
 	public Mundo getMundo() {
 		return this.mundo;
 	}
 
-	public abstract Rectangle getArea();
-	
-	
+	public Rectangle getArea() {
+		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(),
+				this.getAlto());
+		return this.AREA_ENTE_RETORNO;
+	}
+
+	public abstract int getAncho();
+
+	public abstract int getAlto();
+
 }

@@ -210,15 +210,14 @@ public abstract class Criatura extends Ente {
 		this.getPosicionXInt();
 		this.getPosicionYInt();
 		// BUSCAR LA FORMA DE DEJAR DE CREAR NUEVOS RECTANGLE EN EL ACT
-		final Rectangle indicador = new Rectangle(this.getPosicionXInt() - 1, this.getPosicionYInt() - 5,
-				this.ANCHO + 2, 4);
-		final int porcentajeVida = (int) ((this.vida * 100) / this.vidaMaxima);
-		final int porcentajeBarraActual = (porcentajeVida * this.ANCHO) / 100;
-		final Rectangle barraVidaActual = new Rectangle(this.getPosicionXInt(), this.getPosicionYInt() - 4,
-				porcentajeBarraActual, 2);
+		final int porcentajeBarraActual = ((int) ((this.vida * 100) / this.vidaMaxima) * this.ANCHO) / 100;
 
-		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, indicador, Color.BLACK);
-		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, barraVidaActual, Color.RED);
+		// Barra negra indicador
+		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getPosicionXInt() - 1, this.getPosicionYInt() - 5,
+				this.ANCHO + 2, 4, Color.BLACK);
+		// barra vida actual
+		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getPosicionXInt(), this.getPosicionYInt() - 4,
+				porcentajeBarraActual, 2, Color.RED);
 	}
 
 	// --- MOVIMIENTO Y NAVEGACIÓN ---
@@ -543,17 +542,14 @@ public abstract class Criatura extends Ente {
 		return criatura;
 	}
 
+	@Override
 	public int getAncho() {
 		return this.ANCHO;
 	}
 
+	@Override
 	public int getAlto() {
 		return this.ALTO;
-	}
-
-	@Override
-	public Rectangle getArea() {
-		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), this.ANCHO, this.ALTO);
 	}
 
 	@Override

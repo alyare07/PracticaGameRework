@@ -59,7 +59,7 @@ public class Jugador extends Criatura {
 
 	private boolean dibujarAtaque;
 
-	protected Shape areaRecoleccion;
+	protected final Shape areaRecoleccion = new Ellipse2D.Double();
 	protected final int recoleccionLado = 50;
 
 	protected final double PTS_VIDAMAX_BASE = 100;
@@ -80,6 +80,9 @@ public class Jugador extends Criatura {
 	private boolean generarRecorridoMoverMouse;
 	private boolean moviendoPorRecorrido;
 	private final HashSet<Ente> CHECK_LIST_DEBUG = new HashSet<>();
+	private final Rectangle2D AREA_INTERSECCION_MOVIMIENTO_AUXILIAR = new Rectangle2D.Double(0, 0, 0, 0);
+	private final Rectangle RECTANGLE_AUXILIAR = new Rectangle();
+	private final Point PUNTO_AUXILIAR = new Point();
 
 	public Jugador(final int x, final int y) {
 		super(x, y, 12, 20, 50, 50);
@@ -532,8 +535,7 @@ public class Jugador extends Criatura {
 		Constantes.TECLEO_RECOGIDA.establecerReferenciaTiempoActual();
 		this.actualizarAreaRecoleccion();
 
-		final ArrayList<Item> listaItems = new ArrayList<>(this.mundo.getItemsIntersectados(this.areaRecoleccion));
-		for (final Item item : listaItems) {
+		for (final Item item : this.mundo.getItemsIntersectados(this.areaRecoleccion)) {
 			if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(item)) {
 				if (item instanceof Consumible) {
 					if (((Consumible) item).getCantidad() == 0) {
@@ -615,16 +617,18 @@ public class Jugador extends Criatura {
 	}
 
 	public Rectangle getAreaInteraccionCofre() {
-		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), this.ANCHO_INTERACCION_COFRE,
+		this.RECTANGLE_AUXILIAR.setBounds(this.getPosicionXInt(), this.getPosicionYInt(), this.ANCHO_INTERACCION_COFRE,
 				this.ALTO_INTERACCION_COFRE);
+		return this.RECTANGLE_AUXILIAR;
 	}
 
 	private void actualizarAreaRecoleccion() {
-		this.areaRecoleccion = new Ellipse2D.Double((this.x - (this.recoleccionLado / 2.0)) + (this.ANCHO / 2.0),
+		((Ellipse2D.Double) this.areaRecoleccion).setFrame((this.x - (this.recoleccionLado / 2.0)) + (this.ANCHO / 2.0),
 				(this.y - (this.recoleccionLado / 2.0)) + (this.ALTO / 2.0), this.recoleccionLado,
 				this.recoleccionLado);
 	}
 
+	// REVEER Y SACAR LOS NEW RECTANLGLE!!!!
 	private void pintarAreaRecoleccion(final Graphics2D g) {
 		this.actualizarAreaRecoleccion();
 		DibujoDebug.dibujarFiguraEllipseRefCamara(g,
@@ -634,6 +638,7 @@ public class Jugador extends Criatura {
 				Color.CYAN);
 	}
 
+	// REVEER Y SACAR LOS NEW RECTANLGLE!!!!
 	private void pintarAreaArrojar(final Graphics2D g) {
 		if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()) {
 			final Rectangle posRaton = Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
@@ -759,13 +764,11 @@ public class Jugador extends Criatura {
 		final int posX = this.MARGENX;
 		final int posY = this.MARGENY;
 
-		final Rectangle indicador = new Rectangle(posX - 1, posY - 5, this.ANCHO + 2, 4);
 		final int porcentajeVida = (int) ((this.vida * 100) / this.vidaMaxima);
 		final int porcentajeBarraActual = (porcentajeVida * this.ANCHO) / 100;
-		final Rectangle barraVidaActual = new Rectangle(posX, posY - 4, porcentajeBarraActual, 2);
 
-		DibujoDebug.dibujarRectanguloRelleno(g, indicador, Color.BLACK);
-		DibujoDebug.dibujarRectanguloRelleno(g, barraVidaActual, Color.RED);
+		DibujoDebug.dibujarRectanguloRelleno(g, posX - 1, posY - 5, this.ANCHO + 2, 4, Color.BLACK);
+		DibujoDebug.dibujarRectanguloRelleno(g, posX, posY - 4, porcentajeBarraActual, 2, Color.RED);
 
 		g.setFont(g.getFont().deriveFont(4f));
 		DibujoDebug.dibujarString(g, (int) this.vida + "/" + (int) this.vidaMaxima, posX, posY - 6, Color.WHITE);
@@ -807,12 +810,14 @@ public class Jugador extends Criatura {
 	}
 
 	public Point getPosicionParado() {
-		return new Point((int) this.x + (this.ANCHO / 2), ((int) this.y + this.ALTO) - 10);
+		this.PUNTO_AUXILIAR.setLocation((int) this.x + (this.ANCHO / 2), ((int) this.y + this.ALTO) - 10);
+		return this.PUNTO_AUXILIAR;
 	}
 
 	public Point getPosicionTileParado() {
-		return new Point((int) (this.x + 3) / Constantes.GLOBALES.ladoTile,
+		this.PUNTO_AUXILIAR.setLocation((int) (this.x + 3) / Constantes.GLOBALES.ladoTile,
 				(int) ((this.y + this.ALTO) - 1) / Constantes.GLOBALES.ladoTile);
+		return this.PUNTO_AUXILIAR;
 	}
 
 	public int getMargenX() {
@@ -829,27 +834,39 @@ public class Jugador extends Criatura {
 	}
 
 	public Shape getAreaInterseccionMovimiento() {
-		return new Rectangle2D.Double((int) this.x + 2, (int) this.y + 12, 8, 8);
+		this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((int) this.x + 2, (int) this.y + 12, 8, 8);
+		return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 	}
 
 	public Shape getAreaInterseccionMovimiento(final double desplazamiento, final int direccion) {
 		switch (direccion) {
 		case -1:
-			return new Rectangle2D.Double(((int) this.x + 2) - desplazamiento, (int) this.y + 12, 8, 8);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(((int) this.x + 2) - desplazamiento, (int) this.y + 12,
+					8, 8);
+			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		case 1:
-			return new Rectangle2D.Double((int) this.x + 2 + desplazamiento, (int) this.y + 12, 8, 8);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((int) this.x + 2 + desplazamiento, (int) this.y + 12, 8,
+					8);
+			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		case 2:
-			return new Rectangle2D.Double((int) this.x + 2, ((int) this.y + 12) - desplazamiento, 8, 8);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((int) this.x + 2, ((int) this.y + 12) - desplazamiento,
+					8, 8);
+			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		case 3:
-			return new Rectangle2D.Double((int) this.x + 2, (int) this.y + 12 + desplazamiento, 8, 8);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((int) this.x + 2, (int) this.y + 12 + desplazamiento, 8,
+					8);
+			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		default:
-			return new Rectangle2D.Double((int) this.x + 2, (int) this.y + 12, 8, 8);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((int) this.x + 2, (int) this.y + 12, 8, 8);
+			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		}
 	}
 
 	@Override
 	public Point getPosicionTile() {
-		return new Point((int) this.x / Constantes.GLOBALES.ladoTile, (int) this.y / Constantes.GLOBALES.ladoTile);
+		this.PUNTO_AUXILIAR.setLocation((int) this.x / Constantes.GLOBALES.ladoTile,
+				(int) this.y / Constantes.GLOBALES.ladoTile);
+		return this.PUNTO_AUXILIAR;
 	}
 
 	public String getVelocidad() {
@@ -870,11 +887,6 @@ public class Jugador extends Criatura {
 	@Override
 	public String exportarTipoCriatura() {
 		return "Player";
-	}
-
-	@Override
-	public Rectangle getArea() {
-		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), this.ANCHO, this.ALTO);
 	}
 
 	public void restablecerYCambiarMundo(final Mundo mundo) {

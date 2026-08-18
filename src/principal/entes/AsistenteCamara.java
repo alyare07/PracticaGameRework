@@ -64,7 +64,12 @@ public class AsistenteCamara extends Ente {
 	}
 
 	@Override
-	public Rectangle getArea() {
-		return this.AREA;
+	public int getAncho() {
+		return this.AREA.width;
+	}
+
+	@Override
+	public int getAlto() {
+		return this.AREA.height;
 	}
 }

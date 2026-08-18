@@ -46,6 +46,8 @@ public abstract class Enemigo extends Criatura {
 	protected boolean enAccion;
 	protected int accion;
 	protected int tiempoAccionEsperaMs;
+	protected final Rectangle AREA_RANGO_ATAQUE_MELE_AUXILIAR = new Rectangle();
+	protected final Rectangle[] LISTA_AREA_RANGO_ATAQUE_MELE_AUXILIAR = new Rectangle[4];
 
 	public Enemigo(final double x, final double y, final int ancho, final int alto, final double vida,
 			final double vidaMaxima, final Mundo mundo) {
@@ -418,8 +420,11 @@ public abstract class Enemigo extends Criatura {
 	}
 
 	protected Rectangle[] rangosAtaqueMele() {
-		return new Rectangle[] { this.rangoAtaqueMeleOeste(), this.rangoAtaqueMeleEste(), this.rangoAtaqueMeleNorte(),
-				this.rangoAtaqueMeleSur() };
+		this.LISTA_AREA_RANGO_ATAQUE_MELE_AUXILIAR[0] = this.rangoAtaqueMeleOeste();
+		this.LISTA_AREA_RANGO_ATAQUE_MELE_AUXILIAR[1] = this.rangoAtaqueMeleEste();
+		this.LISTA_AREA_RANGO_ATAQUE_MELE_AUXILIAR[2] = this.rangoAtaqueMeleNorte();
+		this.LISTA_AREA_RANGO_ATAQUE_MELE_AUXILIAR[3] = this.rangoAtaqueMeleSur();
+		return this.LISTA_AREA_RANGO_ATAQUE_MELE_AUXILIAR;
 	}
 
 	protected Direccion getDireccionAtaqueMele() {
@@ -444,25 +449,31 @@ public abstract class Enemigo extends Criatura {
 	}
 
 	protected Rectangle rangoAtaqueMeleNorte() {
-		return new Rectangle((int) this.getXRangoAtaqueMele(),
+		this.AREA_RANGO_ATAQUE_MELE_AUXILIAR.setBounds((int) this.getXRangoAtaqueMele(),
 				(int) (this.getYRangoAtaqueMele() - this.getAlcanceRangoAtaqueMele()),
 				(int) this.getGrosorRangoAtaqueMele(), (int) this.getAlcanceRangoAtaqueMele());
+		return this.AREA_RANGO_ATAQUE_MELE_AUXILIAR;
 	}
 
 	protected Rectangle rangoAtaqueMeleSur() {
-		return new Rectangle((int) this.getXRangoAtaqueMele(), (int) this.getYRangoAtaqueMele(),
-				(int) this.getGrosorRangoAtaqueMele(), (int) this.getAlcanceRangoAtaqueMele());
+		this.AREA_RANGO_ATAQUE_MELE_AUXILIAR.setBounds((int) this.getXRangoAtaqueMele(),
+				(int) this.getYRangoAtaqueMele(), (int) this.getGrosorRangoAtaqueMele(),
+				(int) this.getAlcanceRangoAtaqueMele());
+		return this.AREA_RANGO_ATAQUE_MELE_AUXILIAR;
 	}
 
 	protected Rectangle rangoAtaqueMeleEste() {
-		return new Rectangle((int) this.getXRangoAtaqueMele(), (int) this.getYRangoAtaqueMele(),
-				(int) this.getAlcanceRangoAtaqueMele(), (int) this.getGrosorRangoAtaqueMele());
+		this.AREA_RANGO_ATAQUE_MELE_AUXILIAR.setBounds((int) this.getXRangoAtaqueMele(),
+				(int) this.getYRangoAtaqueMele(), (int) this.getAlcanceRangoAtaqueMele(),
+				(int) this.getGrosorRangoAtaqueMele());
+		return this.AREA_RANGO_ATAQUE_MELE_AUXILIAR;
 	}
 
 	protected Rectangle rangoAtaqueMeleOeste() {
-		return new Rectangle((int) (this.getXRangoAtaqueMele() - this.getAlcanceRangoAtaqueMele()),
-				(int) this.getYRangoAtaqueMele(), (int) this.getAlcanceRangoAtaqueMele(),
-				(int) this.getGrosorRangoAtaqueMele());
+		this.AREA_RANGO_ATAQUE_MELE_AUXILIAR.setBounds(
+				(int) (this.getXRangoAtaqueMele() - this.getAlcanceRangoAtaqueMele()), (int) this.getYRangoAtaqueMele(),
+				(int) this.getAlcanceRangoAtaqueMele(), (int) this.getGrosorRangoAtaqueMele());
+		return this.AREA_RANGO_ATAQUE_MELE_AUXILIAR;
 	}
 
 	protected abstract double getXRangoAtaqueMele();

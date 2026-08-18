@@ -37,8 +37,8 @@ import principal.mapa.renderEntidades.MapRender;
 import principal.mapa.renderEntidades.RenderEntidad;
 import principal.mapa.renderEntidades.ZoneBox;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 
 public class Mundo {
 	protected final Escenario ESCENARIO;
@@ -137,7 +137,7 @@ public class Mundo {
 		this.pintarParticulas(g);
 		this.getTerreno().pintarZonas(g, this.ZONAS, this.LADO_ZONEBOX);
 		this.pintarProyectiles(g);
-		if (Constantes.TECLADO.TECLA_DIJKSTRA_INFO.presionado()) {
+		if (Globales.TECLADO.TECLA_DIJKSTRA_INFO.presionado()) {
 			this.pintarNodosOptimizado(g);
 		}
 
@@ -172,7 +172,7 @@ public class Mundo {
 			if ((e instanceof Objeto) && ((Objeto) e).esSolido()) {
 				this.objetoSolidoVerificarTile((Objeto) e);
 			}
-			if (Constantes.isEstadoEditor()) {
+			if (Globales.isEstadoEditor()) {
 				System.out.println("entidad " + e + " agregada en el punto x: " + e.getPosicionXInt() + " , y: "
 						+ e.getPosicionYInt());
 			}
@@ -221,8 +221,8 @@ public class Mundo {
 		if (!this.getTerreno().AreaDentroDelTerreno(rArea)) {
 			return lista;
 		}
-		if (tenerEnCuentaJugador && area.intersects(Constantes.JUGADOR.getArea())) {
-			lista.add(Constantes.JUGADOR);
+		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
+			lista.add(Globales.JUGADOR);
 		}
 
 		for (final ZoneBox zb : this.getZoneBoxsIntersectados(area)) {
@@ -238,8 +238,8 @@ public class Mundo {
 		if (!this.getTerreno().AreaDentroDelTerreno(rArea)) {
 			return lista;
 		}
-		if (tenerEnCuentaJugador && area.intersects(Constantes.JUGADOR.getArea())) {
-			lista.add(Constantes.JUGADOR);
+		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
+			lista.add(Globales.JUGADOR);
 		}
 
 		for (final ZoneBox zb : this.getZoneBoxsIntersectados(area)) {
@@ -265,7 +265,7 @@ public class Mundo {
 		if (!this.getTerreno().AreaDentroDelTerreno(rArea)) {
 			return false;
 		}
-		if (tenerEnCuentaJugador && area.intersects(Constantes.JUGADOR.getArea())) {
+		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
 			return true;
 		}
 
@@ -325,8 +325,8 @@ public class Mundo {
 	}
 
 	public boolean agregarItemEnPosicionJugador(final Item item, final boolean copiar) {
-		final int x = Constantes.JUGADOR.getPosicionXParado();
-		final int y = Constantes.JUGADOR.getPosicionYParado();
+		final int x = Globales.JUGADOR.getPosicionXParado();
+		final int y = Globales.JUGADOR.getPosicionYParado();
 		item.setPosicion(x, y);
 
 		if (copiar) {
@@ -567,18 +567,22 @@ public class Mundo {
 	private void pintarNodosOptimizado(final Graphics2D g) {
 		final Font fontOriginal = g.getFont();
 		g.setFont(fontOriginal.deriveFont(6f));
-		final Color color = Constantes.TECLADO.TECLA_OCULTAR_TERRENO.presionado() ? Color.WHITE : Color.BLACK;
+		final Color color = Globales.TECLADO.TECLA_OCULTAR_TERRENO.presionado() ? Color.WHITE : Color.BLACK;
 
 		final int anchoNodo = this.dijkstra.getDimensionNodo().width;
 		final int altoNodo = this.dijkstra.getDimensionNodo().height;
 
 		// 1. Delimita el área visible de la cámara con margen de seguridad (padding de
 		// 3 nodos)
-		final int minX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * anchoNodo);
-		final int maxX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * anchoNodo);
+		final int minX = Globales.CAMARA.getPosicionXInt() - Globales.CONSTANTES.CENTROX
+				- (3 * anchoNodo);
+		final int maxX = Globales.CAMARA.getPosicionXInt() + Globales.CONSTANTES.CENTROX
+				+ (3 * anchoNodo);
 
-		final int minY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * altoNodo);
-		final int maxY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * altoNodo);
+		final int minY = Globales.CAMARA.getPosicionYInt() - Globales.CONSTANTES.CENTROY
+				- (3 * altoNodo);
+		final int maxY = Globales.CAMARA.getPosicionYInt() + Globales.CONSTANTES.CENTROY
+				+ (3 * altoNodo);
 
 		// 2. Proyección exacta a índices de grilla discreta (resiste coordenadas
 		// negativas)
@@ -620,8 +624,8 @@ public class Mundo {
 
 	private void actualizarDijkstra() {
 //		System.out.println("Creaturas al pendiente: " + this.dijkstra.hayEntidadesAlPendiente());
-		if (Constantes.TECLADO.TECLA_DIJKSTRA.presionado() && this.dijkstra.hayEntidadesAlPendiente()) {
-			this.dijkstra.actualizar(Constantes.JUGADOR.getPosicionParado());
+		if (Globales.TECLADO.TECLA_DIJKSTRA.presionado() && this.dijkstra.hayEntidadesAlPendiente()) {
+			this.dijkstra.actualizar(Globales.JUGADOR.getPosicionParado());
 		}
 	}
 
@@ -783,17 +787,17 @@ public class Mundo {
 				}
 			}
 		}
-		listas.put(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class), listaComplementos);
-		listas.put(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class), listaCriaturas);
-		listas.put(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class), listaItems);
-		listas.put(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class), listaObjetos);
+		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class), listaComplementos);
+		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class), listaCriaturas);
+		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class), listaItems);
+		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class), listaObjetos);
 		return listas;
 	}
 
 	@SuppressWarnings("unchecked")
 	public JSONObject getMundoEnJson() {
 		final JSONObject jsonMundo = this.getEntesInJson();
-		jsonMundo.put(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class),
+		jsonMundo.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class),
 				this.ESCENARIO.getTerreno().getTilesJson());
 		final JSONArray listaPuntosSpawn = new JSONArray();
 		JSONObject jsonSpawn = null;
@@ -804,7 +808,7 @@ public class Mundo {
 			jsonSpawn.put("nombre", s.getNombre());
 			listaPuntosSpawn.add(jsonSpawn);
 		}
-		jsonMundo.put(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class), listaPuntosSpawn);
+		jsonMundo.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class), listaPuntosSpawn);
 		return jsonMundo;
 	}
 

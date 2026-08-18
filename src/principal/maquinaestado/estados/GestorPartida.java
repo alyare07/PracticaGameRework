@@ -9,7 +9,7 @@ import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.menu.MenuPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCargaMapa;
 import principal.maquinaestado.estados.pantallaCarga.PantallaCarga;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 public class GestorPartida implements EstadoJuego {
 	@SuppressWarnings("unused")
@@ -18,7 +18,7 @@ public class GestorPartida implements EstadoJuego {
 	private final MenuPartida MP;
 	private EstadoJuego estadoActivo;
 	private final GestorCargaMapa GCJ = new GestorCargaMapa();
-	private final BufferedImage FONDO_CARGA = Constantes.FUNCIONES.CARGADOR_RECURSOS
+	private final BufferedImage FONDO_CARGA = Globales.FUNCIONES.CARGADOR_RECURSOS
 			.cargarImagenCompatibleOpaca("/imagenes/FondoCarga.png");
 
 	public GestorPartida(final GestorEstados ge) {

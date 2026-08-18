@@ -15,9 +15,9 @@ import principal.ia.dijkstra.DijkstraRework;
 import principal.ia.dijkstra.NodoD;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
+import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
@@ -71,11 +71,11 @@ public abstract class Enemigo extends Criatura {
 	@Override
 	public void actualizar() {
 		this.curar();
-		if (Constantes.TECLADO.TECLA_DIJKSTRA.presionado()) {
+		if (Globales.TECLADO.TECLA_DIJKSTRA.presionado()) {
 
 			// 1. Evaluación de detección del jugador o reacción a ataques recibidos
 			final boolean jugadorDetectado = this.getAreaDeteccionLogica()
-					.intersects(Constantes.JUGADOR.getRectangulo());
+					.intersects(Globales.JUGADOR.getRectangulo());
 			final boolean bajoAtaque = this.recibiendoAtaque();
 
 			if (jugadorDetectado || bajoAtaque) {
@@ -90,7 +90,7 @@ public abstract class Enemigo extends Criatura {
 		}
 
 		// 2. Transición de decisiones: Combate/Persecución vs Patrulla Pasiva
-		if (Constantes.TECLADO.TECLA_DIJKSTRA.presionado()
+		if (Globales.TECLADO.TECLA_DIJKSTRA.presionado()
 				&& (this.tieneEstado(Estado.PERSIGUIENDO) || this.tieneEstado(Estado.ATACANDO))) {
 			this.actualizarAtaque();
 		} else {
@@ -98,9 +98,9 @@ public abstract class Enemigo extends Criatura {
 		}
 
 		// Curación/Daño en modo prueba mediante click derecho
-		if (Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())
-				&& Constantes.RATON.presionadoClickDerUnicaAct()) {
-			this.curar(Constantes.JUGADOR.getDamage());
+		if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())
+				&& Globales.RATON.presionadoClickDerUnicaAct()) {
+			this.curar(Globales.JUGADOR.getDamage());
 		}
 
 		this.atrasDeComplemento = (this.mundo != null)
@@ -138,7 +138,7 @@ public abstract class Enemigo extends Criatura {
 
 		// --- FASE 2: Evaluación de rangos y movimiento ---
 		final boolean jugadorEnRangoVision = this.getAreaDeteccionLogica()
-				.intersects(Constantes.JUGADOR.getRectangulo());
+				.intersects(Globales.JUGADOR.getRectangulo());
 		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
 				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
@@ -257,7 +257,7 @@ public abstract class Enemigo extends Criatura {
 	 */
 	protected Rectangle obtenerRangoAtaqueMeleValido() {
 		for (final Rectangle r : this.rangosAtaqueMele()) {
-			if ((r != null) && r.intersects(Constantes.JUGADOR.getArea())) {
+			if ((r != null) && r.intersects(Globales.JUGADOR.getArea())) {
 				return r;
 			}
 		}
@@ -384,7 +384,7 @@ public abstract class Enemigo extends Criatura {
 	@Override
 	public void pintar(final Graphics2D g) {
 		super.pintar(g);
-		if (Constantes.TECLADO.TECLA_DEBUG.presionado() && Constantes.GLOBALES.estadoJuego) {
+		if (Globales.TECLADO.TECLA_DEBUG.presionado() && Globales.estadoJuego) {
 			DibujoDebug.dibujarFiguraEllipseRefCamara(g,
 					new Rectangle((int) ((this.x - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0)),
 							(int) ((this.y - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0)),

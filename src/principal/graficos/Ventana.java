@@ -6,7 +6,7 @@ import java.awt.event.ComponentEvent;
 
 import javax.swing.JFrame;
 
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 public class Ventana extends JFrame {
 	private static final long serialVersionUID = 5979421777239930009L;
@@ -21,9 +21,9 @@ public class Ventana extends JFrame {
 		this.addComponentListener(new ComponentAdapter() {
 			@Override
 			public void componentResized(final ComponentEvent evt) {
-				Constantes.ANCHO_PANTALLA_COMPLETA = evt.getComponent().getWidth();
-				Constantes.ALTO_PANTALLA_COMPLETA = evt.getComponent().getHeight();
-				Constantes.actualizarFactorEscalado();
+				Globales.CONSTANTES.ANCHO_PANTALLA_COMPLETA = evt.getComponent().getWidth();
+				Globales.CONSTANTES.ALTO_PANTALLA_COMPLETA = evt.getComponent().getHeight();
+				Globales.actualizarFactorEscalado();
 			}
 		});
 	}

@@ -5,7 +5,7 @@ import java.util.concurrent.locks.LockSupport;
 import principal.graficos.SuperficieDibujo;
 import principal.graficos.Ventana;
 import principal.maquinaestado.GestorEstados;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 import principal.utilidades.audio.musica.GestorMusica;
 import principal.utilidades.audio.sonido.GestorSonido;
 
@@ -72,11 +72,11 @@ public class GestorPrincipal {
 		double delta = 0;
 
 		// El delta para físicas/movimiento lógicas a 60 Hz siempre es 1/60 de segundo
-		Constantes.GLOBALES.delta = 1.0 / APS_OBJETIVO;
+		Globales.delta = 1.0 / APS_OBJETIVO;
 
 		// Si se solicita VSync y el límite no está activo, se activa
-		if (Vsync && !Constantes.TECLADO.TECLA_FPS_LIMITE.presionado()) {
-			Constantes.TECLADO.TECLA_FPS_LIMITE.presionar();
+		if (Vsync && !Globales.TECLADO.TECLA_FPS_LIMITE.presionado()) {
+			Globales.TECLADO.TECLA_FPS_LIMITE.presionar();
 		}
 
 		while (this.enFuncionamiento) {
@@ -105,7 +105,7 @@ public class GestorPrincipal {
 			this.pintar();
 
 			// --- 3. CONTROL DE LÍMITE DE FPS (Sleep + ParkNanos para Java 8) ---
-			final boolean fpsLimitados = Constantes.TECLADO.TECLA_FPS_LIMITE.presionado();
+			final boolean fpsLimitados = Globales.TECLADO.TECLA_FPS_LIMITE.presionado();
 
 			if (fpsLimitados) {
 				final long tiempoFrame = System.nanoTime() - inicioBucle;
@@ -137,8 +137,8 @@ public class GestorPrincipal {
 			// --- 4. MÉTRICAS (Contador cada 1 segundo exacto sin deriva temporal) ---
 			if ((inicioBucle - referenciaContador) >= NS_POR_SEGUNDO) {
 				this.actualizarTiempoJugado();
-				Constantes.GLOBALES.aps = this.actualizacionesAcumuladas;
-				Constantes.GLOBALES.fps = this.framesAcumulados;
+				Globales.aps = this.actualizacionesAcumuladas;
+				Globales.fps = this.framesAcumulados;
 
 				this.actualizacionesAcumuladas = 0;
 				this.framesAcumulados = 0;
@@ -151,10 +151,10 @@ public class GestorPrincipal {
 	 * Procesa las actualizaciones lógicas del motor.
 	 */
 	private void actualizar() {
-		Constantes.RATON.actualizar(this.superficieDibujo);
-		Constantes.TECLADO.actualizar();
+		Globales.RATON.actualizar(this.superficieDibujo);
+		Globales.TECLADO.actualizar();
 		this.gestorEstados.actualizar();
-		Constantes.CAMARA.actualizar();
+		Globales.CAMARA.actualizar();
 
 		this.siguienteAnimacion();
 		this.actualizacionesAcumuladas++;
@@ -170,10 +170,10 @@ public class GestorPrincipal {
 	}
 
 	private void siguienteAnimacion() {
-		if (Constantes.GLOBALES.animacion < Constantes.LIMITE_ANIMACION) {
-			Constantes.GLOBALES.animacion++;
+		if (Globales.animacion < Globales.CONSTANTES.LIMITE_ANIMACION) {
+			Globales.animacion++;
 		} else {
-			Constantes.GLOBALES.animacion = 0;
+			Globales.animacion = 0;
 		}
 	}
 
@@ -183,9 +183,9 @@ public class GestorPrincipal {
 	private void actualizarTiempoJugado() {
 		final long totalSegundos = (System.currentTimeMillis() - this.tiempoInicioSesionMs) / 1000;
 
-		Constantes.GLOBALES.horasJugadas = (int) (totalSegundos / 3600);
-		Constantes.GLOBALES.minutosJugados = (int) ((totalSegundos % 3600) / 60);
-		Constantes.GLOBALES.segundosJugados = (int) (totalSegundos % 60);
+		Globales.horasJugadas = (int) (totalSegundos / 3600);
+		Globales.minutosJugados = (int) ((totalSegundos % 3600) / 60);
+		Globales.segundosJugados = (int) (totalSegundos % 60);
 	}
 
 	private void actualizarCodActualizacion() {

@@ -29,9 +29,9 @@ import principal.mapa.escenario.Escenario;
 import principal.mapa.escenario.EscenarioLoader;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.EstadoJuego;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
+import principal.utilidades.Globales;
 
 public class EditorMapa implements EstadoJuego {
 	private final GestorEstados GE;
@@ -61,16 +61,18 @@ public class EditorMapa implements EstadoJuego {
 		this.ANCHO = anchoTiles * ladoTile;
 		this.ALTO = altoTiles * ladoTile;
 		this.MAPA = new Terreno(anchoTiles, altoTiles, this.LADO_TILE, idModeloTile);
-		Constantes.CAMARA.setEntidadEnfocada(Constantes.JUGADOR);
-		Constantes.JUGADOR.establecerPosicion(Constantes.JUGADOR.getMargenX(), Constantes.JUGADOR.getMargenY());
-		this.x = Constantes.JUGADOR.getMargenX();
-		this.y = Constantes.JUGADOR.getMargenY();
-		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
-				Constantes.ALTO_JUEGO);
-		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
-				this.PALETA_MAPA.height);
+		Globales.CAMARA.setEntidadEnfocada(Globales.JUGADOR);
+		Globales.JUGADOR.establecerPosicion(Globales.JUGADOR.getMargenX(),
+				Globales.JUGADOR.getMargenY());
+		this.x = Globales.JUGADOR.getMargenX();
+		this.y = Globales.JUGADOR.getMargenY();
+		this.PALETA_MAPA = new Rectangle(0, 0,
+				Globales.CONSTANTES.ANCHO_JUEGO - (Globales.CONSTANTES.ANCHO_JUEGO / 4),
+				Globales.CONSTANTES.ALTO_JUEGO);
+		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0,
+				Globales.CONSTANTES.ANCHO_JUEGO - this.PALETA_MAPA.width, this.PALETA_MAPA.height);
 		this.MUNDO_EDITOR = new MundoEditor(this.MAPA);
-		Constantes.JUGADOR.establecerPosicion(this.x, this.y);
+		Globales.JUGADOR.establecerPosicion(this.x, this.y);
 
 		// COMIENZO CODIGO EJECUCION PRUEBA UNA SOLA VEZ (BORRAR)
 
@@ -92,16 +94,18 @@ public class EditorMapa implements EstadoJuego {
 		this.ALTO = this.MAPA.getAlto();
 		this.LADO_TILE = this.MAPA.ladoTile();
 		this.LADO_GRUPO_TILE = this.LADO_TILE * 2;
-		Constantes.CAMARA.setEntidadEnfocada(Constantes.JUGADOR);
-		Constantes.JUGADOR.establecerPosicion(Constantes.JUGADOR.getMargenX(), Constantes.JUGADOR.getMargenY());
-		this.x = Constantes.JUGADOR.getMargenX();
-		this.y = Constantes.JUGADOR.getMargenY();
-		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
-				Constantes.ALTO_JUEGO);
-		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
-				this.PALETA_MAPA.height);
+		Globales.CAMARA.setEntidadEnfocada(Globales.JUGADOR);
+		Globales.JUGADOR.establecerPosicion(Globales.JUGADOR.getMargenX(),
+				Globales.JUGADOR.getMargenY());
+		this.x = Globales.JUGADOR.getMargenX();
+		this.y = Globales.JUGADOR.getMargenY();
+		this.PALETA_MAPA = new Rectangle(0, 0,
+				Globales.CONSTANTES.ANCHO_JUEGO - (Globales.CONSTANTES.ANCHO_JUEGO / 4),
+				Globales.CONSTANTES.ALTO_JUEGO);
+		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0,
+				Globales.CONSTANTES.ANCHO_JUEGO - this.PALETA_MAPA.width, this.PALETA_MAPA.height);
 		this.MUNDO_EDITOR = new MundoEditor(this.MAPA);
-		Constantes.JUGADOR.establecerPosicion(this.x, this.y);
+		Globales.JUGADOR.establecerPosicion(this.x, this.y);
 
 	}
 
@@ -112,16 +116,18 @@ public class EditorMapa implements EstadoJuego {
 		this.ALTO = this.MAPA.getAlto();
 		this.LADO_TILE = this.MAPA.ladoTile();
 		this.LADO_GRUPO_TILE = this.LADO_TILE * 2;
-		Constantes.CAMARA.setEntidadEnfocada(Constantes.JUGADOR);
-		Constantes.JUGADOR.establecerPosicion(Constantes.JUGADOR.getMargenX(), Constantes.JUGADOR.getMargenY());
-		this.x = Constantes.JUGADOR.getMargenX();
-		this.y = Constantes.JUGADOR.getMargenY();
-		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
-				Constantes.ALTO_JUEGO);
-		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
-				this.PALETA_MAPA.height);
+		Globales.CAMARA.setEntidadEnfocada(Globales.JUGADOR);
+		Globales.JUGADOR.establecerPosicion(Globales.JUGADOR.getMargenX(),
+				Globales.JUGADOR.getMargenY());
+		this.x = Globales.JUGADOR.getMargenX();
+		this.y = Globales.JUGADOR.getMargenY();
+		this.PALETA_MAPA = new Rectangle(0, 0,
+				Globales.CONSTANTES.ANCHO_JUEGO - (Globales.CONSTANTES.ANCHO_JUEGO / 4),
+				Globales.CONSTANTES.ALTO_JUEGO);
+		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0,
+				Globales.CONSTANTES.ANCHO_JUEGO - this.PALETA_MAPA.width, this.PALETA_MAPA.height);
 		this.MUNDO_EDITOR = new MundoEditor(this.MAPA);
-		Constantes.JUGADOR.establecerPosicion(this.x, this.y);
+		Globales.JUGADOR.establecerPosicion(this.x, this.y);
 
 	}
 
@@ -129,31 +135,33 @@ public class EditorMapa implements EstadoJuego {
 	public void actualizar() {
 		this.RATON.actualizar(SuperficieDibujo.obetenerSuperficieDibujo());
 		final Rectangle rr = this.RATON.getRectanguloPosicionEscalado();// rectangulo raton
-		this.AREA_MOUSE_APUNTADO.x = (rr.x + Constantes.CAMARA.getPosicionXInt()) - Constantes.CAMARA.getMargenX();
-		this.AREA_MOUSE_APUNTADO.y = (rr.y + Constantes.CAMARA.getPosicionYInt()) - Constantes.CAMARA.getMargenY();
+		this.AREA_MOUSE_APUNTADO.x = (rr.x + Globales.CAMARA.getPosicionXInt())
+				- Globales.CAMARA.getMargenX();
+		this.AREA_MOUSE_APUNTADO.y = (rr.y + Globales.CAMARA.getPosicionYInt())
+				- Globales.CAMARA.getMargenY();
 		this.mover();
 		this.actualizarTileApuntado();
 		this.PALETAS.actualizar(this.RATON);
 		this.alterarTileSeleccionado();
 		this.MUNDO_EDITOR.actualizar();
-		if (Constantes.TECLADO.TECLA_GUARDAR_MAPA.presionado()) {
+		if (Globales.TECLADO.TECLA_GUARDAR_MAPA.presionado()) {
 			if (this.GT.transcurrioSegundos(1)) {
 				this.GT.establecerReferenciaTiempoActual();
 				this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
 			}
 
-		} else if (Constantes.TECLADO.TECLA_ESCAPE.presionado()) {
+		} else if (Globales.TECLADO.TECLA_ESCAPE.presionado()) {
 			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
 			this.GE.disposeEditor();
 		}
 
-		if (Constantes.TECLADO.TECLA_DEBUG_GROUP_TILE.presionado()) {
-			if (!Constantes.GLOBALES.editorSelectGroupTile) {
-				Constantes.GLOBALES.editorSelectGroupTile = true;
+		if (Globales.TECLADO.TECLA_DEBUG_GROUP_TILE.presionado()) {
+			if (!Globales.editorSelectGroupTile) {
+				Globales.editorSelectGroupTile = true;
 
 			}
-		} else if (Constantes.GLOBALES.editorSelectGroupTile) {
-			Constantes.GLOBALES.editorSelectGroupTile = false;
+		} else if (Globales.editorSelectGroupTile) {
+			Globales.editorSelectGroupTile = false;
 		}
 	}
 
@@ -163,7 +171,7 @@ public class EditorMapa implements EstadoJuego {
 			if (this.areaTileSelected == null) {
 				return;
 			}
-			final Tile tileTerrenoSeleccionado = Constantes.GLOBALES.editorSelectGroupTile
+			final Tile tileTerrenoSeleccionado = Globales.editorSelectGroupTile
 					? this.MAPA.getGrupoTileReferenciado(this.areaTileSelected.x, this.areaTileSelected.y)
 					: this.MAPA.getTileReferenciado(this.areaTileSelected.x, this.areaTileSelected.y);
 			if (paleta instanceof PaletaTile) {
@@ -211,9 +219,9 @@ public class EditorMapa implements EstadoJuego {
 					final Complemento c = paletaComplemento.getComplementoSeleccionado();
 					final Rectangle rr = this.RATON.getRectanguloPosicionEscalado();// rectangulo raton
 					final Rectangle areaRaton = new Rectangle(
-							(rr.x + Constantes.CAMARA.getPosicionXInt()) - Constantes.CAMARA.getMargenX()
+							(rr.x + Globales.CAMARA.getPosicionXInt()) - Globales.CAMARA.getMargenX()
 									- (c.getTextura().getWidth() / 2),
-							(rr.y + Constantes.CAMARA.getPosicionYInt()) - Constantes.CAMARA.getMargenY()
+							(rr.y + Globales.CAMARA.getPosicionYInt()) - Globales.CAMARA.getMargenY()
 									- (c.getTextura().getHeight() / 2),
 							rr.width, rr.height);// rectangulo dinamico en base a los
 
@@ -268,7 +276,7 @@ public class EditorMapa implements EstadoJuego {
 			this.areaTileSelected = null;
 			return;
 		}
-		final Tile t = Constantes.GLOBALES.editorSelectGroupTile
+		final Tile t = Globales.editorSelectGroupTile
 				? this.MAPA.getGrupoTileReferenciado(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y)
 				: this.MAPA.getTileReferenciado(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y);
 		if (t == null) {
@@ -315,8 +323,10 @@ public class EditorMapa implements EstadoJuego {
 	private void pintarTileSelectedTerreno(final Graphics2D g) {
 		if ((this.areaTileSelected != null) && (this.PALETAS.getPaletaActual() instanceof PaletaTile)) {
 			DibujoDebug.dibujarRectanguloContorno(g,
-					(this.areaTileSelected.x - Constantes.CAMARA.getPosicionXInt()) + Constantes.CAMARA.getMargenX(),
-					(this.areaTileSelected.y - Constantes.CAMARA.getPosicionYInt()) + Constantes.CAMARA.getMargenY(),
+					(this.areaTileSelected.x - Globales.CAMARA.getPosicionXInt())
+							+ Globales.CAMARA.getMargenX(),
+					(this.areaTileSelected.y - Globales.CAMARA.getPosicionYInt())
+							+ Globales.CAMARA.getMargenY(),
 					this.areaTileSelected.width, this.areaTileSelected.height, Color.magenta);
 		} else if ((this.areaTileSelected != null) && (this.PALETAS.getPaletaActual() instanceof PaletaComplento)) {
 			final PaletaComplento p = (PaletaComplento) this.PALETAS.getPaletaActual();
@@ -326,7 +336,7 @@ public class EditorMapa implements EstadoJuego {
 				DibujoDebug.dibujarImagen(g, p.getComplementoSeleccionado().getTextura(),
 						rr.x - (p.getComplementoSeleccionado().getTextura().getWidth() / 2),
 						rr.y - (p.getComplementoSeleccionado().getTextura().getHeight() / 2));
-				if (Constantes.TECLADO.TECLA_VER_COLISIONES.presionado()) {
+				if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
 					if (ListaModeloComplemento.getModeloComplemento(
 							p.getComplementoSeleccionado().getCodigoModelo()) instanceof ModeloComplementoT1) {
 						final ModeloComplementoT1 modelo = (ModeloComplementoT1) ListaModeloComplemento
@@ -371,12 +381,15 @@ public class EditorMapa implements EstadoJuego {
 	private void pintarTerreno(final Graphics2D g) {
 		// 1. Calcula el área visible con un margen de seguridad del tamaño de un grupo
 		// de tiles
-		final int minX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - this.LADO_GRUPO_TILE;
-		final int maxX = (Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + this.LADO_GRUPO_TILE)
-				- this.PALETAS.AREA.width;
+		final int minX = Globales.CAMARA.getPosicionXInt() - Globales.CONSTANTES.CENTROX
+				- this.LADO_GRUPO_TILE;
+		final int maxX = (Globales.CAMARA.getPosicionXInt() + Globales.CONSTANTES.CENTROX
+				+ this.LADO_GRUPO_TILE) - this.PALETAS.AREA.width;
 
-		final int minY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - this.LADO_GRUPO_TILE;
-		final int maxY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + this.LADO_GRUPO_TILE;
+		final int minY = Globales.CAMARA.getPosicionYInt() - Globales.CONSTANTES.CENTROY
+				- this.LADO_GRUPO_TILE;
+		final int maxY = Globales.CAMARA.getPosicionYInt() + Globales.CONSTANTES.CENTROY
+				+ this.LADO_GRUPO_TILE;
 
 		// 2. Proyección exacta a índices alineados a la grilla discreta de GroupTile
 		final int inicioX = Math.floorDiv(minX, this.LADO_GRUPO_TILE) * this.LADO_GRUPO_TILE;
@@ -400,47 +413,47 @@ public class EditorMapa implements EstadoJuego {
 
 	private void mover() {
 		int velocidad = 1;
-		if (Constantes.TECLADO.TECLA_CORRIENDO.presionado()) {
+		if (Globales.TECLADO.TECLA_CORRIENDO.presionado()) {
 			velocidad = 8;
 		}
-		if (Constantes.TECLADO.TECLA_ARRIBA.presionado()) {
+		if (Globales.TECLADO.TECLA_ARRIBA.presionado()) {
 			if ((this.y - velocidad) >= 0) {
 				this.y -= velocidad;
-				Constantes.JUGADOR.establecerPosicion(this.x, this.y);
+				Globales.JUGADOR.establecerPosicion(this.x, this.y);
 			}
 
 		}
 
-		if (Constantes.TECLADO.TECLA_ABAJO.presionado()) {
-			if ((this.y + velocidad) <= (this.ALTO - (Constantes.ALTO_JUEGO / 2))) {
+		if (Globales.TECLADO.TECLA_ABAJO.presionado()) {
+			if ((this.y + velocidad) <= (this.ALTO - (Globales.CONSTANTES.ALTO_JUEGO / 2))) {
 				this.y += velocidad;
-				Constantes.JUGADOR.establecerPosicion(this.x, this.y);
+				Globales.JUGADOR.establecerPosicion(this.x, this.y);
 			}
 
 		}
 
-		if (Constantes.TECLADO.TECLA_IZQUIERDA.presionado()) {
+		if (Globales.TECLADO.TECLA_IZQUIERDA.presionado()) {
 			if ((this.x - velocidad) >= 0) {
 				this.x -= velocidad;
-				Constantes.JUGADOR.establecerPosicion(this.x, this.y);
+				Globales.JUGADOR.establecerPosicion(this.x, this.y);
 			}
 
 		}
 
-		if (Constantes.TECLADO.TECLA_DERECHA.presionado()) {
+		if (Globales.TECLADO.TECLA_DERECHA.presionado()) {
 			if ((this.x + velocidad) <= (this.ANCHO - this.PALETAS.AREA.width)) {
 				this.x += velocidad;
-				Constantes.JUGADOR.establecerPosicion(this.x, this.y);
+				Globales.JUGADOR.establecerPosicion(this.x, this.y);
 			}
 		}
 	}
 
 	public void guardarMapa(final String nombre) {
 		final JSONObject jsonEntes = this.MUNDO_EDITOR.getEntesInJson();
-		final String criaturas = Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class);
-		final String items = Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class);
-		final String complementos = Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class);
-		final String objetos = Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class);
+		final String criaturas = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class);
+		final String items = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class);
+		final String complementos = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class);
+		final String objetos = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class);
 
 		final Escenario esc = new Escenario(this.MAPA, jsonEntes.get(criaturas).toString(),
 				jsonEntes.get(items).toString(), jsonEntes.get(complementos).toString(),

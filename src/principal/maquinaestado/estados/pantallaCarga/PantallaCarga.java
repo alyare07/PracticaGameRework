@@ -7,8 +7,8 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 
 import principal.maquinaestado.estados.EstadoJuego;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 
 /**
  * Estado gráfico de pantalla de carga que muestra el avance textual y
@@ -19,7 +19,8 @@ public class PantallaCarga implements EstadoJuego {
 	protected final GestorCarga GC;
 	protected final BufferedImage FONDO;
 
-	protected final Dimension DIMENSION = new Dimension(Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
+	protected final Dimension DIMENSION = new Dimension(Globales.CONSTANTES.ANCHO_JUEGO,
+			Globales.CONSTANTES.ALTO_JUEGO);
 	protected final int MARGEN_MARCO = 50;
 
 	protected final Rectangle MARCO_SUPERIOR = new Rectangle(0, 0, this.DIMENSION.width, this.MARGEN_MARCO);
@@ -37,15 +38,17 @@ public class PantallaCarga implements EstadoJuego {
 
 	public PantallaCarga(final GestorCarga gc, final BufferedImage fondo) {
 		this.GC = gc;
-		this.FONDO = (fondo != null) ? Constantes.FUNCIONES.TEXTURAS_TOOLS.redimensionar(fondo,
-				Constantes.ANCHO_JUEGO - (2 * this.MARGEN_MARCO), Constantes.ALTO_JUEGO - (2 * this.MARGEN_MARCO))
-				: Constantes.FUNCIONES.TEXTURAS_TOOLS.crearTextura(new Color(20, 25, 30), this.DIMENSION.width,
+		this.FONDO = (fondo != null)
+				? Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(fondo,
+						Globales.CONSTANTES.ANCHO_JUEGO - (2 * this.MARGEN_MARCO),
+						Globales.CONSTANTES.ALTO_JUEGO - (2 * this.MARGEN_MARCO))
+				: Globales.FUNCIONES.TEXTURAS_TOOLS.crearTextura(new Color(20, 25, 30), this.DIMENSION.width,
 						this.DIMENSION.height);
 	}
 
 	public PantallaCarga(final GestorCarga gc, final Color fondo) {
 		this.GC = gc;
-		this.FONDO = Constantes.FUNCIONES.TEXTURAS_TOOLS.crearTextura((fondo != null) ? fondo : Color.BLACK,
+		this.FONDO = Globales.FUNCIONES.TEXTURAS_TOOLS.crearTextura((fondo != null) ? fondo : Color.BLACK,
 				this.DIMENSION.width, this.DIMENSION.height);
 	}
 
@@ -73,8 +76,8 @@ public class PantallaCarga implements EstadoJuego {
 		final int porcentajeCarga = this.GC.getPorcentaje();
 		final String texto = this.GC.getDetalleCarga() + "... " + porcentajeCarga + "%";
 
-		final int anchoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
-		final int altoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, texto);
+		final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
+		final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, texto);
 
 		final int x = (this.DIMENSION.width / 2) - (anchoTexto / 2);
 		final int y = (int) (this.DIMENSION.height * 0.85) + altoTexto;

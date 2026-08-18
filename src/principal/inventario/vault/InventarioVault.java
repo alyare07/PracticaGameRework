@@ -19,9 +19,9 @@ import principal.inventario.Inventario;
 import principal.inventario.equipamiento.SlotManager;
 import principal.inventario.slot.Slot;
 import principal.mapa.Mundo;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
+import principal.utilidades.Globales;
 import principal.utilidades.inventario.ItemPuntero;
 
 /**
@@ -186,7 +186,7 @@ public class InventarioVault {
 		if (raton.presionadoClickDer()) {
 			final Slot apuntado = this.getSlot(raton.getPuntoPosicionEscalado());
 			if ((apuntado != null) && apuntado.contieneItem() && (apuntado.getItem() instanceof Arma)) {
-				final Inventario invJugador = Constantes.GESTOR_INVENTARIO.getInventarioJugador();
+				final Inventario invJugador = Globales.GESTOR_INVENTARIO.getInventarioJugador();
 				if (invJugador.getArmaEquipada() instanceof Desarmado) {
 					invJugador.equiparArma((Arma) apuntado.getItem());
 					apuntado.eliminarObjeto();
@@ -212,23 +212,24 @@ public class InventarioVault {
 		}
 
 		// Comprobar si el jugador está dentro del rango de interacción del cofre
-		final boolean jugadorEnRango = (Constantes.JUGADOR != null)
-				&& Constantes.JUGADOR.getAreaInteraccionCofre().intersects(propietario.getArea());
-		final boolean teclaPresionada = (Constantes.TECLADO != null)
-				&& Constantes.TECLADO.TECLA_RECOGIENDO.presionadoUnicaActualizacion();
+		final boolean jugadorEnRango = (Globales.JUGADOR != null)
+				&& Globales.JUGADOR.getAreaInteraccionCofre().intersects(propietario.getArea());
+		final boolean teclaPresionada = (Globales.TECLADO != null)
+				&& Globales.TECLADO.TECLA_RECOGIENDO.presionadoUnicaActualizacion();
 
 		if (this.estadoInventario == EstadoInventario.CERRADO) {
 			// Apertura: Requiere estar en rango, pulsar tecla y que no haya otro menú
 			// abierto
-			if (!Constantes.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && jugadorEnRango && teclaPresionada) {
+			if (!Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && jugadorEnRango
+					&& teclaPresionada) {
 				this.estadoInventario = EstadoInventario.ABIERTO;
-				Constantes.GESTOR_INVENTARIO.abrirInventarioTercero(this);
-				Constantes.GESTOR_INVENTARIO.getInventarioJugador().hacerVisible();
+				Globales.GESTOR_INVENTARIO.abrirInventarioTercero(this);
+				Globales.GESTOR_INVENTARIO.getInventarioJugador().hacerVisible();
 			}
 		} else if (this.estadoInventario == EstadoInventario.ABIERTO) {
 			// Cierre reactivo: Si el jugador se aleja, cierra su inventario o presiona la
 			// tecla de nuevo
-			if (!Constantes.GESTOR_INVENTARIO.getInventarioJugador().esVisible() || teclaPresionada
+			if (!Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible() || teclaPresionada
 					|| !jugadorEnRango) {
 				this.cerrar();
 			}
@@ -241,9 +242,9 @@ public class InventarioVault {
 	 */
 	public void cerrar() {
 		this.estadoInventario = EstadoInventario.CERRADO;
-		Constantes.GESTOR_INVENTARIO.eliminarInventarioTercero(this.getMundo());
-		if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
-			Constantes.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
+		Globales.GESTOR_INVENTARIO.eliminarInventarioTercero(this.getMundo());
+		if (Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
+			Globales.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
 		}
 	}
 
@@ -273,8 +274,8 @@ public class InventarioVault {
 		final Font fuenteOriginal = g.getFont();
 		g.setFont(FUENTE_PORTADA);
 
-		final int anchoNombre = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, this.nombre);
-		final int altoNombre = Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, this.nombre);
+		final int anchoNombre = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, this.nombre);
+		final int altoNombre = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, this.nombre);
 		final int xNombre = (this.areaPortada.x + (this.areaPortada.width / 2)) - (anchoNombre / 2);
 		final int yNombre = this.areaPortada.y + (this.areaPortada.height / 2) + (altoNombre / 2);
 
@@ -330,8 +331,8 @@ public class InventarioVault {
 
 		// 2. Dimensionamiento del alto total (grilla + barra de título)
 		final int alto = MARGEN + (cantFilas * this.ladoSlots) + (MARGEN * cantFilas);
-		final int x = Constantes.CENTROX - (ancho / 2);
-		final int y = Constantes.CENTROY - alto - (MARGEN * 3) - MARGEN_PORTADA;
+		final int x = Globales.CONSTANTES.CENTROX - (ancho / 2);
+		final int y = Globales.CONSTANTES.CENTROY - alto - (MARGEN * 3) - MARGEN_PORTADA;
 
 		this.area.x = x;
 		this.area.y = y;

@@ -8,8 +8,8 @@ import java.util.ArrayList;
 
 import principal.entes.objetos.items.Item;
 import principal.graficos.SuperficieDibujo;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 
 /**
  * Clase de utilidad para la generación y renderizado dinámico de Tooltips
@@ -51,8 +51,8 @@ public final class GeneradorTooltip {
 
 			final Point raton = SuperficieDibujo.obtenerSuperficieDibujo().RATON.getPuntoPosicionEscalado();
 
-			final int anchoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
-			final int altoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, texto);
+			final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
+			final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, texto);
 
 			final int anchoTotal = anchoTexto + (PADDING_INTERNO * 2);
 			final int altoTotal = altoTexto + (PADDING_INTERNO * 2);
@@ -94,8 +94,8 @@ public final class GeneradorTooltip {
 
 			// 1. Medir Título (Fuente Grande)
 			g.setFont(fuenteTitulo);
-			final int anchoNombre = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, nombre);
-			final int altoNombre = Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, nombre);
+			final int anchoNombre = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, nombre);
+			final int altoNombre = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, nombre);
 
 			// 2. Medir Líneas de Descripción (Fuente Pequeña)
 			g.setFont(fuenteInfo);
@@ -105,8 +105,8 @@ public final class GeneradorTooltip {
 			if ((infoLines != null) && !infoLines.isEmpty()) {
 				for (final String linea : infoLines) {
 					if ((linea != null) && !linea.isEmpty()) {
-						final int anchoLinea = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, linea);
-						final int altoLinea = Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, linea);
+						final int anchoLinea = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, linea);
+						final int altoLinea = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, linea);
 
 						maxAnchoInfo = Math.max(maxAnchoInfo, anchoLinea);
 						altoTotalInfo += altoLinea + ESPACIADO_LINEAS;
@@ -140,7 +140,7 @@ public final class GeneradorTooltip {
 
 				for (final String linea : infoLines) {
 					if ((linea != null) && !linea.isEmpty()) {
-						final int altoLinea = Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, linea);
+						final int altoLinea = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, linea);
 						yCursor += altoLinea + ESPACIADO_LINEAS;
 						DibujoDebug.dibujarString(g, linea, boxX + PADDING_INTERNO, yCursor - 2, COLOR_INFO_DEFECTO);
 					}
@@ -158,14 +158,16 @@ public final class GeneradorTooltip {
 	// -----------------------------------------------------------------------
 
 	private int calcularCoordenadaX(final int mouseX, final int anchoTotal) {
-		final int x = (mouseX <= Constantes.CENTROX) ? mouseX + MARGEN_CURSOR : mouseX - anchoTotal - MARGEN_CURSOR;
+		final int x = (mouseX <= Globales.CONSTANTES.CENTROX) ? mouseX + MARGEN_CURSOR
+				: mouseX - anchoTotal - MARGEN_CURSOR;
 
-		return Math.max(2, Math.min(x, Constantes.ANCHO_JUEGO - anchoTotal - 2));
+		return Math.max(2, Math.min(x, Globales.CONSTANTES.ANCHO_JUEGO - anchoTotal - 2));
 	}
 
 	private int calcularCoordenadaY(final int mouseY, final int altoTotal) {
-		final int y = (mouseY <= Constantes.CENTROY) ? mouseY + MARGEN_CURSOR : mouseY - altoTotal - MARGEN_CURSOR;
+		final int y = (mouseY <= Globales.CONSTANTES.CENTROY) ? mouseY + MARGEN_CURSOR
+				: mouseY - altoTotal - MARGEN_CURSOR;
 
-		return Math.max(2, Math.min(y, Constantes.ALTO_JUEGO - altoTotal - 2));
+		return Math.max(2, Math.min(y, Globales.CONSTANTES.ALTO_JUEGO - altoTotal - 2));
 	}
 }

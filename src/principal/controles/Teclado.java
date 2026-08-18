@@ -16,7 +16,7 @@ import java.util.HashMap;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 public class Teclado implements KeyListener {
 
@@ -81,15 +81,15 @@ public class Teclado implements KeyListener {
 		this.TECLA_INVENTARIO = new TeclaAccionCondicionada(KeyEvent.VK_I, "Inventario") {
 			@Override
 			public boolean condicion() {
-				return !Constantes.GLOBALES.pausa;
+				return !Globales.pausa;
 			}
 
 			@Override
 			public void accionar() {
-				Constantes.GESTOR_INVENTARIO.getInventarioJugador().invertirVisibilidad();
-				if ((Constantes.GLOBALES.inventarioVault != null)
-						&& !Constantes.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
-					Constantes.GLOBALES.inventarioVault.cerrar();
+				Globales.GESTOR_INVENTARIO.getInventarioJugador().invertirVisibilidad();
+				if ((Globales.inventarioVault != null)
+						&& !Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
+					Globales.inventarioVault.cerrar();
 				}
 			}
 		};
@@ -102,7 +102,7 @@ public class Teclado implements KeyListener {
 
 			@Override
 			public void accionar() {
-				Constantes.GLOBALES.pausa = !Constantes.GLOBALES.pausa;
+				Globales.pausa = !Globales.pausa;
 			}
 		};
 

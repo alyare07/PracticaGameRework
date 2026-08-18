@@ -10,7 +10,7 @@ import org.json.simple.parser.ParseException;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
 import principal.inventario.vault.InventarioVault.EstadoInventario;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 public class CofreMediano extends Cofre {
 
@@ -25,9 +25,9 @@ public class CofreMediano extends Cofre {
 	@Override
 	public BufferedImage getTextura() {
 		if (this.getInventario().getEstadoInventario() == EstadoInventario.CERRADO) {
-			return Constantes.LISTA_HOJAS_SPRITES.COFRES.getCofreCerrado();
+			return Globales.LISTA_HOJAS_SPRITES.COFRES.getCofreCerrado();
 		}
-		return Constantes.LISTA_HOJAS_SPRITES.COFRES.getCofreAbierto();
+		return Globales.LISTA_HOJAS_SPRITES.COFRES.getCofreAbierto();
 	}
 
 	@Override
@@ -52,7 +52,7 @@ public class CofreMediano extends Cofre {
 
 	@Override
 	protected String getTipoCofre() {
-		return Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(CofreMediano.class);
+		return Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(CofreMediano.class);
 	}
 
 	public static CofreMediano crearDesdeJson(final JSONObject json) {
@@ -62,7 +62,7 @@ public class CofreMediano extends Cofre {
 		JSONArray listaItemsJson = null;
 		try {
 			listaItemsJson = (JSONArray) parse
-					.parse(json.get(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class)).toString());
+					.parse(json.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class)).toString());
 		} catch (final ParseException e) {
 			listaItemsJson = new JSONArray();
 		}

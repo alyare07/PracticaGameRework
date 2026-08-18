@@ -16,8 +16,8 @@ import principal.entes.modelos.tile.ModeloTile;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.maquinaestado.estados.editor.PaletaComplento;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 import principal.utilidades.Textura;
 
 /**
@@ -42,7 +42,7 @@ public class Tile implements Serializable {
 	}
 
 	public void pintar(final Graphics2D g) {
-		if (!Constantes.TECLADO.TECLA_OCULTAR_TERRENO.presionado()) {
+		if (!Globales.TECLADO.TECLA_OCULTAR_TERRENO.presionado()) {
 			final ModeloTile modelo = ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE);
 			if (modelo != null) {
 				if (!modelo.contieneAnimacion()) {
@@ -53,14 +53,14 @@ public class Tile implements Serializable {
 			}
 		}
 
-		if (Constantes.TECLADO.TECLA_DEBUG_TILE.presionado() && Constantes.GLOBALES.estadoJuego) {
+		if (Globales.TECLADO.TECLA_DEBUG_TILE.presionado() && Globales.estadoJuego) {
 			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
 		}
 	}
 
 	public void pintarEditor(final Graphics2D g) {
 		DibujoDebug.dibujarImagenRefCamara(g, this.getTexturaImagen(), this.X, this.Y);
-		if (!Constantes.GLOBALES.editorSelectGroupTile) {
+		if (!Globales.editorSelectGroupTile) {
 			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
 		}
 	}
@@ -229,7 +229,7 @@ public class Tile implements Serializable {
 		final int x = ((Number) json.get("x")).intValue();
 		final int y = ((Number) json.get("y")).intValue();
 		final int codModelo = ((Number) json.get("codModelo")).intValue();
-		return new Tile(x, y, Constantes.LADO_TILE, codModelo);
+		return new Tile(x, y, Globales.CONSTANTES.LADO_TILE, codModelo);
 	}
 
 	@Override

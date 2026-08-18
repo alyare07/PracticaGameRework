@@ -9,8 +9,8 @@ import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.mapa.Mundo;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 
 public abstract class Proyectil extends Ente implements Serializable {
 
@@ -48,7 +48,7 @@ public abstract class Proyectil extends Ente implements Serializable {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		if (Constantes.TECLADO.TECLA_VER_COLISIONES.presionado() && Constantes.GLOBALES.estadoJuego) {
+		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.gray);
 		}
 	}

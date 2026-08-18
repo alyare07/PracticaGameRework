@@ -5,17 +5,19 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.EstadoJuego;
 import principal.maquinaestado.estados.menu.herramientas.Componente;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
-import principal.utilidades.Textura;
+import principal.utilidades.Globales;
 
 public abstract class Menu implements EstadoJuego {
 	protected final GestorEstados GE;
-	protected final Dimension DIMENSION = new Dimension(Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
-	protected final BufferedImage FONDO = Constantes.FUNCIONES.TEXTURAS_TOOLS.crearTextura(new Color(20, 20, 19), DIMENSION.width, DIMENSION.height);
+	protected final Dimension DIMENSION = new Dimension(Globales.CONSTANTES.ANCHO_JUEGO,
+			Globales.CONSTANTES.ALTO_JUEGO);
+	protected final BufferedImage FONDO = Globales.FUNCIONES.TEXTURAS_TOOLS.crearTextura(new Color(20, 20, 19),
+			this.DIMENSION.width, this.DIMENSION.height);
 	protected final ArrayList<Componente> COMPONENTES = new ArrayList<Componente>();
 
 	public Menu(final GestorEstados ge) {
@@ -25,7 +27,7 @@ public abstract class Menu implements EstadoJuego {
 
 	@Override
 	public void actualizar() {
-		for (Componente c : this.COMPONENTES) {
+		for (final Componente c : this.COMPONENTES) {
 			if (c.visible()) {
 				c.actualizar();
 			}
@@ -34,9 +36,9 @@ public abstract class Menu implements EstadoJuego {
 	}
 
 	@Override
-	public void pintar(Graphics2D g) {
-		DibujoDebug.dibujarImagen(g, FONDO, 0, 0);
-		for (Componente c : this.COMPONENTES) {
+	public void pintar(final Graphics2D g) {
+		DibujoDebug.dibujarImagen(g, this.FONDO, 0, 0);
+		for (final Componente c : this.COMPONENTES) {
 			if (c.visible()) {
 				c.pintar(g);
 			}
@@ -46,8 +48,8 @@ public abstract class Menu implements EstadoJuego {
 	protected abstract void inicializarBotones();
 
 	protected void accionPostClick() {
-		Constantes.RATON.dormirMS(500);
-		Constantes.RATON.soltar();
+		Globales.RATON.dormirMS(500);
+		Globales.RATON.soltar();
 	}
 
 }

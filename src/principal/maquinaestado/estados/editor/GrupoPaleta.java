@@ -10,8 +10,8 @@ import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.modelos.tile.ListaModeloTile;
 import principal.entes.objetos.especial.CuadradoInvisible;
 import principal.entes.objetos.especial.ListaObjetosEspeciales;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 
 public class GrupoPaleta {
 
@@ -26,15 +26,16 @@ public class GrupoPaleta {
 	public GrupoPaleta(final int x, final int y, final int ancho, final int alto) {
 		this.AREA = new Rectangle(x, y, ancho, alto);
 		this.AREA_CABECERA = new Rectangle(x, y, ancho, 40);
-		iniciarPaletas();
-		llenarCabeceraBotonesSeleccionPaleta();
-		llenarCabeceraBotonesSeleccionPosicion();
-		llenarTextoPosiciones();
+		this.iniciarPaletas();
+		this.llenarCabeceraBotonesSeleccionPaleta();
+		this.llenarCabeceraBotonesSeleccionPosicion();
+		this.llenarTextoPosiciones();
 	}
 
 	private void iniciarPaletas() {
 		{
-			final PaletaTile terreno = new PaletaTile(this.AREA.x, this.AREA_CABECERA.y + this.AREA_CABECERA.height, this.AREA.width, this.AREA.height, Constantes.GLOBALES.ladoTile);
+			final PaletaTile terreno = new PaletaTile(this.AREA.x, this.AREA_CABECERA.y + this.AREA_CABECERA.height,
+					this.AREA.width, this.AREA.height, Globales.CONSTANTES.LADO_TILE);
 			terreno.agregarTile(ListaModeloTile.COD_ASFALTO);
 			terreno.agregarTile(ListaModeloTile.COD_ARENA);
 			terreno.agregarTile(ListaModeloTile.COD_CESPED);
@@ -50,7 +51,8 @@ public class GrupoPaleta {
 		}
 
 		{
-			final PaletaComplento complementosx32 = new PaletaComplento(this.AREA.x, this.AREA_CABECERA.y + this.AREA_CABECERA.height, this.AREA.width, this.AREA.height, 32);
+			final PaletaComplento complementosx32 = new PaletaComplento(this.AREA.x,
+					this.AREA_CABECERA.y + this.AREA_CABECERA.height, this.AREA.width, this.AREA.height, 32);
 			complementosx32.agregarComplemento(ListaModeloComplemento.COD_ARBOL_1);
 			complementosx32.agregarComplemento(ListaModeloComplemento.COD_ARBOL_2);
 			complementosx32.agregarComplemento(ListaModeloComplemento.COD_ARBOL_3);
@@ -59,7 +61,8 @@ public class GrupoPaleta {
 			complementosx32.agregarComplemento(ListaModeloComplemento.COD_ARBOL_2_NEVADO);
 			complementosx32.agregarComplemento(ListaModeloComplemento.COD_ARBOL_3_NEVADO);
 			complementosx32.agregarComplemento(ListaModeloComplemento.COD_ARBOL_4_NEVADO);
-			complementosx32.agregarComplemento(new CuadradoInvisible(0, 0, ListaObjetosEspeciales.COD_CUADRADO_INVISIBLE_X32));
+			complementosx32
+					.agregarComplemento(new CuadradoInvisible(0, 0, ListaObjetosEspeciales.COD_CUADRADO_INVISIBLE_X32));
 			this.LISTA.add(complementosx32);
 		}
 
@@ -80,16 +83,16 @@ public class GrupoPaleta {
 
 	}
 
-	public void pintar(Graphics2D g) {
+	public void pintar(final Graphics2D g) {
 		DibujoDebug.dibujarRectanguloRelleno(g, this.AREA, Color.gray);
 		if (this.LISTA.isEmpty()) {
 			return;
 		}
-		if (this.LISTA.get(indice) instanceof PaletaComplento) {
-			pintarBotonesPosicion(g);
+		if (this.LISTA.get(this.indice) instanceof PaletaComplento) {
+			this.pintarBotonesPosicion(g);
 		}
-		pintarBotonesPaleta(g);
-		this.LISTA.get(indice).pintar(g);
+		this.pintarBotonesPaleta(g);
+		this.LISTA.get(this.indice).pintar(g);
 	}
 
 	public void actualizar(final Raton raton) {
@@ -97,56 +100,57 @@ public class GrupoPaleta {
 			return;
 		}
 
-		this.LISTA.get(indice).actualizar(raton);
-		actualizarCabecera(raton);
-		actualizarSeleccionPosicion(raton);
-		if (this.LISTA.get(indice) instanceof PaletaComplento) {
-			actualizarSeleccionPosicion(raton);
+		this.LISTA.get(this.indice).actualizar(raton);
+		this.actualizarCabecera(raton);
+		this.actualizarSeleccionPosicion(raton);
+		if (this.LISTA.get(this.indice) instanceof PaletaComplento) {
+			this.actualizarSeleccionPosicion(raton);
 		}
 
 	}
 
-	private void pintarBotonesPaleta(Graphics2D g) {
+	private void pintarBotonesPaleta(final Graphics2D g) {
 		if (this.AREAS_BOTONES_PALETA.isEmpty()) {
 			return;
 		}
 		int numeroPaleta = 1;
 		for (int i = 0; i < this.AREAS_BOTONES_PALETA.size(); i++) {
 			final Rectangle r = this.AREAS_BOTONES_PALETA.get(i);
-			if (i == indice) {
+			if (i == this.indice) {
 				DibujoDebug.dibujarRectanguloRelleno(g, r, Color.CYAN);
 			} else {
 				DibujoDebug.dibujarRectanguloRelleno(g, r, Color.white);
 			}
 
-			DibujoDebug.dibujarString(g, String.valueOf(numeroPaleta), r.x + 2, r.y + r.height - 1, Color.black);
+			DibujoDebug.dibujarString(g, String.valueOf(numeroPaleta), r.x + 2, (r.y + r.height) - 1, Color.black);
 			numeroPaleta++;
 		}
 	}
 
-	private void pintarBotonesPosicion(Graphics2D g) {
+	private void pintarBotonesPosicion(final Graphics2D g) {
 		if (this.AREAS_BOTONES_POSICION.isEmpty()) {
 			return;
 		}
 		Rectangle r = null;
 		for (int i = 0; i < this.AREAS_BOTONES_POSICION.size(); i++) {
 			r = this.AREAS_BOTONES_POSICION.get(i);
-			if (((PaletaComplento) this.LISTA.get(indice)).getPosicionamientoActual() == i) {
+			if (((PaletaComplento) this.LISTA.get(this.indice)).getPosicionamientoActual() == i) {
 				DibujoDebug.dibujarRectanguloRelleno(g, r, Color.CYAN);
-				DibujoDebug.dibujarString(g, this.TEXTO_POSICIONES.get(i), r.x + 1, r.y + r.height - 1, Color.BLACK);
+				DibujoDebug.dibujarString(g, this.TEXTO_POSICIONES.get(i), r.x + 1, (r.y + r.height) - 1, Color.BLACK);
 				continue;
 
 			}
 			DibujoDebug.dibujarRectanguloRelleno(g, r, Color.white);
-			DibujoDebug.dibujarString(g, this.TEXTO_POSICIONES.get(i), r.x + 1, r.y + r.height - 1, Color.BLACK);
+			DibujoDebug.dibujarString(g, this.TEXTO_POSICIONES.get(i), r.x + 1, (r.y + r.height) - 1, Color.BLACK);
 		}
 	}
 
 	private void llenarCabeceraBotonesSeleccionPaleta() {
 		Rectangle rectanguloAnterior = new Rectangle(this.AREA.x, this.AREA.y + 5, 3, 10);
 
-		for (int i = 0; i < LISTA.size(); i++) {
-			final Rectangle r = new Rectangle(rectanguloAnterior.x + rectanguloAnterior.width + 2, rectanguloAnterior.y, 15, 10);
+		for (int i = 0; i < this.LISTA.size(); i++) {
+			final Rectangle r = new Rectangle(rectanguloAnterior.x + rectanguloAnterior.width + 2, rectanguloAnterior.y,
+					15, 10);
 			this.AREAS_BOTONES_PALETA.add(r);
 			rectanguloAnterior = r;
 
@@ -158,7 +162,8 @@ public class GrupoPaleta {
 		Rectangle rectanguloAnterior = new Rectangle(this.AREA.x, this.AREA.y + 25, 3, 10);
 
 		for (int i = 1; i < 10; i++) {
-			final Rectangle r = new Rectangle(rectanguloAnterior.x + rectanguloAnterior.width + 2, rectanguloAnterior.y, 15, 10);
+			final Rectangle r = new Rectangle(rectanguloAnterior.x + rectanguloAnterior.width + 2, rectanguloAnterior.y,
+					15, 10);
 			this.AREAS_BOTONES_POSICION.add(r);
 			rectanguloAnterior = r;
 		}
@@ -191,8 +196,8 @@ public class GrupoPaleta {
 		if (!raton.presionadoClickIzq()) {
 			return;
 		}
-		Rectangle posicionClicked = raton.getPuntoPresionado();
-		if (posicionClicked.intersects(AREA_CABECERA)) {
+		final Rectangle posicionClicked = raton.getPuntoPresionado();
+		if (posicionClicked.intersects(this.AREA_CABECERA)) {
 			for (int i = 0; i < this.AREAS_BOTONES_PALETA.size(); i++) {
 				final Rectangle r = this.AREAS_BOTONES_PALETA.get(i);
 				if (r.intersects(posicionClicked)) {
@@ -210,13 +215,13 @@ public class GrupoPaleta {
 		final Rectangle r = raton.getPuntoPresionado();
 		for (int i = 0; i < this.AREAS_BOTONES_POSICION.size(); i++) {
 			if (this.AREAS_BOTONES_POSICION.get(i).intersects(r)) {
-				((PaletaComplento) this.LISTA.get(indice)).establecerPosicion(i);
+				((PaletaComplento) this.LISTA.get(this.indice)).establecerPosicion(i);
 			}
 		}
 	}
 
 	public Paleta getPaletaActual() {
-		return this.LISTA.get(indice);
+		return this.LISTA.get(this.indice);
 	}
 
 }

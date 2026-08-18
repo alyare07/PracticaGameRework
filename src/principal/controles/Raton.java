@@ -10,9 +10,9 @@ import java.awt.event.MouseEvent;
 import javax.swing.SwingUtilities;
 
 import principal.graficos.SuperficieDibujo;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
+import principal.utilidades.Globales;
 
 /**
  * Gestor de entrada para el mouse.
@@ -154,8 +154,8 @@ public class Raton extends MouseAdapter {
 	 * @return El punto donde se ubica el puntero (ESCALADO)
 	 */
 	public Point getPuntoPosicionEscalado() {
-		return new Point((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X),
-				(int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y));
+		return new Point((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X),
+				(int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y));
 	}
 
 	/**
@@ -165,8 +165,8 @@ public class Raton extends MouseAdapter {
 	 * @return El área donde se ubica el puntero (ESCALADO)
 	 */
 	public Rectangle getRectanguloPosicionEscalado() {
-		return new Rectangle((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X),
-				(int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y), 1, 1);
+		return new Rectangle((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X),
+				(int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y), 1, 1);
 	}
 
 	/**
@@ -178,19 +178,19 @@ public class Raton extends MouseAdapter {
 	 */
 	public Rectangle getRectanguloPosicionEscaladoConDesplazamientoCamara() {
 		return new Rectangle(
-				((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X) + Constantes.CAMARA.getPosicionXInt())
-						- Constantes.CAMARA.getMargenX(),
-				((int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y) + Constantes.CAMARA.getPosicionYInt())
-						- Constantes.CAMARA.getMargenY(),
+				((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X)
+						+ Globales.CAMARA.getPosicionXInt()) - Globales.CAMARA.getMargenX(),
+				((int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y)
+						+ Globales.CAMARA.getPosicionYInt()) - Globales.CAMARA.getMargenY(),
 				1, 1);
 	}
 
 	public Point getPuntoPosicionEscaladoConDesplazamientoCamara() {
 		return new Point(
-				((int) (this.posicion.x / Constantes.FACTOR_ESCALADO_X) + Constantes.CAMARA.getPosicionXInt())
-						- Constantes.CAMARA.getMargenX(),
-				((int) (this.posicion.y / Constantes.FACTOR_ESCALADO_Y) + Constantes.CAMARA.getPosicionYInt())
-						- Constantes.CAMARA.getMargenY());
+				((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X)
+						+ Globales.CAMARA.getPosicionXInt()) - Globales.CAMARA.getMargenX(),
+				((int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y)
+						+ Globales.CAMARA.getPosicionYInt()) - Globales.CAMARA.getMargenY());
 	}
 
 	// -----------------------------------------------------------------------

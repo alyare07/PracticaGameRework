@@ -10,7 +10,7 @@ import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.mapa.Mundo;
 import principal.mapa.Tile;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 public class ProyectilGeneral extends Proyectil implements Serializable {
 	protected final boolean SOLO_CONTRA_JUGADOR;
@@ -54,10 +54,10 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 
 	protected void verificarImpacto() {
 		final Rectangle area = this.getArea();
-		if (Constantes.JUGADOR != this.CAUSANTE) {
-			if (area.intersects(Constantes.JUGADOR.getRectangulo())) {
+		if (Globales.JUGADOR != this.CAUSANTE) {
+			if (area.intersects(Globales.JUGADOR.getRectangulo())) {
 
-				this.impactar(Constantes.JUGADOR);
+				this.impactar(Globales.JUGADOR);
 				if (!this.PENETRANTE) {
 					this.eliminar();
 					return;

@@ -12,8 +12,8 @@ import principal.entes.objetos.items.armas.Arma;
 import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.inventario.CajaInfo;
 import principal.inventario.Info;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 import principal.utilidades.Textura;
 
 /**
@@ -89,7 +89,7 @@ public class SlotArma extends SlotEquipamiento {
 	 *                 atributos del arma.
 	 */
 	public SlotArma(final Rectangle area, final CajaInfo cajaInfo) {
-		super(area, Constantes.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida(RUTA_LOGO_ARMA));
+		super(area, Globales.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida(RUTA_LOGO_ARMA));
 
 		this.cajaInfo = cajaInfo;
 		this.lista = new HashMap<String, Info>();
@@ -198,8 +198,9 @@ public class SlotArma extends SlotEquipamiento {
 					g.setFont(FUENTE_MUNICION);
 
 					final String cantidadBalas = String.valueOf(pistola.getMunicion().getCantidad());
-					final int anchoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, cantidadBalas);
-					final int altoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, cantidadBalas);
+					final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g,
+							cantidadBalas);
+					final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, cantidadBalas);
 
 					DibujoDebug.dibujarRectanguloRelleno(g, area.x, (area.y + area.height) - altoTexto - 1, 11, 6,
 							Color.LIGHT_GRAY);

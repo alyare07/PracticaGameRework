@@ -9,7 +9,7 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.FloatControl;
 import javax.sound.sampled.SourceDataLine;
 
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 import principal.utilidades.audio.Audio;
 
 /**
@@ -324,6 +324,7 @@ public class MusicaStream implements Audio, Runnable {
 	 * @param yReceptor Coordenada Y del oyente.
 	 */
 	public void setVolumen(final double xEmisor, final double yEmisor, final double xReceptor, final double yReceptor) {
-		this.setVolumen(xEmisor, yEmisor, xReceptor, yReceptor, Constantes.RADIO_AUDIO_DISTANCIA_MAXIMA);
+		this.setVolumen(xEmisor, yEmisor, xReceptor, yReceptor,
+				Globales.CONSTANTES.RADIO_AUDIO_DISTANCIA_MAXIMA);
 	}
 }

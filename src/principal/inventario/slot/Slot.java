@@ -13,8 +13,8 @@ import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.entes.objetos.items.arrojadizos.Arrojadizo;
 import principal.inventario.Inventario;
 import principal.inventario.equipamiento.SlotManager;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 import principal.utilidades.Textura;
 
 /**
@@ -241,7 +241,7 @@ public class Slot {
 		if (this.apuntado && this.contieneItem()) {
 			final Font fuenteOriginal = g.getFont();
 			g.setFont(FUENTE_TOOLTIP);
-			Constantes.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipItem(g, this.item);
+			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipItem(g, this.item);
 			g.setFont(fuenteOriginal);
 		}
 	}
@@ -292,8 +292,8 @@ public class Slot {
 			g.setFont(FUENTE_MUNICION);
 
 			final String cantidadBalas = String.valueOf(((Pistola) this.item).getMunicion().getCantidad());
-			final int anchoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, cantidadBalas);
-			final int altoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, cantidadBalas);
+			final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, cantidadBalas);
+			final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, cantidadBalas);
 
 			DibujoDebug.dibujarRectanguloRelleno(g, area.x, (area.y + area.height) - altoTexto - 1, 11, 6,
 					Color.LIGHT_GRAY);

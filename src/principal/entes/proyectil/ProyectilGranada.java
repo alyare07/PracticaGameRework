@@ -15,8 +15,8 @@ import principal.entes.modelos.item.ModeloGranada;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.arrojadizos.granadas.Granada;
 import principal.mapa.Mundo;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 import principal.utilidades.Textura;
 import principal.utilidades.audio.sonido.GestorSonido;
@@ -127,9 +127,9 @@ public class ProyectilGranada extends ProyectilGeneral {
 						!(this.CAUSANTE instanceof Jugador))) {
 					this.impactar(c);
 				}
-			} else if (Constantes.JUGADOR != this.CAUSANTE) {
-				if (this.AREA_DESTINO.intersects(Constantes.JUGADOR.getRectangulo())) {
-					this.impactar(Constantes.JUGADOR);
+			} else if (Globales.JUGADOR != this.CAUSANTE) {
+				if (this.AREA_DESTINO.intersects(Globales.JUGADOR.getRectangulo())) {
+					this.impactar(Globales.JUGADOR);
 					if (!this.PENETRANTE) {
 						this.eliminar();
 						return;
@@ -138,8 +138,8 @@ public class ProyectilGranada extends ProyectilGeneral {
 			}
 
 			GestorSonido.reproducirEnPosicion(IDSonido.EXPLOSION_1, this.AREA_DESTINO.getCenterX(),
-					this.AREA_DESTINO.getCenterY(), Constantes.CAMARA.getEntidadEnfocada().getPosicionX(),
-					Constantes.CAMARA.getPosicionY());
+					this.AREA_DESTINO.getCenterY(), Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
+					Globales.CAMARA.getPosicionY());
 
 			this.realizoImpacto = true;
 		}
@@ -164,8 +164,8 @@ public class ProyectilGranada extends ProyectilGeneral {
 		final int destinoX = (int) Math.round(this.AREA_DESTINO.getCenterX());
 		final int destinoY = (int) Math.round(this.AREA_DESTINO.getCenterY());
 
-		this.trayectoria = Constantes.FUNCIONES.GENERADOR_TRAYECTORIAS.getTrayectoiaBezier(origenX, origenY, destinoX,
-				destinoY, this.GRANADA.getTiempoMsCaidaEnAnchoPantalla());
+		this.trayectoria = Globales.FUNCIONES.GENERADOR_TRAYECTORIAS.getTrayectoiaBezier(origenX, origenY,
+				destinoX, destinoY, this.GRANADA.getTiempoMsCaidaEnAnchoPantalla());
 		this.posTrayectoria = 0;
 	}
 }

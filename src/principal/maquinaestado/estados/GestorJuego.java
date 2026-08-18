@@ -28,9 +28,9 @@ import principal.mapa.mapas.MapaManager;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.maquinaestado.estados.pantallaCarga.cargaMapa;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
+import principal.utilidades.Globales;
 import principal.utilidades.audio.musica.GestorMusica;
 import principal.utilidades.audio.musica.IDMusica;
 
@@ -44,7 +44,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	Tile tilePisado = null;
 
 	private boolean mostrarPantallaMuerte;
-	private final Raton RATON = Constantes.RATON;
+	private final Raton RATON = Globales.RATON;
 
 	private final MotorIGU motoIGU;
 
@@ -62,11 +62,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		if (this.detectarCambioAMenu()) {
 			return;
 		}
-		if (!Constantes.GLOBALES.partidaIniciada) {
+		if (!Globales.partidaIniciada) {
 			return;
 		}
 
-		if (Constantes.GLOBALES.pausa) {
+		if (Globales.pausa) {
 			GestorMusica.actualizarMusicaFondoPrincipal(false);
 			return;
 		}
@@ -74,12 +74,12 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		// COD PRUEBA
 		this.actualizarCambioCamaraConEntes();
 		// FIN COD PRUEBA
-		Constantes.JUGADOR.actualizar();
+		Globales.JUGADOR.actualizar();
 
-		if (!Constantes.JUGADOR.estaEliminado()) {
+		if (!Globales.JUGADOR.estaEliminado()) {
 			// 1. Actualización centralizada de inventarios (Jugador, Tercero/Vault y
 			// Puntero)
-			Constantes.GESTOR_INVENTARIO.actualizar(this.RATON, this.mapa.getMundoActual());
+			Globales.GESTOR_INVENTARIO.actualizar(this.RATON, this.mapa.getMundoActual());
 
 			// 2. Actualización de mapa y eventos
 			this.mapa.actualizar();
@@ -93,7 +93,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.motoIGU.actualizar();
 
 		{
-			final Shape s = Constantes.JUGADOR.getAreaInterseccionMovimiento();
+			final Shape s = Globales.JUGADOR.getAreaInterseccionMovimiento();
 			this.tilePisado = this.mapa.getMundoActual().getTerreno().getTileReferenciado(
 					s.getBounds().x + (s.getBounds().width / 2), s.getBounds().y + s.getBounds().height);
 			if (this.tilePisado == null) {
@@ -105,11 +105,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	}
 
 	private void actualizarCambioCamaraConEntes() {
-		if (Constantes.RATON.presionadoClickIzqUnicaAct()) {
+		if (Globales.RATON.presionadoClickIzqUnicaAct()) {
 			for (final Ente e : this.mapa.getMundoActual().getEnteIntersectados(
-					Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara(), true)) {
-				Constantes.CAMARA.setEntidadEnfocada(e);
-				Constantes.CAMARA.habilitarGestorLimite();
+					Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara(), true)) {
+				Globales.CAMARA.setEntidadEnfocada(e);
+				Globales.CAMARA.habilitarGestorLimite();
 				System.out.println("ENFOQUE CAMARA CAMBIADO: " + e.getClass().getName());
 			}
 		}
@@ -126,11 +126,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	}
 
 	private boolean detectarCambioAMenu() {
-		if (Constantes.TECLADO.TECLA_ESCAPE.presionado()) {
+		if (Globales.TECLADO.TECLA_ESCAPE.presionado()) {
 			GestorMusica.actualizarMusicaFondoPrincipal(false);
-			if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
-				Constantes.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
-				Constantes.TECLADO.TECLA_ESCAPE.soltar();
+			if (Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
+				Globales.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
+				Globales.TECLADO.TECLA_ESCAPE.soltar();
 				return false;
 			}
 //	    this.sonidoFondo.actualizar(false);
@@ -142,7 +142,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		if (!Constantes.GLOBALES.partidaIniciada) {
+		if (!Globales.partidaIniciada) {
 			return;
 		}
 
@@ -151,10 +151,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.pintarDebug(g);
 
 		// 2. Capa de Entidades
-		Constantes.JUGADOR.pintar(g);
+		Globales.JUGADOR.pintar(g);
 
 		// 3. Capa de Inventarios, Contenedores y Tooltips
-		if (!Constantes.JUGADOR.estaEliminado()) {
+		if (!Globales.JUGADOR.estaEliminado()) {
 			this.pintarInventarios(g);
 		}
 
@@ -173,11 +173,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	private void pintarInventarios(final Graphics2D g) {
 		// Pasada 1: Ventanas y Grillas (Fondo y slots de Jugador y Tercero si está
 		// abierto)
-		Constantes.GESTOR_INVENTARIO.pintar(g);
+		Globales.GESTOR_INVENTARIO.pintar(g);
 
 		// Pasadas 2 y 3: Tooltips e Ítem sostenido en el Puntero (Capa superior
 		// absoluta)
-		Constantes.GESTOR_INVENTARIO.pintarTooltipsYPuntero(g, this.RATON.getPuntoPosicionEscalado());
+		Globales.GESTOR_INVENTARIO.pintarTooltipsYPuntero(g, this.RATON.getPuntoPosicionEscalado());
 	}
 
 	/**
@@ -193,10 +193,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			final Font fuenteOriginal = g.getFont();
 			g.setFont(fuenteOriginal.deriveFont(tamanoLetra));
 
-			final int anchoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
-			final int altoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, texto);
-			final int x = Constantes.CENTROX - (anchoTexto / 2);
-			final int y = Constantes.CENTROY - (altoTexto / 2);
+			final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
+			final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, texto);
+			final int x = Globales.CONSTANTES.CENTROX - (anchoTexto / 2);
+			final int y = Globales.CONSTANTES.CENTROY - (altoTexto / 2);
 
 			DibujoDebug.dibujarString(g, texto, x, y, color);
 			g.setFont(fuenteOriginal);
@@ -204,11 +204,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	}
 
 	private void pintarDebug(final Graphics2D g) {
-		if (Constantes.GLOBALES.pausa) {
+		if (Globales.pausa) {
 			DibujoDebug.dibujarString(g, "PAUSA", 10, 10, Color.RED);
 		}
 		this.pintarTiempoJugado(g);
-		if (Constantes.TECLADO.TECLA_DEBUG_TILE_INFO.presionado()) {
+		if (Globales.TECLADO.TECLA_DEBUG_TILE_INFO.presionado()) {
 			DibujoDebug.dibujarString(g, this.tilePisado != null ? this.tilePisado.toString() : "PuntoTile: (none)",
 					120, 20, Color.white);
 			if (this.tilePisado != null) {
@@ -216,45 +216,55 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			}
 		}
 
-		if (Constantes.TECLADO.TECLA_DEBUG.presionado()) {
+		if (Globales.TECLADO.TECLA_DEBUG.presionado()) {
 			g.setColor(Color.green);
-			DibujoDebug.dibujarString(g, "X: " + String.valueOf(Constantes.JUGADOR.getPosicionXInt()), 20, 80);
-			DibujoDebug.dibujarString(g, "Y: " + String.valueOf(Constantes.JUGADOR.getPosicionYInt()), 20, 95);
-			DibujoDebug.dibujarString(g, "X_PARADO: " + String.valueOf(Constantes.JUGADOR.getPosicionXParado()), 20,
-					110);
-			DibujoDebug.dibujarString(g, "Y_PARADO: " + String.valueOf(Constantes.JUGADOR.getPosicionYParado()), 20,
-					125);
-			DibujoDebug.dibujarString(g, "Velocidad: " + String.valueOf(Constantes.JUGADOR.getVelocidad()), 20, 140);
+			DibujoDebug.dibujarString(g, "X: " + String.valueOf(Globales.JUGADOR.getPosicionXInt()), 20, 80);
+			DibujoDebug.dibujarString(g, "Y: " + String.valueOf(Globales.JUGADOR.getPosicionYInt()), 20, 95);
+			DibujoDebug.dibujarString(g, "X_PARADO: " + String.valueOf(Globales.JUGADOR.getPosicionXParado()),
+					20, 110);
+			DibujoDebug.dibujarString(g, "Y_PARADO: " + String.valueOf(Globales.JUGADOR.getPosicionYParado()),
+					20, 125);
+			DibujoDebug.dibujarString(g, "Velocidad: " + String.valueOf(Globales.JUGADOR.getVelocidad()), 20,
+					140);
 			DibujoDebug.dibujarString(g,
-					"Dijkstra(F2): " + (Constantes.TECLADO.TECLA_DIJKSTRA.presionado() ? "Activo" : "Inactivo"), 20,
-					155);
-			DibujoDebug.dibujarString(g, "DijkstraInfo(F6): "
-					+ (Constantes.TECLADO.TECLA_DIJKSTRA_INFO.presionado() ? "Activo" : "Inactivo"), 20, 170);
+					"Dijkstra(F2): " + (Globales.TECLADO.TECLA_DIJKSTRA.presionado() ? "Activo" : "Inactivo"),
+					20, 155);
+			DibujoDebug.dibujarString(g,
+					"DijkstraInfo(F6): "
+							+ (Globales.TECLADO.TECLA_DIJKSTRA_INFO.presionado() ? "Activo" : "Inactivo"),
+					20, 170);
 			DibujoDebug.dibujarString(g,
 					"DebugGroupTile(F4): "
-							+ (Constantes.TECLADO.TECLA_DEBUG_GROUP_TILE.presionado() ? "Activo" : "Inactivo"),
+							+ (Globales.TECLADO.TECLA_DEBUG_GROUP_TILE.presionado() ? "Activo" : "Inactivo"),
 					20, 185);
 			DibujoDebug.dibujarString(g,
-					"DebugTile(F3): " + (Constantes.TECLADO.TECLA_DEBUG_TILE.presionado() ? "Activo" : "Inactivo"), 20,
-					200);
-			DibujoDebug.dibujarString(g, "DebugTileInfo(F5): "
-					+ (Constantes.TECLADO.TECLA_DEBUG_TILE_INFO.presionado() ? "Activo" : "Inactivo"), 20, 215);
-			DibujoDebug.dibujarString(g, "VerColisiones(F7): "
-					+ (Constantes.TECLADO.TECLA_VER_COLISIONES.presionado() ? "Activo" : "Inactivo"), 20, 230);
-			DibujoDebug.dibujarString(g, "OcultarTerreno(F8): "
-					+ (Constantes.TECLADO.TECLA_OCULTAR_TERRENO.presionado() ? "Activo" : "Inactivo"), 20, 245);
+					"DebugTile(F3): "
+							+ (Globales.TECLADO.TECLA_DEBUG_TILE.presionado() ? "Activo" : "Inactivo"),
+					20, 200);
 			DibujoDebug.dibujarString(g,
-					"OcultarComplementos(F9): "
-							+ (Constantes.TECLADO.TECLA_OCULTAR_COMPLEMENTOS.presionado() ? "Activo" : "Inactivo"),
-					20, 260);
+					"DebugTileInfo(F5): "
+							+ (Globales.TECLADO.TECLA_DEBUG_TILE_INFO.presionado() ? "Activo" : "Inactivo"),
+					20, 215);
+			DibujoDebug.dibujarString(g,
+					"VerColisiones(F7): "
+							+ (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() ? "Activo" : "Inactivo"),
+					20, 230);
+			DibujoDebug.dibujarString(g,
+					"OcultarTerreno(F8): "
+							+ (Globales.TECLADO.TECLA_OCULTAR_TERRENO.presionado() ? "Activo" : "Inactivo"),
+					20, 245);
+			DibujoDebug.dibujarString(g, "OcultarComplementos(F9): "
+					+ (Globales.TECLADO.TECLA_OCULTAR_COMPLEMENTOS.presionado() ? "Activo" : "Inactivo"), 20,
+					260);
 			DibujoDebug.dibujarString(g,
 					"VerAlcanceAtaque(F10): "
-							+ (Constantes.TECLADO.TECLA_VER_ALCANCE_ATAQUE.presionado() ? "Activo" : "Inactivo"),
+							+ (Globales.TECLADO.TECLA_VER_ALCANCE_ATAQUE.presionado() ? "Activo" : "Inactivo"),
 					20, 275);
-			DibujoDebug.dibujarString(g, "Direccion: " + Constantes.JUGADOR.getDireccion().toString(), 20, 290);
-			DibujoDebug.dibujarString(g, "Estados: " + Constantes.JUGADOR.getStringEstados(), 20, 305);
+			DibujoDebug.dibujarString(g, "Direccion: " + Globales.JUGADOR.getDireccion().toString(), 20, 290);
+			DibujoDebug.dibujarString(g, "Estados: " + Globales.JUGADOR.getStringEstados(), 20, 305);
 			DibujoDebug.dibujarString(g,
-					"FPS Limitado(F11): " + (Constantes.TECLADO.TECLA_FPS_LIMITE.presionado() ? "Activo" : "Inactivo"),
+					"FPS Limitado(F11): "
+							+ (Globales.TECLADO.TECLA_FPS_LIMITE.presionado() ? "Activo" : "Inactivo"),
 					20, 320);
 		}
 	}
@@ -310,9 +320,9 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 		// 2. Establecer posición del jugador y mundo
 		if (reset) {
-			Constantes.JUGADOR.restablecerYCambiarMundo(this.mapa.getMundoActual());
+			Globales.JUGADOR.restablecerYCambiarMundo(this.mapa.getMundoActual());
 		} else {
-			Constantes.JUGADOR.setMundo(this.mapa.getMundoActual());
+			Globales.JUGADOR.setMundo(this.mapa.getMundoActual());
 		}
 
 		// Mover jugador al punto de Spawn
@@ -321,17 +331,17 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		// Configuración de Cámara e Inventario
-		Constantes.CAMARA.setEntidadEnfocada(Constantes.JUGADOR);
-		Constantes.CAMARA.habilitarGestorLimite();
-		Constantes.GESTOR_INVENTARIO.getInventarioJugador().establecerMundo(this.mapa.getMundoActual());
-		Constantes.RATON.soltar();
+		Globales.CAMARA.setEntidadEnfocada(Globales.JUGADOR);
+		Globales.CAMARA.habilitarGestorLimite();
+		Globales.GESTOR_INVENTARIO.getInventarioJugador().establecerMundo(this.mapa.getMundoActual());
+		Globales.RATON.soltar();
 
 		// Activar Pathfinding de IA
-		if (!Constantes.TECLADO.TECLA_DIJKSTRA.presionado()) {
-			Constantes.TECLADO.TECLA_DIJKSTRA.presionar();
+		if (!Globales.TECLADO.TECLA_DIJKSTRA.presionado()) {
+			Globales.TECLADO.TECLA_DIJKSTRA.presionar();
 		}
 
-		Constantes.GLOBALES.partidaIniciada = true;
+		Globales.partidaIniciada = true;
 
 		// 3. Finalizar carga
 		if (gc != null) {
@@ -341,9 +351,9 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	}
 
 	private void pintarTiempoJugado(final Graphics2D g) {
-		final String texto = String.valueOf(Constantes.GLOBALES.horasJugadas) + "h "
-				+ String.valueOf(Constantes.GLOBALES.minutosJugados) + "m "
-				+ String.valueOf(Constantes.GLOBALES.segundosJugados) + "s";
+		final String texto = String.valueOf(Globales.horasJugadas) + "h "
+				+ String.valueOf(Globales.minutosJugados) + "m "
+				+ String.valueOf(Globales.segundosJugados) + "s";
 		DibujoDebug.dibujarString(g, texto, 20, 20, Color.CYAN);
 	}
 
@@ -364,7 +374,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	}
 
 	protected void verificarPantallaMuerte() {
-		if (Constantes.JUGADOR.estaEliminado() && !this.mostrarPantallaMuerte) {
+		if (Globales.JUGADOR.estaEliminado() && !this.mostrarPantallaMuerte) {
 			this.mostrarPantallaMuerte = true;
 			this.GT_MOSTRAR_PANTALLA_MUERTE.establecerReferenciaTiempoActual();
 

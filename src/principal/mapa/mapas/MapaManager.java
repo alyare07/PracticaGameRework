@@ -7,7 +7,7 @@ import org.json.simple.JSONObject;
 
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 public abstract class MapaManager {
 
@@ -65,13 +65,13 @@ public abstract class MapaManager {
 		}
 
 		mundos.put("nombreMundos", nombreMundos);
-		Constantes.FUNCIONES.TEMP_MANAGER.actualizarJson(PREFIJO_JSON_MAPA_TEMP + mapa.getNombre(),
+		Globales.FUNCIONES.TEMP_MANAGER.actualizarJson(PREFIJO_JSON_MAPA_TEMP + mapa.getNombre(),
 				mundos.toJSONString(), CLAVE_JSON_TEMP);
 		MAPAS_EN_TEMP.put(mapa.getNombre(), mapa.getNombre());
 	}
 
 	private static Mapa cargarMapaDeTemp(final String nombreMapa, final GestorCarga gc) {
-		final JSONObject jsonGeneral = (JSONObject) Constantes.FUNCIONES.TEMP_MANAGER.getJsonTemp()
+		final JSONObject jsonGeneral = (JSONObject) Globales.FUNCIONES.TEMP_MANAGER.getJsonTemp()
 				.get(CLAVE_JSON_TEMP);
 		if (jsonGeneral == null) {
 			return null;
@@ -95,6 +95,6 @@ public abstract class MapaManager {
 
 	public static void vaciarTemp() {
 		MAPAS_EN_TEMP.clear();
-		Constantes.FUNCIONES.TEMP_MANAGER.eliminarClaveDeJson(CLAVE_JSON_TEMP);
+		Globales.FUNCIONES.TEMP_MANAGER.eliminarClaveDeJson(CLAVE_JSON_TEMP);
 	}
 }

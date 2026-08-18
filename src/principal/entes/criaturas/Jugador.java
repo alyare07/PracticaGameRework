@@ -32,9 +32,9 @@ import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.Tile;
 import principal.mapa.renderEntidades.ZoneBox;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
+import principal.utilidades.Globales;
 
 /**
  * Representa al personaje controlado por el usuario. Gestiona controles por
@@ -89,8 +89,8 @@ public class Jugador extends Criatura {
 
 		final int anchoSprite = 32;
 		final int altoSprite = 32;
-		this.MARGENX = Constantes.CENTROX - (anchoSprite / 2);
-		this.MARGENY = Constantes.CENTROY - (altoSprite / 2);
+		this.MARGENX = Globales.CONSTANTES.CENTROX - (anchoSprite / 2);
+		this.MARGENY = Globales.CONSTANTES.CENTROY - (altoSprite / 2);
 
 		this.establecerVidaMaxima(this.PTS_VIDAMAX_BASE);
 		this.damage = this.PTS_DAMAGE_BASE;
@@ -112,10 +112,10 @@ public class Jugador extends Criatura {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		Animaciones.JUGADOR.pintar(g, Constantes.getXDesplazamientoCamara(this.getPosicionXIntDibujado()),
-				Constantes.getYDesplazamientoCamara(this.getPosicionYIntDibujado()));
+		Animaciones.JUGADOR.pintar(g, Globales.getXDesplazamientoCamara(this.getPosicionXIntDibujado()),
+				Globales.getYDesplazamientoCamara(this.getPosicionYIntDibujado()));
 
-		if (Constantes.TECLADO.TECLA_VER_COLISIONES.presionado() && Constantes.GLOBALES.estadoJuego) {
+		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
 			g.setColor(Color.BLUE);
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionMovimiento().getBounds());
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
@@ -123,9 +123,9 @@ public class Jugador extends Criatura {
 					this.getPosicionYIntDibujado(), 32, 32, Color.RED);
 		}
 
-		if (Constantes.TECLADO.TECLA_DEBUG.presionado() && Constantes.GLOBALES.estadoJuego) {
+		if (Globales.TECLADO.TECLA_DEBUG.presionado() && Globales.estadoJuego) {
 			this.pintarAreaRecoleccion(g);
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, Constantes.JUGADOR.getAreaInteraccionCofre(),
+			DibujoDebug.dibujarRectanguloContornoRefCamara(g, Globales.JUGADOR.getAreaInteraccionCofre(),
 					Color.LIGHT_GRAY);
 		}
 
@@ -147,9 +147,9 @@ public class Jugador extends Criatura {
 						n.getAlto(), Color.RED);
 				DibujoDebug.dibujarStringRefCamara(g, txt,
 						(n.getXMundo() + (n.getAncho() / 2))
-								- (Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
+								- (Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
 						n.getYMundo() + (n.getAlto() / 2)
-								+ (Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
+								+ (Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
 						Color.BLACK);
 			}
 			if (this.nodoDDestino != null) {
@@ -172,8 +172,9 @@ public class Jugador extends Criatura {
 				DibujoDebug.dibujarRectanguloContornoRefCamara(g, xNodoAux, yNodoAux, wNodoAux, hNodoAux, Color.BLUE);
 				DibujoDebug.dibujarStringRefCamara(g, txt,
 						(xNodoAux + (wNodoAux / 2))
-								- (Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
-						yNodoAux + (hNodoAux / 2) + (Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
+								- (Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
+						yNodoAux + (hNodoAux / 2)
+								+ (Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
 						Color.BLACK);
 			}
 			if (this.nodoADestino != null) {
@@ -187,7 +188,8 @@ public class Jugador extends Criatura {
 	}
 
 	private void pintarAreaDeteccion(final Graphics2D g) {
-		if (!Constantes.TECLADO.TECLA_DEBUG.presionado() || !Constantes.isEstadoJuego() || (this.mundo == null)) {
+		if (!Globales.TECLADO.TECLA_DEBUG.presionado() || !Globales.isEstadoJuego()
+				|| (this.mundo == null)) {
 			return;
 		}
 
@@ -218,11 +220,11 @@ public class Jugador extends Criatura {
 	@Override
 	public void actualizar() {
 
-		if (Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())) {
-			if (Constantes.RATON.presionadoClickIzqUnicaAct()) {
-				Constantes.CAMARA.setEntidadEnfocada(this);
-			} else if (Constantes.RATON.presionadoClickDerUnicaAct()) {
-				this.curar(Constantes.JUGADOR.getDamage());
+		if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())) {
+			if (Globales.RATON.presionadoClickIzqUnicaAct()) {
+				Globales.CAMARA.setEntidadEnfocada(this);
+			} else if (Globales.RATON.presionadoClickDerUnicaAct()) {
+				this.curar(Globales.JUGADOR.getDamage());
 			}
 		}
 
@@ -248,8 +250,8 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarMovimientoMouseDijkstra() {
-		if ((this.recorridoD == null) || Constantes.RATON.presionadoClickDerUnicaAct()) {
-			if (this.generarRecorridoMoverMouse && !Constantes.RATON.presionadoClickDerUnicaAct()) {
+		if ((this.recorridoD == null) || Globales.RATON.presionadoClickDerUnicaAct()) {
+			if (this.generarRecorridoMoverMouse && !Globales.RATON.presionadoClickDerUnicaAct()) {
 				if (!this.DIJKSTRA.isActualizando()) {
 					final NodoD nodoParado = this.DIJKSTRA.getNodoReferenciado(this.getPosicionXInt(),
 							this.getPosicionYInt());
@@ -267,16 +269,17 @@ public class Jugador extends Criatura {
 				return;
 			}
 
-			if (Constantes.TECLADO.TECLA_DEBUG.presionado() && Constantes.RATON.presionadoClickDerUnicaAct()) {
+			if (Globales.TECLADO.TECLA_DEBUG.presionado()
+					&& Globales.RATON.presionadoClickDerUnicaAct()) {
 				if (this.moviendoPorRecorrido) {
 					this.nodoDDestino = null;
 					this.recorridoD = null;
 					this.moviendoPorRecorrido = false;
 				}
 
-				final Point p = Constantes.RATON.getPuntoPosicionEscaladoConDesplazamientoCamara();
+				final Point p = Globales.RATON.getPuntoPosicionEscaladoConDesplazamientoCamara();
 				if (!this.mundo.getTerreno().AreaDentroDelTerreno(
-						Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara())) {
+						Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara())) {
 					return;
 				}
 
@@ -310,7 +313,7 @@ public class Jugador extends Criatura {
 			}
 
 			this.establecerVelocidadStardar();
-			if (Constantes.TECLADO.TECLA_CORRIENDO.presionado()) {
+			if (Globales.TECLADO.TECLA_CORRIENDO.presionado()) {
 				if (this.gastarEstamina()) {
 					this.velocidad = this.velocidadEstandar * 1.5;
 					this.meterEstado(Estado.CORRIENDO);
@@ -342,12 +345,12 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarMovimientoMouseAEstrella() {
-		if ((this.recorridoA == null) || Constantes.RATON.presionadoClickDerUnicaAct()) {
-			if (Constantes.TECLADO.TECLA_DEBUG_TILE_INFO.presionado()
-					&& Constantes.RATON.presionadoClickDerUnicaAct()) {
-				final Point p = Constantes.RATON.getPuntoPosicionEscaladoConDesplazamientoCamara();
+		if ((this.recorridoA == null) || Globales.RATON.presionadoClickDerUnicaAct()) {
+			if (Globales.TECLADO.TECLA_DEBUG_TILE_INFO.presionado()
+					&& Globales.RATON.presionadoClickDerUnicaAct()) {
+				final Point p = Globales.RATON.getPuntoPosicionEscaladoConDesplazamientoCamara();
 				if (!this.mundo.getTerreno().AreaDentroDelTerreno(
-						Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara())) {
+						Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara())) {
 					return;
 				}
 
@@ -378,12 +381,12 @@ public class Jugador extends Criatura {
 				return;
 			}
 
-			if (Constantes.TECLADO.TECLA_DEBUG.presionado()) {
+			if (Globales.TECLADO.TECLA_DEBUG.presionado()) {
 				return;
 			}
 
 			this.establecerVelocidadStardar();
-			if (Constantes.TECLADO.TECLA_CORRIENDO.presionado()) {
+			if (Globales.TECLADO.TECLA_CORRIENDO.presionado()) {
 				if (this.gastarEstamina()) {
 					this.velocidad = this.velocidadEstandar * 1.5;
 					this.setEstadoCorriendo();
@@ -450,12 +453,12 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarAtaque() {
-		if (!Constantes.TECLADO.TECLA_ATACANDO.presionado() && this.estaEstadoAtacando()
+		if (!Globales.TECLADO.TECLA_ATACANDO.presionado() && this.estaEstadoAtacando()
 				&& this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_POR_ATAQUE)) {
 			this.removerEstado(Estado.ATACANDO);
 		}
 
-		if (!Constantes.TECLADO.TECLA_ATACANDO.presionado() || this.tieneEstado(Estado.ARROJANDO)) {
+		if (!Globales.TECLADO.TECLA_ATACANDO.presionado() || this.tieneEstado(Estado.ARROJANDO)) {
 			if (this.dibujarAtaque
 					&& this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_DIBUJADO_POR_ATAQUE)) {
 				this.dibujarAtaque = false;
@@ -525,18 +528,18 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarRecogidaItems() {
-		if (!Constantes.TECLADO.TECLA_RECOGIENDO.presionado() || (this.tilePisado == null)) {
+		if (!Globales.TECLADO.TECLA_RECOGIENDO.presionado() || (this.tilePisado == null)) {
 			return;
 		}
-		if (!Constantes.TECLEO_RECOGIDA.transcurrioMiliSegundos(300)) {
+		if (!Globales.TECLEO_RECOGIDA.transcurrioMiliSegundos(300)) {
 			return;
 		}
 
-		Constantes.TECLEO_RECOGIDA.establecerReferenciaTiempoActual();
+		Globales.TECLEO_RECOGIDA.establecerReferenciaTiempoActual();
 		this.actualizarAreaRecoleccion();
 
 		for (final Item item : this.mundo.getItemsIntersectados(this.areaRecoleccion)) {
-			if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(item)) {
+			if (Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(item)) {
 				if (item instanceof Consumible) {
 					if (((Consumible) item).getCantidad() == 0) {
 						item.eliminar();
@@ -549,20 +552,21 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarArrojar() {
-		if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()) {
+		if (Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()) {
 			this.meterEstado(Estado.ARROJANDO);
-			if (Constantes.RATON.presionadoClickIzqUnicaAct()) {
-				final Rectangle areaRaton = Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
-				final Arrojadizo item = Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo()
+			if (Globales.RATON.presionadoClickIzqUnicaAct()) {
+				final Rectangle areaRaton = Globales.RATON
+						.getRectanguloPosicionEscaladoConDesplazamientoCamara();
+				final Arrojadizo item = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo()
 						.getItemArrojadizo();
 				item.arrojar(areaRaton.x, areaRaton.y, this.direccion, this.mundo, this, false);
-				Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().eliminarObjeto();
-			} else if (Constantes.RATON.presionadoClickDerUnicaAct()) {
-				Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().eliminarObjeto();
+				Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().eliminarObjeto();
+			} else if (Globales.RATON.presionadoClickDerUnicaAct()) {
+				Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().eliminarObjeto();
 			}
 		}
 
-		if (!Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()
+		if (!Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()
 				&& this.tieneEstado(Estado.ARROJANDO)) {
 			this.removerEstado(Estado.ARROJANDO);
 		}
@@ -640,9 +644,9 @@ public class Jugador extends Criatura {
 
 	// REVEER Y SACAR LOS NEW RECTANLGLE!!!!
 	private void pintarAreaArrojar(final Graphics2D g) {
-		if (Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()) {
-			final Rectangle posRaton = Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
-			final Arrojadizo item = Constantes.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo()
+		if (Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()) {
+			final Rectangle posRaton = Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
+			final Arrojadizo item = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo()
 					.getItemArrojadizo();
 			DibujoDebug.dibujarFiguraEllipseRefCamara(g,
 					new Rectangle(posRaton.x - (item.getDiamentroAreaCaida() / 2),
@@ -662,10 +666,11 @@ public class Jugador extends Criatura {
 
 		this.establecerVelocidadStardar();
 
-		if (Constantes.TECLADO.TECLA_CORRIENDO.presionado()) {
-			if (Constantes.TECLADO.TECLA_ARRIBA.presionado() || Constantes.TECLADO.TECLA_ABAJO.presionado()
-					|| Constantes.TECLADO.TECLA_DERECHA.presionado()
-					|| Constantes.TECLADO.TECLA_IZQUIERDA.presionado()) {
+		if (Globales.TECLADO.TECLA_CORRIENDO.presionado()) {
+			if (Globales.TECLADO.TECLA_ARRIBA.presionado()
+					|| Globales.TECLADO.TECLA_ABAJO.presionado()
+					|| Globales.TECLADO.TECLA_DERECHA.presionado()
+					|| Globales.TECLADO.TECLA_IZQUIERDA.presionado()) {
 				if (this.gastarEstamina()) {
 					this.velocidad = this.velocidadEstandar * 3.5;
 					corriendo = true;
@@ -681,7 +686,7 @@ public class Jugador extends Criatura {
 		}
 
 		// Movimiento por teclado
-		if (Constantes.TECLADO.TECLA_ARRIBA.presionado()) {
+		if (Globales.TECLADO.TECLA_ARRIBA.presionado()) {
 			if ((((int) (this.y - this.velocidad)) >= 0) && !this.mundo
 					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 2))) {
 				this.modificarPosicionY(-this.velocidad);
@@ -690,7 +695,7 @@ public class Jugador extends Criatura {
 			this.direccion = Direccion.NORTE;
 		}
 
-		if (Constantes.TECLADO.TECLA_ABAJO.presionado()) {
+		if (Globales.TECLADO.TECLA_ABAJO.presionado()) {
 			if (((this.y + this.velocidad) <= (this.mundo.getTerreno().getAlto() - this.ALTO)) && !this.mundo
 					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 3))) {
 				this.modificarPosicionY(this.velocidad);
@@ -699,7 +704,7 @@ public class Jugador extends Criatura {
 			this.direccion = Direccion.SUR;
 		}
 
-		if (Constantes.TECLADO.TECLA_IZQUIERDA.presionado()) {
+		if (Globales.TECLADO.TECLA_IZQUIERDA.presionado()) {
 			if (((this.x - this.velocidad) >= 0) && !this.mundo
 					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, -1))) {
 				this.modificarPosicionX(-this.velocidad);
@@ -708,7 +713,7 @@ public class Jugador extends Criatura {
 			this.direccion = Direccion.OESTE;
 		}
 
-		if (Constantes.TECLADO.TECLA_DERECHA.presionado()) {
+		if (Globales.TECLADO.TECLA_DERECHA.presionado()) {
 			if (((this.x + this.velocidad) <= (this.mundo.getTerreno().getAncho() - this.ANCHO)) && !this.mundo
 					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 1))) {
 				this.modificarPosicionX(this.velocidad);
@@ -751,12 +756,12 @@ public class Jugador extends Criatura {
 	}
 
 	public boolean pistolaEquipada() {
-		return (Constantes.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada() instanceof Arma)
-				&& !(Constantes.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada() instanceof Desarmado);
+		return (Globales.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada() instanceof Arma)
+				&& !(Globales.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada() instanceof Desarmado);
 	}
 
 	public Arma getArmaEquipada() {
-		return (Arma) Constantes.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada();
+		return (Arma) Globales.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada();
 	}
 
 	@Override
@@ -772,7 +777,7 @@ public class Jugador extends Criatura {
 
 		g.setFont(g.getFont().deriveFont(4f));
 		DibujoDebug.dibujarString(g, (int) this.vida + "/" + (int) this.vidaMaxima, posX, posY - 6, Color.WHITE);
-		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
+		g.setFont(g.getFont().deriveFont(Globales.CONSTANTES.TAMANO_FUENTE));
 	}
 
 	public int getDesplazamientoX() {
@@ -815,8 +820,8 @@ public class Jugador extends Criatura {
 	}
 
 	public Point getPosicionTileParado() {
-		this.PUNTO_AUXILIAR.setLocation((int) (this.x + 3) / Constantes.GLOBALES.ladoTile,
-				(int) ((this.y + this.ALTO) - 1) / Constantes.GLOBALES.ladoTile);
+		this.PUNTO_AUXILIAR.setLocation((int) (this.x + 3) / Globales.CONSTANTES.LADO_TILE,
+				(int) ((this.y + this.ALTO) - 1) / Globales.CONSTANTES.LADO_TILE);
 		return this.PUNTO_AUXILIAR;
 	}
 
@@ -864,8 +869,8 @@ public class Jugador extends Criatura {
 
 	@Override
 	public Point getPosicionTile() {
-		this.PUNTO_AUXILIAR.setLocation((int) this.x / Constantes.GLOBALES.ladoTile,
-				(int) this.y / Constantes.GLOBALES.ladoTile);
+		this.PUNTO_AUXILIAR.setLocation((int) this.x / Globales.CONSTANTES.LADO_TILE,
+				(int) this.y / Globales.CONSTANTES.LADO_TILE);
 		return this.PUNTO_AUXILIAR;
 	}
 
@@ -895,7 +900,7 @@ public class Jugador extends Criatura {
 		this.sanar();
 		this.damage = this.PTS_DAMAGE_BASE;
 		this.setMundo(mundo);
-		Constantes.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
+		Globales.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
 		if (this.mundo != null) {
 			this.mundo.moverJugadorPuntoComienzo();
 		}

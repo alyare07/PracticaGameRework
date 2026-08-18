@@ -11,7 +11,7 @@ import principal.entes.objetos.items.armas.Arma;
 import principal.entes.objetos.items.armas.distancia.fuego.municiones.Municion;
 import principal.entes.proyectil.ProyectilBala;
 import principal.mapa.Mundo;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
@@ -61,12 +61,12 @@ public class Pistola extends Arma {
 			}
 //			System.out.println(causante+" a disparado, municion ["+this.municion.getCantidad()+"/"+this.municion.getLimite()+"]");
 			GestorSonido.reproducirEnPosicion(IDSonido.DISPARO_PISTOLA, xOrigen, yOrigen,
-					Constantes.CAMARA.getEntidadEnfocada().getPosicionX(),
-					Constantes.CAMARA.getEntidadEnfocada().getPosicionY());
+					Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
+					Globales.CAMARA.getEntidadEnfocada().getPosicionY());
 		} else {
 			GestorSonido.reproducirEnPosicion(IDSonido.SIN_MUNICION, xOrigen, yOrigen,
-					Constantes.CAMARA.getEntidadEnfocada().getPosicionX(),
-					Constantes.CAMARA.getEntidadEnfocada().getPosicionY());
+					Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
+					Globales.CAMARA.getEntidadEnfocada().getPosicionY());
 		}
 
 	}

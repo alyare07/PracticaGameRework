@@ -6,8 +6,8 @@ import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.mapa.Mundo;
-import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
+import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
@@ -58,10 +58,10 @@ public class GolpeMele extends ProyectilGeneral {
 		if (this.eliminado) {
 			return;
 		}
-		if (Constantes.JUGADOR != this.CAUSANTE) {
-			if (area.intersects(Constantes.JUGADOR.getRectangulo())) {
+		if (Globales.JUGADOR != this.CAUSANTE) {
+			if (area.intersects(Globales.JUGADOR.getRectangulo())) {
 
-				this.impactar(Constantes.JUGADOR);
+				this.impactar(Globales.JUGADOR);
 				if (!this.PENETRANTE) {
 					return;
 				}

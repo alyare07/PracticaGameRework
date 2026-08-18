@@ -6,8 +6,8 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.HashMap;
 
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 
 /**
  * Componente visual de interfaz de usuario diseñado para renderizar paneles
@@ -166,7 +166,7 @@ public class CajaInfo {
 	 */
 	private int calcularAltoPixeles(final Graphics2D g, final Info i, final boolean label) {
 		final String texto = label ? i.getTexto() : i.getValor();
-		return Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, (texto != null) ? texto : "");
+		return Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, (texto != null) ? texto : "");
 	}
 
 	/**
@@ -175,7 +175,7 @@ public class CajaInfo {
 	 */
 	private int calcularAnchoPixeles(final Graphics2D g, final Info i, final boolean label) {
 		final String texto = label ? i.getTexto() : i.getValor();
-		return Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, (texto != null) ? texto : "");
+		return Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, (texto != null) ? texto : "");
 	}
 
 	/***/

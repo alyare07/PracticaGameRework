@@ -10,7 +10,7 @@ import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
 import principal.inventario.Contenedor;
 import principal.inventario.vault.InventarioVault;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 public abstract class Cofre extends Objeto implements Contenedor {
 
@@ -50,10 +50,10 @@ public abstract class Cofre extends Objeto implements Contenedor {
 		json.put("tipo", this.getTipoCofre());
 		json.put("x", this.getPosicionXInt());
 		json.put("y", this.getPosicionYInt());
-		json.put(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class), this.getListaJsonItems());
+		json.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class), this.getListaJsonItems());
 
 		final JSONObject jsonPrincipal = new JSONObject();
-		jsonPrincipal.put("tipoObjeto", Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Cofre.class));
+		jsonPrincipal.put("tipoObjeto", Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Cofre.class));
 		jsonPrincipal.put("entiti", json);
 		return jsonPrincipal;
 	}
@@ -71,9 +71,9 @@ public abstract class Cofre extends Objeto implements Contenedor {
 		Cofre c = null;
 		final String tipo = json.get("tipo").toString();
 
-		if (tipo.equals(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(CofrePequeño.class))) {
+		if (tipo.equals(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(CofrePequeño.class))) {
 			c = CofrePequeño.crearDesdeJson(json);
-		} else if (tipo.equals(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(CofreMediano.class))) {
+		} else if (tipo.equals(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(CofreMediano.class))) {
 			c = CofreMediano.crearDesdeJson(json);
 		}
 		return c;

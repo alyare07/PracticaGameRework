@@ -10,12 +10,13 @@ import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.entes.objetos.items.armas.distancia.fuego.municiones.Municion;
 import principal.mapa.Mundo;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 
 /**
- * Variación del enemigo Bandido enfocado en combate a distancia con arma de fuego.
- * Dispara únicamente cuando la línea de tiro recta hasta el jugador está 100% libre de obstáculos.
+ * Variación del enemigo Bandido enfocado en combate a distancia con arma de
+ * fuego. Dispara únicamente cuando la línea de tiro recta hasta el jugador está
+ * 100% libre de obstáculos.
  */
 public class BandidoPistolero extends Bandido {
 
@@ -47,7 +48,7 @@ public class BandidoPistolero extends Bandido {
 		this.pintarSprite(g);
 		super.pintar(g);
 
-		if (Constantes.TECLADO.TECLA_DEBUG.presionado()) {
+		if (Globales.TECLADO.TECLA_DEBUG.presionado()) {
 			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getRectanguloInterseccionPistola2(this.rangoDisparo),
 					Color.red);
 		}
@@ -65,7 +66,8 @@ public class BandidoPistolero extends Bandido {
 
 	/**
 	 * Evalúa si existe una línea de tiro recta (Norte, Sur, Este u Oeste)
-	 * completamente libre de árboles o paredes sólidas entre el bandido y el jugador.
+	 * completamente libre de árboles o paredes sólidas entre el bandido y el
+	 * jugador.
 	 */
 	private boolean tieneLineaDeTiroLimpia(final Jugador jugador) {
 		final double diffX = jugador.getCentroX() - this.getCentroX();
@@ -124,9 +126,10 @@ public class BandidoPistolero extends Bandido {
 		}
 
 		// --- FASE 2: Detección, disparo o navegación Dijkstra ---
-		final Jugador jugador = Constantes.JUGADOR;
+		final Jugador jugador = Globales.JUGADOR;
 		final boolean jugadorEnVision = this.getAreaDeteccionLogica().intersects(jugador.getRectangulo());
-		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
+		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
+				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
 		if (jugadorEnVision || dentroTiempoBusqueda) {
 			if (jugadorEnVision && this.tieneLineaDeTiroLimpia(jugador)) {

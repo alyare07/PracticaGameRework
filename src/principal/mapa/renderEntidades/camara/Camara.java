@@ -1,7 +1,7 @@
 package principal.mapa.renderEntidades.camara;
 
 import principal.entes.Ente;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 /**
  * Gestiona el enfoque y desplazamiento de la vista en pantalla sobre una
@@ -75,8 +75,8 @@ public class Camara {
 		final int enteAncho = (e.getArea() != null) ? e.getArea().width : 0;
 		final int enteAlto = (e.getArea() != null) ? e.getArea().height : 0;
 
-		this.margenX = Constantes.CENTROX - (enteAncho / 2);
-		this.margenY = Constantes.CENTROY - (enteAlto / 2);
+		this.margenX = Globales.CONSTANTES.CENTROX - (enteAncho / 2);
+		this.margenY = Globales.CONSTANTES.CENTROY - (enteAlto / 2);
 
 		if (this.entidadEnfocada != this.gestorLimite.getEntidadEnfocada()) {
 			this.gestorLimite.eliminar();

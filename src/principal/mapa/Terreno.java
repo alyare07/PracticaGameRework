@@ -15,7 +15,7 @@ import org.json.simple.parser.ParseException;
 
 import principal.entes.modelos.tile.ListaModeloTile;
 import principal.mapa.renderEntidades.ZoneBox;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 /**
  * Representa el terreno lógico y gráfico del mapa del juego.
@@ -61,7 +61,7 @@ public class Terreno implements Serializable {
 	 * @param idModeloTile   ID del modelo de tile por defecto.
 	 */
 	public Terreno(final int cantTilesAncho, final int cantTilesAlto, final int ladoTile, final int idModeloTile) {
-		Constantes.GLOBALES.ladoTile = ladoTile;
+		Globales.CONSTANTES.LADO_TILE = ladoTile;
 		this.LADO_TILE = ladoTile;
 		this.LADO_GRUPO_TILE = ladoTile * 2;
 		this.CANTIDAD_ANCHO_GROUPTILE = cantTilesAncho / 2;
@@ -83,7 +83,7 @@ public class Terreno implements Serializable {
 	public Terreno(final JSONObject jso) {
 		this.CANTIDAD_ANCHO_GROUPTILE = ((Number) jso.get("cantGTancho")).intValue();
 		this.CANTIDAD_ALTO_GROUPTILE = ((Number) jso.get("cantGTalto")).intValue();
-		this.LADO_TILE = Constantes.LADO_TILE;
+		this.LADO_TILE = Globales.CONSTANTES.LADO_TILE;
 		this.LADO_GRUPO_TILE = this.LADO_TILE * 2;
 		this.ANCHO = ((Number) jso.get("ancho")).intValue();
 		this.ALTO = ((Number) jso.get("alto")).intValue();
@@ -237,11 +237,15 @@ public class Terreno implements Serializable {
 	 * @param g Contexto gráfico {@link Graphics2D}.
 	 */
 	public void pintar(final Graphics2D g) {
-		final int minX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
-		final int maxX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
+		final int minX = Globales.CAMARA.getPosicionXInt() - Globales.CONSTANTES.CENTROX
+				- (3 * this.LADO_TILE);
+		final int maxX = Globales.CAMARA.getPosicionXInt() + Globales.CONSTANTES.CENTROX
+				+ (3 * this.LADO_TILE);
 
-		final int minY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
-		final int maxY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
+		final int minY = Globales.CAMARA.getPosicionYInt() - Globales.CONSTANTES.CENTROY
+				- (3 * this.LADO_TILE);
+		final int maxY = Globales.CAMARA.getPosicionYInt() + Globales.CONSTANTES.CENTROY
+				+ (3 * this.LADO_TILE);
 
 		// Delimitación acotada directamente dentro de los rangos de la matriz
 		final int startGtX = Math.max(0, Math.floorDiv(minX, this.LADO_GRUPO_TILE));
@@ -276,11 +280,15 @@ public class Terreno implements Serializable {
 			return;
 		}
 
-		final int minX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
-		final int maxX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
+		final int minX = Globales.CAMARA.getPosicionXInt() - Globales.CONSTANTES.CENTROX
+				- (3 * this.LADO_TILE);
+		final int maxX = Globales.CAMARA.getPosicionXInt() + Globales.CONSTANTES.CENTROX
+				+ (3 * this.LADO_TILE);
 
-		final int minY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
-		final int maxY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
+		final int minY = Globales.CAMARA.getPosicionYInt() - Globales.CONSTANTES.CENTROY
+				- (3 * this.LADO_TILE);
+		final int maxY = Globales.CAMARA.getPosicionYInt() + Globales.CONSTANTES.CENTROY
+				+ (3 * this.LADO_TILE);
 
 		final int inicioGridX = Math.floorDiv(minX, ladoZona);
 		final int finGridX = Math.floorDiv(maxX, ladoZona);
@@ -315,11 +323,15 @@ public class Terreno implements Serializable {
 			return;
 		}
 
-		final int minX = Constantes.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
-		final int maxX = Constantes.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
+		final int minX = Globales.CAMARA.getPosicionXInt() - Globales.CONSTANTES.CENTROX
+				- (3 * this.LADO_TILE);
+		final int maxX = Globales.CAMARA.getPosicionXInt() + Globales.CONSTANTES.CENTROX
+				+ (3 * this.LADO_TILE);
 
-		final int minY = Constantes.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
-		final int maxY = Constantes.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
+		final int minY = Globales.CAMARA.getPosicionYInt() - Globales.CONSTANTES.CENTROY
+				- (3 * this.LADO_TILE);
+		final int maxY = Globales.CAMARA.getPosicionYInt() + Globales.CONSTANTES.CENTROY
+				+ (3 * this.LADO_TILE);
 
 		final int inicioGridX = Math.floorDiv(minX, ladoZona);
 		final int finGridX = Math.floorDiv(maxX, ladoZona);

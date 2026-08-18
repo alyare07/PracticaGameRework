@@ -16,7 +16,7 @@ import principal.maquinaestado.estados.menu.MenuConfiguracionEnPartida;
 import principal.maquinaestado.estados.menu.MenuEdirorSeleccion;
 import principal.maquinaestado.estados.menu.MenuEditorNuevo;
 import principal.maquinaestado.estados.menu.MenuPrincipal;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 /**
  * Máquina de Estados Finita (FSM) que gestiona el ciclo de vida, transiciones,
@@ -69,7 +69,7 @@ public class GestorEstados {
 
 	public void establecerEstadoActual(final int numeroEstado) {
 		// Sincronizar el flag global de estado de partida
-		Constantes.GLOBALES.estadoJuego = (numeroEstado == NUMERO_ESTADO_PARTIDA);
+		Globales.estadoJuego = (numeroEstado == NUMERO_ESTADO_PARTIDA);
 
 		switch (numeroEstado) {
 		case NUMERO_ESTADO_PARTIDA:
@@ -97,25 +97,26 @@ public class GestorEstados {
 	}
 
 	public void editorMapaSeleccion() {
-		Constantes.GLOBALES.estadoJuego = false;
+		Globales.estadoJuego = false;
 		this.estados[2] = new MenuEdirorSeleccion(this);
 		this.estadoActual = this.estados[2];
 	}
 
 	public void editorMapa(final int cantAncho, final int cantAlto, final int idModeloTile) {
-		Constantes.GLOBALES.estadoJuego = false;
-		this.estados[2] = new EditorMapa(Constantes.LADO_TILE, cantAncho, cantAlto, idModeloTile, this);
+		Globales.estadoJuego = false;
+		this.estados[2] = new EditorMapa(Globales.CONSTANTES.LADO_TILE, cantAncho, cantAlto, idModeloTile,
+				this);
 		this.estadoActual = this.estados[2];
 	}
 
 	public void editorMapa(final Terreno mapa) {
-		Constantes.GLOBALES.estadoJuego = false;
+		Globales.estadoJuego = false;
 		this.estados[2] = new EditorMapa(mapa, this);
 		this.estadoActual = this.estados[2];
 	}
 
 	public void editorMapaNuevoMenu() {
-		Constantes.GLOBALES.estadoJuego = false;
+		Globales.estadoJuego = false;
 		this.estados[2] = new MenuEditorNuevo(this);
 		this.estadoActual = this.estados[2];
 	}
@@ -128,11 +129,11 @@ public class GestorEstados {
 	}
 
 	public void iniciarPartidaNueva() {
-		Constantes.GLOBALES.estadoJuego = true;
+		Globales.estadoJuego = true;
 		this.estados[0] = new GestorPartida(this);
 		this.estadoActual = this.estados[0];
-		Constantes.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
-		Constantes.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
+		Globales.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
+		Globales.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
 	}
 
 	public void seleccionarMundo() {
@@ -152,11 +153,11 @@ public class GestorEstados {
 		if (resultado == JFileChooser.APPROVE_OPTION) {
 			final File seleccion = selector.getSelectedFile();
 			if ((seleccion != null) && seleccion.exists()) {
-				Constantes.GLOBALES.estadoJuego = true;
+				Globales.estadoJuego = true;
 				this.estados[0] = new GestorPartida(this, seleccion.getAbsolutePath(), true);
 				this.estadoActual = this.estados[0];
-				Constantes.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
-				Constantes.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
+				Globales.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
+				Globales.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
 			}
 		} else if (resultado == JFileChooser.ERROR_OPTION) {
 			JOptionPane.showMessageDialog(null, "No se ha podido cargar el mundo seleccionado!",

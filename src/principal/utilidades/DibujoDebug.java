@@ -168,17 +168,20 @@ public final class DibujoDebug {
 			final int alto, final Color color) {
 		objetosDibujados++;
 		g.setColor(color);
-		g.drawOval(Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), ancho, alto);
+		g.drawOval(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho,
+				alto);
 	}
 
 	public static void dibujarImagenRefCamara(final Graphics2D g, final Image img, final int x, final int y) {
 		objetosDibujados++;
-		g.drawImage(img, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), null);
+		g.drawImage(img, Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y),
+				null);
 	}
 
 	public static void dibujarImagenRefCamara(final Graphics2D g, final BufferedImage img, final int x, final int y) {
 		objetosDibujados++;
-		g.drawImage(img, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), null);
+		g.drawImage(img, Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y),
+				null);
 	}
 
 	public static void dibujarImagenRefCamara(final Graphics2D g, final BufferedImage img, final Point p) {
@@ -190,13 +193,14 @@ public final class DibujoDebug {
 		objetosDibujados++;
 		final Composite comOriginal = g.getComposite();
 		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
-		g.drawImage(img, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), null);
+		g.drawImage(img, Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y),
+				null);
 		g.setComposite(comOriginal);
 	}
 
 	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final int x, final int y) {
 		objetosDibujados++;
-		g.drawString(s, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y));
+		g.drawString(s, Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y));
 	}
 
 	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final Point p) {
@@ -207,7 +211,7 @@ public final class DibujoDebug {
 			final Color c) {
 		objetosDibujados++;
 		g.setColor(c);
-		g.drawString(s, Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y));
+		g.drawString(s, Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y));
 	}
 
 	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final Point p, final Color c) {
@@ -217,7 +221,8 @@ public final class DibujoDebug {
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto) {
 		objetosDibujados++;
-		g.fillRect(Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), ancho, alto);
+		g.fillRect(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho,
+				alto);
 	}
 
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final Rectangle r) {
@@ -228,7 +233,8 @@ public final class DibujoDebug {
 			final int alto, final Color c) {
 		objetosDibujados++;
 		g.setColor(c);
-		g.fillRect(Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), ancho, alto);
+		g.fillRect(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho,
+				alto);
 	}
 
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final Rectangle r, final Color c) {
@@ -238,7 +244,8 @@ public final class DibujoDebug {
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto) {
 		objetosDibujados++;
-		g.drawRect(Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), ancho, alto);
+		g.drawRect(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho,
+				alto);
 	}
 
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final Rectangle r) {
@@ -249,7 +256,8 @@ public final class DibujoDebug {
 			final int alto, final Color c) {
 		objetosDibujados++;
 		g.setColor(c);
-		g.drawRect(Constantes.getXDesplazamientoCamara(x), Constantes.getYDesplazamientoCamara(y), ancho, alto);
+		g.drawRect(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho,
+				alto);
 	}
 
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final Rectangle r, final Color c) {
@@ -260,15 +268,15 @@ public final class DibujoDebug {
 			final Color c) {
 		objetosDibujados++;
 		g.setColor(c);
-		g.drawLine(Constantes.getXDesplazamientoCamara(x1), Constantes.getYDesplazamientoCamara(y1),
-				Constantes.getXDesplazamientoCamara(x2), Constantes.getYDesplazamientoCamara(y2));
+		g.drawLine(Globales.getXDesplazamientoCamara(x1), Globales.getYDesplazamientoCamara(y1),
+				Globales.getXDesplazamientoCamara(x2), Globales.getYDesplazamientoCamara(y2));
 	}
 
 	public static void dibujarLineaRefCamara(final Graphics2D g, final int x1, final int y1, final int x2,
 			final int y2) {
 		objetosDibujados++;
-		g.drawLine(Constantes.getXDesplazamientoCamara(x1), Constantes.getYDesplazamientoCamara(y1),
-				Constantes.getXDesplazamientoCamara(x2), Constantes.getYDesplazamientoCamara(y2));
+		g.drawLine(Globales.getXDesplazamientoCamara(x1), Globales.getYDesplazamientoCamara(y1),
+				Globales.getXDesplazamientoCamara(x2), Globales.getYDesplazamientoCamara(y2));
 	}
 
 	public static void dibujarLineaRefCamara(final Graphics2D g, final Point p1, final Point p2, final Color c) {

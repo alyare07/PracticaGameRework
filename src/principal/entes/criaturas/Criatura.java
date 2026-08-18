@@ -16,9 +16,9 @@ import principal.entes.Ente;
 import principal.entes.objetos.particulas.Sangre;
 import principal.ia.aEstrella.NodoA;
 import principal.mapa.Mundo;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
+import principal.utilidades.Globales;
 
 /**
  * Clase abstracta base para todas las entidades vivas (Jugador, Enemigos,
@@ -138,12 +138,12 @@ public abstract class Criatura extends Ente {
 	public void pintar(final Graphics2D g) {
 		this.pintarIndicadorVida(g);
 
-		if (Constantes.TECLADO.TECLA_VER_COLISIONES.presionado()) {
+		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.CYAN);
 		}
 
 		// Renderizado del camino A* en modo debug
-		if ((Constantes.CAMARA.getEntidadEnfocada() == this)
+		if ((Globales.CAMARA.getEntidadEnfocada() == this)
 				&& (!this.recorridoA.isEmpty() || (this.nodoADestino != null))) {
 			g.setFont(g.getFont().deriveFont(7f));
 
@@ -163,9 +163,9 @@ public abstract class Criatura extends Ente {
 						Color.MAGENTA);
 
 				final int xTexto = (xMundo + (anchoTile / 2))
-						- (Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2);
+						- (Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2);
 				final int yTexto = (yMundo + (altoTile / 2))
-						+ (Constantes.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2);
+						+ (Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2);
 
 				DibujoDebug.dibujarStringRefCamara(g, txt, xTexto, yTexto, Color.BLACK);
 				pos++;
@@ -183,14 +183,14 @@ public abstract class Criatura extends Ente {
 		if (this.estaEstadoPersiguiendo() || this.estaEstadoAtacando()) {
 			this.pintarRectanguloBarraVida(g);
 
-		} else if (Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara()
+		} else if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara()
 				.intersects(this.getPosicionX(), this.getPosicionY(), this.ANCHO, this.ALTO)) {
 			this.pintarRectanguloBarraVida(g);
 			this.pintarValorVida(g);
 			return;
 		}
-		if (Constantes.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getPosicionX(),
-				this.getPosicionY(), this.ANCHO, this.ALTO)) {
+		if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara()
+				.intersects(this.getPosicionX(), this.getPosicionY(), this.ANCHO, this.ALTO)) {
 			this.pintarRectanguloBarraVida(g);
 			this.pintarValorVida(g);
 		}
@@ -199,11 +199,11 @@ public abstract class Criatura extends Ente {
 	private void pintarValorVida(final Graphics2D g) {
 		g.setFont(g.getFont().deriveFont(4f));
 		final String texto = (int) this.vida + "/" + (int) this.vidaMaxima;
-		final int anchoTexto = Constantes.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
+		final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
 
 		final int xTexto = this.getPosicionXInt() + ((this.ANCHO - anchoTexto) / 2);
 		DibujoDebug.dibujarStringRefCamara(g, texto, xTexto, this.getPosicionYInt() - 6, Color.WHITE);
-		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
+		g.setFont(g.getFont().deriveFont(Globales.CONSTANTES.TAMANO_FUENTE));
 	}
 
 	private void pintarRectanguloBarraVida(final Graphics2D g) {
@@ -431,7 +431,8 @@ public abstract class Criatura extends Ente {
 	}
 
 	public Point getPosicionTile() {
-		return new Point((int) this.x / Constantes.LADO_TILE, (int) this.y / Constantes.LADO_TILE);
+		return new Point((int) this.x / Globales.CONSTANTES.LADO_TILE,
+				(int) this.y / Globales.CONSTANTES.LADO_TILE);
 	}
 
 	public Direccion getDireccion() {
@@ -529,7 +530,7 @@ public abstract class Criatura extends Ente {
 	}
 
 	protected void setDireccionMirandoCriatura(final Criatura c) {
-		this.direccion = Constantes.FUNCIONES.getDireccionMirando(this.getPosicionXInt(), this.getPosicionYInt(),
+		this.direccion = Globales.FUNCIONES.getDireccionMirando(this.getPosicionXInt(), this.getPosicionYInt(),
 				c.getPosicionXInt(), c.getPosicionYInt());
 	}
 

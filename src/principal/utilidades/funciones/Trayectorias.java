@@ -1,6 +1,6 @@
 package principal.utilidades.funciones;
 
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 /**
  * Clase de utilidad para el cálculo matemático de trayectorias lineales y
@@ -32,9 +32,9 @@ public final class Trayectorias {
 		final double cantApsAncho = (tiempoMsTrayectoriaEnAnchoJuego / msPorSegundo) * aps;
 		final double dist = this.calcularDistancia(px1, py1, px2, py2);
 
-		final double cantApsDistancia = (dist <= (Constantes.ANCHO_JUEGO / 4.0))
-				? (dist * (cantApsAncho * 1.5)) / Constantes.ANCHO_JUEGO
-				: (dist * cantApsAncho) / Constantes.ANCHO_JUEGO;
+		final double cantApsDistancia = (dist <= (Globales.CONSTANTES.ANCHO_JUEGO / 4.0))
+				? (dist * (cantApsAncho * 1.5)) / Globales.CONSTANTES.ANCHO_JUEGO
+				: (dist * cantApsAncho) / Globales.CONSTANTES.ANCHO_JUEGO;
 
 		final double vel = Math.max(0.005, 1.0 / Math.max(1.0, cantApsDistancia));
 		final int pasos = (int) Math.ceil(1.0 / vel) + 1;

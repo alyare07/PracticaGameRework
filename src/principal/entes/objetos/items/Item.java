@@ -10,8 +10,8 @@ import org.json.simple.JSONObject;
 
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 
 public abstract class Item extends Objeto {
 	private static final long serialVersionUID = -451309412394893821L;
@@ -51,7 +51,7 @@ public abstract class Item extends Objeto {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		if (Constantes.TECLADO.TECLA_VER_COLISIONES.presionado() && Constantes.isEstadoJuego()) {
+		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.isEstadoJuego()) {
 			final Rectangle area = this.getArea();
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, area, Color.ORANGE);
 		}
@@ -72,10 +72,11 @@ public abstract class Item extends Objeto {
 
 	public static Item crearItemDesdeJson(final JSONObject json) {
 		Item i = null;
-		if (json.get("tipo").toString().equals(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Pistola.class))) {
+		if (json.get("tipo").toString()
+				.equals(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Pistola.class))) {
 			i = Pistola.crearDesdeJson((JSONObject) json.get("entiti"));
 		} else if (json.get("tipo").toString()
-				.equals(Constantes.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Consumible.class))) {
+				.equals(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Consumible.class))) {
 			i = Consumible.crearConsumible((JSONObject) json.get("entiti"));
 		}
 		return i;

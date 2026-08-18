@@ -19,8 +19,8 @@ import principal.inventario.slot.Slot;
 import principal.inventario.slot.SlotArrojadizo;
 import principal.inventario.slot.SlotIGU;
 import principal.mapa.Mundo;
-import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
+import principal.utilidades.Globales;
 import principal.utilidades.inventario.ItemPuntero;
 
 /**
@@ -223,7 +223,7 @@ public class SlotManager {
 						// 1. Caso Arrojadizo
 						if (i instanceof Arrojadizo) {
 							this.INVENTARIO.getSlotArrojadizo().establecerObjeto(i);
-							Constantes.GESTOR_INVENTARIO.getInventarioJugador().invertirVisibilidad();
+							Globales.GESTOR_INVENTARIO.getInventarioJugador().invertirVisibilidad();
 							return;
 						}
 
@@ -242,7 +242,7 @@ public class SlotManager {
 						// 3. Caso Consumible
 						if (i instanceof Consumible) {
 							final Consumible c = (Consumible) i;
-							c.consumir(Constantes.JUGADOR);
+							c.consumir(Globales.JUGADOR);
 							this.INVENTARIO.setActivarItemDisponible(false);
 							break;
 						}
@@ -281,7 +281,7 @@ public class SlotManager {
 					}
 					if (i instanceof Consumible) {
 						final Consumible c = (Consumible) i;
-						c.consumir(Constantes.JUGADOR);
+						c.consumir(Globales.JUGADOR);
 						break;
 					}
 				}
@@ -561,7 +561,7 @@ public class SlotManager {
 	}
 
 	private void llenarSlotsIGU() {
-		final int posIguY = Constantes.ALTO_JUEGO - LADO_SLOTS - this.MARGEN_GENERAL;
+		final int posIguY = Globales.CONSTANTES.ALTO_JUEGO - LADO_SLOTS - this.MARGEN_GENERAL;
 
 		for (final Slot slot : this.LISTA_SLOTS_PRINCIPALES) {
 			this.LISTA_SLOTS_IGU.add(new SlotIGU(slot, slot.getX(), posIguY));

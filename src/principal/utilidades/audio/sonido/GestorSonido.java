@@ -7,7 +7,7 @@ import java.util.Map;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 /**
  * Gestor global y centralizado de efectos de sonido (SFX).
@@ -163,7 +163,8 @@ public class GestorSonido {
 	 */
 	public static void reproducirEnPosicion(final String idSonido, final double xEmisor, final double yEmisor,
 			final double xReceptor, final double yReceptor) {
-		reproducirEnPosicion(idSonido, xEmisor, yEmisor, xReceptor, yReceptor, Constantes.RADIO_AUDIO_DISTANCIA_MAXIMA);
+		reproducirEnPosicion(idSonido, xEmisor, yEmisor, xReceptor, yReceptor,
+				Globales.CONSTANTES.RADIO_AUDIO_DISTANCIA_MAXIMA);
 	}
 
 	// =========================================================================

@@ -1,31 +1,29 @@
 package principal.utilidades;
 
-
 import javax.sound.sampled.Clip;
 
 public class Sonido {
 	final private Clip sonido;
 
 	public Sonido(final String ruta) {
-		sonido = Constantes.FUNCIONES.CARGADOR_RECURSOS.cargarSonido(ruta);
+		this.sonido = Globales.FUNCIONES.CARGADOR_RECURSOS.cargarSonido(ruta);
 	}
 
 	public void reproducir() {
-		sonido.stop();
-		sonido.flush();
-		sonido.setMicrosecondPosition(0);
-		sonido.start();
+		this.sonido.stop();
+		this.sonido.flush();
+		this.sonido.setMicrosecondPosition(0);
+		this.sonido.start();
 	}
 
 	public void repetir() {
-		sonido.stop();
-		sonido.flush();
-		sonido.setMicrosecondPosition(0);
-		sonido.loop(Clip.LOOP_CONTINUOUSLY);
+		this.sonido.stop();
+		this.sonido.flush();
+		this.sonido.setMicrosecondPosition(0);
+		this.sonido.loop(Clip.LOOP_CONTINUOUSLY);
 	}
 
 	public long getDuracion() {
-		return sonido.getMicrosecondLength();
+		return this.sonido.getMicrosecondLength();
 	}
 }
-

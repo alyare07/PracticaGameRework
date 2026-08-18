@@ -15,7 +15,7 @@ import principal.entes.objetos.items.Item;
 import principal.inventario.Contenedor;
 import principal.mapa.Mundo;
 import principal.mapa.escenario.tps.ZonaTP;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 /**
  * Representa una cuadrícula o celda del espacio (partición espacial) en la
@@ -83,7 +83,7 @@ public class ZoneBox extends Ente {
 	 */
 	@Override
 	public void actualizar() {
-		if (Constantes.isEstadoEditor()) {
+		if (Globales.isEstadoEditor()) {
 			return;
 		}
 		RenderEntidad re = null;

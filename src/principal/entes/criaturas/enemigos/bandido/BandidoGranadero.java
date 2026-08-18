@@ -7,7 +7,7 @@ import principal.animaciones.criaturas.AnimacionesBandido;
 import principal.entes.objetos.items.arrojadizos.granadas.Granada;
 import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
 import principal.mapa.Mundo;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 /**
  * Variación del enemigo Bandido enfocado en ataques a distancia utilizando
@@ -63,8 +63,10 @@ public class BandidoGranadero extends Bandido {
 				this.enAccion = false;
 
 				// Arrojar granada apuntando al centro de la caja de colisión del jugador
-				final int targetX = Constantes.JUGADOR.getPosicionXInt() + (Constantes.JUGADOR.getAncho() / 2);
-				final int targetY = Constantes.JUGADOR.getPosicionYInt() + (Constantes.JUGADOR.getAlto() / 2);
+				final int targetX = Globales.JUGADOR.getPosicionXInt()
+						+ (Globales.JUGADOR.getAncho() / 2);
+				final int targetY = Globales.JUGADOR.getPosicionYInt()
+						+ (Globales.JUGADOR.getAlto() / 2);
 
 				this.granada.arrojar(targetX, targetY, this.direccion, this.mundo, this, false);
 
@@ -81,7 +83,8 @@ public class BandidoGranadero extends Bandido {
 		}
 
 		// --- FASE 2: Evaluación de visión y toma de decisiones ---
-		final boolean jugadorEnVisión = this.getAreaDeteccionLogica().intersects(Constantes.JUGADOR.getRectangulo());
+		final boolean jugadorEnVisión = this.getAreaDeteccionLogica()
+				.intersects(Globales.JUGADOR.getRectangulo());
 		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
 				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
@@ -95,9 +98,9 @@ public class BandidoGranadero extends Bandido {
 				this.removerEstado(Estado.PERSIGUIENDO);
 
 				// Orientación visual hacia la posición del jugador
-				this.direccion = Constantes.FUNCIONES.getDireccionMirando(this.getPosicionXInt(),
-						this.getPosicionYInt(), Constantes.JUGADOR.getPosicionXInt(),
-						Constantes.JUGADOR.getPosicionYInt(), true);
+				this.direccion = Globales.FUNCIONES.getDireccionMirando(this.getPosicionXInt(),
+						this.getPosicionYInt(), Globales.JUGADOR.getPosicionXInt(),
+						Globales.JUGADOR.getPosicionYInt(), true);
 
 				if (this.GT_ATAQUE_INICIAL_COOLDOWN.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
 					if (!this.realizandoAtaque) {

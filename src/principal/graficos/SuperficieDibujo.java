@@ -11,8 +11,8 @@ import java.awt.image.BufferStrategy;
 
 import principal.controles.Raton;
 import principal.maquinaestado.GestorEstados;
-import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
+import principal.utilidades.Globales;
 
 /**
  * Lienzo principal (Canvas) sobre el cual se renderizan los gráficos 2D del
@@ -33,11 +33,11 @@ public class SuperficieDibujo extends Canvas {
 	private static final Font FUENTE_DEBUG = new Font(Font.SANS_SERIF, Font.PLAIN, 9);
 
 	private SuperficieDibujo(final int ancho, final int alto) {
-		this.RATON = Constantes.RATON;
+		this.RATON = Globales.RATON;
 
 		this.setIgnoreRepaint(true);
 		this.setPreferredSize(new Dimension(ancho, alto));
-		this.addKeyListener(Constantes.TECLADO);
+		this.addKeyListener(Globales.TECLADO);
 		this.addMouseListener(this.RATON);
 		this.addMouseMotionListener(this.RATON); // Imprescindible para mouseMoved / mouseDragged
 
@@ -50,7 +50,8 @@ public class SuperficieDibujo extends Canvas {
 	 */
 	public static SuperficieDibujo obtenerSuperficieDibujo() {
 		if (instancia == null) {
-			instancia = new SuperficieDibujo(Constantes.ANCHO_PANTALLA_COMPLETA, Constantes.ALTO_PANTALLA_COMPLETA);
+			instancia = new SuperficieDibujo(Globales.CONSTANTES.ANCHO_PANTALLA_COMPLETA,
+					Globales.CONSTANTES.ALTO_PANTALLA_COMPLETA);
 		}
 		return instancia;
 	}
@@ -92,14 +93,15 @@ public class SuperficieDibujo extends Canvas {
 
 			// Aplicar escalado si la resolución configurada difiere del tamaño real de
 			// pantalla
-			if ((Constantes.FACTOR_ESCALADO_X != 1.0) || (Constantes.FACTOR_ESCALADO_Y != 1.0)) {
-				g.scale(Constantes.FACTOR_ESCALADO_X, Constantes.FACTOR_ESCALADO_Y);
+			if ((Globales.FACTOR_ESCALADO_X != 1.0) || (Globales.FACTOR_ESCALADO_Y != 1.0)) {
+				g.scale(Globales.FACTOR_ESCALADO_X, Globales.FACTOR_ESCALADO_Y);
 			}
 
 			// --- INICIO DEL DIBUJADO ---
 
 			// 1. Limpieza de fondo (Vaciado de pantalla)
-			DibujoDebug.dibujarRectanguloRelleno(g, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO, Color.BLACK);
+			DibujoDebug.dibujarRectanguloRelleno(g, 0, 0, Globales.CONSTANTES.ANCHO_JUEGO,
+					Globales.CONSTANTES.ALTO_JUEGO, Color.BLACK);
 
 			// 2. Renderizado del estado actual del juego
 			if (ge != null) {
@@ -108,8 +110,8 @@ public class SuperficieDibujo extends Canvas {
 
 			// 3. Renderizado de información Debug (APS, FPS, Objetos dibujados)
 			g.setColor(Color.GREEN);
-			DibujoDebug.dibujarString(g, "APS: " + Constantes.GLOBALES.aps, 20, 35);
-			DibujoDebug.dibujarString(g, "FPS: " + Constantes.GLOBALES.fps, 20, 50);
+			DibujoDebug.dibujarString(g, "APS: " + Globales.aps, 20, 35);
+			DibujoDebug.dibujarString(g, "FPS: " + Globales.fps, 20, 50);
 			DibujoDebug.dibujarString(g, "OPF: " + (DibujoDebug.getContadorObjetos() + 1), 20, 65);
 
 			// --- FIN DEL DIBUJADO ---

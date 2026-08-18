@@ -3,7 +3,7 @@ package principal.inventario.slot;
 import principal.controles.Raton;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.arrojadizos.Arrojadizo;
-import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 /**
  * Slot virtual especializado para almacenar y gestionar el {@link Arrojadizo}
@@ -81,8 +81,8 @@ public class SlotArrojadizo extends Slot {
 
 		// Si el jugador abre su inventario mientras apuntaba un arrojadizo, cancelamos
 		// la acción
-		if ((Constantes.GESTOR_INVENTARIO.getInventarioJugador() != null)
-				&& Constantes.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
+		if ((Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)
+				&& Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
 			this.eliminarObjeto();
 		}
 	}

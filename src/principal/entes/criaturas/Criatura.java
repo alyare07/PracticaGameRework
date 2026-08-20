@@ -16,6 +16,7 @@ import principal.entes.Ente;
 import principal.entes.objetos.particulas.Sangre;
 import principal.ia.aEstrella.NodoA;
 import principal.mapa.Mundo;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -183,14 +184,14 @@ public abstract class Criatura extends Ente {
 		if (this.estaEstadoPersiguiendo() || this.estaEstadoAtacando()) {
 			this.pintarRectanguloBarraVida(g);
 
-		} else if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara()
-				.intersects(this.getPosicionX(), this.getPosicionY(), this.ANCHO, this.ALTO)) {
+		} else if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getPosicionX(),
+				this.getPosicionY(), this.ANCHO, this.ALTO)) {
 			this.pintarRectanguloBarraVida(g);
 			this.pintarValorVida(g);
 			return;
 		}
-		if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara()
-				.intersects(this.getPosicionX(), this.getPosicionY(), this.ANCHO, this.ALTO)) {
+		if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getPosicionX(),
+				this.getPosicionY(), this.ANCHO, this.ALTO)) {
 			this.pintarRectanguloBarraVida(g);
 			this.pintarValorVida(g);
 		}
@@ -203,7 +204,7 @@ public abstract class Criatura extends Ente {
 
 		final int xTexto = this.getPosicionXInt() + ((this.ANCHO - anchoTexto) / 2);
 		DibujoDebug.dibujarStringRefCamara(g, texto, xTexto, this.getPosicionYInt() - 6, Color.WHITE);
-		g.setFont(g.getFont().deriveFont(Globales.CONSTANTES.TAMANO_FUENTE));
+		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 	}
 
 	private void pintarRectanguloBarraVida(final Graphics2D g) {
@@ -431,8 +432,7 @@ public abstract class Criatura extends Ente {
 	}
 
 	public Point getPosicionTile() {
-		return new Point((int) this.x / Globales.CONSTANTES.LADO_TILE,
-				(int) this.y / Globales.CONSTANTES.LADO_TILE);
+		return new Point((int) this.x / Constantes.LADO_TILE, (int) this.y / Constantes.LADO_TILE);
 	}
 
 	public Direccion getDireccion() {

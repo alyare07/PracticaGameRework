@@ -155,8 +155,7 @@ public final class Textura {
 	private static void cargarTodasLasTexturas() {
 
 		// 1. Texturas Vacías / Transparentes / Debug
-		final BufferedImage vacio = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(32, 32,
-				Transparency.OPAQUE);
+		final BufferedImage vacio = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(32, 32, Transparency.OPAQUE);
 		final Graphics2D gVacio = vacio.createGraphics();
 		gVacio.setColor(Color.DARK_GRAY);
 		gVacio.fillRect(0, 0, 32, 32);
@@ -166,29 +165,23 @@ public final class Textura {
 
 		guardar(TEXTURA_TRANSPARENTE,
 				Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(1, 1, Transparency.TRANSLUCENT));
-		guardar(idTexturaContornoTile, Globales.FUNCIONES.TEXTURAS_TOOLS
-				.crearImagenRectanguloContornoEnVRAM(Globales.CONSTANTES.LADO_TILE, Color.RED));
+		guardar(idTexturaContornoTile,
+				Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenRectanguloContornoEnVRAM(Constantes.LADO_TILE, Color.RED));
 		guardar(idTexturaContornoGroupTile, Globales.FUNCIONES.TEXTURAS_TOOLS
-				.crearImagenRectanguloContornoEnVRAM(Globales.CONSTANTES.LADO_TILE * 2, Color.BLUE));
+				.crearImagenRectanguloContornoEnVRAM(Constantes.LADO_TILE * 2, Color.BLUE));
 
 		// 2. Carga Terrenos
 		final HojaSprite hojaTerreno = new HojaSprite("/imagenes/texturas/textura.png", 32, true);
-		guardar(TEXTURA_x32_ASFALTO,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(0), 16, 16));
-		guardar(TEXTURA_x32_ARENA,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(1), 16, 16));
-		guardar(TEXTURA_x32_PIEDRA,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(2), 16, 16));
-		guardar(TEXTURA_x32_CESPED,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(3), 16, 16));
+		guardar(TEXTURA_x32_ASFALTO, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(0), 16, 16));
+		guardar(TEXTURA_x32_ARENA, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(1), 16, 16));
+		guardar(TEXTURA_x32_PIEDRA, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(2), 16, 16));
+		guardar(TEXTURA_x32_CESPED, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(3), 16, 16));
 		guardar(TEXTURA_x32_CESPED_2,
 				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(5), 16, 16));
-		guardar(TEXTURA_x32_TIERRA,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(7), 16, 16));
+		guardar(TEXTURA_x32_TIERRA, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(7), 16, 16));
 		guardar(TEXTURA_x32_TIERRA_2,
 				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(8), 16, 16));
-		guardar(TEXTURA_x32_AGUA_1,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(9), 16, 16));
+		guardar(TEXTURA_x32_AGUA_1, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(9), 16, 16));
 		guardar(TEXTURA_x32_CESPED_3,
 				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(12), 16, 16));
 		guardar(TEXTURA_x32_AGUA_1_INV_H,
@@ -247,10 +240,10 @@ public final class Textura {
 		guardar(TEXTURA_x10_POCION_ROJA, hojaItems10.getSprite(50));
 		guardar(TEXTURA_x10_POCION_AZUL, hojaItems10.getSprite(48));
 		guardar(TEXTURA_x10_BOTAS_CUERO_MARRON, hojaItems10.getSprite(122));
-		guardar(TEXTURA_x8_PISTOLA, Globales.FUNCIONES.CARGADOR_RECURSOS
-				.cargarImagenCompatibleTranslucida("/imagenes/objetos/gun8x8.png"));
-		guardar(TEXTURA_x4_BALA, Globales.FUNCIONES.CARGADOR_RECURSOS
-				.cargarImagenCompatibleTranslucida("/imagenes/objetos/bala.png"));
+		guardar(TEXTURA_x8_PISTOLA,
+				Globales.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida("/imagenes/objetos/gun8x8.png"));
+		guardar(TEXTURA_x4_BALA,
+				Globales.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida("/imagenes/objetos/bala.png"));
 
 		cargarGranadas("/imagenes/objetos/granadas.png", 10, TEXTURA_X10_GRANADA_1);
 
@@ -260,8 +253,7 @@ public final class Textura {
 
 		final BufferedImage auxExp = Globales.FUNCIONES.CARGADOR_RECURSOS
 				.cargarImagenCompatibleTranslucida("/imagenes/sprites/explosion.png");
-		guardar(TEXTURA_x50_EXPLOSION,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(auxExp, 50 * 10, 50 * 5));
+		guardar(TEXTURA_x50_EXPLOSION, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(auxExp, 50 * 10, 50 * 5));
 
 		final BufferedImage auxCasa = Globales.FUNCIONES.CARGADOR_RECURSOS
 				.cargarImagenCompatibleTranslucida("/imagenes/texturas/house/1.png");
@@ -269,8 +261,8 @@ public final class Textura {
 
 		// 7. Hoja especial
 		final int anchoAgua = getTextura(TEXTURA_x32_AGUA_1).getWidth();
-		final BufferedImage imgHojaAgua = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(anchoAgua,
-				anchoAgua * 2, Transparency.TRANSLUCENT);
+		final BufferedImage imgHojaAgua = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(anchoAgua, anchoAgua * 2,
+				Transparency.TRANSLUCENT);
 		final Graphics2D gAgua = imgHojaAgua.createGraphics();
 		gAgua.drawImage(getTextura(TEXTURA_x32_AGUA_1), 0, 0, null);
 		gAgua.drawImage(getTextura(TEXTURA_x32_AGUA_1_INV_H), anchoAgua, 0, null);
@@ -295,10 +287,8 @@ public final class Textura {
 	}
 
 	private static void cargarGranadas(final String ruta, final int tamano, final int idBase) {
-		final BufferedImage granadasBase = Globales.FUNCIONES.CARGADOR_RECURSOS
-				.cargarImagenCompatibleTranslucida(ruta);
-		final BufferedImage aux = Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(granadasBase, tamano * 8,
-				tamano);
+		final BufferedImage granadasBase = Globales.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida(ruta);
+		final BufferedImage aux = Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(granadasBase, tamano * 8, tamano);
 		final HojaSprite hoja = new HojaSprite(aux, tamano, false);
 		for (int i = 0; i < 8; i++) {
 			guardar(idBase + i, hoja.getSprite(i));

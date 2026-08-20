@@ -21,8 +21,8 @@ public class Ventana extends JFrame {
 		this.addComponentListener(new ComponentAdapter() {
 			@Override
 			public void componentResized(final ComponentEvent evt) {
-				Globales.CONSTANTES.ANCHO_PANTALLA_COMPLETA = evt.getComponent().getWidth();
-				Globales.CONSTANTES.ALTO_PANTALLA_COMPLETA = evt.getComponent().getHeight();
+				Globales.ANCHO_PANTALLA_COMPLETA = evt.getComponent().getWidth();
+				Globales.ALTO_PANTALLA_COMPLETA = evt.getComponent().getHeight();
 				Globales.actualizarFactorEscalado();
 			}
 		});

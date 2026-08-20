@@ -8,6 +8,7 @@ import java.util.ArrayList;
 
 import principal.entes.objetos.items.Item;
 import principal.graficos.SuperficieDibujo;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
 
@@ -158,16 +159,14 @@ public final class GeneradorTooltip {
 	// -----------------------------------------------------------------------
 
 	private int calcularCoordenadaX(final int mouseX, final int anchoTotal) {
-		final int x = (mouseX <= Globales.CONSTANTES.CENTROX) ? mouseX + MARGEN_CURSOR
-				: mouseX - anchoTotal - MARGEN_CURSOR;
+		final int x = (mouseX <= Constantes.CENTROX) ? mouseX + MARGEN_CURSOR : mouseX - anchoTotal - MARGEN_CURSOR;
 
-		return Math.max(2, Math.min(x, Globales.CONSTANTES.ANCHO_JUEGO - anchoTotal - 2));
+		return Math.max(2, Math.min(x, Constantes.ANCHO_JUEGO - anchoTotal - 2));
 	}
 
 	private int calcularCoordenadaY(final int mouseY, final int altoTotal) {
-		final int y = (mouseY <= Globales.CONSTANTES.CENTROY) ? mouseY + MARGEN_CURSOR
-				: mouseY - altoTotal - MARGEN_CURSOR;
+		final int y = (mouseY <= Constantes.CENTROY) ? mouseY + MARGEN_CURSOR : mouseY - altoTotal - MARGEN_CURSOR;
 
-		return Math.max(2, Math.min(y, Globales.CONSTANTES.ALTO_JUEGO - altoTotal - 2));
+		return Math.max(2, Math.min(y, Constantes.ALTO_JUEGO - altoTotal - 2));
 	}
 }

@@ -15,6 +15,7 @@ import principal.inventario.equipamiento.SlotManager;
 import principal.inventario.slot.Slot;
 import principal.inventario.slot.SlotArrojadizo;
 import principal.mapa.Mundo;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -99,8 +100,8 @@ public class Inventario {
 	public Inventario() {
 		this.ANCHO = 202;
 		this.ALTO = 110;
-		this.X = Globales.CONSTANTES.CENTROX - (this.ANCHO / 2);
-		this.Y = Globales.CONSTANTES.CENTROY;
+		this.X = Constantes.CENTROX - (this.ANCHO / 2);
+		this.Y = Constantes.CENTROY;
 		this.MARGEN_GENERAL = 2;
 
 		// 1. Límites globales y subsecciones
@@ -205,8 +206,7 @@ public class Inventario {
 
 		// 3. Previsualización del jugador centrada con compensación de offset
 		if ((Globales.JUGADOR != null) && (Animaciones.JUGADOR != null)) {
-			final int xAnim = (this.AREA_PERSONAJE.x
-					+ ((this.AREA_PERSONAJE.width - Globales.JUGADOR.getAncho()) / 2))
+			final int xAnim = (this.AREA_PERSONAJE.x + ((this.AREA_PERSONAJE.width - Globales.JUGADOR.getAncho()) / 2))
 					- Globales.JUGADOR.getMargenXSprite();
 			final int yAnim = (this.AREA_PERSONAJE.y - Globales.JUGADOR.getMargenYSprite())
 					+ ((this.AREA_PERSONAJE.height - Globales.JUGADOR.getAlto()) / 2);

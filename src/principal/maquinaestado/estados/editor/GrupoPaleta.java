@@ -10,8 +10,8 @@ import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.modelos.tile.ListaModeloTile;
 import principal.entes.objetos.especial.CuadradoInvisible;
 import principal.entes.objetos.especial.ListaObjetosEspeciales;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
-import principal.utilidades.Globales;
 
 public class GrupoPaleta {
 
@@ -35,7 +35,7 @@ public class GrupoPaleta {
 	private void iniciarPaletas() {
 		{
 			final PaletaTile terreno = new PaletaTile(this.AREA.x, this.AREA_CABECERA.y + this.AREA_CABECERA.height,
-					this.AREA.width, this.AREA.height, Globales.CONSTANTES.LADO_TILE);
+					this.AREA.width, this.AREA.height, Constantes.LADO_TILE);
 			terreno.agregarTile(ListaModeloTile.COD_ASFALTO);
 			terreno.agregarTile(ListaModeloTile.COD_ARENA);
 			terreno.agregarTile(ListaModeloTile.COD_CESPED);

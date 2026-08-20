@@ -11,6 +11,7 @@ import principal.maquinaestado.estados.menu.herramientas.Boton;
 import principal.maquinaestado.estados.menu.herramientas.CajaTecla;
 import principal.maquinaestado.estados.menu.herramientas.Componente;
 import principal.maquinaestado.estados.menu.herramientas.Label;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
 
@@ -18,7 +19,7 @@ public class MenuConfiguracion extends Menu {
 	protected final Rectangle AREA_CONFIGURACIONES;
 	protected final int COMIENZO_X = 30;
 	protected final int COMIENZO_Y = 20;
-	protected final int ANCHO_AREA = Globales.CONSTANTES.ANCHO_JUEGO - (this.COMIENZO_X * 2);
+	protected final int ANCHO_AREA = Constantes.ANCHO_JUEGO - (this.COMIENZO_X * 2);
 //	protected final Rectangle AREA_VISTA;
 	protected int y;
 	protected int desplazamiento;
@@ -124,7 +125,7 @@ public class MenuConfiguracion extends Menu {
 	protected void inicializarBotones() {
 
 		// Estos componentes tiene posicion de dibujado fija!
-		final int anchoArea = Globales.CONSTANTES.ANCHO_JUEGO - (this.COMIENZO_X * 2);
+		final int anchoArea = Constantes.ANCHO_JUEGO - (this.COMIENZO_X * 2);
 		final Boton subir = new Boton("Subir", Color.gray,
 				new Rectangle(this.COMIENZO_X + anchoArea + 4, this.COMIENZO_Y, 20, 15));
 		subir.establecerAccion(() -> {

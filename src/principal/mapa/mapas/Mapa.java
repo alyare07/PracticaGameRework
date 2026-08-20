@@ -98,7 +98,7 @@ public abstract class Mapa {
 					JOptionPane.ERROR_MESSAGE);
 			System.exit(0);
 		}
-		Globales.CONSTANTES.LADO_TILE = esc.getTerreno().ladoTile();
+//		Constantes.LADO_TILE = esc.getTerreno().ladoTile();
 		return esc;
 	}
 
@@ -116,16 +116,14 @@ public abstract class Mapa {
 						Integer.parseInt(jsonSpawn.get("y").toString()), jsonSpawn.get("nombre").toString());
 			}
 		}
-		final Mundo m = new Mundo(new Escenario(new Terreno(
-				(JSONObject) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class))),
+		final Mundo m = new Mundo(new Escenario(
+				new Terreno((JSONObject) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class))),
 				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class)))
 						.toString(),
-				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class)))
+				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class))).toString(),
+				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class)))
 						.toString(),
-				((JSONArray) jsonMundo
-						.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class))).toString(),
-				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class)))
-						.toString()),
+				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class))).toString()),
 				comienzo.getPoint());
 		m.llenarSpawn(listaSpawn);
 		return m;

@@ -1,7 +1,7 @@
 package principal.mapa.renderEntidades.camara;
 
 import principal.entes.Ente;
-import principal.utilidades.Globales;
+import principal.utilidades.Constantes;
 
 /**
  * Encapsula el comportamiento de delimitación de bordes para que la cámara no
@@ -78,8 +78,8 @@ public class GestorDeLimites extends Ente {
 		}
 		this.entidadEnfocada = e;
 
-		int anchoTerreno = Globales.CONSTANTES.ANCHO_JUEGO;
-		int altoTerreno = Globales.CONSTANTES.ALTO_JUEGO;
+		int anchoTerreno = Constantes.ANCHO_JUEGO;
+		int altoTerreno = Constantes.ALTO_JUEGO;
 
 		// Protección contra NullPointerException si el mundo/terreno no está
 		// inicializado aún
@@ -91,11 +91,11 @@ public class GestorDeLimites extends Ente {
 		final int enteAncho = (e.getArea() != null) ? e.getArea().width : 0;
 		final int enteAlto = (e.getArea() != null) ? e.getArea().height : 0;
 
-		this.limiteMinimoX = (Globales.CONSTANTES.ANCHO_JUEGO / 2) - (enteAncho / 2);
-		this.limiteMaximoX = anchoTerreno - (Globales.CONSTANTES.ANCHO_JUEGO / 2) - (enteAncho / 2);
+		this.limiteMinimoX = (Constantes.ANCHO_JUEGO / 2) - (enteAncho / 2);
+		this.limiteMaximoX = anchoTerreno - (Constantes.ANCHO_JUEGO / 2) - (enteAncho / 2);
 
-		this.limiteMinimoY = (Globales.CONSTANTES.ALTO_JUEGO / 2) - (enteAlto / 2);
-		this.limiteMaximoY = altoTerreno - (Globales.CONSTANTES.ALTO_JUEGO / 2) - (enteAlto / 2);
+		this.limiteMinimoY = (Constantes.ALTO_JUEGO / 2) - (enteAlto / 2);
+		this.limiteMaximoY = altoTerreno - (Constantes.ALTO_JUEGO / 2) - (enteAlto / 2);
 	}
 
 	public void setEntidadEnfocada(final Ente e, final int limiteMaximoX, final int limiteMinimoX,

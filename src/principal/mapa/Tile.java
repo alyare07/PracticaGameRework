@@ -16,6 +16,7 @@ import principal.entes.modelos.tile.ModeloTile;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.maquinaestado.estados.editor.PaletaComplento;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
 import principal.utilidades.Textura;
@@ -229,7 +230,7 @@ public class Tile implements Serializable {
 		final int x = ((Number) json.get("x")).intValue();
 		final int y = ((Number) json.get("y")).intValue();
 		final int codModelo = ((Number) json.get("codModelo")).intValue();
-		return new Tile(x, y, Globales.CONSTANTES.LADO_TILE, codModelo);
+		return new Tile(x, y, Constantes.LADO_TILE, codModelo);
 	}
 
 	@Override

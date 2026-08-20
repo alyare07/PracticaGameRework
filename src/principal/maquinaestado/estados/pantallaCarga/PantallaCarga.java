@@ -7,6 +7,7 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 
 import principal.maquinaestado.estados.EstadoJuego;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
 
@@ -19,8 +20,7 @@ public class PantallaCarga implements EstadoJuego {
 	protected final GestorCarga GC;
 	protected final BufferedImage FONDO;
 
-	protected final Dimension DIMENSION = new Dimension(Globales.CONSTANTES.ANCHO_JUEGO,
-			Globales.CONSTANTES.ALTO_JUEGO);
+	protected final Dimension DIMENSION = new Dimension(Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
 	protected final int MARGEN_MARCO = 50;
 
 	protected final Rectangle MARCO_SUPERIOR = new Rectangle(0, 0, this.DIMENSION.width, this.MARGEN_MARCO);
@@ -38,10 +38,8 @@ public class PantallaCarga implements EstadoJuego {
 
 	public PantallaCarga(final GestorCarga gc, final BufferedImage fondo) {
 		this.GC = gc;
-		this.FONDO = (fondo != null)
-				? Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(fondo,
-						Globales.CONSTANTES.ANCHO_JUEGO - (2 * this.MARGEN_MARCO),
-						Globales.CONSTANTES.ALTO_JUEGO - (2 * this.MARGEN_MARCO))
+		this.FONDO = (fondo != null) ? Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(fondo,
+				Constantes.ANCHO_JUEGO - (2 * this.MARGEN_MARCO), Constantes.ALTO_JUEGO - (2 * this.MARGEN_MARCO))
 				: Globales.FUNCIONES.TEXTURAS_TOOLS.crearTextura(new Color(20, 25, 30), this.DIMENSION.width,
 						this.DIMENSION.height);
 	}

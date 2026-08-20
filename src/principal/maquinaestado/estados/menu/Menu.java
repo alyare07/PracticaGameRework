@@ -9,13 +9,13 @@ import java.util.ArrayList;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.EstadoJuego;
 import principal.maquinaestado.estados.menu.herramientas.Componente;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
 
 public abstract class Menu implements EstadoJuego {
 	protected final GestorEstados GE;
-	protected final Dimension DIMENSION = new Dimension(Globales.CONSTANTES.ANCHO_JUEGO,
-			Globales.CONSTANTES.ALTO_JUEGO);
+	protected final Dimension DIMENSION = new Dimension(Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
 	protected final BufferedImage FONDO = Globales.FUNCIONES.TEXTURAS_TOOLS.crearTextura(new Color(20, 20, 19),
 			this.DIMENSION.width, this.DIMENSION.height);
 	protected final ArrayList<Componente> COMPONENTES = new ArrayList<Componente>();

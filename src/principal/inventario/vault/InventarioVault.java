@@ -19,6 +19,7 @@ import principal.inventario.Inventario;
 import principal.inventario.equipamiento.SlotManager;
 import principal.inventario.slot.Slot;
 import principal.mapa.Mundo;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -220,8 +221,7 @@ public class InventarioVault {
 		if (this.estadoInventario == EstadoInventario.CERRADO) {
 			// Apertura: Requiere estar en rango, pulsar tecla y que no haya otro menú
 			// abierto
-			if (!Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && jugadorEnRango
-					&& teclaPresionada) {
+			if (!Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && jugadorEnRango && teclaPresionada) {
 				this.estadoInventario = EstadoInventario.ABIERTO;
 				Globales.GESTOR_INVENTARIO.abrirInventarioTercero(this);
 				Globales.GESTOR_INVENTARIO.getInventarioJugador().hacerVisible();
@@ -229,8 +229,7 @@ public class InventarioVault {
 		} else if (this.estadoInventario == EstadoInventario.ABIERTO) {
 			// Cierre reactivo: Si el jugador se aleja, cierra su inventario o presiona la
 			// tecla de nuevo
-			if (!Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible() || teclaPresionada
-					|| !jugadorEnRango) {
+			if (!Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible() || teclaPresionada || !jugadorEnRango) {
 				this.cerrar();
 			}
 		}
@@ -331,8 +330,8 @@ public class InventarioVault {
 
 		// 2. Dimensionamiento del alto total (grilla + barra de título)
 		final int alto = MARGEN + (cantFilas * this.ladoSlots) + (MARGEN * cantFilas);
-		final int x = Globales.CONSTANTES.CENTROX - (ancho / 2);
-		final int y = Globales.CONSTANTES.CENTROY - alto - (MARGEN * 3) - MARGEN_PORTADA;
+		final int x = Constantes.CENTROX - (ancho / 2);
+		final int y = Constantes.CENTROY - alto - (MARGEN * 3) - MARGEN_PORTADA;
 
 		this.area.x = x;
 		this.area.y = y;

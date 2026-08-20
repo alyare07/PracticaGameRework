@@ -28,6 +28,7 @@ import principal.mapa.mapas.MapaManager;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.maquinaestado.estados.pantallaCarga.cargaMapa;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -195,8 +196,8 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 			final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
 			final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, texto);
-			final int x = Globales.CONSTANTES.CENTROX - (anchoTexto / 2);
-			final int y = Globales.CONSTANTES.CENTROY - (altoTexto / 2);
+			final int x = Constantes.CENTROX - (anchoTexto / 2);
+			final int y = Constantes.CENTROY - (altoTexto / 2);
 
 			DibujoDebug.dibujarString(g, texto, x, y, color);
 			g.setFont(fuenteOriginal);
@@ -220,42 +221,29 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			g.setColor(Color.green);
 			DibujoDebug.dibujarString(g, "X: " + String.valueOf(Globales.JUGADOR.getPosicionXInt()), 20, 80);
 			DibujoDebug.dibujarString(g, "Y: " + String.valueOf(Globales.JUGADOR.getPosicionYInt()), 20, 95);
-			DibujoDebug.dibujarString(g, "X_PARADO: " + String.valueOf(Globales.JUGADOR.getPosicionXParado()),
-					20, 110);
-			DibujoDebug.dibujarString(g, "Y_PARADO: " + String.valueOf(Globales.JUGADOR.getPosicionYParado()),
-					20, 125);
-			DibujoDebug.dibujarString(g, "Velocidad: " + String.valueOf(Globales.JUGADOR.getVelocidad()), 20,
-					140);
+			DibujoDebug.dibujarString(g, "X_PARADO: " + String.valueOf(Globales.JUGADOR.getPosicionXParado()), 20, 110);
+			DibujoDebug.dibujarString(g, "Y_PARADO: " + String.valueOf(Globales.JUGADOR.getPosicionYParado()), 20, 125);
+			DibujoDebug.dibujarString(g, "Velocidad: " + String.valueOf(Globales.JUGADOR.getVelocidad()), 20, 140);
 			DibujoDebug.dibujarString(g,
-					"Dijkstra(F2): " + (Globales.TECLADO.TECLA_DIJKSTRA.presionado() ? "Activo" : "Inactivo"),
-					20, 155);
+					"Dijkstra(F2): " + (Globales.TECLADO.TECLA_DIJKSTRA.presionado() ? "Activo" : "Inactivo"), 20, 155);
 			DibujoDebug.dibujarString(g,
-					"DijkstraInfo(F6): "
-							+ (Globales.TECLADO.TECLA_DIJKSTRA_INFO.presionado() ? "Activo" : "Inactivo"),
+					"DijkstraInfo(F6): " + (Globales.TECLADO.TECLA_DIJKSTRA_INFO.presionado() ? "Activo" : "Inactivo"),
 					20, 170);
+			DibujoDebug.dibujarString(g, "DebugGroupTile(F4): "
+					+ (Globales.TECLADO.TECLA_DEBUG_GROUP_TILE.presionado() ? "Activo" : "Inactivo"), 20, 185);
 			DibujoDebug.dibujarString(g,
-					"DebugGroupTile(F4): "
-							+ (Globales.TECLADO.TECLA_DEBUG_GROUP_TILE.presionado() ? "Activo" : "Inactivo"),
-					20, 185);
+					"DebugTile(F3): " + (Globales.TECLADO.TECLA_DEBUG_TILE.presionado() ? "Activo" : "Inactivo"), 20,
+					200);
+			DibujoDebug.dibujarString(g, "DebugTileInfo(F5): "
+					+ (Globales.TECLADO.TECLA_DEBUG_TILE_INFO.presionado() ? "Activo" : "Inactivo"), 20, 215);
+			DibujoDebug.dibujarString(g, "VerColisiones(F7): "
+					+ (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() ? "Activo" : "Inactivo"), 20, 230);
+			DibujoDebug.dibujarString(g, "OcultarTerreno(F8): "
+					+ (Globales.TECLADO.TECLA_OCULTAR_TERRENO.presionado() ? "Activo" : "Inactivo"), 20, 245);
 			DibujoDebug.dibujarString(g,
-					"DebugTile(F3): "
-							+ (Globales.TECLADO.TECLA_DEBUG_TILE.presionado() ? "Activo" : "Inactivo"),
-					20, 200);
-			DibujoDebug.dibujarString(g,
-					"DebugTileInfo(F5): "
-							+ (Globales.TECLADO.TECLA_DEBUG_TILE_INFO.presionado() ? "Activo" : "Inactivo"),
-					20, 215);
-			DibujoDebug.dibujarString(g,
-					"VerColisiones(F7): "
-							+ (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() ? "Activo" : "Inactivo"),
-					20, 230);
-			DibujoDebug.dibujarString(g,
-					"OcultarTerreno(F8): "
-							+ (Globales.TECLADO.TECLA_OCULTAR_TERRENO.presionado() ? "Activo" : "Inactivo"),
-					20, 245);
-			DibujoDebug.dibujarString(g, "OcultarComplementos(F9): "
-					+ (Globales.TECLADO.TECLA_OCULTAR_COMPLEMENTOS.presionado() ? "Activo" : "Inactivo"), 20,
-					260);
+					"OcultarComplementos(F9): "
+							+ (Globales.TECLADO.TECLA_OCULTAR_COMPLEMENTOS.presionado() ? "Activo" : "Inactivo"),
+					20, 260);
 			DibujoDebug.dibujarString(g,
 					"VerAlcanceAtaque(F10): "
 							+ (Globales.TECLADO.TECLA_VER_ALCANCE_ATAQUE.presionado() ? "Activo" : "Inactivo"),
@@ -263,8 +251,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			DibujoDebug.dibujarString(g, "Direccion: " + Globales.JUGADOR.getDireccion().toString(), 20, 290);
 			DibujoDebug.dibujarString(g, "Estados: " + Globales.JUGADOR.getStringEstados(), 20, 305);
 			DibujoDebug.dibujarString(g,
-					"FPS Limitado(F11): "
-							+ (Globales.TECLADO.TECLA_FPS_LIMITE.presionado() ? "Activo" : "Inactivo"),
+					"FPS Limitado(F11): " + (Globales.TECLADO.TECLA_FPS_LIMITE.presionado() ? "Activo" : "Inactivo"),
 					20, 320);
 		}
 	}
@@ -351,9 +338,8 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	}
 
 	private void pintarTiempoJugado(final Graphics2D g) {
-		final String texto = String.valueOf(Globales.horasJugadas) + "h "
-				+ String.valueOf(Globales.minutosJugados) + "m "
-				+ String.valueOf(Globales.segundosJugados) + "s";
+		final String texto = String.valueOf(Globales.horasJugadas) + "h " + String.valueOf(Globales.minutosJugados)
+				+ "m " + String.valueOf(Globales.segundosJugados) + "s";
 		DibujoDebug.dibujarString(g, texto, 20, 20, Color.CYAN);
 	}
 

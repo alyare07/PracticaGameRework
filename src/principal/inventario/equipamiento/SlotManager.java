@@ -19,6 +19,7 @@ import principal.inventario.slot.Slot;
 import principal.inventario.slot.SlotArrojadizo;
 import principal.inventario.slot.SlotIGU;
 import principal.mapa.Mundo;
+import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.inventario.ItemPuntero;
@@ -561,7 +562,7 @@ public class SlotManager {
 	}
 
 	private void llenarSlotsIGU() {
-		final int posIguY = Globales.CONSTANTES.ALTO_JUEGO - LADO_SLOTS - this.MARGEN_GENERAL;
+		final int posIguY = Constantes.ALTO_JUEGO - LADO_SLOTS - this.MARGEN_GENERAL;
 
 		for (final Slot slot : this.LISTA_SLOTS_PRINCIPALES) {
 			this.LISTA_SLOTS_IGU.add(new SlotIGU(slot, slot.getX(), posIguY));

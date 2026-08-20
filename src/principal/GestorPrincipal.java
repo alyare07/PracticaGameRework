@@ -5,6 +5,7 @@ import java.util.concurrent.locks.LockSupport;
 import principal.graficos.SuperficieDibujo;
 import principal.graficos.Ventana;
 import principal.maquinaestado.GestorEstados;
+import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 import principal.utilidades.audio.musica.GestorMusica;
 import principal.utilidades.audio.sonido.GestorSonido;
@@ -170,7 +171,7 @@ public class GestorPrincipal {
 	}
 
 	private void siguienteAnimacion() {
-		if (Globales.animacion < Globales.CONSTANTES.LIMITE_ANIMACION) {
+		if (Globales.animacion < Constantes.LIMITE_ANIMACION) {
 			Globales.animacion++;
 		} else {
 			Globales.animacion = 0;

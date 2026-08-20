@@ -1,5 +1,7 @@
 package principal.utilidades;
 
+import java.awt.Toolkit;
+
 import principal.Main;
 import principal.animaciones.listaHojasSprite.ListaHojaSprites;
 import principal.controles.Raton;
@@ -29,10 +31,10 @@ public class Globales {
 	public static boolean editorSelectGroupTile;
 	public static boolean viendoContenedor;
 	public static InventarioVault inventarioVault;
-
-	public static final Constantes CONSTANTES = new Constantes();
-	public static double FACTOR_ESCALADO_X = CONSTANTES.ANCHO_PANTALLA_COMPLETA / (double) CONSTANTES.ANCHO_JUEGO;
-	public static double FACTOR_ESCALADO_Y = CONSTANTES.ALTO_PANTALLA_COMPLETA / (double) CONSTANTES.ALTO_JUEGO;
+	public static int ANCHO_PANTALLA_COMPLETA = Toolkit.getDefaultToolkit().getScreenSize().width;
+	public static int ALTO_PANTALLA_COMPLETA = Toolkit.getDefaultToolkit().getScreenSize().height;
+	public static double FACTOR_ESCALADO_X = ANCHO_PANTALLA_COMPLETA / (double) (Constantes.ANCHO_JUEGO);
+	public static double FACTOR_ESCALADO_Y = ALTO_PANTALLA_COMPLETA / (double) Constantes.ALTO_JUEGO;
 	public static final GestorTiempo TECLEO_RECOGIDA = new GestorTiempo();
 	public static final Teclado TECLADO = new Teclado();
 	public static final Raton RATON = new Raton();
@@ -45,8 +47,8 @@ public class Globales {
 	public static Camara CAMARA = new Camara(JUGADOR);
 
 	public static void actualizarFactorEscalado() {
-		FACTOR_ESCALADO_X = CONSTANTES.ANCHO_PANTALLA_COMPLETA / (double) CONSTANTES.ANCHO_JUEGO;
-		FACTOR_ESCALADO_Y = CONSTANTES.ALTO_PANTALLA_COMPLETA / (double) CONSTANTES.ALTO_JUEGO;
+		FACTOR_ESCALADO_X = ANCHO_PANTALLA_COMPLETA / (double) Constantes.ANCHO_JUEGO;
+		FACTOR_ESCALADO_Y = ALTO_PANTALLA_COMPLETA / (double) Constantes.ALTO_JUEGO;
 	}
 
 	/**

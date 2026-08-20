@@ -16,6 +16,7 @@ import principal.maquinaestado.estados.menu.MenuConfiguracionEnPartida;
 import principal.maquinaestado.estados.menu.MenuEdirorSeleccion;
 import principal.maquinaestado.estados.menu.MenuEditorNuevo;
 import principal.maquinaestado.estados.menu.MenuPrincipal;
+import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 
 /**
@@ -104,8 +105,7 @@ public class GestorEstados {
 
 	public void editorMapa(final int cantAncho, final int cantAlto, final int idModeloTile) {
 		Globales.estadoJuego = false;
-		this.estados[2] = new EditorMapa(Globales.CONSTANTES.LADO_TILE, cantAncho, cantAlto, idModeloTile,
-				this);
+		this.estados[2] = new EditorMapa(Constantes.LADO_TILE, cantAncho, cantAlto, idModeloTile, this);
 		this.estadoActual = this.estados[2];
 	}
 

@@ -13,6 +13,7 @@ import org.json.simple.parser.ParseException;
 
 import principal.entes.modelos.tile.ListaModeloTile;
 import principal.entes.modelos.tile.ModeloTile;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
 import principal.utilidades.Textura;
@@ -122,8 +123,8 @@ public final class GroupTile extends Tile {
 		}
 
 		// Convertimos el punto de la grilla de tiles a coordenadas relativas (0 o 1)
-		final int worldX = puntoTile.x * Globales.CONSTANTES.LADO_TILE;
-		final int worldY = puntoTile.y * Globales.CONSTANTES.LADO_TILE;
+		final int worldX = puntoTile.x * Constantes.LADO_TILE;
+		final int worldY = puntoTile.y * Constantes.LADO_TILE;
 
 		final int relX = Math.floorDiv(worldX - this.X, this.LADO_TILES);
 		final int relY = Math.floorDiv(worldY - this.Y, this.LADO_TILES);
@@ -250,7 +251,7 @@ public final class GroupTile extends Tile {
 			t4 = Tile.crearDesdeJson((JSONObject) tiles.get(3));
 		}
 
-		return new GroupTile(x, y, Globales.CONSTANTES.LADO_TILE * 2, t1, t2, t3, t4);
+		return new GroupTile(x, y, Constantes.LADO_TILE * 2, t1, t2, t3, t4);
 	}
 
 	@Override

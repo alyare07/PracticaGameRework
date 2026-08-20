@@ -11,6 +11,7 @@ import java.awt.image.BufferStrategy;
 
 import principal.controles.Raton;
 import principal.maquinaestado.GestorEstados;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
 
@@ -50,8 +51,7 @@ public class SuperficieDibujo extends Canvas {
 	 */
 	public static SuperficieDibujo obtenerSuperficieDibujo() {
 		if (instancia == null) {
-			instancia = new SuperficieDibujo(Globales.CONSTANTES.ANCHO_PANTALLA_COMPLETA,
-					Globales.CONSTANTES.ALTO_PANTALLA_COMPLETA);
+			instancia = new SuperficieDibujo(Globales.ANCHO_PANTALLA_COMPLETA, Globales.ALTO_PANTALLA_COMPLETA);
 		}
 		return instancia;
 	}
@@ -100,8 +100,7 @@ public class SuperficieDibujo extends Canvas {
 			// --- INICIO DEL DIBUJADO ---
 
 			// 1. Limpieza de fondo (Vaciado de pantalla)
-			DibujoDebug.dibujarRectanguloRelleno(g, 0, 0, Globales.CONSTANTES.ANCHO_JUEGO,
-					Globales.CONSTANTES.ALTO_JUEGO, Color.BLACK);
+			DibujoDebug.dibujarRectanguloRelleno(g, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO, Color.BLACK);
 
 			// 2. Renderizado del estado actual del juego
 			if (ge != null) {

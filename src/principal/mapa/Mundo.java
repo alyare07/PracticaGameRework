@@ -37,6 +37,7 @@ import principal.mapa.renderEntidades.MapRender;
 import principal.mapa.renderEntidades.RenderEntidad;
 import principal.mapa.renderEntidades.ZoneBox;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
 
@@ -574,15 +575,11 @@ public class Mundo {
 
 		// 1. Delimita el área visible de la cámara con margen de seguridad (padding de
 		// 3 nodos)
-		final int minX = Globales.CAMARA.getPosicionXInt() - Globales.CONSTANTES.CENTROX
-				- (3 * anchoNodo);
-		final int maxX = Globales.CAMARA.getPosicionXInt() + Globales.CONSTANTES.CENTROX
-				+ (3 * anchoNodo);
+		final int minX = Globales.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * anchoNodo);
+		final int maxX = Globales.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * anchoNodo);
 
-		final int minY = Globales.CAMARA.getPosicionYInt() - Globales.CONSTANTES.CENTROY
-				- (3 * altoNodo);
-		final int maxY = Globales.CAMARA.getPosicionYInt() + Globales.CONSTANTES.CENTROY
-				+ (3 * altoNodo);
+		final int minY = Globales.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * altoNodo);
+		final int maxY = Globales.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * altoNodo);
 
 		// 2. Proyección exacta a índices de grilla discreta (resiste coordenadas
 		// negativas)

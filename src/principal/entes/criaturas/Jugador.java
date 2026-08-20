@@ -32,6 +32,7 @@ import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.Tile;
 import principal.mapa.renderEntidades.ZoneBox;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -89,8 +90,8 @@ public class Jugador extends Criatura {
 
 		final int anchoSprite = 32;
 		final int altoSprite = 32;
-		this.MARGENX = Globales.CONSTANTES.CENTROX - (anchoSprite / 2);
-		this.MARGENY = Globales.CONSTANTES.CENTROY - (altoSprite / 2);
+		this.MARGENX = Constantes.CENTROX - (anchoSprite / 2);
+		this.MARGENY = Constantes.CENTROY - (altoSprite / 2);
 
 		this.establecerVidaMaxima(this.PTS_VIDAMAX_BASE);
 		this.damage = this.PTS_DAMAGE_BASE;
@@ -171,10 +172,8 @@ public class Jugador extends Criatura {
 				final String txt = String.valueOf(pos++);
 				DibujoDebug.dibujarRectanguloContornoRefCamara(g, xNodoAux, yNodoAux, wNodoAux, hNodoAux, Color.BLUE);
 				DibujoDebug.dibujarStringRefCamara(g, txt,
-						(xNodoAux + (wNodoAux / 2))
-								- (Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
-						yNodoAux + (hNodoAux / 2)
-								+ (Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
+						(xNodoAux + (wNodoAux / 2)) - (Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
+						yNodoAux + (hNodoAux / 2) + (Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
 						Color.BLACK);
 			}
 			if (this.nodoADestino != null) {
@@ -188,8 +187,7 @@ public class Jugador extends Criatura {
 	}
 
 	private void pintarAreaDeteccion(final Graphics2D g) {
-		if (!Globales.TECLADO.TECLA_DEBUG.presionado() || !Globales.isEstadoJuego()
-				|| (this.mundo == null)) {
+		if (!Globales.TECLADO.TECLA_DEBUG.presionado() || !Globales.isEstadoJuego() || (this.mundo == null)) {
 			return;
 		}
 
@@ -269,8 +267,7 @@ public class Jugador extends Criatura {
 				return;
 			}
 
-			if (Globales.TECLADO.TECLA_DEBUG.presionado()
-					&& Globales.RATON.presionadoClickDerUnicaAct()) {
+			if (Globales.TECLADO.TECLA_DEBUG.presionado() && Globales.RATON.presionadoClickDerUnicaAct()) {
 				if (this.moviendoPorRecorrido) {
 					this.nodoDDestino = null;
 					this.recorridoD = null;
@@ -278,8 +275,8 @@ public class Jugador extends Criatura {
 				}
 
 				final Point p = Globales.RATON.getPuntoPosicionEscaladoConDesplazamientoCamara();
-				if (!this.mundo.getTerreno().AreaDentroDelTerreno(
-						Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara())) {
+				if (!this.mundo.getTerreno()
+						.AreaDentroDelTerreno(Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara())) {
 					return;
 				}
 
@@ -346,11 +343,10 @@ public class Jugador extends Criatura {
 
 	private void actualizarMovimientoMouseAEstrella() {
 		if ((this.recorridoA == null) || Globales.RATON.presionadoClickDerUnicaAct()) {
-			if (Globales.TECLADO.TECLA_DEBUG_TILE_INFO.presionado()
-					&& Globales.RATON.presionadoClickDerUnicaAct()) {
+			if (Globales.TECLADO.TECLA_DEBUG_TILE_INFO.presionado() && Globales.RATON.presionadoClickDerUnicaAct()) {
 				final Point p = Globales.RATON.getPuntoPosicionEscaladoConDesplazamientoCamara();
-				if (!this.mundo.getTerreno().AreaDentroDelTerreno(
-						Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara())) {
+				if (!this.mundo.getTerreno()
+						.AreaDentroDelTerreno(Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara())) {
 					return;
 				}
 
@@ -555,8 +551,7 @@ public class Jugador extends Criatura {
 		if (Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()) {
 			this.meterEstado(Estado.ARROJANDO);
 			if (Globales.RATON.presionadoClickIzqUnicaAct()) {
-				final Rectangle areaRaton = Globales.RATON
-						.getRectanguloPosicionEscaladoConDesplazamientoCamara();
+				final Rectangle areaRaton = Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
 				final Arrojadizo item = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo()
 						.getItemArrojadizo();
 				item.arrojar(areaRaton.x, areaRaton.y, this.direccion, this.mundo, this, false);
@@ -667,10 +662,8 @@ public class Jugador extends Criatura {
 		this.establecerVelocidadStardar();
 
 		if (Globales.TECLADO.TECLA_CORRIENDO.presionado()) {
-			if (Globales.TECLADO.TECLA_ARRIBA.presionado()
-					|| Globales.TECLADO.TECLA_ABAJO.presionado()
-					|| Globales.TECLADO.TECLA_DERECHA.presionado()
-					|| Globales.TECLADO.TECLA_IZQUIERDA.presionado()) {
+			if (Globales.TECLADO.TECLA_ARRIBA.presionado() || Globales.TECLADO.TECLA_ABAJO.presionado()
+					|| Globales.TECLADO.TECLA_DERECHA.presionado() || Globales.TECLADO.TECLA_IZQUIERDA.presionado()) {
 				if (this.gastarEstamina()) {
 					this.velocidad = this.velocidadEstandar * 3.5;
 					corriendo = true;
@@ -777,7 +770,7 @@ public class Jugador extends Criatura {
 
 		g.setFont(g.getFont().deriveFont(4f));
 		DibujoDebug.dibujarString(g, (int) this.vida + "/" + (int) this.vidaMaxima, posX, posY - 6, Color.WHITE);
-		g.setFont(g.getFont().deriveFont(Globales.CONSTANTES.TAMANO_FUENTE));
+		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 	}
 
 	public int getDesplazamientoX() {
@@ -820,8 +813,8 @@ public class Jugador extends Criatura {
 	}
 
 	public Point getPosicionTileParado() {
-		this.PUNTO_AUXILIAR.setLocation((int) (this.x + 3) / Globales.CONSTANTES.LADO_TILE,
-				(int) ((this.y + this.ALTO) - 1) / Globales.CONSTANTES.LADO_TILE);
+		this.PUNTO_AUXILIAR.setLocation((int) (this.x + 3) / Constantes.LADO_TILE,
+				(int) ((this.y + this.ALTO) - 1) / Constantes.LADO_TILE);
 		return this.PUNTO_AUXILIAR;
 	}
 
@@ -869,8 +862,7 @@ public class Jugador extends Criatura {
 
 	@Override
 	public Point getPosicionTile() {
-		this.PUNTO_AUXILIAR.setLocation((int) this.x / Globales.CONSTANTES.LADO_TILE,
-				(int) this.y / Globales.CONSTANTES.LADO_TILE);
+		this.PUNTO_AUXILIAR.setLocation((int) this.x / Constantes.LADO_TILE, (int) this.y / Constantes.LADO_TILE);
 		return this.PUNTO_AUXILIAR;
 	}
 

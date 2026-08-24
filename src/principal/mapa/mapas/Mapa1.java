@@ -11,6 +11,7 @@ import principal.entes.criaturas.enemigos.bandido.Bandido;
 import principal.entes.criaturas.enemigos.bandido.BandidoGarrote;
 import principal.entes.criaturas.enemigos.bandido.BandidoGranadero;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
+import principal.entes.objetos.ArbolCofre;
 import principal.eventos.EventoJugadorZonaTP;
 import principal.mapa.Mundo;
 import principal.mapa.escenario.tps.PuertaArea;
@@ -70,7 +71,7 @@ public class Mapa1 extends Mapa {
 		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 50, 50, this.mundoActual));
 //		this.generarEnemigosParaPrueba(100);
-
+		this.mundoActual.meterEntidad(new ArbolCofre(767, 424));
 	}
 
 	/***

@@ -33,6 +33,8 @@ public abstract class Cofre extends Objeto implements Contenedor {
 	@Override
 	public void actualizar() {
 
+		this.INVENTARIO.actualizarEstadoCofre();
+
 	}
 
 	public boolean meterItem(final Item i) {

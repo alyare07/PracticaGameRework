@@ -16,7 +16,7 @@ import org.json.simple.JSONObject;
 import principal.animaciones.Animaciones;
 import principal.entes.Ente;
 import principal.entes.modelos.tile.ListaModeloTile;
-import principal.entes.objetos.cofres.Cofre;
+import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Consumible;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.armas.Arma;
@@ -207,9 +207,11 @@ public class Jugador extends Criatura {
 				}
 			}
 
-			for (final Cofre cofre : zb.getCofres()) {
-				if (this.CHECK_LIST_DEBUG.add(cofre) && areaInteraccionCofre.intersects(cofre.getArea())) {
-					DibujoDebug.dibujarRectanguloContornoRefCamara(g, cofre.getArea(), Color.CYAN);
+			/// REVERR ACA LO DE
+			/// COFRE----------------------------------------------------------------------
+			for (final Objeto objeto : zb.getObjetos()) {
+				if (this.CHECK_LIST_DEBUG.add(objeto) && areaInteraccionCofre.intersects(objeto.getArea())) {
+					DibujoDebug.dibujarRectanguloContornoRefCamara(g, objeto.getArea(), Color.CYAN);
 				}
 			}
 		}

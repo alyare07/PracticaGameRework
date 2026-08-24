@@ -471,6 +471,10 @@ public class InventarioVault {
 		return this.area;
 	}
 
+	public String getNombre() {
+		return this.nombre;
+	}
+
 	public GestorTiempo getGestorTiempo() {
 		return this.gtRatonPresiono;
 	}

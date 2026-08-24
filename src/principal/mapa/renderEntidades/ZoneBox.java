@@ -10,9 +10,8 @@ import java.util.Set;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.objetos.Complemento;
-import principal.entes.objetos.cofres.Cofre;
+import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
-import principal.inventario.Contenedor;
 import principal.mapa.Mundo;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.utilidades.Globales;
@@ -41,7 +40,7 @@ public class ZoneBox extends Ente {
 	 */
 	private final ArrayList<Criatura> tempCriaturas = new ArrayList<>();
 	private final ArrayList<Item> tempItems = new ArrayList<>();
-	private final ArrayList<Contenedor> tempCofres = new ArrayList<>();
+	private final ArrayList<Objeto> tempObjetos = new ArrayList<>();
 	private final ArrayList<ZonaTP> tempTPs = new ArrayList<>();
 
 	/**
@@ -49,7 +48,7 @@ public class ZoneBox extends Ente {
 	 */
 	protected final Set<Criatura> CRIATURAS = new LinkedHashSet<>();
 	protected final Set<Item> ITEMS = new LinkedHashSet<>();
-	protected final Set<Cofre> CONTENEDORES = new LinkedHashSet<>();
+	protected final Set<Objeto> OBJETOS = new LinkedHashSet<>();
 	protected final Set<Complemento> COMPLEMENTOS = new LinkedHashSet<>();
 	protected final Set<ZonaTP> ZONAS_TP = new LinkedHashSet<>();
 
@@ -89,16 +88,15 @@ public class ZoneBox extends Ente {
 		RenderEntidad re = null;
 
 		// --- ACTUALIZACIÓN DE CONTENEDORES ---
-		if (!this.CONTENEDORES.isEmpty()) {
-			this.tempCofres.clear();
-			this.tempCofres.addAll(this.CONTENEDORES);
-			for (int i = 0; i < this.tempCofres.size(); i++) {
-				final Contenedor contenedor = this.tempCofres.get(i);
-				// Valida que el cofre siga perteneciendo al Set antes de actualizar
-				if (this.CONTENEDORES.contains(contenedor)) {
-					re = this.mundo.getRenders().getRender(contenedor.getEntePropietario());
+		if (!this.OBJETOS.isEmpty()) {
+			this.tempObjetos.clear();
+			this.tempObjetos.addAll(this.OBJETOS);
+			for (int i = 0; i < this.tempObjetos.size(); i++) {
+				final Objeto objeto = this.tempObjetos.get(i);
+				if (this.OBJETOS.contains(objeto)) {
+					re = this.mundo.getRenders().getRender(objeto);
 					if ((re != null) && !re.estaRenderizado()) {
-						contenedor.getInventario().actualizarEstadoCofre();
+						objeto.actualizar();
 						re.update();
 						re.renderizado();
 					}
@@ -180,7 +178,7 @@ public class ZoneBox extends Ente {
 			}
 		}
 
-		for (final Cofre c : this.CONTENEDORES) {
+		for (final Objeto c : this.OBJETOS) {
 			re = this.mundo.getRenders().getRender(c);
 			if ((re != null) && !re.estaPintado()) {
 				c.pintar(g);
@@ -224,10 +222,10 @@ public class ZoneBox extends Ente {
 			this.CRIATURAS.add((Criatura) e);
 		} else if (e instanceof Item) {
 			this.ITEMS.add((Item) e);
-		} else if (e instanceof Cofre) {
-			this.CONTENEDORES.add((Cofre) e);
 		} else if (e instanceof Complemento) {
 			this.COMPLEMENTOS.add((Complemento) e);
+		} else if (e instanceof Objeto) {
+			this.OBJETOS.add((Objeto) e);
 		} else if (e instanceof ZonaTP) {
 			this.ZONAS_TP.add((ZonaTP) e);
 		}
@@ -243,10 +241,10 @@ public class ZoneBox extends Ente {
 			this.CRIATURAS.remove(e);
 		} else if (e instanceof Item) {
 			this.ITEMS.remove(e);
-		} else if (e instanceof Cofre) {
-			this.CONTENEDORES.remove(e);
 		} else if (e instanceof Complemento) {
 			this.COMPLEMENTOS.remove(e);
+		} else if (e instanceof Objeto) {
+			this.OBJETOS.remove(e);
 		} else if (e instanceof ZonaTP) {
 			this.ZONAS_TP.remove(e);
 		}
@@ -276,7 +274,7 @@ public class ZoneBox extends Ente {
 			}
 		}
 
-		for (final Cofre c : this.CONTENEDORES) {
+		for (final Objeto c : this.OBJETOS) {
 			if (area.intersects(c.getArea())) {
 				lista.add(c);
 			}
@@ -368,7 +366,7 @@ public class ZoneBox extends Ente {
 				return true;
 			}
 		}
-		for (final Cofre c : this.CONTENEDORES) {
+		for (final Objeto c : this.OBJETOS) {
 			if (area.intersects(c.getArea()) && c.esSolido()) {
 				return true;
 			}
@@ -385,7 +383,7 @@ public class ZoneBox extends Ente {
 				return true;
 			}
 		}
-		for (final Cofre c : this.CONTENEDORES) {
+		for (final Objeto c : this.OBJETOS) {
 			if (area.intersects(c.getArea()) && c.esSolido()) {
 				return true;
 			}
@@ -425,8 +423,8 @@ public class ZoneBox extends Ente {
 		return this.ITEMS;
 	}
 
-	public Set<Cofre> getCofres() {
-		return this.CONTENEDORES;
+	public Set<Objeto> getObjetos() {
+		return this.OBJETOS;
 	}
 
 	@Override

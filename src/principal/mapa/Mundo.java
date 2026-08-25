@@ -47,6 +47,9 @@ public class Mundo {
 	protected final int LADO_ZONEBOX = 64;
 	protected final MapRender RENDERS;
 	private boolean forzarUnaActualizacionDijkstra;
+	// Estructura auxiliar reutilizable para consultas O(1) de ZoneBox sin
+	// instanciar 'new Point'
+	private final Point CLAVE_BUSQUEDA_ZONAS = new Point();
 	/*
 	 * LAS ZONAS SE PODRIAN SEPARAR EN ZONAS DE ITEM, CRIATURAS, ETC. SEGUN SEA
 	 * NECESARIO?
@@ -127,22 +130,111 @@ public class Mundo {
 	public void actualizar() {
 
 		this.actualizarDijkstra();
-		this.getTerreno().actualizarZonas(this.ZONAS, this.LADO_ZONEBOX);
+		this.actualizarZonas();
 		this.actualizarParticulas();
 		this.actualizarProyectiles();
 		this.updateNextCodAct();
 	}
 
+	// En Mundo.java:
+
 	public void pintar(final Graphics2D g) {
 		this.ESCENARIO.getTerreno().pintar(g);
 		this.pintarParticulas(g);
-		this.getTerreno().pintarZonas(g, this.ZONAS, this.LADO_ZONEBOX);
+		this.pintarZonas(g);
 		this.pintarProyectiles(g);
+
 		if (Globales.TECLADO.TECLA_DIJKSTRA_INFO.presionado()) {
 			this.pintarNodosOptimizado(g);
 		}
 
 		this.updateNextCodPintado();
+	}
+
+	/**
+	 * Renderiza únicamente las celdas espaciales (ZoneBox) y entidades visibles
+	 * dentro del frustum de la cámara (adaptado dinámicamente al Zoom actual). CERO
+	 * asignaciones en el Heap (Zero-GC).
+	 *
+	 * @param g Contexto gráfico Graphics2D.
+	 */
+	protected void pintarZonas(final Graphics2D g) {
+		if ((this.ZONAS == null) || this.ZONAS.isEmpty()) {
+			return;
+		}
+
+		final double z = Globales.CAMARA.getZoom();
+
+		// 1. Radio de visión compensado por el factor de zoom (+ margen de seguridad de
+		// 1 ZoneBox)
+		final int radioVisibleX = (int) (Constantes.CENTROX / z) + this.LADO_ZONEBOX;
+		final int radioVisibleY = (int) (Constantes.CENTROY / z) + this.LADO_ZONEBOX;
+
+		final int minX = Globales.CAMARA.getPosicionXInt() - radioVisibleX;
+		final int maxX = Globales.CAMARA.getPosicionXInt() + radioVisibleX;
+
+		final int minY = Globales.CAMARA.getPosicionYInt() - radioVisibleY;
+		final int maxY = Globales.CAMARA.getPosicionYInt() + radioVisibleY;
+
+		// 2. Proyección exacta a coordenadas de grilla de ZoneBox (Math.floorDiv)
+		final int inicioGridX = Math.floorDiv(minX, this.LADO_ZONEBOX);
+		final int finGridX = Math.floorDiv(maxX, this.LADO_ZONEBOX);
+
+		final int inicioGridY = Math.floorDiv(minY, this.LADO_ZONEBOX);
+		final int finGridY = Math.floorDiv(maxY, this.LADO_ZONEBOX);
+
+		ZoneBox zbAux = null;
+
+		// 3. Iteración directa por celdas activas
+		for (int gridY = inicioGridY; gridY <= finGridY; gridY++) {
+			for (int gridX = inicioGridX; gridX <= finGridX; gridX++) {
+				this.CLAVE_BUSQUEDA_ZONAS.setLocation(gridX, gridY);
+				zbAux = this.ZONAS.get(this.CLAVE_BUSQUEDA_ZONAS);
+
+				if (zbAux != null) {
+					zbAux.pintar(g);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Actualiza la lógica de las entidades y zonas espaciales visibles en pantalla.
+	 */
+	protected void actualizarZonas() {
+		if ((this.ZONAS == null) || this.ZONAS.isEmpty()) {
+			return;
+		}
+
+		final double z = Globales.CAMARA.getZoom();
+
+		final int radioVisibleX = (int) (Constantes.CENTROX / z) + this.LADO_ZONEBOX;
+		final int radioVisibleY = (int) (Constantes.CENTROY / z) + this.LADO_ZONEBOX;
+
+		final int minX = Globales.CAMARA.getPosicionXInt() - radioVisibleX;
+		final int maxX = Globales.CAMARA.getPosicionXInt() + radioVisibleX;
+
+		final int minY = Globales.CAMARA.getPosicionYInt() - radioVisibleY;
+		final int maxY = Globales.CAMARA.getPosicionYInt() + radioVisibleY;
+
+		final int inicioGridX = Math.floorDiv(minX, this.LADO_ZONEBOX);
+		final int finGridX = Math.floorDiv(maxX, this.LADO_ZONEBOX);
+
+		final int inicioGridY = Math.floorDiv(minY, this.LADO_ZONEBOX);
+		final int finGridY = Math.floorDiv(maxY, this.LADO_ZONEBOX);
+
+		ZoneBox zbAux = null;
+
+		for (int gridY = inicioGridY; gridY <= finGridY; gridY++) {
+			for (int gridX = inicioGridX; gridX <= finGridX; gridX++) {
+				this.CLAVE_BUSQUEDA_ZONAS.setLocation(gridX, gridY);
+				zbAux = this.ZONAS.get(this.CLAVE_BUSQUEDA_ZONAS);
+
+				if (zbAux != null) {
+					zbAux.actualizar();
+				}
+			}
+		}
 	}
 
 	public boolean meterEntidad(final Ente e) {

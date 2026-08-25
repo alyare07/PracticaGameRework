@@ -6,49 +6,142 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 
 import javax.swing.SwingUtilities;
 
 import principal.graficos.SuperficieDibujo;
+import principal.utilidades.Constantes;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 
 /**
- * Gestor de entrada para el mouse.
+ * Gestor centralizado de entrada para el ratón (mouse).
  * <p>
- * Maneja eventos de posición, clics sostenidos y pulsaciones únicas por frame,
- * optimizado para minimizar el consumo de CPU y la presión sobre el Garbage
- * Collector.
+ * <b>Responsabilidades y Arquitectura:</b>
+ * <ul>
+ * <li><b>Sincronización Lock-Free (Patrón Latch):</b> Captura eventos
+ * asíncronos del hilo de AWT/Swing y los sincroniza de forma atómica para que
+ * el Game Loop consuma pulsaciones únicas exactamente una vez por tick.</li>
+ * <li><b>Proyección de Coordenadas Inversa (Zoom-Aware):</b> Transforma las
+ * coordenadas crudas del monitor a coordenadas de pantalla lógica y al espacio
+ * continuo del mundo considerando la traslación de la cámara y el Zoom.</li>
+ * <li><b>Cero Asignaciones en el Heap (Zero-GC):</b> Reutiliza estructuras
+ * geométricas internas ({@link Rectangle}, {@link Point}) para evitar pausas
+ * por Garbage Collector en consultas por frame.</li>
+ * <li><b>Soporte de Rueda de Desplazamiento:</b> Captura la rotación de la
+ * rueda para control de Zoom e interfaces.</li>
+ * </ul>
  * </p>
+ * 
+ * @author Copiloto Técnico
+ * @version 2.0
  */
 public class Raton extends MouseAdapter {
 
+	// =========================================================================
+	// === ESTADO Y POSICIÓN BRUTA (AWT)
+	// =========================================================================
+
+	/** Coordenadas nativas del cursor en píxeles de monitor (sin escalar). */
 	private final Point posicion;
+
+	/** Bandera de clic rápido transitorio. */
 	private volatile boolean click;
-	private volatile boolean presionadoDerecho;
+
+	/** Estado sostenido del botón izquierdo del ratón. */
 	private volatile boolean presionadoIzquierdo;
 
-	private volatile boolean presionadoDerUnicaAct;
+	/** Estado sostenido del botón derecho del ratón. */
+	private volatile boolean presionadoDerecho;
+
+	/**
+	 * Pulsación única del botón izquierdo activa únicamente durante el tick actual.
+	 */
 	private volatile boolean presionadoIzqUnicaAct;
-	private volatile boolean disponibleParaPresionarIzqUnicaAct = true;
-	private volatile boolean disponibleParaPresionarDerUnicaAct = true;
+
+	/**
+	 * Pulsación única del botón derecho activa únicamente durante el tick actual.
+	 */
+	private volatile boolean presionadoDerUnicaAct;
+
+	/**
+	 * Pestillo de sincronización para capturar eventos de clic izquierdo entre
+	 * frames.
+	 */
 	private volatile boolean latchIzq = false;
+
+	/**
+	 * Pestillo de sincronización para capturar eventos de clic derecho entre
+	 * frames.
+	 */
 	private volatile boolean latchDer = false;
-	private Rectangle puntoPresionado;
+
+	/**
+	 * Última rotación registrada de la rueda del ratón (-1 hacia arriba, +1 hacia
+	 * abajo).
+	 */
+	private volatile int rotacionRueda = 0;
+
+	/** Temporizador para regular pausas deliberadas en la lectura del ratón. */
 	private final GestorTiempo GT = new GestorTiempo();
+
+	/** Tiempo en milisegundos durante el cual se ignoran nuevas pulsaciones. */
 	private int tiempoMsEspera = 0;
+
+	// =========================================================================
+	// === ESTRUCTURAS AUXILIARES REUTILIZABLES (ZERO-GC)
+	// =========================================================================
+
+	private final Rectangle puntoPresionado = new Rectangle(0, 0, 1, 1);
+	private final Point puntoPosicionEscalado = new Point();
+	private final Rectangle rectanguloPosicionEscalado = new Rectangle(0, 0, 1, 1);
+	private final Point puntoMundoCamara = new Point();
+	private final Rectangle rectanguloMundoCamara = new Rectangle(0, 0, 1, 1);
+
+	// =========================================================================
+	// === CONSTRUCTOR
+	// =========================================================================
 
 	public Raton() {
 		this.posicion = new Point();
 		this.click = false;
-		this.puntoPresionado = new Rectangle(0, 0, 1, 1);
 	}
 
-	/**
-	 * Consume las acciones de pulsación única después de haber sido leídas en el
-	 * ciclo actual.
+	// =========================================================================
+	// === SINCRONIZACIÓN Y CICLO DE VIDA (GAME LOOP)
+	// =========================================================================
+
+	/*
+	 * =========================================================================
+	 * EXPLICACIÓN TÉCNICA: PATRÓN LATCH (SINCRONIZACIÓN HILO AWT <-> GAME LOOP)
+	 * ------------------------------------------------------------------------- Los
+	 * eventos del ratón ocurren en el 'Event Dispatch Thread' (EDT) de Swing de
+	 * forma asíncrona.
+	 * 
+	 * 1. Cuando el usuario hace clic, el EDT levanta el pestillo ('latchIzq =
+	 * true'). 2. En el siguiente tick del Game Loop, 'actualizar()' consume la
+	 * señal, activando 'presionadoIzqUnicaAct = true' y bajando el pestillo
+	 * ('latchIzq = false'). 3. En el tick posterior, 'presionadoIzqUnicaAct' vuelve
+	 * automáticamente a false.
+	 * 
+	 * Esto garantiza que una pulsación rápida NUNCA se pierda ni se ejecute 2
+	 * veces.
+	 * =========================================================================
 	 */
+
+	/**
+	 * Consume y procesa los eventos acumulados durante el ciclo lógico actual del
+	 * juego.
+	 *
+	 * @param sd Superficie de dibujo activa.
+	 */
+	public void actualizar(final SuperficieDibujo sd) {
+		this.actualizarPresionadosUnicaVez();
+		this.rotacionRueda = 0; // Se reinicia el acumulador de la rueda tras consumirse en el tick
+	}
+
 	private void actualizarPresionadosUnicaVez() {
 		if (this.latchIzq) {
 			this.presionadoIzqUnicaAct = true;
@@ -65,21 +158,15 @@ public class Raton extends MouseAdapter {
 		}
 	}
 
-	public void actualizar(final SuperficieDibujo sd) {
-		this.actualizarPresionadosUnicaVez();
-	}
-
 	public void dibujar(final Graphics2D g) {
 		DibujoDebug.dibujarString(g, "RX: " + this.posicion.x, 20, 200, Color.RED);
 		DibujoDebug.dibujarString(g, "RY: " + this.posicion.y, 20, 210, Color.RED);
 		DibujoDebug.dibujarRectanguloContorno(g, this.getRectanguloPosicionEscalado(), Color.BLUE);
 	}
 
-	// -----------------------------------------------------------------------
-	// EVENTOS DE NAVEGACIÓN Y MOVIMIENTO (Escuchados por Swing AWT)
-	// Nota: Para que estos métodos funcionen, la SuperficieDibujo debe hacer:
-	// "sd.addMouseListener(raton);" y "sd.addMouseMotionListener(raton);"
-	// -----------------------------------------------------------------------
+	// =========================================================================
+	// === EVENTOS DE MOUSE AWT / SWING
+	// =========================================================================
 
 	@Override
 	public void mouseMoved(final MouseEvent e) {
@@ -112,13 +199,16 @@ public class Raton extends MouseAdapter {
 
 		if (SwingUtilities.isLeftMouseButton(e)) {
 			this.presionadoIzquierdo = true;
-			this.latchIzq = true; // Levantamos el pestillo para el próximo frame
+			this.latchIzq = true;
 		} else if (SwingUtilities.isRightMouseButton(e)) {
 			this.presionadoDerecho = true;
-			this.latchDer = true; // Levantamos el pestillo para el próximo frame
+			this.latchDer = true;
 		}
 
-		this.puntoPresionado = this.getRectanguloPosicionEscalado();
+		// Almacena las coordenadas escaladas en la estructura reutilizable
+		final int escX = (int) (this.posicion.x / Globales.FACTOR_ESCALADO_X);
+		final int escY = (int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y);
+		this.puntoPresionado.setBounds(escX, escY, 1, 1);
 	}
 
 	@Override
@@ -133,69 +223,109 @@ public class Raton extends MouseAdapter {
 		}
 	}
 
-	// -----------------------------------------------------------------------
-	// CONSULTAS DE POSICIÓN
-	// -----------------------------------------------------------------------
+	@Override
+	public void mouseWheelMoved(final MouseWheelEvent e) {
+		this.rotacionRueda = e.getWheelRotation();
+	}
+
+	// =========================================================================
+	// === PROYECCIÓN DE COORDENADAS Y TRANSFORMACIÓN CON ZOOM
+	// =========================================================================
+
+	/*
+	 * =========================================================================
+	 * EXPLICACIÓN TÉCNICA: PROYECCIÓN MATEMÁTICA DE RATÓN CON ZOOM
+	 * ------------------------------------------------------------------------- 1.
+	 * Coordenada de Pantalla Lógica: xScreen = posicion.x / FACTOR_ESCALADO_X
+	 * yScreen = posicion.y / FACTOR_ESCALADO_Y
+	 * 
+	 * 2. Transformación Inversa del Zoom respecto al Centro de Pantalla (CENTROX,
+	 * CENTROY): dx = (xScreen - CENTROX) / zoom dy = (yScreen - CENTROY) / zoom
+	 * xVirtual = CENTROX + dx yVirtual = CENTROY + dy
+	 * 
+	 * 3. Proyección al Espacio Continuo del Mundo: xMundo = (xVirtual -
+	 * CAMARA.getMargenX()) + CAMARA.getPosicionXInt() yMundo = (yVirtual -
+	 * CAMARA.getMargenY()) + CAMARA.getPosicionYInt()
+	 * 
+	 * Complejidad: O(1) con CERO asignaciones 'new' en memoria.
+	 * =========================================================================
+	 */
 
 	/**
-	 * El punto donde se ubica el puntero. No tiene en cuenta el escalado de la
-	 * pantalla. NO se tiene en cuenta el desplazamiento de la cámara.
-	 * 
-	 * @return El punto donde se ubica el puntero (SIN ESCALAR)
+	 * Retorna la posición nativa del cursor en píxeles del monitor (sin escalar).
 	 */
 	public Point getPuntoPosicionSinEscalar() {
 		return this.posicion;
 	}
 
 	/**
-	 * El punto donde se ubica el puntero. Se tiene en cuenta el escalado de la
-	 * pantalla. NO se tiene en cuenta el desplazamiento de la cámara.
-	 * 
-	 * @return El punto donde se ubica el puntero (ESCALADO)
+	 * Retorna las coordenadas del cursor proyectadas al espacio de pantalla interna
+	 * (640x360). CERO asignaciones en memoria.
 	 */
 	public Point getPuntoPosicionEscalado() {
-		return new Point((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X),
+		this.puntoPosicionEscalado.setLocation((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X),
 				(int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y));
+		return this.puntoPosicionEscalado;
 	}
 
 	/**
-	 * El área donde se ubica el puntero. Se tiene en cuenta el escalado de la
-	 * pantalla. NO se tiene en cuenta el desplazamiento de la cámara.
-	 * 
-	 * @return El área donde se ubica el puntero (ESCALADO)
+	 * Retorna un delimitador de 1x1 píxel en el espacio de pantalla interna. CERO
+	 * asignaciones en memoria.
 	 */
 	public Rectangle getRectanguloPosicionEscalado() {
-		return new Rectangle((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X),
+		this.rectanguloPosicionEscalado.setBounds((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X),
 				(int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y), 1, 1);
+		return this.rectanguloPosicionEscalado;
 	}
 
 	/**
-	 * El área donde se ubica el puntero. Se tiene en cuenta el escalado de la
-	 * pantalla y el desplazamiento de la cámara.
-	 * 
-	 * @return El área donde se ubica el puntero (ESCALADO Y CON DESPLAZAMIENTO
-	 *         CÁMARA)
+	 * Calcula la posición del cursor proyectada en el mundo del juego considerando
+	 * el desplazamiento de la cámara y el Zoom activo.
+	 *
+	 * @return Rectángulo de 1x1 píxel en coordenadas absolutas del mundo.
 	 */
 	public Rectangle getRectanguloPosicionEscaladoConDesplazamientoCamara() {
-		return new Rectangle(
-				((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X)
-						+ Globales.CAMARA.getPosicionXInt()) - Globales.CAMARA.getMargenX(),
-				((int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y)
-						+ Globales.CAMARA.getPosicionYInt()) - Globales.CAMARA.getMargenY(),
-				1, 1);
+		final Point p = this.getPuntoPosicionEscaladoConDesplazamientoCamara();
+		this.rectanguloMundoCamara.setBounds(p.x, p.y, 1, 1);
+		return this.rectanguloMundoCamara;
 	}
 
+	/**
+	 * Calcula el punto exacto donde apunta el cursor en el mundo considerando el
+	 * Zoom y la Cámara.
+	 *
+	 * @return {@link Point} reutilizable con las coordenadas X, Y del mundo.
+	 */
 	public Point getPuntoPosicionEscaladoConDesplazamientoCamara() {
-		return new Point(
-				((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X)
-						+ Globales.CAMARA.getPosicionXInt()) - Globales.CAMARA.getMargenX(),
-				((int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y)
-						+ Globales.CAMARA.getPosicionYInt()) - Globales.CAMARA.getMargenY());
+		final double z = (Globales.CAMARA != null) ? Globales.CAMARA.getZoom() : 1.0;
+		final int xScreen = (int) (this.posicion.x / Globales.FACTOR_ESCALADO_X);
+		final int yScreen = (int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y);
+
+		int xVirtual = xScreen;
+		int yVirtual = yScreen;
+
+		// Si el zoom no es 1.0, aplicamos la transformación inversa respecto al centro
+		// de pantalla
+		if (z != 1.0) {
+			xVirtual = Constantes.CENTROX + (int) Math.round((xScreen - Constantes.CENTROX) / z);
+			yVirtual = Constantes.CENTROY + (int) Math.round((yScreen - Constantes.CENTROY) / z);
+		}
+
+		final int camX = (Globales.CAMARA != null) ? Globales.CAMARA.getPosicionXInt() : 0;
+		final int camY = (Globales.CAMARA != null) ? Globales.CAMARA.getPosicionYInt() : 0;
+		final int margenX = (Globales.CAMARA != null) ? Globales.CAMARA.getMargenX() : Constantes.CENTROX;
+		final int margenY = (Globales.CAMARA != null) ? Globales.CAMARA.getMargenY() : Constantes.CENTROY;
+
+		final int worldX = (xVirtual - margenX) + camX;
+		final int worldY = (yVirtual - margenY) + camY;
+
+		this.puntoMundoCamara.setLocation(worldX, worldY);
+		return this.puntoMundoCamara;
 	}
 
-	// -----------------------------------------------------------------------
-	// ESTADOS Y GETTERS
-	// -----------------------------------------------------------------------
+	// =========================================================================
+	// === ESTADOS, CONSULTAS Y CONTROL
+	// =========================================================================
 
 	public boolean getClick() {
 		return this.click;
@@ -205,57 +335,38 @@ public class Raton extends MouseAdapter {
 		this.click = false;
 	}
 
-	/**
-	 * Verifica si el click izquierdo del mouse está presionado en dicho momento.
-	 * 
-	 * @return TRUE si el clic izquierdo está presionado.
-	 */
 	public boolean presionadoClickIzq() {
 		return this.presionadoIzquierdo;
 	}
 
-	/**
-	 * Verifica si el click derecho del mouse está presionado en dicho momento.
-	 * 
-	 * @return TRUE si el clic derecho está presionado.
-	 */
 	public boolean presionadoClickDer() {
 		return this.presionadoDerecho;
 	}
 
-	/**
-	 * Verifica si el click izquierdo del mouse se presionó en esta actualización.
-	 * Solo retorna TRUE durante un único ciclo por cada pulsación.
-	 * 
-	 * @return TRUE si el clic izquierdo se activó en esta actualización.
-	 */
 	public boolean presionadoClickIzqUnicaAct() {
 		return this.presionadoIzqUnicaAct;
 	}
 
-	/**
-	 * Verifica si el click derecho del mouse se presionó en esta actualización.
-	 * Solo retorna TRUE durante un único ciclo por cada pulsación.
-	 * 
-	 * @return TRUE si el clic derecho se activó en esta actualización.
-	 */
 	public boolean presionadoClickDerUnicaAct() {
 		return this.presionadoDerUnicaAct;
 	}
 
-	/**
-	 * Área expresada en Rectángulo donde está presionado el mouse (escalado).
-	 * 
-	 * @return El punto presionado expresado en Rectangle.
-	 */
 	public Rectangle getPuntoPresionado() {
 		return this.puntoPresionado;
 	}
 
 	/**
-	 * Duerme la detección de clics y presionados durante el tiempo especificado.
-	 * 
-	 * @param ms El tiempo en milisegundos a dormir el mouse.
+	 * Retorna la rotación de la rueda del ratón en este frame (-1 = arriba / zoom
+	 * in, +1 = abajo / zoom out).
+	 */
+	public int getRotacionRueda() {
+		return this.rotacionRueda;
+	}
+
+	/**
+	 * Desactiva la lectura de pulsaciones durante el intervalo especificado.
+	 *
+	 * @param ms Tiempo en milisegundos a silenciar el ratón.
 	 */
 	public void dormirMS(final int ms) {
 		this.tiempoMsEspera = ms;
@@ -263,7 +374,7 @@ public class Raton extends MouseAdapter {
 	}
 
 	/**
-	 * Suelta todos los clics y reinicia los estados de pulsación.
+	 * Reinicia inmediatamente todos los estados de pulsación y pestillos.
 	 */
 	public void soltar() {
 		this.presionadoIzquierdo = false;
@@ -272,5 +383,6 @@ public class Raton extends MouseAdapter {
 		this.presionadoDerUnicaAct = false;
 		this.latchIzq = false;
 		this.latchDer = false;
+		this.rotacionRueda = 0;
 	}
 }

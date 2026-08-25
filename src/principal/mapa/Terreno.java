@@ -6,7 +6,6 @@ import java.awt.Rectangle;
 import java.awt.Shape;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -14,72 +13,117 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import principal.entes.modelos.tile.ListaModeloTile;
-import principal.mapa.renderEntidades.ZoneBox;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 
 /**
- * Representa el terreno lógico y gráfico del mapa del juego.
+ * Representa el terreno lógico, físico y gráfico del mundo del juego.
  * <p>
- * Implementa una matriz bidimensional ({@code GroupTile[][]}) para
- * almacenamiento en memoria contigua con acceso $O(1)$ de máximo rendimiento.
+ * <b>Arquitectura del Terreno:</b>
+ * <ul>
+ * <li><b>Particionado Espacial Contiguo:</b> El mundo se almacena en una matriz
+ * bidimensional ({@code GroupTile[gridX][gridY]}) permitiendo indexación
+ * espacial y acceso $O(1)$ directo sin sobrecarga de punteros o colecciones
+ * genéricas.</li>
+ * <li><b>Sistema de Autotiling de 4-Bits:</b> Resuelve automáticamente
+ * transiciones suaves de bordes mediante evaluación de conectividad cardinal
+ * (N, E, S, O).</li>
+ * <li><b>Variación Procedural Determinista:</b> Distribuye flores, piedras y
+ * detalles decorativos usando dispersión de bits matemática pura, garantizando
+ * mapas idénticos entre sesiones sin inflar el guardado JSON.</li>
+ * <li><b>Culling de Cámara Eficiente:</b> Clampa y proyecta las coordenadas del
+ * frustum de la cámara directamente a los límites de la matriz, garantizando
+ * cero iteraciones de tiles invisibles.</li>
+ * </ul>
  * </p>
+ * 
+ * @author Copiloto Técnico
+ * @version 2.0
  */
 public class Terreno implements Serializable {
 	private static final long serialVersionUID = -230565732234345L;
 
+	/** Ancho total del terreno en píxeles. */
 	protected final int ANCHO;
+
+	/** Alto total del terreno en píxeles. */
 	protected final int ALTO;
+
+	/** Cantidad de bloques {@link GroupTile} a lo largo del eje X. */
 	protected final int CANTIDAD_ANCHO_GROUPTILE;
+
+	/** Cantidad de bloques {@link GroupTile} a lo largo del eje Y. */
 	protected final int CANTIDAD_ALTO_GROUPTILE;
+
+	/**
+	 * Dimensión en píxeles del lado de un {@link GroupTile} (habitualmente
+	 * {@code LADO_TILE * 2}).
+	 */
 	protected final int LADO_GRUPO_TILE;
+
+	/** Dimensión en píxeles del lado de un {@link Tile} individual (16 px). */
 	protected final int LADO_TILE;
+
+	/** Cantidad total de tiles individuales que componen el mapa. */
 	protected final long CANT_TILES;
 
 	/**
-	 * Matriz bidimensional de bloques de tiles. Acceso directo por índice:
-	 * GRUPOS_TILES[gridX][gridY]
+	 * Matriz bidimensional contigua de bloques espaciales.
+	 * <p>
+	 * Acceso directo instantáneo $O(1)$: {@code GRUPOS_TILES[gridX][gridY]}.
+	 * </p>
 	 */
 	protected final GroupTile[][] GRUPOS_TILES;
+
+	// =========================================================================
+	// === CONSTRUCTORES
+	// =========================================================================
 
 	/**
 	 * Crea un nuevo terreno llenándolo por defecto con el modelo de tierra base.
 	 *
-	 * @param cantTilesAncho Cantidad de tiles a lo ancho.
-	 * @param cantTilesAlto  Cantidad de tiles a lo alto.
-	 * @param ladoTile       Tamaño en píxeles de cada tile.
+	 * @param cantTilesAncho Cantidad de tiles individuales a lo ancho.
+	 * @param cantTilesAlto  Cantidad de tiles individuales a lo alto.
+	 * @param ladoTile       Tamaño en píxeles de cada tile individual (ej: 16).
 	 */
 	public Terreno(final int cantTilesAncho, final int cantTilesAlto, final int ladoTile) {
 		this(cantTilesAncho, cantTilesAlto, ladoTile, ListaModeloTile.COD_TIERRA);
 	}
 
 	/**
-	 * Crea un nuevo terreno llenándolo con un modelo de tile específico.
+	 * Crea un nuevo terreno llenándolo con un modelo de tile inicial específico.
 	 *
-	 * @param cantTilesAncho Cantidad de tiles a lo ancho.
-	 * @param cantTilesAlto  Cantidad de tiles a lo alto.
-	 * @param ladoTile       Tamaño en píxeles de cada tile.
-	 * @param idModeloTile   ID del modelo de tile por defecto.
+	 * @param cantTilesAncho Cantidad de tiles individuales a lo ancho.
+	 * @param cantTilesAlto  Cantidad de tiles individuales a lo alto.
+	 * @param ladoTile       Tamaño en píxeles de cada tile individual.
+	 * @param idModeloTile   Identificador del modelo por defecto (de
+	 *                       {@link ListaModeloTile}).
 	 */
 	public Terreno(final int cantTilesAncho, final int cantTilesAlto, final int ladoTile, final int idModeloTile) {
-//		Constantes.LADO_TILE = ladoTile;
 		this.LADO_TILE = ladoTile;
 		this.LADO_GRUPO_TILE = ladoTile * 2;
 		this.CANTIDAD_ANCHO_GROUPTILE = cantTilesAncho / 2;
 		this.CANTIDAD_ALTO_GROUPTILE = cantTilesAlto / 2;
 		this.ANCHO = ladoTile * cantTilesAncho;
 		this.ALTO = ladoTile * cantTilesAlto;
+		this.CANT_TILES = (long) cantTilesAncho * cantTilesAlto;
 
-		// Inicialización de la matriz 2D
 		this.GRUPOS_TILES = new GroupTile[this.CANTIDAD_ANCHO_GROUPTILE][this.CANTIDAD_ALTO_GROUPTILE];
 		this.llenarVacioTerreno(idModeloTile);
-		this.CANT_TILES = (long) cantTilesAncho * cantTilesAlto;
+
+		// Inicializa los bordes y variaciones del mapa completo
+		this.calcularAutotiles();
 	}
 
 	/**
-	 * Reconstruye una instancia de {@link Terreno} desde un objeto JSON.
+	 * Reconstruye una instancia de {@link Terreno} desde un objeto
+	 * {@link JSONObject} serializado.
+	 * <p>
+	 * Reconstruye la matriz $O(1)$ y ejecuta {@link #calcularAutotiles()} al vuelo
+	 * para no almacenar datos visuales derivados en el archivo de guardado.
+	 * </p>
 	 *
-	 * @param jso Objeto {@link JSONObject} serializado.
+	 * @param jso Objeto JSON con los datos del terreno.
 	 */
 	public Terreno(final JSONObject jso) {
 		this.CANTIDAD_ANCHO_GROUPTILE = ((Number) jso.get("cantGTancho")).intValue();
@@ -90,7 +134,6 @@ public class Terreno implements Serializable {
 		this.ALTO = ((Number) jso.get("alto")).intValue();
 		this.CANT_TILES = ((Number) jso.get("cantTile")).longValue();
 
-		// Inicialización de la matriz 2D
 		this.GRUPOS_TILES = new GroupTile[this.CANTIDAD_ANCHO_GROUPTILE][this.CANTIDAD_ALTO_GROUPTILE];
 
 		JSONArray listaGT = null;
@@ -110,8 +153,8 @@ public class Terreno implements Serializable {
 			for (final Object o : listaGT) {
 				if (o instanceof JSONObject) {
 					final GroupTile gt = GroupTile.crearDesdeJson((JSONObject) o);
-					final int gx = gt.getPosicionX() / this.LADO_GRUPO_TILE;
-					final int gy = gt.getPosicionY() / this.LADO_GRUPO_TILE;
+					final int gx = Math.floorDiv(gt.getPosicionX(), this.LADO_GRUPO_TILE);
+					final int gy = Math.floorDiv(gt.getPosicionY(), this.LADO_GRUPO_TILE);
 
 					if ((gx >= 0) && (gx < this.CANTIDAD_ANCHO_GROUPTILE) && (gy >= 0)
 							&& (gy < this.CANTIDAD_ALTO_GROUPTILE)) {
@@ -120,12 +163,20 @@ public class Terreno implements Serializable {
 				}
 			}
 		}
+
+		// Reconstrucción al vuelo de máscaras y variaciones
+		this.calcularAutotiles();
 	}
 
+	// =========================================================================
+	// === SERIALIZACIÓN JSON
+	// =========================================================================
+
 	/**
-	 * Exporta los datos del terreno a un formato estructurado en JSON.
+	 * Exporta la estructura del terreno a JSON conteniendo únicamente los datos
+	 * lógicos esenciales.
 	 *
-	 * @return Objeto {@link JSONObject} con la estructura serializada.
+	 * @return Estructura serializada en {@link JSONObject}.
 	 */
 	@SuppressWarnings("unchecked")
 	public JSONObject getTilesJson() {
@@ -150,36 +201,181 @@ public class Terreno implements Serializable {
 		return terreno;
 	}
 
-	/**
-	 * Retorna la matriz bidimensional interna de {@link GroupTile}.
+	// =========================================================================
+	// === AUTOTILING Y VARIACIONES PROCEDURALES
+	// =========================================================================
+
+	/*
+	 * =========================================================================
+	 * EXPLICACIÓN TÉCNICA: HASH 2D DETERMINISTA (DISPERSIÓN DE BITS)
+	 * -------------------------------------------------------------------------
+	 * Genera un número pseudoaleatorio consistente basado únicamente en coordenadas
+	 * discretas (X, Y) y el ID del modelo.
+	 * 
+	 * 1. Multiplica las coordenadas por números primos grandes para romper
+	 * alineaciones. 2. Aplica desplazamiento de bits (XOR shift) y constantes de
+	 * mezcla tipo SplitMix32. 3. Mapea el resultado con módulo 100 para obtener
+	 * probabilidades exactas: - [0 - 89] (90%): v0 (Terreno base liso y limpio) -
+	 * [90 - 94] (5%): v1 (Detalle decorativo A) - [95 - 98] (4%): v2 (Detalle
+	 * decorativo B) - [99] (1%): v3 (Detalle decorativo C raro)
+	 * =========================================================================
 	 */
-	public GroupTile[][] getGroupTILES() {
-		return this.GRUPOS_TILES;
+	private byte calcularVariacionDeterminista(final int gridX, final int gridY, final int idModelo) {
+		int h = (gridX * 374761393) ^ (gridY * 668265263) ^ (idModelo * 3571);
+		h = (h ^ (h >>> 13)) * 1274126177;
+		final int roll = Math.abs(h ^ (h >>> 16)) % 100;
+
+		if (roll < 90) {
+			return 0; // 90% Versión base limpia
+		}
+		if (roll < 95) {
+			return 1; // 5% Variación 1
+		}
+		if (roll < 99) {
+			return 2; // 4% Variación 2
+		}
+		return 3; // 1% Variación 3
 	}
 
-	public ArrayList<Tile> getTILES() {
-		final ArrayList<Tile> lista = new ArrayList<Tile>();
-		for (int x = 0; x < this.CANTIDAD_ANCHO_GROUPTILE; x++) {
-			for (int y = 0; y < this.CANTIDAD_ALTO_GROUPTILE; y++) {
-				final GroupTile gt = this.GRUPOS_TILES[x][y];
-				if (gt != null) {
-					lista.addAll(gt.getTiles()); // <--- ¡Cambiado aquí!
+	/*
+	 * =========================================================================
+	 * EXPLICACIÓN TÉCNICA: BITMASKING CARDINAL DE 4 BITS
+	 * -------------------------------------------------------------------------
+	 * Cada tile evalúa la presencia de vecinos del mismo tipo en las 4 direcciones:
+	 * - Norte (y - 1): +1 (Bit 0: 0001) - Este (x + 1): +2 (Bit 1: 0010) - Sur (y +
+	 * 1): +4 (Bit 2: 0100) - Oeste (x - 1): +8 (Bit 3: 1000)
+	 * 
+	 * La suma resultante (0 a 15) indexa directamente el sprite con los bordes y
+	 * esquinas exactas correspondientes.
+	 * =========================================================================
+	 */
+
+	/**
+	 * Recorre el mapa completo calculando la máscara de autotiling y la variación
+	 * de cada Tile.
+	 * <p>
+	 * <b>Complejidad:</b> $O(N)$ donde $N$ es la cantidad total de tiles del mundo.
+	 * Se ejecuta únicamente durante la fase de carga.
+	 * </p>
+	 */
+	public void calcularAutotiles() {
+		final int tilesAncho = this.ANCHO / this.LADO_TILE;
+		final int tilesAlto = this.ALTO / this.LADO_TILE;
+
+		for (int y = 0; y < tilesAlto; y++) {
+			for (int x = 0; x < tilesAncho; x++) {
+				final Tile tileActual = this.getTileReferenciado(x * this.LADO_TILE, y * this.LADO_TILE);
+				if (tileActual == null) {
+					continue;
 				}
+
+				final int modeloActual = tileActual.getCodModelo();
+				byte mascara = 0;
+
+				// Chequeo NORTE (Peso 1)
+				final Tile tileNorte = this.getTileReferenciado(x * this.LADO_TILE, (y - 1) * this.LADO_TILE);
+				if ((tileNorte != null) && (tileNorte.getCodModelo() == modeloActual)) {
+					mascara += 1;
+				}
+
+				// Chequeo ESTE (Peso 2)
+				final Tile tileEste = this.getTileReferenciado((x + 1) * this.LADO_TILE, y * this.LADO_TILE);
+				if ((tileEste != null) && (tileEste.getCodModelo() == modeloActual)) {
+					mascara += 2;
+				}
+
+				// Chequeo SUR (Peso 4)
+				final Tile tileSur = this.getTileReferenciado(x * this.LADO_TILE, (y + 1) * this.LADO_TILE);
+				if ((tileSur != null) && (tileSur.getCodModelo() == modeloActual)) {
+					mascara += 4;
+				}
+
+				// Chequeo OESTE (Peso 8)
+				final Tile tileOeste = this.getTileReferenciado((x - 1) * this.LADO_TILE, y * this.LADO_TILE);
+				if ((tileOeste != null) && (tileOeste.getCodModelo() == modeloActual)) {
+					mascara += 8;
+				}
+
+				tileActual.setMascaraBit(mascara);
+				tileActual.setVariacionPropia(this.calcularVariacionDeterminista(x, y, modeloActual));
 			}
 		}
-		return lista;
-	}
-
-	public GroupTile getGrupoTileReferenciado(final Point punto) {
-		if (punto == null) {
-			return null;
-		}
-		return this.getGrupoTileReferenciado(punto.x, punto.y);
 	}
 
 	/**
-	 * Obtiene el {@link GroupTile} correspondiente a las coordenadas del mundo
-	 * (píxeles). Acceso $O(1)$ directo a la matriz.
+	 * Recalcula la máscara bitmask y variación de un único Tile en coordenadas de
+	 * mundo. Acceso directo instantáneo $O(1)$.
+	 *
+	 * @param worldX Coordenada X del mundo en píxeles.
+	 * @param worldY Coordenada Y del mundo en píxeles.
+	 */
+	public void actualizarAutotile(final int worldX, final int worldY) {
+		final Tile tileActual = this.getTileReferenciado(worldX, worldY);
+		if (tileActual == null) {
+			return;
+		}
+
+		final int modeloActual = tileActual.getCodModelo();
+		byte mascara = 0;
+
+		final Tile tileNorte = this.getTileReferenciado(worldX, worldY - this.LADO_TILE);
+		if ((tileNorte != null) && (tileNorte.getCodModelo() == modeloActual)) {
+			mascara += 1;
+		}
+
+		final Tile tileEste = this.getTileReferenciado(worldX + this.LADO_TILE, worldY);
+		if ((tileEste != null) && (tileEste.getCodModelo() == modeloActual)) {
+			mascara += 2;
+		}
+
+		final Tile tileSur = this.getTileReferenciado(worldX, worldY + this.LADO_TILE);
+		if ((tileSur != null) && (tileSur.getCodModelo() == modeloActual)) {
+			mascara += 4;
+		}
+
+		final Tile tileOeste = this.getTileReferenciado(worldX - this.LADO_TILE, worldY);
+		if ((tileOeste != null) && (tileOeste.getCodModelo() == modeloActual)) {
+			mascara += 8;
+		}
+
+		tileActual.setMascaraBit(mascara);
+
+		final int gridX = Math.floorDiv(worldX, this.LADO_TILE);
+		final int gridY = Math.floorDiv(worldY, this.LADO_TILE);
+		tileActual.setVariacionPropia(this.calcularVariacionDeterminista(gridX, gridY, modeloActual));
+	}
+
+	/**
+	 * Recalcula la máscara del tile modificado y de sus 4 vecinos cardinales
+	 * contiguos.
+	 * <p>
+	 * <b>Optimización para el Editor:</b> Ejecuta exactamente 5 evaluaciones $O(1)$
+	 * sin iterar sobre el resto del mapa.
+	 * </p>
+	 *
+	 * @param worldX Coordenada X del mundo en píxeles.
+	 * @param worldY Coordenada Y del mundo en píxeles.
+	 */
+	public void actualizarAutotileLocal(final int worldX, final int worldY) {
+		this.actualizarAutotile(worldX, worldY); // Centro
+		this.actualizarAutotile(worldX, worldY - this.LADO_TILE); // Norte
+		this.actualizarAutotile(worldX + this.LADO_TILE, worldY); // Este
+		this.actualizarAutotile(worldX, worldY + this.LADO_TILE); // Sur
+		this.actualizarAutotile(worldX - this.LADO_TILE, worldY); // Oeste
+	}
+
+	// =========================================================================
+	// === ACCESO ESPACIAL Y MODIFICACIÓN O(1)
+	// =========================================================================
+
+	/**
+	 * Obtiene el {@link GroupTile} que contiene las coordenadas especificadas del
+	 * mundo. Acceso directo $O(1)$ mediante indexación por {@link Math#floorDiv}.
+	 *
+	 * @param x Coordenada X en píxeles.
+	 * @param y Coordenada Y en píxeles.
+	 * @return Instancia de {@link GroupTile} o {@code null} si está fuera de los
+	 *         límites.
 	 */
 	public GroupTile getGrupoTileReferenciado(final int x, final int y) {
 		final int gtX = Math.floorDiv(x, this.LADO_GRUPO_TILE);
@@ -192,10 +388,25 @@ public class Terreno implements Serializable {
 		return this.GRUPOS_TILES[gtX][gtY];
 	}
 
+	public GroupTile getGrupoTileReferenciado(final Point punto) {
+		if (punto == null) {
+			return null;
+		}
+		return this.getGrupoTileReferenciado(punto.x, punto.y);
+	}
+
+	/**
+	 * Obtiene el {@link Tile} individual en una coordenada del mundo. CERO
+	 * asignación en memoria (GC Friendly).
+	 *
+	 * @param x Coordenada X en píxeles.
+	 * @param y Coordenada Y en píxeles.
+	 * @return Instancia de {@link Tile} o {@code null} si está fuera del mapa.
+	 */
 	public Tile getTileReferenciado(final int x, final int y) {
 		final GroupTile gt = this.getGrupoTileReferenciado(x, y);
 		if (gt != null) {
-			return gt.getTileReferenciado(new Point(x, y));
+			return gt.getTileReferenciado(x, y);
 		}
 		return null;
 	}
@@ -207,6 +418,12 @@ public class Terreno implements Serializable {
 		return this.getTileReferenciado(p.x, p.y);
 	}
 
+	/**
+	 * Rellena la matriz completa con nuevos bloques {@link GroupTile} utilizando un
+	 * modelo inicial.
+	 *
+	 * @param idModeloTile ID del modelo base.
+	 */
 	public void llenarVacioTerreno(final int idModeloTile) {
 		for (int y = 0; y < this.CANTIDAD_ALTO_GROUPTILE; y++) {
 			for (int x = 0; x < this.CANTIDAD_ANCHO_GROUPTILE; x++) {
@@ -216,131 +433,33 @@ public class Terreno implements Serializable {
 		}
 	}
 
-	public void establecerTileReferenciado(final Point punto, final Tile tile) {
-		if ((punto == null) || (tile == null)) {
+	/**
+	 * Modifica un tile individual y recalcula de forma local $O(1)$ los bordes
+	 * autotile afectados.
+	 *
+	 * @param x    Coordenada X en píxeles.
+	 * @param y    Coordenada Y en píxeles.
+	 * @param tile Tile con el nuevo modelo a establecer.
+	 */
+	public void establecerTileReferenciado(final int x, final int y, final Tile tile) {
+		if (tile == null) {
 			return;
 		}
-		final GroupTile gt = this.getGrupoTileReferenciado(punto.x, punto.y);
+		final GroupTile gt = this.getGrupoTileReferenciado(x, y);
 		if (gt != null) {
-			final Point puntoTile = new Point(punto.x / this.LADO_TILE, punto.y / this.LADO_TILE);
-			gt.establecerTileEspecifico(puntoTile, tile);
-		}
-	}
-
-	/**
-	 * Renderiza en pantalla únicamente los bloques {@link GroupTile} visibles por
-	 * la cámara.
-	 * <p>
-	 * Clampa los índices directamente a los límites de la matriz 2D para garantizar
-	 * cero evaluaciones innecesarias.
-	 * </p>
-	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
-	 */
-	public void pintar(final Graphics2D g) {
-		final int minX = Globales.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
-		final int maxX = Globales.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
-
-		final int minY = Globales.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
-		final int maxY = Globales.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
-
-		// Delimitación acotada directamente dentro de los rangos de la matriz
-		final int startGtX = Math.max(0, Math.floorDiv(minX, this.LADO_GRUPO_TILE));
-		final int endGtX = Math.min(this.CANTIDAD_ANCHO_GROUPTILE - 1, Math.floorDiv(maxX, this.LADO_GRUPO_TILE));
-
-		final int startGtY = Math.max(0, Math.floorDiv(minY, this.LADO_GRUPO_TILE));
-		final int endGtY = Math.min(this.CANTIDAD_ALTO_GROUPTILE - 1, Math.floorDiv(maxY, this.LADO_GRUPO_TILE));
-
-		GroupTile gt = null;
-
-		for (int gtY = startGtY; gtY <= endGtY; gtY++) {
-			for (int gtX = startGtX; gtX <= endGtX; gtX++) {
-				gt = this.GRUPOS_TILES[gtX][gtY];
-				if (gt != null) {
-					gt.pintar(g);
-				}
+			final int tileGridX = Math.floorDiv(x, this.LADO_TILE);
+			final int tileGridY = Math.floorDiv(y, this.LADO_TILE);
+			if (gt.establecerTileEspecifico(tileGridX, tileGridY, tile)) {
+				this.actualizarAutotileLocal(x, y);
 			}
 		}
 	}
 
-	/**
-	 * Renderiza únicamente las celdas espaciales ({@link ZoneBox}) visibles en la
-	 * cámara.
-	 *
-	 * @param g        Contexto gráfico {@link Graphics2D}.
-	 * @param zonas    Mapa de celdas espaciales activas indexadas por coordenadas
-	 *                 de grilla.
-	 * @param ladoZona Dimensión en píxeles del lado de cada celda espacial.
-	 */
-	public void pintarZonas(final Graphics2D g, final HashMap<Point, ZoneBox> zonas, final int ladoZona) {
-		if ((zonas == null) || zonas.isEmpty()) {
+	public void establecerTileReferenciado(final Point punto, final Tile tile) {
+		if (punto == null) {
 			return;
 		}
-
-		final int minX = Globales.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
-		final int maxX = Globales.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
-
-		final int minY = Globales.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
-		final int maxY = Globales.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
-
-		final int inicioGridX = Math.floorDiv(minX, ladoZona);
-		final int finGridX = Math.floorDiv(maxX, ladoZona);
-
-		final int inicioGridY = Math.floorDiv(minY, ladoZona);
-		final int finGridY = Math.floorDiv(maxY, ladoZona);
-
-		final Point claveBusqueda = new Point();
-		ZoneBox zbAux = null;
-
-		for (int gridY = inicioGridY; gridY <= finGridY; gridY++) {
-			for (int gridX = inicioGridX; gridX <= finGridX; gridX++) {
-				claveBusqueda.setLocation(gridX, gridY);
-				zbAux = zonas.get(claveBusqueda);
-
-				if (zbAux != null) {
-					zbAux.pintar(g);
-				}
-			}
-		}
-	}
-
-	/**
-	 * Ejecuta la actualización lógica de las celdas espaciales visibles en
-	 * pantalla.
-	 *
-	 * @param zonas    Mapa de celdas espaciales activas.
-	 * @param ladoZona Dimensión en píxeles de la zona.
-	 */
-	public void actualizarZonas(final HashMap<Point, ZoneBox> zonas, final int ladoZona) {
-		if ((zonas == null) || zonas.isEmpty()) {
-			return;
-		}
-
-		final int minX = Globales.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * this.LADO_TILE);
-		final int maxX = Globales.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * this.LADO_TILE);
-
-		final int minY = Globales.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * this.LADO_TILE);
-		final int maxY = Globales.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * this.LADO_TILE);
-
-		final int inicioGridX = Math.floorDiv(minX, ladoZona);
-		final int finGridX = Math.floorDiv(maxX, ladoZona);
-
-		final int inicioGridY = Math.floorDiv(minY, ladoZona);
-		final int finGridY = Math.floorDiv(maxY, ladoZona);
-
-		final Point claveBusqueda = new Point();
-		ZoneBox zbAux = null;
-
-		for (int gridY = inicioGridY; gridY <= finGridY; gridY++) {
-			for (int gridX = inicioGridX; gridX <= finGridX; gridX++) {
-				claveBusqueda.setLocation(gridX, gridY);
-				zbAux = zonas.get(claveBusqueda);
-
-				if (zbAux != null) {
-					zbAux.actualizar();
-				}
-			}
-		}
+		this.establecerTileReferenciado(punto.x, punto.y, tile);
 	}
 
 	public boolean contienePuntoGrupoTileReferenciado(final int x, final int y) {
@@ -359,11 +478,71 @@ public class Terreno implements Serializable {
 		return (p != null) && this.contienePuntoTileReferenciado(p.x, p.y);
 	}
 
+	// =========================================================================
+	// === RENDERIZADO Y CULLING DE CÁMARA
+	// =========================================================================
+
+	/*
+	 * =========================================================================
+	 * EXPLICACIÓN TÉCNICA: CULLING DE CÁMARA ACOTADO
+	 * ------------------------------------------------------------------------- En
+	 * lugar de evaluar todos los tiles del mapa en cada frame: 1. Calcula las
+	 * coordenadas del rectángulo visible de la cámara + márgenes de seguridad. 2.
+	 * Convierte esas coordenadas directamente a índices de la matriz [gridX,
+	 * gridY]. 3. Clampa los índices entre [0, CANTIDAD - 1] con Math.max /
+	 * Math.min. 4. El bucle solo itera los bloques estrictamente visibles en
+	 * pantalla.
+	 * =========================================================================
+	 */
+
 	/**
-	 * Obtiene la lista de tiles que se intersectan con una determinada forma
-	 * geométrica.
+	 * Renderiza en pantalla únicamente los bloques {@link GroupTile} contenidos
+	 * dentro del frustum de la cámara.
 	 *
-	 * @param s Forma geométrica a comprobar.
+	 * @param g Contexto gráfico {@link Graphics2D}.
+	 */
+	// En Terreno.java (reemplazar pintar):
+
+	public void pintar(final Graphics2D g) {
+		final double z = Globales.CAMARA.getZoom();
+
+		// Calculamos el radio visible compensado por el factor de zoom
+		final int radioVisibleX = (int) (Constantes.CENTROX / z) + (3 * this.LADO_TILE);
+		final int radioVisibleY = (int) (Constantes.CENTROY / z) + (3 * this.LADO_TILE);
+
+		final int minX = Globales.CAMARA.getPosicionXInt() - radioVisibleX;
+		final int maxX = Globales.CAMARA.getPosicionXInt() + radioVisibleX;
+
+		final int minY = Globales.CAMARA.getPosicionYInt() - radioVisibleY;
+		final int maxY = Globales.CAMARA.getPosicionYInt() + radioVisibleY;
+
+		final int startGtX = Math.max(0, Math.floorDiv(minX, this.LADO_GRUPO_TILE));
+		final int endGtX = Math.min(this.CANTIDAD_ANCHO_GROUPTILE - 1, Math.floorDiv(maxX, this.LADO_GRUPO_TILE));
+
+		final int startGtY = Math.max(0, Math.floorDiv(minY, this.LADO_GRUPO_TILE));
+		final int endGtY = Math.min(this.CANTIDAD_ALTO_GROUPTILE - 1, Math.floorDiv(maxY, this.LADO_GRUPO_TILE));
+
+		GroupTile gt = null;
+
+		for (int gtY = startGtY; gtY <= endGtY; gtY++) {
+			for (int gtX = startGtX; gtX <= endGtX; gtX++) {
+				gt = this.GRUPOS_TILES[gtX][gtY];
+				if (gt != null) {
+					gt.pintar(g);
+				}
+			}
+		}
+	}
+
+	// =========================================================================
+	// === FÍSICAS, COLISIONES Y NAVEGACIÓN (DIJKSTRA / A*)
+	// =========================================================================
+
+	/**
+	 * Obtiene la lista de tiles individuales que intersectan con una forma
+	 * geométrica arbitraria.
+	 *
+	 * @param s Forma geométrica {@link Shape} a comprobar.
 	 * @return Lista de tiles intersectados.
 	 */
 	public ArrayList<Tile> getTilesIntersectados(final Shape s) {
@@ -396,10 +575,12 @@ public class Terreno implements Serializable {
 	}
 
 	/**
-	 * Evalúa si un área rectangular intersecta con alguna celda de la grilla.
+	 * Evalúa si un área rectangular intersecta con algún tile dentro de la grilla
+	 * del terreno.
 	 *
-	 * @param r Rectángulo de colisión a verificar.
-	 * @return {@code true} si existe intersección; {@code false} en caso contrario.
+	 * @param r Rectángulo a verificar.
+	 * @return {@code true} si intersecta con algún tile existente; {@code false} si
+	 *         cae fuera.
 	 */
 	public boolean intersecta(final Rectangle r) {
 		if ((r == null) || r.isEmpty()) {
@@ -424,8 +605,11 @@ public class Terreno implements Serializable {
 	}
 
 	/**
-	 * Evalúa si un área intersecta con un tile considerado sólido para el algoritmo
-	 * de Dijkstra/Pathfinding.
+	 * Evalúa si un área geométrica intersecta con un tile considerado obstáculo
+	 * sólido para el algoritmo de Dijkstra.
+	 *
+	 * @param area Área geométrica a verificar.
+	 * @return {@code true} si hay colisión con un tile o sólido intransitable.
 	 */
 	public boolean intersectaSolidoDijkstra(final Shape area) {
 		if (area == null) {
@@ -451,7 +635,11 @@ public class Terreno implements Serializable {
 	}
 
 	/**
-	 * Evalúa si un área colisiona con algún objeto o tile sólido.
+	 * Evalúa si un área colisiona con algún tile sólido o con algún objeto sólido
+	 * contenido en él.
+	 *
+	 * @param area Área geométrica a verificar.
+	 * @return {@code true} si colisiona con algún obstáculo sólido.
 	 */
 	public boolean intersectaAlgoSolido(final Shape area) {
 		if (area == null) {
@@ -477,7 +665,11 @@ public class Terreno implements Serializable {
 	}
 
 	/**
-	 * Evalúa si un área intersecta con un tile sólido.
+	 * Evalúa si un área intersecta exclusivamente con un tile cuyo modelo base es
+	 * sólido.
+	 *
+	 * @param area Área geométrica a verificar.
+	 * @return {@code true} si el tile base es obstáculo.
 	 */
 	public boolean intersectaTileSolido(final Shape area) {
 		if (area == null) {
@@ -502,6 +694,75 @@ public class Terreno implements Serializable {
 		return false;
 	}
 
+	/**
+	 * Comprueba si un rectángulo se encuentra completamente dentro de los límites
+	 * del terreno.
+	 *
+	 * @param r Rectángulo a verificar.
+	 * @return {@code true} si está 100% dentro de los márgenes del mapa.
+	 */
+	public boolean areaDentroDelTerreno(final Rectangle r) {
+		if (r == null) {
+			return false;
+		}
+		return !((r.x < 0) || (r.y < 0) || ((r.x + r.width) > this.ANCHO) || ((r.y + r.height) > this.ALTO));
+	}
+
+	/**
+	 * Método alias por compatibilidad hacia atrás para
+	 * {@link #areaDentroDelTerreno(Rectangle)}.
+	 */
+	public boolean AreaDentroDelTerreno(final Rectangle r) {
+		return this.areaDentroDelTerreno(r);
+	}
+
+	/**
+	 * Valida si un área rectangular es apta para colocar entidades u objetos
+	 * (dentro del mapa y no sólida).
+	 *
+	 * @param r Rectángulo a verificar.
+	 * @return {@code true} si la posición es válida y transitable.
+	 */
+	public boolean areaEnSectorNoSolido(final Rectangle r) {
+		if (!this.areaDentroDelTerreno(r)) {
+			System.err.println("Advertencia: Colocación fuera de límites del terreno: " + r);
+			return false;
+		}
+
+		final Tile tile = this.getTileReferenciado(r.x, r.y);
+		if ((tile != null) && tile.esSolidoDijkstra()) {
+			System.err.println("Advertencia: Colocación sobre sector sólido Dijkstra: " + r);
+			return false;
+		}
+		return true;
+	}
+
+	// =========================================================================
+	// === GETTERS Y ACCESORES
+	// =========================================================================
+
+	public GroupTile[][] getGroupTILES() {
+		return this.GRUPOS_TILES;
+	}
+
+	/**
+	 * Recopila todos los tiles individuales del mapa en una lista contigua.
+	 *
+	 * @return Lista conteniendo todos los tiles del terreno.
+	 */
+	public ArrayList<Tile> getTILES() {
+		final ArrayList<Tile> lista = new ArrayList<Tile>((int) this.CANT_TILES);
+		for (int x = 0; x < this.CANTIDAD_ANCHO_GROUPTILE; x++) {
+			for (int y = 0; y < this.CANTIDAD_ALTO_GROUPTILE; y++) {
+				final GroupTile gt = this.GRUPOS_TILES[x][y];
+				if (gt != null) {
+					lista.addAll(gt.getTiles());
+				}
+			}
+		}
+		return lista;
+	}
+
 	public int getAncho() {
 		return this.ANCHO;
 	}
@@ -516,27 +777,6 @@ public class Terreno implements Serializable {
 
 	public int ladoGrupoTile() {
 		return this.LADO_GRUPO_TILE;
-	}
-
-	public boolean AreaDentroDelTerreno(final Rectangle r) {
-		if (r == null) {
-			return false;
-		}
-		return !((r.x < 0) || (r.y < 0) || ((r.x + r.width) > this.ANCHO) || ((r.y + r.height) > this.ALTO));
-	}
-
-	public boolean areaEnSectorNoSolido(final Rectangle r) {
-		if (!this.AreaDentroDelTerreno(r)) {
-			System.out.println("se ha detectado una colocacion en area no valida. Fuera del terreno! " + r);
-			return false;
-		}
-
-		final Tile tile = this.getTileReferenciado(r.x, r.y);
-		if ((tile != null) && tile.esSolidoDijkstra()) {
-			System.out.println("se ha detectado una colocacion en area no valida. TileSolido " + r);
-			return false;
-		}
-		return true;
 	}
 
 	public long getCantidadTiles() {

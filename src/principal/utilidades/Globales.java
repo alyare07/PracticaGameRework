@@ -47,8 +47,16 @@ public class Globales {
 	public static Camara CAMARA = new Camara(JUGADOR);
 
 	public static void actualizarFactorEscalado() {
-		FACTOR_ESCALADO_X = ANCHO_PANTALLA_COMPLETA / (double) Constantes.ANCHO_JUEGO;
-		FACTOR_ESCALADO_Y = ALTO_PANTALLA_COMPLETA / (double) Constantes.ALTO_JUEGO;
+		final int escalaX = ANCHO_PANTALLA_COMPLETA / Constantes.ANCHO_JUEGO; // 1920 / 640 = 3
+		final int escalaY = ALTO_PANTALLA_COMPLETA / Constantes.ALTO_JUEGO; // 1080 / 360 = 3
+		final int nuevaEscala = Math.max(1, Math.min(escalaX, escalaY)); // Resultado: 3
+
+		if (nuevaEscala == (int) FACTOR_ESCALADO_X) {
+			return;
+		}
+
+		FACTOR_ESCALADO_X = nuevaEscala;
+		FACTOR_ESCALADO_Y = nuevaEscala;
 	}
 
 	/**

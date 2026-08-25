@@ -1,0 +1,170 @@
+ARQUITECTURA DEL SISTEMA DE TILES, AUTOTILING Y ANIMACIÓN
+===================================================================================================
+                                1. VISIÓN GENERAL DEL PIPELINE
+===================================================================================================
+
+ [ 1. ASSETS EN DISCO ]       [ 2. MEMORIA VRAM ]             [ 3. MODELOS LÓGICOS ]
+   terrenos16.png        -->    Textura.java             -->    ListaModeloTile.java
+   (320 x 208 px)               (Map<Integer, Image>)           (Flyweight / Singletons)
+                                          |                                |
+                                          v                                v
+ [ 4. MUNDO / TERRENO ]  -->   [ 5. TILE EN EL MAPA ]     -->   [ 6. RENDERIZADO O(1) ]
+   Terreno.java                 Tile.java                       Tile.pintarCapas()
+   - calcularAutotiles()        - mascaraBit (0-15)             - Capa 1: Fondo
+   - actualizarAutotileLocal()  - variacionPropia (0-3)         - Capa 2: Principal
+                                - codigoModeloFondo
+
+
+
+===================================================================================================
+                     2. DETECCIÓN DE BORDES: BITMASKING DE 4 BITS
+===================================================================================================
+
+ Cada Tile analiza sus 4 vecinos cardinales (N, E, S, O). Si el vecino tiene el MISMO
+ código de modelo (ej. Césped con Césped), se suma el peso binario correspondiente:
+
+                                  [ NORTE (y - 1) ]
+                                      Valor: +1
+                                          ^
+                                          |
+           [ OESTE (x - 1) ] <---  [ TILE ACTUAL ]  ---> [ ESTE (x + 1) ]
+              Valor: +8             (Suma de Bits)          Valor: +2
+                                          |
+                                          v
+                                  [ SUR (y + 1) ]
+                                      Valor: +4
+
+ FÓRMULA:
+ Máscara = (Tiene_Norte ? 1 : 0) + (Tiene_Este ? 2 : 0) + (Tiene_Sur ? 4 : 0) + (Tiene_Oeste ? 8 : 0)
+
+ RESULTADO (0 a 15):
+ --------------------------------------------------------------------------------------------------
+   0: Aislado (Sin vecinos)           |   7: Conecta N, E, S (Borde Oeste cerrado)
+   1: Conecta solo Norte              |   8: Conecta solo Oeste
+   2: Conecta solo Este               |   9: Esquina Sup-Izq (Conecta N y O)
+   3: Esquina Sup-Der (Conecta N y E) |  10: Pasillo Horizontal (Conecta E y O)
+   4: Conecta solo Sur                |  11: Conecta N, E, O (Borde Sur cerrado)
+   5: Pasillo Vertical (Conecta N y S)|  12: Esquina Inf-Izq (Conecta S y O)
+   6: Esquina Inf-Der (Conecta E y S) |  13: Conecta N, S, O (Borde Este cerrado)
+                                      |  14: Conecta E, S, O (Borde Norte cerrado)
+                                      |  15: CENTRO (Rodeado por los 4 lados -> Activa Variaciones)
+ --------------------------------------------------------------------------------------------------
+ 
+ 
+ ===================================================================================================
+              3. VARIACIONES DETERMINISTAS (HASH 2D PSEUDOALEATORIO)
+===================================================================================================
+
+ Para evitar líneas uniformes o patrones artificiales, se calcula un Hash 2D basado
+ estrictamente en las coordenadas de grilla (X, Y) y el tipo de modelo:
+
+  (GridX, GridY, ID_Modelo)
+              |
+              v
+    [ Función Hash 2D ]  -->  Operaciones a nivel de bits (Murmur/SplitMix)
+              |
+              v
+    [ Roll: 0 a 99 ]     -->  Número pseudoaleatorio pero 100% DETERMINISTA
+              |
+              +--->  0 a 81  (82% Probabilidad) --> v0 (Terreno Base Limpio)
+              |
+              +---> 82 a 89  ( 8% Probabilidad) --> v1 (Detalle A: Flor / Piedra)
+              |
+              +---> 90 a 95  ( 6% Probabilidad) --> v2 (Detalle B: Hongo / Grieta)
+              |
+              +---> 96 a 99  ( 4% Probabilidad) --> v3 (Detalle C: Brizna / Brote)
+              
+              
+              
+===================================================================================================
+              4. ANIMACIÓN GLOBAL SINCRONIZADA (AUTOTILE + FRAMES)
+===================================================================================================
+
+ 1. El objeto "Animacion" dentro de ModeloTile actúa como RELOJ MAESTRO global.
+ 2. Avanza el frame (0, 1 o 2) cada 350 ms. Todos los tiles de agua leen el MISMO frame.
+
+                      +------------------------------------------+
+                      |       Animacion (Reloj Global)           |
+                      |  Frame Actual = 0  ->  Offset = 0        |
+                      |  Frame Actual = 1  ->  Offset = 20       |
+                      |  Frame Actual = 2  ->  Offset = 40       |
+                      +------------------------------------------+
+                                           |
+                                           v
+   [ RESOLUCIÓN DE TEXTURA EN TIEMPO REAL O(1) ]:
+   
+   ¿Máscara == 15? (Es Centro)
+        |
+        |-- SI --> ID = ID_Base + Offset + (16 + VariacionPropia)
+        |
+        |-- NO --> ID = ID_Base + Offset + MascaraBit
+        
+        
+===================================================================================================
+                   5. DIAGRAMA DE DECISIÓN EN CADA FRAME (Game Loop)
+===================================================================================================
+
+                        [ INICIO: Tile.pintarCapas(g) ]
+                                       |
+                                       v
+                    ¿Tiene Capa de Fondo (fondo != 0)?
+                                  /         \
+                             (SI)/           \(NO)
+                                v             v
+                   [ Consultar ModeloFondo ]  |
+                   [ Pintar textura base   ]  |
+                                \             /
+                                 v           v
+                          [ Obtener ModeloTile ]
+                                       |
+                                       v
+                     ¿El Modelo es Animado (>1 frames)?
+                                  /         \
+                             (SI)/           \(NO)
+                                v             v
+                    [ Leer Frame Actual ]   [ Offset = 0 ]
+                    [ Offset = Frame*20 ]         |
+                                \             /
+                                 v           v
+                           ¿MáscaraBit == 15?
+                                  /         \
+                             (SI)/           \(NO)
+                                v             v
+                 [ Textura = Variación ]   [ Textura = texturasAutotile[mask] ]
+                 [ + Offset            ]   [ + Offset                         ]
+                                \             /
+                                 v           v
+                  [ ID_Final = Textura calculada ]
+                  [ DibujoDebug.dibujarImagenRefCamara() ]
+                                       |
+                                       v
+                                    [ FIN ]
+                                    
+===================================================================================================
+             6. CUADRÍCULA DE REFERENCIA PARA TU SPRITESHEET FINAL
+===================================================================================================
+
+ Cada fila del archivo PNG (terrenos16.png) mide exactamente 20 tiles (320 px) de ancho:
+
+  COLUMNAS (X):
+  [ 0 ][ 1 ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 7 ][ 8 ][ 9 ][10][11][12][13][14][15]  [16][17][18][19]
+  |<----------------- 16 MÁSCARAS DE BORDES AUTOTILE -------------------->|  |<- 4 VARIACIONES ->|
+                                                                              (v0) (v1) (v2) (v3)
+
+  FILAS (Y):
+  Fila 00: Césped
+  Fila 01: Tierra
+  Fila 02: Tierra Oscura
+  Fila 03: Arena
+  Fila 04: Asfalto / Camino
+  Fila 05: Piedra / Roca
+  Fila 06: Agua (Frame 0) ----\
+  Fila 07: Agua (Frame 1) -----+--> Set de Animación Sincronizada (60 IDs en total)
+  Fila 08: Agua (Frame 2) ----/
+  Fila 09: Césped 2
+  Fila 10: Césped 3
+  Fila 11: Césped Nevado
+  Fila 12: Vacío
+===================================================================================================
+
+

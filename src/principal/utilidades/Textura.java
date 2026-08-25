@@ -54,6 +54,13 @@ public final class Textura {
 		return idSiguienteEstructura++;
 	}
 
+	// En Textura.java:
+	private static int getSiguienteRangoTerreno(final int cantidad) {
+		final int inicio = idSiguienteTerreno;
+		idSiguienteTerreno += cantidad;
+		return inicio;
+	}
+
 	// IDs Específicos
 	public static final int TEXTURA_ERROR = -2;
 	public static final int TEXTURA_TRANSPARENTE = -1;
@@ -61,18 +68,17 @@ public final class Textura {
 	public static final int idTexturaContornoTile = -3;
 	public static final int idTexturaContornoGroupTile = -4;
 
-	// Terreno 32x32
-	public static final int TEXTURA_x32_ASFALTO = getSiguienteIdTerreno();
-	public static final int TEXTURA_x32_ARENA = getSiguienteIdTerreno();
-	public static final int TEXTURA_x32_PIEDRA = getSiguienteIdTerreno();
-	public static final int TEXTURA_x32_CESPED = getSiguienteIdTerreno();
-	public static final int TEXTURA_x32_CESPED_2 = getSiguienteIdTerreno();
-	public static final int TEXTURA_x32_AGUA_1 = getSiguienteIdTerreno();
-	public static final int TEXTURA_x32_TIERRA = getSiguienteIdTerreno();
-	public static final int TEXTURA_x32_TIERRA_2 = getSiguienteIdTerreno();
-	public static final int TEXTURA_x32_CESPED_3 = getSiguienteIdTerreno();
-	public static final int TEXTURA_x32_CESPED_3_NEVADO = getSiguienteIdTerreno();
-	public static final int TEXTURA_x32_AGUA_1_INV_H = getSiguienteIdTerreno();
+	public static final int INICIO_AUTOTILE_CESPED = getSiguienteRangoTerreno(20);
+	public static final int INICIO_AUTOTILE_TIERRA = getSiguienteRangoTerreno(20);
+	public static final int INICIO_AUTOTILE_TIERRA_2 = getSiguienteRangoTerreno(20);
+	public static final int INICIO_AUTOTILE_ARENA = getSiguienteRangoTerreno(20);
+	public static final int INICIO_AUTOTILE_ASFALTO = getSiguienteRangoTerreno(20);
+	public static final int INICIO_AUTOTILE_PIEDRA = getSiguienteRangoTerreno(20);
+	public static final int INICIO_AUTOTILE_AGUA = getSiguienteRangoTerreno(60); // 3 frames * 20
+	public static final int INICIO_AUTOTILE_CESPED_2 = getSiguienteRangoTerreno(20);
+	public static final int INICIO_AUTOTILE_CESPED_3 = getSiguienteRangoTerreno(20);
+	public static final int INICIO_AUTOTILE_CESPED_3_NEVADO = getSiguienteRangoTerreno(20);
+	public static final int INICIO_AUTOTILE_VACIO = getSiguienteRangoTerreno(20);
 
 	// Subterreno 16x16
 	public static final int TEXTURA_x16_AGUA = getSiguienteIdSubTerreno();
@@ -170,46 +176,6 @@ public final class Textura {
 		guardar(idTexturaContornoGroupTile, Globales.FUNCIONES.TEXTURAS_TOOLS
 				.crearImagenRectanguloContornoEnVRAM(Constantes.LADO_TILE * 2, Color.BLUE));
 
-		// 2. Carga Terrenos
-		final HojaSprite hojaTerreno = new HojaSprite("/imagenes/texturas/textura.png", 32, true);
-		guardar(TEXTURA_x32_ASFALTO, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(0), 16, 16));
-		guardar(TEXTURA_x32_ARENA, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(1), 16, 16));
-		guardar(TEXTURA_x32_PIEDRA, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(2), 16, 16));
-		guardar(TEXTURA_x32_CESPED, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(3), 16, 16));
-		guardar(TEXTURA_x32_CESPED_2,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(5), 16, 16));
-		guardar(TEXTURA_x32_TIERRA, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(7), 16, 16));
-		guardar(TEXTURA_x32_TIERRA_2,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(8), 16, 16));
-		guardar(TEXTURA_x32_AGUA_1, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(9), 16, 16));
-		guardar(TEXTURA_x32_CESPED_3,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(hojaTerreno.getSprite(12), 16, 16));
-		guardar(TEXTURA_x32_AGUA_1_INV_H,
-				Globales.FUNCIONES.TEXTURAS_TOOLS.voltearImagenH(getTextura(TEXTURA_x32_AGUA_1)));
-
-		// 3. Carga Subterrenos
-		final HojaSprite hojaSubterreno = new HojaSprite("/imagenes/texturas/subterreno.png", 16, false);
-		guardar(TEXTURA_x16_AGUA, hojaSubterreno.getSprite(0));
-		guardar(TEXTURA_x16_MURO_PIEDRA_NEGRA, hojaSubterreno.getSprite(1));
-		guardar(TEXTURA_x16_TIERRA, hojaSubterreno.getSprite(7));
-
-		final BufferedImage cesped16 = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(16, 16,
-				Transparency.TRANSLUCENT);
-		final Graphics2D gCesped = cesped16.createGraphics();
-		gCesped.drawImage(getTextura(TEXTURA_x32_CESPED), 0, 0, 16, 16, 0, 0, 32, 32, null);
-		gCesped.dispose();
-		guardar(TEXTURA_x16_CESPED, cesped16);
-
-		final HojaSprite hojaAguaH = new HojaSprite("/imagenes/texturas/aguaH.png", 16, 16, false);
-		for (int i = 0; i < 6; i++) {
-			guardar(TEXTURA_x16_AGUA_HORIZONTAL + i, hojaAguaH.getSprite(i));
-		}
-
-		final HojaSprite hojaAguaV = new HojaSprite("/imagenes/texturas/aguaV.png", 16, false);
-		for (int i = 0; i < 4; i++) {
-			guardar(TEXTURA_x16_AGUA_VERTICAL + i, hojaAguaV.getSprite(i));
-		}
-
 		// 4. Objetos y Árboles
 		final HojaSprite hojaArboles = new HojaSprite("/imagenes/texturas/trees.png", 32, false);
 		guardar(TEXTURA_x32_ARBOL_1, hojaArboles.getSprite(0));
@@ -259,15 +225,36 @@ public final class Textura {
 				.cargarImagenCompatibleTranslucida("/imagenes/texturas/house/1.png");
 		guardar(TEXTURA_X64_CASA1, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(auxCasa, 64, 64));
 
-		// 7. Hoja especial
-		final int anchoAgua = getTextura(TEXTURA_x32_AGUA_1).getWidth();
-		final BufferedImage imgHojaAgua = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(anchoAgua, anchoAgua * 2,
-				Transparency.TRANSLUCENT);
-		final Graphics2D gAgua = imgHojaAgua.createGraphics();
-		gAgua.drawImage(getTextura(TEXTURA_x32_AGUA_1), 0, 0, null);
-		gAgua.drawImage(getTextura(TEXTURA_x32_AGUA_1_INV_H), anchoAgua, 0, null);
-		gAgua.dispose();
-		HOJA_AGUA = new HojaSprite(imgHojaAgua, anchoAgua, true);
+		// Reemplaza o añade la carga de terrenos dentro de cargarTodasLasTexturas() en
+		// Textura.java:
+		final HojaSprite hojaTerrenos = new HojaSprite("/imagenes/texturas/terrenos16.png", 16, false);
+
+		cargarSetTerreno(hojaTerrenos, 0, INICIO_AUTOTILE_CESPED);
+		cargarSetTerreno(hojaTerrenos, 1, INICIO_AUTOTILE_TIERRA);
+		cargarSetTerreno(hojaTerrenos, 2, INICIO_AUTOTILE_TIERRA_2);
+		cargarSetTerreno(hojaTerrenos, 3, INICIO_AUTOTILE_ARENA);
+		cargarSetTerreno(hojaTerrenos, 4, INICIO_AUTOTILE_ASFALTO);
+		cargarSetTerreno(hojaTerrenos, 5, INICIO_AUTOTILE_PIEDRA);
+		// 3 FILAS DE AGUA (Frames 0, 1, 2)
+		cargarSetTerreno(hojaTerrenos, 6, INICIO_AUTOTILE_AGUA);
+		cargarSetTerreno(hojaTerrenos, 7, INICIO_AUTOTILE_AGUA + 20);
+		cargarSetTerreno(hojaTerrenos, 8, INICIO_AUTOTILE_AGUA + 40);
+		// RESTO DE TERRENOS
+		cargarSetTerreno(hojaTerrenos, 9, INICIO_AUTOTILE_CESPED_2);
+		cargarSetTerreno(hojaTerrenos, 10, INICIO_AUTOTILE_CESPED_3);
+		cargarSetTerreno(hojaTerrenos, 11, INICIO_AUTOTILE_CESPED_3_NEVADO);
+		cargarSetTerreno(hojaTerrenos, 12, INICIO_AUTOTILE_VACIO);
+	}
+
+	/**
+	 * Carga los 20 sprites correspondientes a una fila de terreno (16 autotiles + 4
+	 * variaciones) y los almacena en el mapa unificado de VRAM.
+	 */
+	private static void cargarSetTerreno(final HojaSprite hoja, final int fila, final int idBase) {
+		final int inicioSprite = fila * 20; // 20 columnas por fila
+		for (int i = 0; i < 20; i++) {
+			guardar(idBase + i, hoja.getSprite(inicioSprite + i));
+		}
 	}
 
 	// --- MÉTODOS AUXILIARES Y DE SEGURIDAD ---

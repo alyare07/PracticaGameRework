@@ -410,7 +410,7 @@ public abstract class Criatura extends Ente {
 	}
 
 	public boolean estaEstadoEstandar() {
-		return this.tieneEstado(Estado.ATACANDO);
+		return this.tieneEstado(Estado.ESTANDAR);
 	}
 
 	public boolean estaEstadoCorriendo() {

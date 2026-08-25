@@ -165,6 +165,22 @@ public class Animacion {
 
 	}
 
+	// En Animacion.java:
+
+	public int getSpritePosicion() {
+		if (this.codPintado != Globales.getCodActualizacion()) {
+			if (!this.pausado && !Globales.pausa) {
+				this.codPintado = Globales.getCodActualizacion();
+				this.GT_DURACION_ANIMACION.actualizar();
+				if (this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES)) {
+					this.GT_DURACION_ANIMACION.reiniciarTiempo();
+					this.siguienteSprite();
+				}
+			}
+		}
+		return this.spritePosicion;
+	}
+
 	public boolean animacionFinalizada() {
 //		System.out.println("Repetitiva: " + this.repetitiva +" , posicion final: "+(this.spritePosicion == this.MAX_SPRITE_POSICION)+ " tiempo transcurrido: "+this.GT_DURACION_ANIMACION.transcurrioMS(TIEMPO_MS_POR_FRAMES));
 		return (!this.repetitiva

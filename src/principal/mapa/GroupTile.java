@@ -112,28 +112,34 @@ public final class GroupTile extends Tile {
 		}
 
 		if (Globales.editorSelectGroupTile) {
-			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoGroupTile), this.X,
-					this.Y);
+//			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoGroupTile), this.X,
+//					this.Y);
 		}
 	}
 
-	public boolean establecerTileEspecifico(final Point puntoTile, final Tile tile) {
-		if ((puntoTile == null) || (tile == null)) {
+	public boolean establecerTileEspecifico(final int tileGridX, final int tileGridY, final Tile tile) {
+		if (tile == null) {
 			return false;
 		}
 
-		// Convertimos el punto de la grilla de tiles a coordenadas relativas (0 o 1)
-		final int worldX = puntoTile.x * Constantes.LADO_TILE;
-		final int worldY = puntoTile.y * Constantes.LADO_TILE;
+		final int worldX = tileGridX * this.LADO_TILES;
+		final int worldY = tileGridY * this.LADO_TILES;
 
 		final int relX = Math.floorDiv(worldX - this.X, this.LADO_TILES);
 		final int relY = Math.floorDiv(worldY - this.Y, this.LADO_TILES);
 
 		if ((relX >= 0) && (relX < 2) && (relY >= 0) && (relY < 2)) {
-			this.tilesMatriz[relX][relY] = new Tile(worldX, worldY, this.LADO_TILES, tile.CODIGO_MODELO_TILE);
+			this.tilesMatriz[relX][relY] = new Tile(worldX, worldY, this.LADO_TILES, tile.getCodModelo());
 			return true;
 		}
 		return false;
+	}
+
+	public boolean establecerTileEspecifico(final Point puntoTile, final Tile tile) {
+		if (puntoTile == null) {
+			return false;
+		}
+		return this.establecerTileEspecifico(puntoTile.x, puntoTile.y, tile);
 	}
 
 	@Override

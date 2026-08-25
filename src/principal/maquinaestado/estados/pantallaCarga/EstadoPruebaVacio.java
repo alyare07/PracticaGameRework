@@ -49,7 +49,7 @@ public class EstadoPruebaVacio implements EstadoJuego {
 	public void pintar(final Graphics2D g) {
 		for (int x = 50; x <= 150; x += 16) {
 			for (int y = 50; y <= 150; y += 16) {
-				g.drawImage(Textura.getTextura(Textura.TEXTURA_x32_PIEDRA), x, y, null);
+				g.drawImage(Textura.getTextura(Textura.INICIO_AUTOTILE_PIEDRA), x, y, null);
 			}
 		}
 		final Composite com = g.getComposite();

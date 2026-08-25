@@ -13,6 +13,8 @@ public class Camara {
 	private int margenX;
 	private int margenY;
 	private final GestorDeLimites gestorLimite;
+	private static final double ZOOM_BASE = 1.0;
+	private double zoom = 1.0; // 1.0 = normal, 1.5 = zoom-in, 0.5 = zoom-out
 
 	public Camara(final Ente entidadEnfocada) {
 		this.gestorLimite = new GestorDeLimites();
@@ -81,6 +83,28 @@ public class Camara {
 		if (this.entidadEnfocada != this.gestorLimite.getEntidadEnfocada()) {
 			this.gestorLimite.eliminar();
 		}
+	}
+
+	public double getZoom() {
+		return this.zoom;
+	}
+
+	public void setZoom(final double nuevoZoom) {
+		// Clamping de seguridad redondeado al múltiplo de 0.25 más cercano
+		final double zoomClampeado = Math.max(0.5, Math.min(2.5, nuevoZoom));
+		this.zoom = Math.round(zoomClampeado * 4.0) / 4.0; // Redondea a 0.50, 0.75, 1.00, 1.25, 1.50...
+	}
+
+	public void reiniciarZoom() {
+		this.zoom = ZOOM_BASE;
+	}
+
+	public void aumentarZoom() {
+		this.setZoom(this.zoom + 0.25);
+	}
+
+	public void reducirZoom() {
+		this.setZoom(this.zoom - 0.25);
 	}
 
 	public double getPosicionX() {

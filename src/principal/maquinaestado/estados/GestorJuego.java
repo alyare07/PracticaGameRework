@@ -73,7 +73,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 		GestorMusica.actualizarMusicaFondoPrincipal(true);
 		// COD PRUEBA
-		this.actualizarCambioCamaraConEntes();
+		this.actualizarCambioCamaraConEntesYZoom();
 		// FIN COD PRUEBA
 		Globales.JUGADOR.actualizar();
 
@@ -105,7 +105,20 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	}
 
-	private void actualizarCambioCamaraConEntes() {
+	private void actualizarCambioCamaraConEntesYZoom() {
+		// Control de Zoom por Teclado (+, - y 0)
+		if (Globales.TECLADO.TECLA_ZOOM_IN.presionadoUnicaActualizacion()) {
+			Globales.CAMARA.aumentarZoom();
+			; // Zoom In suave
+		} else if (Globales.TECLADO.TECLA_ZOOM_OUT.presionadoUnicaActualizacion()) {
+			Globales.CAMARA.reducirZoom();
+			; // Zoom Out suave
+		}
+
+		if (Globales.TECLADO.TECLA_ZOOM_REINICIAR.presionadoUnicaActualizacion()) {
+			Globales.CAMARA.reiniciarZoom(); // Reset a 100% normal
+		}
+
 		if (Globales.RATON.presionadoClickIzqUnicaAct()) {
 			for (final Ente e : this.mapa.getMundoActual().getEnteIntersectados(
 					Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara(), true)) {
@@ -147,12 +160,37 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			return;
 		}
 
-		// 1. Capa de Mundo y Debug
+		final double zoom = Globales.CAMARA.getZoom(); // ej: 1.0 (normal), 1.5 (zoom-in), 0.75 (zoom-out)
+		final boolean conZoom = (zoom != 1.0);
+
+		// =========================================================================
+		// === CAPAS DE MUNDO: TERRENO, ENTIDADES Y DEBUG (CON ZOOM)
+		// =========================================================================
+		if (conZoom) {
+			g.translate(Constantes.CENTROX, Constantes.CENTROY);
+			g.scale(zoom, zoom);
+			g.translate(-Constantes.CENTROX, -Constantes.CENTROY);
+		}
+
+		// 1. Capa de Mundo
 		this.mapa.pintar(g);
-		this.pintarDebug(g);
 
 		// 2. Capa de Entidades
 		Globales.JUGADOR.pintar(g);
+
+		if (conZoom) {
+			// Restauramos la matriz al 100% para que el HUD no sufra ningún cambio
+			g.translate(Constantes.CENTROX, Constantes.CENTROY);
+			g.scale(1.0 / zoom, 1.0 / zoom);
+			g.translate(-Constantes.CENTROX, -Constantes.CENTROY);
+		}
+
+		// =========================================================================
+		// === CAPAS DE INTERFAZ / HUD (ESCALA FIJA 1:1)
+		// =========================================================================
+
+		// 1. Capa de Debug
+		this.pintarDebug(g);
 
 		// 3. Capa de Inventarios, Contenedores y Tooltips
 		if (!Globales.JUGADOR.estaEliminado()) {

@@ -18,11 +18,45 @@ import org.json.simple.parser.JSONParser;
 
 import principal.utilidades.Globales;
 
+/**
+ * Gestor centralizado de entrada para el teclado.
+ * <p>
+ * <b>Arquitectura del Sistema de Teclado:</b>
+ * <ul>
+ * <li><b>Búfer Primitivo Doble (512 Códigos):</b> Mantiene un arreglo booleano
+ * de 512 posiciones para almacenar el estado físico de cualquier tecla estándar
+ * o multimedia, evitando excepciones
+ * {@link ArrayIndexOutOfBoundsException}.</li>
+ * <li><b>Detección de Pulsación Única por Frame:</b> Utiliza
+ * {@link System#arraycopy} al inicio de cada ciclo para comparar el estado
+ * actual contra el frame anterior sin crear objetos en memoria.</li>
+ * <li><b>Acciones Conmutables y Condicionadas:</b> Soporta teclas tipo toggle
+ * (conmutables como el debug) y acciones condicionadas
+ * ({@link TeclaAccionCondicionada}) como el inventario o la pausa.</li>
+ * <li><b>Persistencia JSON:</b> Guarda y carga remapeos de teclas
+ * personalizados en {@code Config.dat}.</li>
+ * </ul>
+ * </p>
+ * 
+ * @author Copiloto Técnico
+ * @version 2.0
+ */
 public class Teclado implements KeyListener {
 
+	/** Archivo local de persistencia de configuración de controles. */
 	public final File ARCHIVO_CONFIG = new File("Config.dat");
+
+	/** Lista completa de todas las teclas registradas en el motor. */
 	public final ArrayList<Tecla> TECLAS = new ArrayList<Tecla>();
+
+	/**
+	 * Diccionario de teclas remapeables por el usuario para su guardado en JSON.
+	 */
 	public final HashMap<String, Tecla> TECLAS_MODIFICABLES = new HashMap<String, Tecla>();
+
+	// =========================================================================
+	// === DECLARACIÓN DE TECLAS DE ACCIÓN Y NAVEGACIÓN
+	// =========================================================================
 
 	public final Tecla TECLA_ARRIBA;
 	public final Tecla TECLA_ABAJO;
@@ -30,30 +64,49 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_DERECHA;
 	public final Tecla TECLA_RECOGIENDO;
 	public final Tecla TECLA_CORRIENDO;
+	public final Tecla TECLA_ATACANDO;
+
+	// Teclas de Depuración e Información
 	public final Tecla TECLA_DEBUG;
 	public final Tecla TECLA_FPS_LIMITE;
 	public final Tecla TECLA_VER_COLISIONES;
 	public final Tecla TECLA_DIJKSTRA;
 	public final Tecla TECLA_DIJKSTRA_INFO;
-	public final Tecla TECLA_GUARDAR_MAPA;
 	public final Tecla TECLA_DEBUG_TILE;
 	public final Tecla TECLA_DEBUG_TILE_INFO;
 	public final Tecla TECLA_DEBUG_GROUP_TILE;
 	public final Tecla TECLA_OCULTAR_TERRENO;
 	public final Tecla TECLA_OCULTAR_COMPLEMENTOS;
 	public final Tecla TECLA_VER_ALCANCE_ATAQUE;
-	public final Tecla TECLA_ATACANDO;
-	public final Tecla TECLA_PAUSA;
+
+	// Teclas de Edición y Control del Sistema
+	public final Tecla TECLA_GUARDAR_MAPA;
 	public final Tecla TECLA_ESCAPE;
 	public final Tecla TECLA_PUNTO;
 	public final TeclaAccionCondicionada TECLA_INVENTARIO;
+	public final TeclaAccionCondicionada TECLA_PAUSA;
+
+	// NUEVAS TECLAS: Control de Zoom Dinámico
+	public final Tecla TECLA_ZOOM_IN;
+	public final Tecla TECLA_ZOOM_OUT;
+	public final Tecla TECLA_ZOOM_REINICIAR;
+
+	// =========================================================================
+	// === BÚFERES PRIMITIVOS DE ESTADO
+	// =========================================================================
+
+	/** Búfer de estado físico activo (true = presionada en este instante). */
+	public boolean[] teclas = new boolean[512];
 
 	/**
-	 * Arreglo ampliado a 512 elementos para prevenir fuera de rango en teclas
-	 * especiales
+	 * Búfer histórico del tick anterior para detectar transiciones de subida
+	 * (keydown único).
 	 */
-	public boolean[] teclas = new boolean[512];
 	private final boolean[] teclasPresionadasAnterior = new boolean[512];
+
+	// =========================================================================
+	// === CONSTRUCTOR
+	// =========================================================================
 
 	public Teclado() {
 		this.TECLA_ARRIBA = new Tecla(KeyEvent.VK_UP, "Mover Arriba");
@@ -62,6 +115,8 @@ public class Teclado implements KeyListener {
 		this.TECLA_DERECHA = new Tecla(KeyEvent.VK_RIGHT, "Mover Derecha");
 		this.TECLA_RECOGIENDO = new Tecla(KeyEvent.VK_E, "Recoger");
 		this.TECLA_CORRIENDO = new Tecla(KeyEvent.VK_SHIFT, "Correr");
+		this.TECLA_ATACANDO = new Tecla(KeyEvent.VK_SPACE, "Atacar");
+
 		this.TECLA_DEBUG = new Tecla(KeyEvent.VK_F1, true, "Debug");
 		this.TECLA_FPS_LIMITE = new Tecla(KeyEvent.VK_F11, true, "FPS Limite");
 		this.TECLA_VER_COLISIONES = new Tecla(KeyEvent.VK_F7, true, "Ver Colisiones");
@@ -74,9 +129,13 @@ public class Teclado implements KeyListener {
 		this.TECLA_OCULTAR_TERRENO = new Tecla(KeyEvent.VK_F8, true, "Ocultar Terreno");
 		this.TECLA_OCULTAR_COMPLEMENTOS = new Tecla(KeyEvent.VK_F9, true, "Ocultar Complementos");
 		this.TECLA_VER_ALCANCE_ATAQUE = new Tecla(KeyEvent.VK_F10, true, "Ver Alcance");
-		this.TECLA_ATACANDO = new Tecla(KeyEvent.VK_SPACE, "Atacar");
 		this.TECLA_ESCAPE = new Tecla(KeyEvent.VK_ESCAPE, "Escape");
 		this.TECLA_PUNTO = new Tecla(KeyEvent.VK_PERIOD, "Punto");
+
+		// Controles de Zoom
+		this.TECLA_ZOOM_IN = new Tecla(KeyEvent.VK_PLUS, "Zoom In");
+		this.TECLA_ZOOM_OUT = new Tecla(KeyEvent.VK_MINUS, "Zoom Out");
+		this.TECLA_ZOOM_REINICIAR = new Tecla(KeyEvent.VK_0, "Zoom Reset");
 
 		this.TECLA_INVENTARIO = new TeclaAccionCondicionada(KeyEvent.VK_I, "Inventario") {
 			@Override
@@ -109,7 +168,7 @@ public class Teclado implements KeyListener {
 		this.cargarTeclasALista();
 		this.cargarTeclasAListaModificables();
 
-		System.out.println("Config Teclado cargada? " + this.cargarConfig());
+		System.out.println("Configuración de Teclado cargada exitosamente: " + this.cargarConfig());
 	}
 
 	private void cargarTeclasALista() {
@@ -121,6 +180,7 @@ public class Teclado implements KeyListener {
 		this.TECLAS.add(this.TECLA_DERECHA);
 		this.TECLAS.add(this.TECLA_RECOGIENDO);
 		this.TECLAS.add(this.TECLA_CORRIENDO);
+		this.TECLAS.add(this.TECLA_ATACANDO);
 		this.TECLAS.add(this.TECLA_DEBUG);
 		this.TECLAS.add(this.TECLA_FPS_LIMITE);
 		this.TECLAS.add(this.TECLA_VER_COLISIONES);
@@ -133,9 +193,13 @@ public class Teclado implements KeyListener {
 		this.TECLAS.add(this.TECLA_OCULTAR_TERRENO);
 		this.TECLAS.add(this.TECLA_OCULTAR_COMPLEMENTOS);
 		this.TECLAS.add(this.TECLA_VER_ALCANCE_ATAQUE);
-		this.TECLAS.add(this.TECLA_ATACANDO);
 		this.TECLAS.add(this.TECLA_PUNTO);
 		this.TECLAS.add(this.TECLA_PAUSA);
+
+		// Registro de Teclas de Zoom
+		this.TECLAS.add(this.TECLA_ZOOM_IN);
+		this.TECLAS.add(this.TECLA_ZOOM_OUT);
+		this.TECLAS.add(this.TECLA_ZOOM_REINICIAR);
 	}
 
 	private void cargarTeclasAListaModificables() {
@@ -147,7 +211,29 @@ public class Teclado implements KeyListener {
 		this.TECLAS_MODIFICABLES.put(this.TECLA_RECOGIENDO.nombre, this.TECLA_RECOGIENDO);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_CORRIENDO.nombre, this.TECLA_CORRIENDO);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_INVENTARIO.nombre, this.TECLA_INVENTARIO);
+
+		// Controles modificables de Zoom
+		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_IN.nombre, this.TECLA_ZOOM_IN);
+		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_OUT.nombre, this.TECLA_ZOOM_OUT);
+		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_REINICIAR.nombre, this.TECLA_ZOOM_REINICIAR);
 	}
+
+	// =========================================================================
+	// === ACTUALIZACIÓN Y DOBLE BÚFER (GAME LOOP)
+	// =========================================================================
+
+	/*
+	 * =========================================================================
+	 * EXPLICACIÓN TÉCNICA: DOBLE BÚFER Y DETECCIÓN ATÓMICA DE PULSACIONES
+	 * ------------------------------------------------------------------------- 1.
+	 * En cada ciclo lógico, 'actualizar()' actualiza el estado de cada 'Tecla'. 2.
+	 * 'System.arraycopy' realiza una copia ultra rápida de bloques de memoria
+	 * nativa desde 'teclas' a 'teclasPresionadasAnterior'. 3.
+	 * 'isTeclaPresionadaUnaVez(code)' solo retorna true si: teclas[code] == true &&
+	 * teclasPresionadasAnterior[code] == false garantizando cero repeticiones
+	 * espurias sin generar basura en el Heap.
+	 * =========================================================================
+	 */
 
 	/**
 	 * Debe llamarse al inicio de cada frame en el Game Loop para actualizar los
@@ -160,6 +246,13 @@ public class Teclado implements KeyListener {
 		System.arraycopy(this.teclas, 0, this.teclasPresionadasAnterior, 0, this.teclas.length);
 	}
 
+	/**
+	 * Verifica si una tecla física pasó de estar suelta a presionada en este tick
+	 * exacto.
+	 *
+	 * @param codigoTecla Código de la tecla (ej: {@link KeyEvent#VK_SPACE}).
+	 * @return {@code true} solo durante el primer tick de la pulsación.
+	 */
 	public boolean isTeclaPresionadaUnaVez(final int codigoTecla) {
 		if ((codigoTecla >= 0) && (codigoTecla < this.teclas.length)) {
 			return this.teclas[codigoTecla] && !this.teclasPresionadasAnterior[codigoTecla];
@@ -173,6 +266,17 @@ public class Teclado implements KeyListener {
 		}
 		return this.isTeclaPresionadaUnaVez(tecla.getCodigoTecla());
 	}
+
+	public boolean presionaTeclaEnLista(final int codigo) {
+		if ((codigo >= 0) && (codigo < this.teclas.length)) {
+			return this.teclas[codigo];
+		}
+		return false;
+	}
+
+	// =========================================================================
+	// === EVENTOS NATIVOS AWT KEYLISTENER
+	// =========================================================================
 
 	@Override
 	public void keyTyped(final KeyEvent e) {
@@ -206,12 +310,9 @@ public class Teclado implements KeyListener {
 		}
 	}
 
-	public boolean presionaTeclaEnLista(final int codigo) {
-		if ((codigo >= 0) && (codigo < this.teclas.length)) {
-			return this.teclas[codigo];
-		}
-		return false;
-	}
+	// =========================================================================
+	// === PERSISTENCIA JSON (CONFIG.DAT)
+	// =========================================================================
 
 	protected JSONObject getConfigJson() {
 		final JSONObject jo = new JSONObject();
@@ -265,10 +366,9 @@ public class Teclado implements KeyListener {
 				new OutputStreamWriter(new FileOutputStream(this.ARCHIVO_CONFIG), StandardCharsets.UTF_8))) {
 
 			writer.write(jo.toJSONString().replaceAll(",", ",\n"));
-			System.out.println("Config guardada? True");
+			System.out.println("Configuración guardada en: " + this.ARCHIVO_CONFIG.getAbsolutePath());
 		} catch (final Exception e) {
 			e.printStackTrace();
-			System.out.println("Config guardada? False");
 		}
 	}
 }

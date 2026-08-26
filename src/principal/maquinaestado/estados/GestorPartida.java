@@ -80,6 +80,7 @@ public class GestorPartida implements EstadoJuego {
 	public void reiniciar() {
 		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, true, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
+		Globales.CAMARA.reiniciarZoom();
 	}
 
 }

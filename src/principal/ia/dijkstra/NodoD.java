@@ -1,28 +1,24 @@
 package principal.ia.dijkstra;
 
 import java.awt.Dimension;
-import java.awt.Point;
-import java.awt.Rectangle;
 
 /**
  * Representa una celda individual dentro de la grilla del algoritmo de
  * Dijkstra.
  * 
- * ¿Cómo funciona el Doble Búfer en este nodo? Los atributos `codAct`,
- * `distancia` y `nodoProcedente` no son variables simples, sino arreglos de
- * tamaño 2 (`new float[2]` o `new NodoD[2]`).
+ * Optimización de Memoria y Caché L1/L2: Se han eliminado las dependencias con
+ * objetos pesados de AWT (Point y Rectangle). Todas las coordenadas espaciales
+ * se gestionan mediante tipos primitivos planos ('int'), reduciendo
+ * drásticamente el consumo de memoria RAM y mejorando la localidad espacial en
+ * CPU.
  * 
- * - El índice 0 representa el "Búfer A". - El índice 1 representa el "Búfer B".
- * 
- * Mientras el hilo secundario calcula el camino escribiendo en el índice B (1),
- * el hilo del juego puede seguir leyendo sin ningún tipo de interrupción ni
- * "congelamiento" los datos del índice A (0).
+ * Arquitectura de Doble Búfer: Los atributos 'codAct', 'distancia' y
+ * 'nodoProcedente' operan sobre arreglos de tamaño 2 para lectura y escritura
+ * concurrentes sin bloqueos (Lock-Free).
  */
 public class NodoD {
 
-	/**
-	 * Arreglo de 2 posiciones para almacenar el código de generación en cada búfer.
-	 */
+	/** Arreglo de 2 posiciones para el código de generación en cada búfer. */
 	private final int[] codAct = new int[2];
 
 	/**
@@ -31,19 +27,22 @@ public class NodoD {
 	private final double[] distancia = new double[2];
 
 	/**
-	 * Arreglo de 2 posiciones para el puntero hacia la siguiente casilla del camino
-	 * en cada búfer.
+	 * Arreglo de 2 posiciones para el puntero hacia la siguiente casilla en cada
+	 * búfer.
 	 */
 	private final NodoD[] nodoProcedente = new NodoD[2];
 
-	/** Coordenada (X, Y) dentro de la grilla del mapa (no en píxeles). */
-	private final Point posicion;
+	/** Coordenadas (X, Y) discretas dentro de la matriz/grilla del mapa. */
+	private final int grillaX;
+	private final int grillaY;
 
-	/**
-	 * Área rectangular en píxeles que ocupa la casilla en el mundo (usado para
-	 * colisiones).
-	 */
-	private final Rectangle area;
+	/** Coordenadas (X, Y) físicas en píxeles del mundo. */
+	private final int mundoX;
+	private final int mundoY;
+
+	/** Dimensiones en píxeles de la celda. */
+	private final int ancho;
+	private final int alto;
 
 	/**
 	 * Indica si el nodo es un obstáculo infranqueable permanente (paredes sólidas).
@@ -51,26 +50,20 @@ public class NodoD {
 	private boolean inmodificable;
 
 	/**
-	 * Constructor simple para un nodo transitable por defecto.
+	 * Constructor principal del nodo optimizado con tipos primitivos.
 	 *
-	 * @param posicion  Coordenada en la matriz del mapa.
-	 * @param dimension Ancho y alto de la casilla en píxeles.
-	 */
-	public NodoD(final Point posicion, final Dimension dimension) {
-		this(posicion, dimension, false);
-	}
-
-	/**
-	 * Constructor completo del nodo.
-	 *
-	 * @param posicion      Coordenada en la matriz del mapa.
-	 * @param dimension     Ancho y alto de la casilla en píxeles.
+	 * @param grillaX       Coordenada X en la matriz de casillas.
+	 * @param grillaY       Coordenada Y en la matriz de casillas.
+	 * @param dimension     Dimensión en píxeles de cada celda.
 	 * @param inmodificable 'true' si es una pared permanente.
 	 */
-	public NodoD(final Point posicion, final Dimension dimension, final boolean inmodificable) {
-		this.posicion = posicion;
-		this.area = new Rectangle(posicion.x * dimension.width, posicion.y * dimension.height, dimension.width,
-				dimension.height);
+	public NodoD(final int grillaX, final int grillaY, final Dimension dimension, final boolean inmodificable) {
+		this.grillaX = grillaX;
+		this.grillaY = grillaY;
+		this.ancho = dimension.width;
+		this.alto = dimension.height;
+		this.mundoX = grillaX * this.ancho;
+		this.mundoY = grillaY * this.alto;
 
 		// Inicializamos ambos búferes con distancia infinita
 		this.distancia[0] = Double.MAX_VALUE;
@@ -78,7 +71,7 @@ public class NodoD {
 		this.inmodificable = inmodificable;
 	}
 
-	// --- GETTERS Y SETTERS ESPECÍFICOS CON ÍNDICE DE BÚFER (0 o 1) ---
+	// --- GETTERS Y SETTERS DE BÚFER (0 o 1) ---
 
 	public int getCodAct(final int bufIdx) {
 		return this.codAct[bufIdx];
@@ -104,30 +97,30 @@ public class NodoD {
 		this.nodoProcedente[bufIdx] = nodoProcedente;
 	}
 
-	// --- GETTERS GENERALES DE PROPIEDADES ---
+	// --- COORDENADAS Y PROPIEDADES PRIMITIVAS ---
 
-	public Point getPosicion() {
-		return this.posicion;
+	public int getGrillaX() {
+		return this.grillaX;
 	}
 
-	public Rectangle getArea() {
-		return this.area;
+	public int getGrillaY() {
+		return this.grillaY;
 	}
 
 	public int getXMundo() {
-		return this.area.x;
+		return this.mundoX;
 	}
 
 	public int getYMundo() {
-		return this.area.y;
+		return this.mundoY;
 	}
 
 	public int getAncho() {
-		return this.area.width;
+		return this.ancho;
 	}
 
 	public int getAlto() {
-		return this.area.height;
+		return this.alto;
 	}
 
 	public boolean isInmodificable() {
@@ -139,13 +132,8 @@ public class NodoD {
 	}
 
 	/**
-	 * Verifica si este nodo ya fue visitado en el búfer indicado durante la
+	 * Verifica si este nodo ya fue evaluado en el búfer indicado durante la
 	 * generación actual.
-	 *
-	 * @param bufIdx       Índice del búfer (0 o 1).
-	 * @param codActActual Código de actualización/generación a comparar.
-	 * @return 'true' si es una pared o si ya fue evaluado en la generación
-	 *         indicada.
 	 */
 	public boolean isVisitado(final int bufIdx, final int codActActual) {
 		return this.inmodificable
@@ -153,17 +141,17 @@ public class NodoD {
 	}
 
 	/**
-	 * Comprueba si unas coordenadas dadas en píxeles corresponden a la posición de
-	 * este nodo.
+	 * Comprueba si unas coordenadas dadas en píxeles del mundo corresponden a la
+	 * posición de este nodo usando división entera segura para valores negativos.
 	 *
-	 * @param x Posición X en píxeles.
-	 * @param y Posición Y en píxeles.
+	 * @param x Posición X en píxeles del mundo.
+	 * @param y Posición Y en píxeles del mundo.
 	 * @return 'true' si el punto recae sobre este nodo.
 	 */
 	public boolean compararPosicionesMundo(final int x, final int y) {
-		if ((this.area.width == 0) || (this.area.height == 0)) {
+		if ((this.ancho == 0) || (this.alto == 0)) {
 			return false;
 		}
-		return (this.posicion.x == (x / this.area.width)) && (this.posicion.y == (y / this.area.height));
+		return (this.grillaX == Math.floorDiv(x, this.ancho)) && (this.grillaY == Math.floorDiv(y, this.alto));
 	}
 }

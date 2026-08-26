@@ -59,6 +59,23 @@ public abstract class Criatura extends Ente {
 		}
 	}
 
+	/** Velocidades acumuladas continuas para inercia y giros suaves */
+	protected double velActualX = 0.0;
+	protected double velActualY = 0.0;
+
+	/**
+	 * Factor de agilidad de giro (0.1 = giro muy suave y pesado, 0.35 = ágil y
+	 * reactivo). Ajustable según el tipo de enemigo (un zombie gira más lento que
+	 * un goblin).
+	 */
+	protected double agilidadGiro = 0.25;
+	/** Radio en píxeles para empezar a anticipar la siguiente curva */
+	protected static final double RADIO_ANTICIPACION_ESQUINA = 12.0;
+	/**
+	 * Radio en píxeles para considerar que la criatura ya alcanzó el nodo actual
+	 */
+	protected static final double RADIO_LLEGADA_WAYPOINT = 4.0;
+
 	// EnumSet prealocado. No genera garbage collection durante el juego.
 	private final Set<Estado> estados = EnumSet.noneOf(Estado.class);
 	protected final int ANCHO;
@@ -221,46 +238,111 @@ public abstract class Criatura extends Ente {
 				porcentajeBarraActual, 2, Color.RED);
 	}
 
-	// --- MOVIMIENTO Y NAVEGACIÓN ---
 	protected void moverANodoADestino() {
+		// 1. Si no hay nodo activo, extraemos el primero de la ruta
 		if (this.nodoADestino == null) {
-			return;
-		}
-
-		final Dimension dimNodo = this.getMundo().getAEstrellaX12X20().getDimensionNodoA();
-
-		final int destX = this.nodoADestino.getXNodo() * dimNodo.width;
-		final int destY = this.nodoADestino.getYNodo() * dimNodo.height;
-
-		final int posCurrX = this.getPosicionXInt();
-		final int posCurrY = this.getPosicionYInt();
-
-		// Movimiento Vertical
-		if (posCurrY < destY) {
-			final double dist = destY - posCurrY;
-			this.y = (dist < this.velocidad) ? destY : this.y + Math.min(dist, this.velocidad);
-			this.direccion = Direccion.SUR;
-		} else if (posCurrY > destY) {
-			final double dist = posCurrY - destY;
-			this.y = (dist < this.velocidad) ? destY : this.y - Math.min(dist, this.velocidad);
-			this.direccion = Direccion.NORTE;
-		}
-
-		// Movimiento Horizontal
-		if (posCurrX < destX) {
-			final double dist = destX - posCurrX;
-			this.x = (dist < this.velocidad) ? destX : this.x + Math.min(dist, this.velocidad);
-			this.direccion = Direccion.ESTE;
-		} else if (posCurrX > destX) {
-			final double dist = posCurrX - destX;
-			this.x = (dist < this.velocidad) ? destX : this.x - Math.min(dist, this.velocidad);
-			this.direccion = Direccion.OESTE;
-		}
-
-		// Llegada exacta al tile -> Extraer el siguiente nodo de la cola
-		if ((posCurrX == destX) && (posCurrY == destY)) {
-			// poll() asigna el siguiente nodo o null si ya no quedan más pasos
 			this.nodoADestino = this.recorridoA.poll();
+			if (this.nodoADestino == null) {
+				this.velActualX = 0.0;
+				this.velActualY = 0.0;
+				return;
+			}
+		}
+
+		// 2. Centro de masa actual de la criatura
+		final double centroX = this.x + (this.ANCHO / 2.0);
+		final double centroY = this.y + (this.ALTO / 2.0);
+
+		// 3. Centro de la casilla destino actual
+		double targetX = this.nodoADestino.getXMundo() + (this.nodoADestino.getAncho() / 2.0);
+		double targetY = this.nodoADestino.getYMundo() + (this.nodoADestino.getAlto() / 2.0);
+
+		double diffX = targetX - centroX;
+		double diffY = targetY - centroY;
+		double distAlNodo = Math.hypot(diffX, diffY);
+
+		// 4. AVANCE DE WAYPOINT ROBUSTO (Proximidad O Superación de Plano por Producto
+		// Punto)
+		NodoA siguienteNodo = this.recorridoA.peek();
+		boolean avanzarNodo = (distAlNodo <= Math.max(RADIO_LLEGADA_WAYPOINT, this.velocidad));
+
+		if (!avanzarNodo && (siguienteNodo != null)) {
+			final double sigX = siguienteNodo.getXMundo() + (siguienteNodo.getAncho() / 2.0);
+			final double sigY = siguienteNodo.getYMundo() + (siguienteNodo.getAlto() / 2.0);
+
+			// Vector del segmento: del nodo actual al siguiente nodo
+			final double segX = sigX - targetX;
+			final double segY = sigY - targetY;
+
+			// Vector de posición: del nodo actual hacia la criatura
+			final double posRelX = centroX - targetX;
+			final double posRelY = centroY - targetY;
+
+			// Producto Punto (Dot Product): Si es positivo, la criatura ya cruzó el nodo
+			// actual hacia el siguiente
+			final double dot = (segX * posRelX) + (segY * posRelY);
+			if (dot > 0) {
+				avanzarNodo = true;
+			}
+		}
+
+		if (avanzarNodo) {
+			this.nodoADestino = this.recorridoA.poll();
+			if (this.nodoADestino == null) {
+				this.velActualX = 0.0;
+				this.velActualY = 0.0;
+				return;
+			}
+
+			// Actualizamos coordenadas con el nuevo nodo extraído
+			targetX = this.nodoADestino.getXMundo() + (this.nodoADestino.getAncho() / 2.0);
+			targetY = this.nodoADestino.getYMundo() + (this.nodoADestino.getAlto() / 2.0);
+			diffX = targetX - centroX;
+			diffY = targetY - centroY;
+			distAlNodo = Math.hypot(diffX, diffY);
+			siguienteNodo = this.recorridoA.peek();
+		}
+
+		// 5. LOOKAHEAD (Curvatura suave al aproximarse a la esquina)
+		if ((siguienteNodo != null) && (distAlNodo < RADIO_ANTICIPACION_ESQUINA)) {
+			final double sigX = siguienteNodo.getXMundo() + (siguienteNodo.getAncho() / 2.0);
+			final double sigY = siguienteNodo.getYMundo() + (siguienteNodo.getAlto() / 2.0);
+
+			final double t = 1.0 - (distAlNodo / RADIO_ANTICIPACION_ESQUINA);
+			targetX = targetX + ((sigX - targetX) * t);
+			targetY = targetY + ((sigY - targetY) * t);
+
+			diffX = targetX - centroX;
+			diffY = targetY - centroY;
+			distAlNodo = Math.hypot(diffX, diffY);
+		}
+
+		// 6. DIRECCIÓN VECTORIAL E INERCIA
+		if (distAlNodo > 0.001) {
+			final double paso = Math.min(this.velocidad, distAlNodo);
+			final double dirDeseadaX = (diffX / distAlNodo) * paso;
+			final double dirDeseadaY = (diffY / distAlNodo) * paso;
+
+			this.velActualX += (dirDeseadaX - this.velActualX) * this.agilidadGiro;
+			this.velActualY += (dirDeseadaY - this.velActualY) * this.agilidadGiro;
+
+			if (Math.abs(this.velActualX) > 0.001) {
+				this.modificarPosicionX(this.velActualX);
+			}
+			if (Math.abs(this.velActualY) > 0.001) {
+				this.modificarPosicionY(this.velActualY);
+			}
+
+			if (Math.abs(this.velActualX) > Math.abs(this.velActualY)) {
+				this.direccion = (this.velActualX > 0) ? Direccion.ESTE : Direccion.OESTE;
+			} else if (Math.abs(this.velActualY) > 0.01) {
+				this.direccion = (this.velActualY > 0) ? Direccion.SUR : Direccion.NORTE;
+			}
+
+			this.setEstadoCaminando();
+		} else {
+			this.velActualX = 0.0;
+			this.velActualY = 0.0;
 		}
 	}
 

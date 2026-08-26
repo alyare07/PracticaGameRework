@@ -3,170 +3,131 @@ package principal.ia.aEstrella;
 import java.awt.Dimension;
 
 /**
- * Representa un punto o casilla (celda) dentro de la grilla de búsqueda del
- * algoritmo A*. Implementa `Comparable<NodoA>` para que la `PriorityQueue`
- * pueda ordenar los nodos automáticamente según su costo final $F = G + H$.
+ * Representa una celda individual dentro de la grilla de búsqueda del algoritmo
+ * A*.
+ * 
+ * Optimizado para Java 8: - Se elimina el Enum 'EstadoNodo' usando constantes
+ * byte (1 byte vs puntero de 8 bytes). - Se almacena la posición física en
+ * píxeles del mundo para evitar multiplicaciones reiteradas. - Soporta
+ * obstáculos fijos permanentes mediante 'inmodificable'.
  */
-public class NodoA implements Comparable<NodoA> {
+public class NodoA {
+
+	/** Constantes de estado del nodo (reemplazo de Enum) */
+	public static final byte ESTADO_NINGUNO = 0;
+	public static final byte ESTADO_ABIERTA = 1;
+	public static final byte ESTADO_CERRADA = 2;
 
 	/**
-	 * Constante optimizada para el cálculo de la Distancia Octile. Equivale a
-	 * Math.sqrt(2) - 1 ≈ 0.41421354f.
+	 * Constante optimizada para la heurística Octile: Math.sqrt(2) - 1 ≈
+	 * 0.41421354f
 	 */
-	private static final float SQRT_2_MINUS_ONE = (float) (Math.sqrt(2) - 1.0);
+	private static final float SQRT_2_MINUS_ONE = (float) (Math.sqrt(2.0) - 1.0);
 
-	/**
-	 * Posibles estados de un nodo durante la búsqueda A*: - NINGUNO: No ha sido
-	 * explorado en la búsqueda actual. - ABIERTA: Está en la cola de prioridad
-	 * pendiente por explorar. - CERRADA: Ya fue explorado y sus vecinos fueron
-	 * procesados.
-	 */
-	public enum EstadoNodo {
-		NINGUNO, ABIERTA, CERRADA
-	}
-
-	// Posición X e Y del nodo dentro del mapa de la grilla (no en píxeles)
+	// Coordenadas en la grilla discreta
 	private final int xNodo;
 	private final int yNodo;
 
+	// Coordenadas físicas en píxeles del mundo
+	private final int mundoX;
+	private final int mundoY;
+	private final int ancho;
+	private final int alto;
+
 	/**
-	 * Costo G: Distancia recorrida real acumulada desde el nodo inicial hasta este
-	 * nodo.
+	 * Indica si el nodo es un obstáculo fijo e infranqueable (muros, acantilados)
 	 */
+	private boolean inmodificable;
+
+	/** Costo G: Distancia acumulada real desde el nodo de partida */
 	private float costoG;
 
-	/**
-	 * Costo H (Heurística): Distancia estimada restante desde este nodo hasta el
-	 * nodo objetivo.
-	 */
+	/** Costo H: Heurística Octile estimada hasta el destino */
 	private float costoH;
 
-	/**
-	 * Costo F Total: Suma de (costoG + costoH). Es la puntuación usada para decidir
-	 * qué nodo evaluar primero.
-	 */
+	/** Costo F Total: G + H */
 	private float costoF;
 
-	/**
-	 * Identificador de la generación de búsqueda en la que este nodo fue reseteado
-	 * por última vez.
-	 */
+	/** Generación de búsqueda en la que este nodo fue evaluado por última vez */
 	private int generacionBusqueda;
 
-	/** Estado actual del nodo en la iteración. */
-	private EstadoNodo estado;
+	/** Estado actual del nodo en la iteración activa (NINGUNO, ABIERTA, CERRADA) */
+	private byte estado;
 
-	/**
-	 * Referencia al nodo anterior en el camino óptimo (para poder reconstruir el
-	 * camino al final).
-	 */
+	/** Puntero al nodo padre para reconstruir el camino óptimo */
 	private NodoA nodoProcedente;
 
 	/**
-	 * Crea un nuevo nodo en una posición fija de la matriz.
+	 * Constructor principal de la casilla A*.
 	 *
-	 * @param xNodo Coordenada X en la grilla.
-	 * @param yNodo Coordenada Y en la grilla.
+	 * @param xNodo         Coordenada X en la matriz.
+	 * @param yNodo         Coordenada Y en la matriz.
+	 * @param dimension     Tamaño físico en píxeles de cada celda.
+	 * @param inmodificable 'true' si es una pared permanente.
 	 */
-	public NodoA(final int xNodo, final int yNodo) {
+	public NodoA(final int xNodo, final int yNodo, final Dimension dimension, final boolean inmodificable) {
 		this.xNodo = xNodo;
 		this.yNodo = yNodo;
+		this.ancho = dimension.width;
+		this.alto = dimension.height;
+		this.mundoX = xNodo * this.ancho;
+		this.mundoY = yNodo * this.alto;
+
+		this.inmodificable = inmodificable;
 		this.generacionBusqueda = 0;
-		this.estado = EstadoNodo.NINGUNO;
+		this.estado = ESTADO_NINGUNO;
 	}
 
 	/**
-	 * Reinicia los valores del nodo únicamente cuando es alcanzado por una nueva
-	 * búsqueda.
+	 * Reinicia los valores del nodo en O(1) cuando es alcanzado por una nueva
+	 * generación.
 	 *
-	 * @param generacionBusqueda Identificador de la búsqueda actual.
+	 * @param generacion Identificador de la búsqueda actual.
 	 */
-	public void reiniciar(final int generacionBusqueda) {
-		this.generacionBusqueda = generacionBusqueda;
-		this.costoG = Float.MAX_VALUE; // Inicialmente asignamos un costo infinito
+	public void reiniciar(final int generacion) {
+		this.generacionBusqueda = generacion;
+		this.costoG = Float.MAX_VALUE;
 		this.costoH = 0f;
 		this.costoF = Float.MAX_VALUE;
 		this.nodoProcedente = null;
-		this.estado = EstadoNodo.NINGUNO;
+		this.estado = ESTADO_NINGUNO;
+	}
+
+	public boolean visitado(final int generacion) {
+		return this.generacionBusqueda == generacion;
 	}
 
 	/**
-	 * Comprueba si este nodo ya ha sido alcanzado en la generación de búsqueda
-	 * actual.
+	 * Asigna los costos F, G y H del nodo actual mediante la Heurística Octile.
 	 *
-	 * @param generacionBusqueda Identificador de la búsqueda actual.
-	 * @return 'true' si el nodo ya fue reiniciado/visitado en esta búsqueda;
-	 *         'false' en caso contrario.
-	 */
-	public boolean visitado(final int generacionBusqueda) {
-		return this.generacionBusqueda == generacionBusqueda;
-	}
-
-	/**
-	 * Asigna los costos F, G y H del nodo actual.
-	 * 
-	 * ¿Qué es la Distancia Octile? Es la fórmula matemática ideal para calcular
-	 * heurísticas en mapas con movimiento en 8 direcciones. Combina pasos rectos
-	 * (costo 1) y pasos diagonales (costo √2).
-	 *
-	 * @param padre     Nodo desde el cual llegamos a este nodo.
-	 * @param objetivo  Nodo destino final de la búsqueda.
-	 * @param costoPaso Costo de moverse del padre a este nodo (1.0f u Ortogonal /
-	 *                  1.414f o Diagonal).
+	 * @param padre     Nodo predecesor.
+	 * @param objetivo  Nodo destino de la búsqueda.
+	 * @param costoPaso Costo de paso (1.0f ortogonal o 1.414f diagonal).
 	 */
 	public void evaluar(final NodoA padre, final NodoA objetivo, final float costoPaso) {
 		this.nodoProcedente = padre;
 		this.costoG = (padre == null) ? 0f : padre.costoG + costoPaso;
 
-		// Distancia absoluta en ejes X e Y hacia el destino
 		final float dx = Math.abs(this.xNodo - objetivo.xNodo);
 		final float dy = Math.abs(this.yNodo - objetivo.yNodo);
 
-		// Fórmula simplificada de Distancia Octile:
-		// max(dx, dy) + (√2 - 1) * min(dx, dy)
+		// Heurística Octile óptima para 8 direcciones
 		this.costoH = Math.max(dx, dy) + (SQRT_2_MINUS_ONE * Math.min(dx, dy));
-
-		// Calculamos el costo F total
 		this.costoF = this.costoG + this.costoH;
 	}
 
 	/**
-	 * Compara dos nodos para ordenar la Cola de Prioridad (`PriorityQueue`). Los
-	 * nodos con menor `costoF` tendrán mayor prioridad.
-	 *
-	 * @param otro El otro nodo con el que se va a comparar.
-	 * @return Un entero negativo si este nodo es preferible, positivo si el otro lo
-	 *         es, o 0 si son iguales.
+	 * Comprueba si unas coordenadas del mundo corresponden a este nodo usando
+	 * división segura.
 	 */
-	@Override
-	public int compareTo(final NodoA otro) {
-		final int comparacionF = Float.compare(this.costoF, otro.costoF);
-
-		// --- TIE-BREAKING (Desempate) ---
-		// Si dos nodos tienen exactamente el mismo costo F, priorizamos el que tenga
-		// menor costo H.
-		// Un costo H menor significa que el nodo está visualmente más cerca del
-		// objetivo final.
-		if (comparacionF == 0) {
-			return Float.compare(this.costoH, otro.costoH);
+	public boolean compararPosicionesMundo(final int xMundo, final int yMundo) {
+		if ((this.ancho == 0) || (this.alto == 0)) {
+			return false;
 		}
-		return comparacionF;
+		return (this.xNodo == Math.floorDiv(xMundo, this.ancho)) && (this.yNodo == Math.floorDiv(yMundo, this.alto));
 	}
 
-	/**
-	 * Comprueba si una coordenada dada en píxeles del mundo coincide con la
-	 * posición de este nodo.
-	 *
-	 * @param xMundo        Coordenada X en píxeles.
-	 * @param yMundo        Coordenada Y en píxeles.
-	 * @param dimensionNodo Tamaño en píxeles de cada celda/nodo.
-	 * @return 'true' si la posición coincide; 'false' si pertenece a otra casilla.
-	 */
-	public boolean compararPosicionesMundo(final int xMundo, final int yMundo, final Dimension dimensionNodo) {
-		return (this.xNodo == (xMundo / dimensionNodo.width)) && (this.yNodo == (yMundo / dimensionNodo.height));
-	}
-
-	// --- Métodos de Acceso (Getters y Setters) ---
+	// --- GETTERS Y SETTERS ---
 
 	public int getXNodo() {
 		return this.xNodo;
@@ -176,34 +137,54 @@ public class NodoA implements Comparable<NodoA> {
 		return this.yNodo;
 	}
 
-	public float getCostoG() {
-		return this.costoG;
+	public int getXMundo() {
+		return this.mundoX;
 	}
 
-	public float getCostoF() {
-		return this.costoF;
+	public int getYMundo() {
+		return this.mundoY;
+	}
+
+	public int getAncho() {
+		return this.ancho;
+	}
+
+	public int getAlto() {
+		return this.alto;
+	}
+
+	public boolean isInmodificable() {
+		return this.inmodificable;
+	}
+
+	public void setInmodificable(final boolean inmodificable) {
+		this.inmodificable = inmodificable;
+	}
+
+	public float getCostoG() {
+		return this.costoG;
 	}
 
 	public float getCostoH() {
 		return this.costoH;
 	}
 
+	public float getCostoF() {
+		return this.costoF;
+	}
+
 	public NodoA getNodoProcedente() {
 		return this.nodoProcedente;
 	}
 
-	public EstadoNodo getEstado() {
+	public byte getEstado() {
 		return this.estado;
 	}
 
-	public void setEstado(final EstadoNodo estado) {
+	public void setEstado(final byte estado) {
 		this.estado = estado;
 	}
 
-	/**
-	 * Restablece el identificador de la generación a 0 (solo se usa cuando ocurre
-	 * un overflow de enteros).
-	 */
 	public void resetearGeneracion() {
 		this.generacionBusqueda = 0;
 	}

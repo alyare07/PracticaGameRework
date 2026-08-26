@@ -41,6 +41,7 @@ public class MenuPartida extends Menu {
 			Globales.FUNCIONES.TEMP_MANAGER.reiniciarTemp();
 			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
 			this.GE.disposePartida();
+			Globales.CAMARA.reiniciarZoom();
 			this.accionPostClick();
 			// el click se mantiene cierto tiempo por lo que llega al menuprincipal y activa
 			// la accion del boton salir de ese menu

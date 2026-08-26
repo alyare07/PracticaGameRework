@@ -452,8 +452,7 @@ public class Jugador extends Criatura {
 			this.moverANodoADestino();
 
 			if (!this.recorridoA.isEmpty() && (this.nodoADestino == this.recorridoA.getLast())
-					&& (this.nodoADestino.compararPosicionesMundo(this.getPosicionXInt(), this.getPosicionYInt(),
-							this.getMundo().getAEstrellaX12X20().getDimensionNodoA()))) {
+					&& (this.nodoADestino.compararPosicionesMundo(this.getPosicionXInt(), this.getPosicionYInt()))) {
 				this.moviendoPorRecorrido = false;
 				this.nodoADestino = null;
 				this.setEstadoEstandar();
@@ -473,31 +472,32 @@ public class Jugador extends Criatura {
 		if (this.nodoDDestino == null) {
 			return;
 		}
+		this.RECTANGLE_AUXILIAR.setBounds(this.nodoDDestino.getXMundo(), this.nodoDDestino.getYMundo(),
+				this.nodoDDestino.getAncho(), this.nodoDDestino.getAlto());
 
-		final Rectangle areaNodo = this.nodoDDestino.getArea();
-
-		if (this.getPosicionYInt() < areaNodo.y) {
-			final double dist = areaNodo.y - this.getPosicionYInt();
-			this.y = (dist < this.velocidad) ? areaNodo.y : this.y + Math.min(dist, this.velocidad);
+		if (this.getPosicionYInt() < this.RECTANGLE_AUXILIAR.y) {
+			final double dist = this.RECTANGLE_AUXILIAR.y - this.getPosicionYInt();
+			this.y = (dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.y : this.y + Math.min(dist, this.velocidad);
 			this.direccion = Direccion.SUR;
-		} else if (this.getPosicionYInt() > areaNodo.y) {
-			final double dist = this.getPosicionYInt() - areaNodo.y;
-			this.y = (dist < this.velocidad) ? areaNodo.y : this.y - Math.min(dist, this.velocidad);
+		} else if (this.getPosicionYInt() > this.RECTANGLE_AUXILIAR.y) {
+			final double dist = this.getPosicionYInt() - this.RECTANGLE_AUXILIAR.y;
+			this.y = (dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.y : this.y - Math.min(dist, this.velocidad);
 			this.direccion = Direccion.NORTE;
 		}
 
-		if (this.getPosicionXInt() < areaNodo.x) {
-			final double dist = areaNodo.x - this.getPosicionXInt();
-			this.x = (dist < this.velocidad) ? areaNodo.x : this.x + Math.min(dist, this.velocidad);
+		if (this.getPosicionXInt() < this.RECTANGLE_AUXILIAR.x) {
+			final double dist = this.RECTANGLE_AUXILIAR.x - this.getPosicionXInt();
+			this.x = (dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.x : this.x + Math.min(dist, this.velocidad);
 			this.direccion = Direccion.ESTE;
-		} else if (this.getPosicionXInt() > areaNodo.x) {
-			final double dist = this.getPosicionXInt() - areaNodo.x;
-			this.x = (dist < this.velocidad) ? areaNodo.x : this.x - Math.min(dist, this.velocidad);
+		} else if (this.getPosicionXInt() > this.RECTANGLE_AUXILIAR.x) {
+			final double dist = this.getPosicionXInt() - this.RECTANGLE_AUXILIAR.x;
+			this.x = (dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.x : this.x - Math.min(dist, this.velocidad);
 			this.direccion = Direccion.OESTE;
 		}
 
 		if (this.nodoDDestino.compararPosicionesMundo(this.getPosicionXInt(), this.getPosicionYInt())
-				&& (this.getPosicionXInt() == areaNodo.x) && (this.getPosicionYInt() == areaNodo.y)) {
+				&& (this.getPosicionXInt() == this.RECTANGLE_AUXILIAR.x)
+				&& (this.getPosicionYInt() == this.RECTANGLE_AUXILIAR.y)) {
 			if ((this.recorridoD != null) && this.recorridoD.hasNext()) {
 				this.nodoDDestino = this.recorridoD.getNext();
 			}

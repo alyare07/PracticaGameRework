@@ -173,8 +173,8 @@ public abstract class Enemigo extends Criatura {
 	}
 
 	/**
-	 * Desplaza la criatura de forma fluida mediante vectores hacia el nodo más
-	 * cercano provisto por Dijkstra.
+	 * Desplaza la criatura de forma orgánica con inercia, anticipación de curvas y
+	 * distribución espacial de manada (0 allocations en Game Loop).
 	 */
 	protected NodoD moverEnAtaque(final DijkstraRework d, final Terreno terreno) {
 		if (d == null) {
@@ -197,41 +197,76 @@ public abstract class Enemigo extends Criatura {
 			this.ant = n;
 		}
 		if (n == null) {
+			// Frenar progresivamente si pierde el rastro
+			this.velActualX *= 0.8;
+			this.velActualY *= 0.8;
 			return null;
 		}
 
-		// 3. Punto objetivo al CENTRO del nodo destino
-		final double targetX = n.getXMundo() + (n.getAncho() / 2.0);
-		final double targetY = n.getYMundo() + (n.getAlto() / 2.0);
+		final int readBuf = d.getBufferLecturaIndex();
 
-		// 4. Vector de desplazamiento continuo
+		// 3. Pequeño desfase lateral único por criatura para evitar el efecto 'fila
+		// india'
+		// (Usa el hashCode para dispersar entre -4.0 y +4.0 px sin crear objetos)
+		final double offsetManadaX = ((this.hashCode() % 9) - 4.0);
+		final double offsetManadaY = (((this.hashCode() / 9) % 9) - 4.0);
+
+		// Centro base del nodo objetivo
+		double targetX = n.getXMundo() + (n.getAncho() / 2.0) + offsetManadaX;
+		double targetY = n.getYMundo() + (n.getAlto() / 2.0) + offsetManadaY;
+
+		// 4. ANTICIPACIÓN DE ESQUINAS (Corner Smoothing):
+		// Si estamos cerca del nodo actual, miramos al siguiente nodo en la ruta
+		final double distAlNodoActual = Math.hypot(targetX - centroX, targetY - centroY);
+		final NodoD siguienteNodo = n.getNodoProcedente(readBuf);
+
+		if ((siguienteNodo != null) && (distAlNodoActual < Criatura.RADIO_ANTICIPACION_ESQUINA)) {
+			final double sigX = siguienteNodo.getXMundo() + (siguienteNodo.getAncho() / 2.0) + offsetManadaX;
+			final double sigY = siguienteNodo.getYMundo() + (siguienteNodo.getAlto() / 2.0) + offsetManadaY;
+
+			// Factor de interpolación (0.0 en el borde del radio -> 1.0 en el centro
+			// exacto)
+			final double t = 1.0 - (distAlNodoActual / Criatura.RADIO_ANTICIPACION_ESQUINA);
+
+			// Curvamos el punto objetivo hacia el siguiente nodo
+			targetX = targetX + ((sigX - targetX) * t);
+			targetY = targetY + ((sigY - targetY) * t);
+		}
+
+		// 5. Vector de dirección deseada normalizado
 		final double diffX = targetX - centroX;
 		final double diffY = targetY - centroY;
-		final double distanciaMundo = Math.hypot(diffX, diffY);
+		final double distanciaTotal = Math.hypot(diffX, diffY);
 
-		// 5. Movimiento continuo sin zonas muertas de frenado
-		if (distanciaMundo > 0) {
-			final double paso = Math.min(this.velocidad, distanciaMundo);
-			final double dirX = (diffX / distanciaMundo) * paso;
-			final double dirY = (diffY / distanciaMundo) * paso;
+		if (distanciaTotal > 0.001) {
+			final double dirDeseadaX = (diffX / distanciaTotal) * this.velocidad;
+			final double dirDeseadaY = (diffY / distanciaTotal) * this.velocidad;
 
-			// Desplazamiento en X e Y solo si existe variación real
-			if (Math.abs(dirX) > 0.001) {
-				this.modificarPosicionX(dirX);
+			// 6. INERCIA VECTORIAL (Steering): Acelera y gira suavemente hacia la dirección
+			// deseada
+			this.velActualX += (dirDeseadaX - this.velActualX) * this.agilidadGiro;
+			this.velActualY += (dirDeseadaY - this.velActualY) * this.agilidadGiro;
+
+			// 7. Aplicar desplazamiento real en sub-píxeles
+			if (Math.abs(this.velActualX) > 0.001) {
+				this.modificarPosicionX(this.velActualX);
 			}
-			if (Math.abs(dirY) > 0.001) {
-				this.modificarPosicionY(dirY);
+			if (Math.abs(this.velActualY) > 0.001) {
+				this.modificarPosicionY(this.velActualY);
 			}
 
-			// 6. Asignar la dirección AL FINAL para que 'modificarPosicionY' no la
-			// sobreescriba
-			if (Math.abs(diffX) > Math.abs(diffY)) {
-				this.direccion = (diffX > 0) ? Direccion.ESTE : Direccion.OESTE;
-			} else if (Math.abs(diffY) > 0.01) {
-				this.direccion = (diffY > 0) ? Direccion.SUR : Direccion.NORTE;
+			// 8. Determinar orientación visual según el vector de movimiento real
+			if (Math.abs(this.velActualX) > Math.abs(this.velActualY)) {
+				this.direccion = (this.velActualX > 0) ? Direccion.ESTE : Direccion.OESTE;
+			} else if (Math.abs(this.velActualY) > 0.01) {
+				this.direccion = (this.velActualY > 0) ? Direccion.SUR : Direccion.NORTE;
 			}
 
 			this.setEstadoCaminando();
+		} else {
+			// En el destino exacto: desacelerar
+			this.velActualX *= 0.5;
+			this.velActualY *= 0.5;
 		}
 
 		return n;
@@ -358,8 +393,8 @@ public abstract class Enemigo extends Criatura {
 			return;
 		}
 
-		if ((this.nodoADestino != null) && this.nodoADestino.compararPosicionesMundo(this.getPosicionXInt(),
-				this.getPosicionYInt(), this.getMundo().getAEstrellaX12X20().getDimensionNodoA())) {
+		if ((this.nodoADestino != null)
+				&& this.nodoADestino.compararPosicionesMundo(this.getPosicionXInt(), this.getPosicionYInt())) {
 			if (this.recorridoA.isEmpty()) {
 				this.nodoADestino = this.recorridoA.poll();
 			}

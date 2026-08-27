@@ -20,6 +20,7 @@ import principal.entes.proyectil.explosivo.BolaFuego;
 import principal.eventos.Evento;
 import principal.eventos.EventoJugadorZonaTP;
 import principal.igu.MotorIGU;
+import principal.iluminacion.TipoLuz;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.Tile;
@@ -131,7 +132,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.actualizarCambioCamaraConEntesYZoom();
 
 		if (Globales.TECLADO.TECLA_PUNTO.presionadoUnicaActualizacion()) {
-			Globales.CAMARA.activarModoBorracho(true);
+			Globales.GESTOR_LUZ.getCiclo().setHora(0.0); // 00:00 Noche cerrada
 		}
 
 		// Actualización de jugador
@@ -157,7 +158,8 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		Globales.GESTOR_TEXTOS.actualizar();
-		Globales.PARTICULAS.actualizar();
+		Globales.GESTOR_PARTICULAS.actualizar();
+		Globales.GESTOR_LUZ.actualizar();
 	}
 
 	private void actualizarCambioCamaraConEntesYZoom() {
@@ -303,7 +305,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 				this.mapa.pintar(gMundo);
 			}
 			// Capa de Partículas en el Mundo
-			Globales.PARTICULAS.pintar(gMundo);
+			Globales.GESTOR_PARTICULAS.pintar(gMundo);
 //			Globales.JUGADOR.pintar(gMundo);
 
 			// 1.3 Capa de Textos de Daño Flotantes en el Mundo
@@ -341,6 +343,8 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			g.translate(-Constantes.CENTROX, -Constantes.CENTROY);
 		}
 
+		// Capa de Iluminación Dinámica y Noche (Sobre el mundo, pero debajo del HUD)
+		Globales.GESTOR_LUZ.pintar(g);
 		// =========================================================================
 		// === FASE 3: CAPAS DE INTERFAZ / HUD (ESCALA FIJA 1:1)
 		// =========================================================================
@@ -488,6 +492,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			gc.setDetalleCarga("¡Carga completa!");
 			gc.setCompleto(true);
 		}
+		Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.LINTERNA_JUGADOR);
+		Globales.GESTOR_LUZ.agregarLuzEstatica(Globales.JUGADOR.getPosicionX(), Globales.JUGADOR.getPosicionY(),
+				TipoLuz.ANTORCHA);
+
 	}
 
 	public void agregarObjetosAlMundo() {

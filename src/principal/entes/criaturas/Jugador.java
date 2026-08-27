@@ -752,7 +752,7 @@ public class Jugador extends Criatura {
 //		Globales.PARTICULAS.emitirPolvoPaso(this.getPosicionX(), this.getPosicionY(), 5);
 //
 //		// 4. Al tomar una poción o usar magia:
-		Globales.PARTICULAS.emitirMagia(this.getCentroX(), this.getCentroY(), 15);
+		Globales.GESTOR_PARTICULAS.emitirMagia(this.getCentroX(), this.getCentroY(), 15);
 
 		if (this.vida >= this.vidaMaxima) {
 			return;

@@ -8,6 +8,7 @@ import principal.controles.Raton;
 import principal.controles.Teclado;
 import principal.entes.criaturas.Jugador;
 import principal.igu.textos.GestorTextosFlotantes;
+import principal.iluminacion.GestorLuz;
 import principal.inventario.vault.InventarioVault;
 import principal.mapa.renderEntidades.camara.Camara;
 import principal.maquinaestado.estados.GestorJuego;
@@ -48,7 +49,8 @@ public class Globales {
 	public static final ListaHojaSprites LISTA_HOJAS_SPRITES = new ListaHojaSprites();
 	public static Camara CAMARA = new Camara(JUGADOR);
 	public static final GestorTextosFlotantes GESTOR_TEXTOS = new GestorTextosFlotantes();
-	public static final GestorParticulas PARTICULAS = new GestorParticulas();
+	public static final GestorParticulas GESTOR_PARTICULAS = new GestorParticulas();
+	public static final GestorLuz GESTOR_LUZ = new GestorLuz();
 
 	public static void actualizarFactorEscalado() {
 		final int escalaX = ANCHO_PANTALLA_COMPLETA / Constantes.ANCHO_JUEGO; // 1920 / 640 = 3

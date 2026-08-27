@@ -152,31 +152,79 @@ public class Mundo {
 	}
 
 	/**
-	 * Renderiza únicamente las celdas espaciales (ZoneBox) y entidades visibles
-	 * dentro del frustum de la cámara (adaptado dinámicamente al Zoom actual). CERO
-	 * asignaciones en el Heap (Zero-GC).
+	 * Renderiza únicamente las celdas espaciales ({@link ZoneBox}) y las entidades
+	 * contenidas dentro del campo de visión visible (Frustum Culling).
+	 * <p>
+	 * <b>Optimizaciones y Arquitectura de Alto Rendimiento:</b>
+	 * <ul>
+	 * <li><b>Prevención de "Entity Popping":</b> Compensa automáticamente la
+	 * rotación angular ($\theta$), el temblor sísmico ($X, Y$) y el zoom activo
+	 * para que los enemigos, cofres y proyectiles nunca desaparezcan ni parpadeen
+	 * en las esquinas de la pantalla durante un efecto de cámara.</li>
+	 * <li><b>Particionado Espacial O(1):</b> Proyecta el cuadro envolvente
+	 * directamente a índices discretos de grilla mediante
+	 * {@link Math#floorDiv(int, int)}, soportando coordenadas negativas del mundo
+	 * sin desfases.</li>
+	 * <li><b>Cero Asignaciones en el Heap (Zero-GC):</b> Reutiliza la estructura
+	 * fija {@code CLAVE_BUSQUEDA_ZONAS} mutando su posición en lugar de instanciar
+	 * objetos {@code Point} por celda.</li>
+	 * </ul>
+	 * </p>
 	 *
-	 * @param g Contexto gráfico Graphics2D.
+	 * @param g Contexto gráfico {@link Graphics2D}.
 	 */
 	protected void pintarZonas(final Graphics2D g) {
 		if ((this.ZONAS == null) || this.ZONAS.isEmpty()) {
 			return;
 		}
 
-		final double z = Globales.CAMARA.getZoom();
+		/*
+		 * =====================================================================
+		 * EXPLICACIÓN DIDÁCTICA: CULLING DE ENTIDADES CON CÁMARA DINÁMICA
+		 * --------------------------------------------------------------------- 1. ¿POR
+		 * QUÉ NO ALCANZABA CON CAMARA.getZoom()? Si un proyectil o enemigo está en el
+		 * borde de la pantalla y la cámara sufre un temblor hacia la derecha o gira en
+		 * Modo Borracho, el cono visual se desplaza. Si no compensamos el temblor y la
+		 * rotación, el juego consideraría que la 'ZoneBox' de esa entidad está
+		 * "fuera de vista", haciendo que el enemigo desaparezca de golpe (Entity
+		 * Popping).
+		 * 
+		 * 2. LA CAJA ENVOLVENTE MÍNIMA (AABB Rotado): Calculamos el semiancho
+		 * (radioVisibleX) y semialto (radioVisibleY) exactos proyectando la rotación
+		 * (|cos| y |sin|) sobre el centro visual (320x180) y dividiendo por el Zoom
+		 * real.
+		 * 
+		 * 3. MARGEN DE SEGURIDAD (+LADO_ZONEBOX): Añadimos el tamaño de una celda
+		 * completa para asegurar que cualquier criatura grande cuyo sprite sobresalga
+		 * de su ZoneBox se dibuje completa.
+		 * =====================================================================
+		 */
+		final double zoomActivo = Math.max(0.2, Globales.CAMARA.getZoomFinal());
+		final double rotAbs = Math.abs(Globales.CAMARA.getGestorEfectos().getAnguloRotacion());
+		final double shakeX = Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetX());
+		final double shakeY = Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetY());
 
-		// 1. Radio de visión compensado por el factor de zoom (+ margen de seguridad de
-		// 1 ZoneBox)
-		final int radioVisibleX = (int) (Constantes.CENTROX / z) + this.LADO_ZONEBOX;
-		final int radioVisibleY = (int) (Constantes.CENTROY / z) + this.LADO_ZONEBOX;
+		final double cos = Math.cos(rotAbs);
+		final double sin = Math.sin(rotAbs);
 
-		final int minX = Globales.CAMARA.getPosicionXInt() - radioVisibleX;
-		final int maxX = Globales.CAMARA.getPosicionXInt() + radioVisibleX;
+		// 1. Semiancho y semialto del cuadro delimitador envolvente en píxeles de mundo
+		final int radioVisibleX = (int) Math
+				.ceil(((Constantes.CENTROX * cos) + (Constantes.CENTROY * sin)) / zoomActivo) + (int) shakeX
+				+ this.LADO_ZONEBOX;
+		final int radioVisibleY = (int) Math
+				.ceil(((Constantes.CENTROX * sin) + (Constantes.CENTROY * cos)) / zoomActivo) + (int) shakeY
+				+ this.LADO_ZONEBOX;
 
-		final int minY = Globales.CAMARA.getPosicionYInt() - radioVisibleY;
-		final int maxY = Globales.CAMARA.getPosicionYInt() + radioVisibleY;
+		// Coordenadas absolutas de la cámara en el mundo
+		final int camX = Globales.CAMARA.getPosicionXInt();
+		final int camY = Globales.CAMARA.getPosicionYInt();
 
-		// 2. Proyección exacta a coordenadas de grilla de ZoneBox (Math.floorDiv)
+		final int minX = camX - radioVisibleX;
+		final int maxX = camX + radioVisibleX;
+		final int minY = camY - radioVisibleY;
+		final int maxY = camY + radioVisibleY;
+
+		// 2. Proyección matemática a coordenadas discretas de grilla de ZoneBox
 		final int inicioGridX = Math.floorDiv(minX, this.LADO_ZONEBOX);
 		final int finGridX = Math.floorDiv(maxX, this.LADO_ZONEBOX);
 
@@ -185,9 +233,11 @@ public class Mundo {
 
 		ZoneBox zbAux = null;
 
-		// 3. Iteración directa por celdas activas
+		// 3. Iteración directa sobre las celdas espaciales activas (0 objetos
+		// instanciados)
 		for (int gridY = inicioGridY; gridY <= finGridY; gridY++) {
 			for (int gridX = inicioGridX; gridX <= finGridX; gridX++) {
+				// Reutilizamos la clave de búsqueda en memoria para no hacer 'new Point()'
 				this.CLAVE_BUSQUEDA_ZONAS.setLocation(gridX, gridY);
 				zbAux = this.ZONAS.get(this.CLAVE_BUSQUEDA_ZONAS);
 
@@ -199,24 +249,75 @@ public class Mundo {
 	}
 
 	/**
-	 * Actualiza la lógica de las entidades y zonas espaciales visibles en pantalla.
+	 * Actualiza la lógica, físicas, proyectiles e inteligencia artificial de las
+	 * celdas espaciales ({@link ZoneBox}) contenidas dentro del área de simulación
+	 * activa de la cámara.
+	 * <p>
+	 * <b>Arquitectura y Prevención de Congelamiento:</b>
+	 * <ul>
+	 * <li><b>Sincronización Total con la Lente:</b> Adapta el rango de simulación
+	 * al {@code getZoomFinal()}, rotación y vibración de la cámara para que ninguna
+	 * criatura visible en pantalla quede congelada en pose estática.</li>
+	 * <li><b>Margen de Simulación Extendido (+2 ZoneBoxes):</b> Procesa las celdas
+	 * ligeramente por fuera del borde visible, permitiendo que proyectiles y
+	 * enemigos que entran o salen de pantalla continúen su trayectoria de forma
+	 * fluida.</li>
+	 * <li><b>Indexación Espacial O(1) Zero-GC:</b> Reutiliza la clave en memoria
+	 * {@code CLAVE_BUSQUEDA_ZONAS} y {@link Math#floorDiv(int, int)}.</li>
+	 * </ul>
+	 * </p>
 	 */
 	protected void actualizarZonas() {
 		if ((this.ZONAS == null) || this.ZONAS.isEmpty()) {
 			return;
 		}
 
-		final double z = Globales.CAMARA.getZoom();
+		/*
+		 * =====================================================================
+		 * EXPLICACIÓN DIDÁCTICA: ÁREA DE SIMULACIÓN ACTIVA (UPDATE FRUSTUM)
+		 * --------------------------------------------------------------------- 1. EL
+		 * MARGEN DE SIMULACIÓN (+2 ZoneBoxes): A diferencia de la función 'pintar' (que
+		 * solo necesita dibujar lo que se ve en el píxel exacto), la función
+		 * 'actualizar' necesita un margen extra. Si un monstruo está persiguiendo al
+		 * jugador y sale de la pantalla por 2 centímetros, queremos que siga corriendo
+		 * hacia nosotros y no que se "congele" en seco en el borde.
+		 * 
+		 * 2. COMPENSACIÓN MATRICIAL DINÁMICA: Calculamos el semiancho y semialto
+		 * envolvente rotado (|cos| + |sin|) dividido por el Zoom final, garantizando
+		 * que el radio de actualización cubra el 100% de lo que la cámara está
+		 * enfocando.
+		 * =====================================================================
+		 */
+		final double zoomActivo = Math.max(0.2, Globales.CAMARA.getZoomFinal());
+		final double rotAbs = Math.abs(Globales.CAMARA.getGestorEfectos().getAnguloRotacion());
+		final double shakeX = Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetX());
+		final double shakeY = Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetY());
 
-		final int radioVisibleX = (int) (Constantes.CENTROX / z) + this.LADO_ZONEBOX;
-		final int radioVisibleY = (int) (Constantes.CENTROY / z) + this.LADO_ZONEBOX;
+		final double cos = Math.cos(rotAbs);
+		final double sin = Math.sin(rotAbs);
 
-		final int minX = Globales.CAMARA.getPosicionXInt() - radioVisibleX;
-		final int maxX = Globales.CAMARA.getPosicionXInt() + radioVisibleX;
+		// Margen de simulación activa (2 celdas completas de holgura por lado)
+		final int margenSimulacion = this.LADO_ZONEBOX * 2;
 
-		final int minY = Globales.CAMARA.getPosicionYInt() - radioVisibleY;
-		final int maxY = Globales.CAMARA.getPosicionYInt() + radioVisibleY;
+		// 1. Semiancho y semialto de la caja envolvente de simulación en píxeles de
+		// mundo
+		final int radioSimulacionX = (int) Math
+				.ceil(((Constantes.CENTROX * cos) + (Constantes.CENTROY * sin)) / zoomActivo) + (int) shakeX
+				+ margenSimulacion;
+		final int radioSimulacionY = (int) Math
+				.ceil(((Constantes.CENTROX * sin) + (Constantes.CENTROY * cos)) / zoomActivo) + (int) shakeY
+				+ margenSimulacion;
 
+		// Coordenadas absolutas de la cámara
+		final int camX = Globales.CAMARA.getPosicionXInt();
+		final int camY = Globales.CAMARA.getPosicionYInt();
+
+		final int minX = camX - radioSimulacionX;
+		final int maxX = camX + radioSimulacionX;
+		final int minY = camY - radioSimulacionY;
+		final int maxY = camY + radioSimulacionY;
+
+		// 2. Mapeo a índices discretos de la grilla espacial de ZoneBox
 		final int inicioGridX = Math.floorDiv(minX, this.LADO_ZONEBOX);
 		final int finGridX = Math.floorDiv(maxX, this.LADO_ZONEBOX);
 
@@ -225,8 +326,11 @@ public class Mundo {
 
 		ZoneBox zbAux = null;
 
+		// 3. Actualización lógica de las celdas activas (0 objetos instanciados en
+		// Heap)
 		for (int gridY = inicioGridY; gridY <= finGridY; gridY++) {
 			for (int gridX = inicioGridX; gridX <= finGridX; gridX++) {
+				// Reutilizamos la posición del Point clave para búsqueda en O(1)
 				this.CLAVE_BUSQUEDA_ZONAS.setLocation(gridX, gridY);
 				zbAux = this.ZONAS.get(this.CLAVE_BUSQUEDA_ZONAS);
 
@@ -642,63 +746,122 @@ public class Mundo {
 	}
 
 	/**
-	 * Renderiza en pantalla el peso/distancia de los nodos del mapa de navegación
-	 * Dijkstra.
+	 * Fuente pre-instanciada reutilizable para la depuración de pesos de IA. Evita
+	 * crear objetos 'Font' nuevos con deriveFont() en cada frame de depuración.
+	 */
+	private static final Font FUENTE_DEBUG_NODOS = new Font(Font.SANS_SERIF, Font.PLAIN, 6);
+
+	/**
+	 * Renderiza en pantalla el mapa de calor/distancias de los nodos de navegación
+	 * masiva (Dijkstra Flowfield) contenidos dentro del frustum dinámico de la
+	 * cámara.
 	 * <p>
-	 * <b>Optimizaciones de Rendimiento:</b><br>
-	 * 1. Elimina {@link String#format} en favor de formateo directo sin
-	 * asignaciones pesadas.<br>
-	 * 2. Mapea las coordenadas de cámara a la grilla discreta usando
-	 * {@link Math#floorDiv}.<br>
-	 * 3. Salta paso a paso exactamente por el ancho y alto del nodo ($O(\text{Nodos
-	 * Visibles})$).
+	 * <b>Pilares de Optimización y Rendimiento:</b>
+	 * <ul>
+	 * <li><b>Frustum Culling AABB Dinámico:</b> Calcula el área visible compensando
+	 * automáticamente la rotación ($\theta$), el temblor ($X, Y$) y el zoom para
+	 * que los números de depuración cubran toda la pantalla a cualquier escala sin
+	 * cortes.</li>
+	 * <li><b>Lectura Lock-Free de Doble Búfer:</b> Lee el estado de la IA de forma
+	 * segura mientras el hilo secundario recalcula caminos en paralelo, sin
+	 * bloqueos ({@code synchronized}) ni pausas en el hilo de renderizado.</li>
+	 * <li><b>Formateo de Texto sin Heap Allocation:</b> Elimina
+	 * {@link String#format} y operaciones de reflexión, reduciendo a cero la
+	 * presión sobre el Garbage Collector.</li>
+	 * <li><b>Salto Discreto en Grilla O(Nodos Visibles):</b> Itera únicamente sobre
+	 * las coordenadas alineadas a la dimensión de cada nodo.</li>
+	 * </ul>
 	 * </p>
 	 *
-	 * @param g Contexto gráfico {@link Graphics2D} sobre el cual dibujar el mapa de
-	 *          calor/pesos.
+	 * @param g Contexto gráfico {@link Graphics2D}.
 	 */
 	private void pintarNodosOptimizado(final Graphics2D g) {
 		final Font fontOriginal = g.getFont();
-		g.setFont(fontOriginal.deriveFont(6f));
+		g.setFont(FUENTE_DEBUG_NODOS);
+
 		final Color color = Globales.TECLADO.TECLA_OCULTAR_TERRENO.presionado() ? Color.WHITE : Color.BLACK;
 
 		final int anchoNodo = this.dijkstra.getDimensionNodo().width;
 		final int altoNodo = this.dijkstra.getDimensionNodo().height;
 
-		// 1. Delimita el área visible de la cámara con margen de seguridad (padding de
-		// 3 nodos)
-		final int minX = Globales.CAMARA.getPosicionXInt() - Constantes.CENTROX - (3 * anchoNodo);
-		final int maxX = Globales.CAMARA.getPosicionXInt() + Constantes.CENTROX + (3 * anchoNodo);
+		/*
+		 * =====================================================================
+		 * EXPLICACIÓN DIDÁCTICA: CULLING DE NODOS DE IA CON CÁMARA DINÁMICA
+		 * --------------------------------------------------------------------- 1.
+		 * COMPENSACIÓN COMPLETA DE CÁMARA: Al igual que en 'Terreno.pintar' y
+		 * 'Mundo.pintarZonas', proyectamos el semiancho y semialto de la pantalla
+		 * considerando la rotación y el Zoom activo. Si el jugador hace zoom out a
+		 * 0.5x, el radio visible se duplica automáticamente para pintar todos los nodos
+		 * visibles.
+		 * 
+		 * 2. PROYECCIÓN CON Math.floorDiv: Alinea las coordenadas continuas de mundo a
+		 * múltiplos enteros exactos del tamaño del nodo (ej: 0, 16, 32, 48...),
+		 * soportando coordenadas negativas sin desalinear la cuadrícula.
+		 * =====================================================================
+		 */
+		final double zoomActivo = Math.max(0.2, Globales.CAMARA.getZoomFinal());
+		final double rotAbs = Math.abs(Globales.CAMARA.getGestorEfectos().getAnguloRotacion());
+		final double shakeX = Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetX());
+		final double shakeY = Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetY());
 
-		final int minY = Globales.CAMARA.getPosicionYInt() - Constantes.CENTROY - (3 * altoNodo);
-		final int maxY = Globales.CAMARA.getPosicionYInt() + Constantes.CENTROY + (3 * altoNodo);
+		final double cos = Math.cos(rotAbs);
+		final double sin = Math.sin(rotAbs);
 
-		// 2. Proyección exacta a índices de grilla discreta (resiste coordenadas
-		// negativas)
+		// 1. Radio envolvente rotado + margen de seguridad de 3 nodos
+		final int radioVisibleX = (int) Math
+				.ceil(((Constantes.CENTROX * cos) + (Constantes.CENTROY * sin)) / zoomActivo) + (int) shakeX
+				+ (3 * anchoNodo);
+		final int radioVisibleY = (int) Math
+				.ceil(((Constantes.CENTROX * sin) + (Constantes.CENTROY * cos)) / zoomActivo) + (int) shakeY
+				+ (3 * altoNodo);
+
+		final int camX = Globales.CAMARA.getPosicionXInt();
+		final int camY = Globales.CAMARA.getPosicionYInt();
+
+		final int minX = camX - radioVisibleX;
+		final int maxX = camX + radioVisibleX;
+		final int minY = camY - radioVisibleY;
+		final int maxY = camY + radioVisibleY;
+
+		// 2. Proyección exacta a múltiplos discretos de la grilla de nodos
 		final int inicioX = Math.floorDiv(minX, anchoNodo) * anchoNodo;
 		final int finX = Math.floorDiv(maxX, anchoNodo) * anchoNodo;
 
 		final int inicioY = Math.floorDiv(minY, altoNodo) * altoNodo;
 		final int finY = Math.floorDiv(maxY, altoNodo) * altoNodo;
 
+		/*
+		 * =====================================================================
+		 * EXPLICACIÓN DIDÁCTICA: ARQUITECTURA LOCK-FREE DE DOBLE BÚFER
+		 * --------------------------------------------------------------------- El
+		 * algoritmo de Dijkstra corre en un hilo secundario para no congelar los 60 FPS
+		 * del juego.
+		 * 
+		 * Para que el hilo de dibujo pueda leer las distancias sin chocar con el hilo
+		 * que está escribiendo (evitando bloqueos synchronized lentos): - 'readBuf'
+		 * indica cuál de los 2 arreglos internos (0 o 1) está listo para leer. -
+		 * 'codCompleto' es un código de generación que verifica si el nodo fue
+		 * alcanzado por la onda expansiva del camino en el cálculo actual.
+		 * =====================================================================
+		 */
+		final int readBuf = this.dijkstra.getBufferLecturaIndex();
+		final int codCompleto = this.dijkstra.getCodActCompleto();
+
 		NodoD nodo = null;
 
-		// 3. Iteración directa alineada a la grilla de nodos
+		// 3. Iteración directa paso a paso alineada a la grilla
 		for (int y = inicioY; y <= finY; y += altoNodo) {
 			for (int x = inicioX; x <= finX; x += anchoNodo) {
 				nodo = this.dijkstra.getNodoReferenciado(x, y);
 
 				if (nodo != null) {
-					// Formateo rápido sin invocar String.format (ahorra allocations masivas en el
-					// Heap)
-					final int readBuf = this.dijkstra.getBufferLecturaIndex();
-					final int codCompleto = this.dijkstra.getCodActCompleto();
-
-					// Si el nodo fue procesado en el pulso actual, leemos su distancia; de lo
-					// contrario es "XX"
+					// Si el nodo fue procesado en el pulso actual leemos su distancia; sino es
+					// inalcanzable ("XX")
 					final double distanciaReal = (nodo.getCodAct(readBuf) == codCompleto) ? nodo.getDistancia(readBuf)
 							: Double.MAX_VALUE;
 
+					// Truncado rápido a 1 solo decimal sin usar String.format() (ahorra miles de
+					// objetos por segundo)
 					final String textoDistancia = (distanciaReal == Double.MAX_VALUE) ? "XX"
 							: String.valueOf((long) (distanciaReal * 10) / 10.0);
 
@@ -707,7 +870,7 @@ public class Mundo {
 			}
 		}
 
-		// Restaura la fuente original
+		// 4. Restauramos la fuente previa del contexto gráfico
 		g.setFont(fontOriginal);
 	}
 

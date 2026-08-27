@@ -1,36 +1,97 @@
 package principal.mapa.renderEntidades.camara;
 
+import java.awt.Rectangle;
+
 import principal.entes.Ente;
 import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 
 /**
- * Encapsula el comportamiento de delimitación de bordes para que la cámara no
- * muestre zonas vacías por fuera de los límites del mapa.
+ * Encapsula el comportamiento de delimitación y restricción de bordes para que
+ * la cámara nunca muestre zonas vacías por fuera de los límites del mapa.
+ * <p>
+ * <b>Arquitectura y Funcionamiento:</b>
+ * <ul>
+ * <li><b>Ente Virtual Proxy:</b> Esta clase hereda de {@link Ente}. Cuando el
+ * personaje enfocado se acerca a los bordes del mapa, el gestor "toma el
+ * control" de las coordenadas ({@code gestionandoX = true} o
+ * {@code gestionandoY = true}), frenando el avance de la cámara en el borde
+ * exacto del terreno mientras el jugador sigue moviéndose libremente.</li>
+ * <li><b>Adaptación Dinámica al Zoom:</b> Calcula los límites en tiempo real
+ * dividiendo la resolución de pantalla entre el zoom activo, evitando que la
+ * cámara se frene antes de tiempo en Zoom-In o muestre el vacío en
+ * Zoom-Out.</li>
+ * <li><b>Zero-GC:</b> Reutiliza estructuras geométricas internas sin crear
+ * objetos {@code new} en cada actualización.</li>
+ * </ul>
+ * </p>
+ * 
+ * @author Copiloto Técnico
+ * @version 2.5
  */
 public class GestorDeLimites extends Ente {
 
 	private static final long serialVersionUID = 1L;
 
+	// =========================================================================
+	// === 1. COORDENADAS VIRTUALES Y OBJETIVO
+	// =========================================================================
+
+	/** Coordenada X virtual donde se frena la cámara. */
 	private int x;
+
+	/** Coordenada Y virtual donde se frena la cámara. */
 	private int y;
+
+	/**
+	 * Entidad real a la que la cámara está siguiendo (Jugador, proyectil, etc.).
+	 */
 	private Ente entidadEnfocada;
+
+	// =========================================================================
+	// === 2. BORDES Y RESTRICCIONES RECTANGULARES DEL MAPA
+	// =========================================================================
+
+	private int anchoTerreno;
+	private int altoTerreno;
+	private boolean limitesPersonalizados;
 
 	private int limiteMaximoX;
 	private int limiteMaximoY;
 	private int limiteMinimoX;
 	private int limiteMinimoY;
 
+	// =========================================================================
+	// === 3. ESTADOS DE CONTROL Y FLAGS
+	// =========================================================================
+
 	private boolean eliminado;
 	private boolean gestionandoX;
 	private boolean gestionandoY;
 
-	public GestorDeLimites() {
-		this.eliminado = true; // Por defecto desactivado hasta llamar habilitar
-	}
+	/** Contenedor de área pre-asignado para consultas sin recolección de basura. */
+	private final Rectangle areaReutilizable = new Rectangle();
+
+	// =========================================================================
+	// === CONSTRUCTOR
+	// =========================================================================
 
 	/**
-	 * Verifica si la entidad enfocada sobrepasa los bordes del mapa y toma el
-	 * control de las coordenadas en caso afirmativo.
+	 * Crea el gestor en estado inactivo hasta que se invoque {@link #restituir()} o
+	 * {@link #setEntidadEnfocada(Ente)}.
+	 */
+	public GestorDeLimites() {
+		this.eliminado = true; // Por defecto desactivado
+		this.limitesPersonalizados = false;
+	}
+
+	// =========================================================================
+	// === ACTUALIZACIÓN LÓGICA (60 APS)
+	// =========================================================================
+
+	/**
+	 * Evalúa si la entidad enfocada ha cruzado los límites visibles del mapa y toma
+	 * el control de las coordenadas para frenar la vista.
 	 */
 	@Override
 	public void actualizar() {
@@ -38,12 +99,30 @@ public class GestorDeLimites extends Ente {
 			return;
 		}
 
+		// Recalculamos los límites dinámicos en función del zoom activo
+		this.recalcularLimitesDinamicos();
+
 		final int posX = this.entidadEnfocada.getPosicionXInt();
 		final int posY = this.entidadEnfocada.getPosicionYInt();
 
-		// --- Control Eje X ---
+		/*
+		 * =====================================================================
+		 * EXPLICACIÓN DIDÁCTICA: CONTROL DEL EJE X
+		 * --------------------------------------------------------------------- 1. MAPA
+		 * MÁS PEQUEÑO QUE LA PANTALLA (minX > maxX): Si estás en una habitación cerrada
+		 * pequeña, la cámara se bloquea automáticamente en el centro exacto del cuarto.
+		 * 
+		 * 2. BORDE IZQUIERDO (posX <= minX): El jugador llegó al borde izquierdo: la
+		 * cámara deja de moverse a la izquierda y se frena en 'limiteMinimoX'.
+		 * 
+		 * 3. BORDE DERECHO (posX >= maxX): El jugador llegó al borde derecho: la cámara
+		 * se frena en 'limiteMaximoX'.
+		 * 
+		 * 4. ZONA LIBRE (gestionandoX = false): El jugador está en el medio del mapa:
+		 * la cámara sigue la posición real del jugador con total libertad.
+		 * =====================================================================
+		 */
 		if (this.limiteMinimoX > this.limiteMaximoX) {
-			// El mapa es más pequeño que la resolución de pantalla: Centrar fijamente
 			this.gestionandoX = true;
 			this.x = (this.limiteMinimoX + this.limiteMaximoX) / 2;
 		} else if (posX <= this.limiteMinimoX) {
@@ -56,9 +135,8 @@ public class GestorDeLimites extends Ente {
 			this.gestionandoX = false;
 		}
 
-		// --- Control Eje Y ---
+		// --- Control del Eje Y ---
 		if (this.limiteMinimoY > this.limiteMaximoY) {
-			// El mapa es más pequeño que la resolución de pantalla: Centrar fijamente
 			this.gestionandoY = true;
 			this.y = (this.limiteMinimoY + this.limiteMaximoY) / 2;
 		} else if (posY <= this.limiteMinimoY) {
@@ -72,38 +150,74 @@ public class GestorDeLimites extends Ente {
 		}
 	}
 
+	// =========================================================================
+	// === CÁLCULO DE LÍMITES DINÁMICOS CON ZOOM
+	// =========================================================================
+
+	/**
+	 * Calcula el semiancho y semialto visible en tiempo real según el factor de
+	 * Zoom.
+	 */
+	private void recalcularLimitesDinamicos() {
+		if (this.limitesPersonalizados || (this.entidadEnfocada == null)) {
+			return;
+		}
+
+		final double zoom = (Globales.CAMARA != null) ? Math.max(0.2, Globales.CAMARA.getZoomFinal()) : 1.0;
+
+		final int enteAncho = (this.entidadEnfocada.getArea() != null) ? this.entidadEnfocada.getArea().width : 0;
+		final int enteAlto = (this.entidadEnfocada.getArea() != null) ? this.entidadEnfocada.getArea().height : 0;
+
+		// Semidimensiones visibles del cono óptico en píxeles de mundo
+		final int semiAnchoVisible = (int) Math.round((Constantes.ANCHO_JUEGO / zoom) / 2.0);
+		final int semiAltoVisible = (int) Math.round((Constantes.ALTO_JUEGO / zoom) / 2.0);
+
+		this.limiteMinimoX = semiAnchoVisible - (enteAncho / 2);
+		this.limiteMaximoX = this.anchoTerreno - semiAnchoVisible - (enteAncho / 2);
+
+		this.limiteMinimoY = semiAltoVisible - (enteAlto / 2);
+		this.limiteMaximoY = this.altoTerreno - semiAltoVisible - (enteAlto / 2);
+	}
+
+	// =========================================================================
+	// === CONFIGURACIÓN DEL OBJETIVO Y LÍMITES
+	// =========================================================================
+
+	/**
+	 * Establece la entidad a seguir y obtiene las dimensiones del mapa actual.
+	 *
+	 * @param e Entidad a enfocar (Jugador, proyectil, asistente cinemático).
+	 */
 	public void setEntidadEnfocada(final Ente e) {
 		if (e == null) {
 			return;
 		}
 		this.entidadEnfocada = e;
+		this.limitesPersonalizados = false;
 
-		int anchoTerreno = Constantes.ANCHO_JUEGO;
-		int altoTerreno = Constantes.ALTO_JUEGO;
+		this.anchoTerreno = Constantes.ANCHO_JUEGO;
+		this.altoTerreno = Constantes.ALTO_JUEGO;
 
-		// Protección contra NullPointerException si el mundo/terreno no está
-		// inicializado aún
+		// Protección contra NullPointerException si el terreno no está cargado aún
 		if ((e.getMundo() != null) && (e.getMundo().getTerreno() != null)) {
-			anchoTerreno = e.getMundo().getTerreno().getAncho();
-			altoTerreno = e.getMundo().getTerreno().getAlto();
+			this.anchoTerreno = e.getMundo().getTerreno().getAncho();
+			this.altoTerreno = e.getMundo().getTerreno().getAlto();
 		}
 
-		final int enteAncho = (e.getArea() != null) ? e.getArea().width : 0;
-		final int enteAlto = (e.getArea() != null) ? e.getArea().height : 0;
-
-		this.limiteMinimoX = (Constantes.ANCHO_JUEGO / 2) - (enteAncho / 2);
-		this.limiteMaximoX = anchoTerreno - (Constantes.ANCHO_JUEGO / 2) - (enteAncho / 2);
-
-		this.limiteMinimoY = (Constantes.ALTO_JUEGO / 2) - (enteAlto / 2);
-		this.limiteMaximoY = altoTerreno - (Constantes.ALTO_JUEGO / 2) - (enteAlto / 2);
+		this.recalcularLimitesDinamicos();
 	}
 
+	/**
+	 * Habilita límites rectangulares fijos personalizados (ej: para cinemáticas o
+	 * salas cerradas).
+	 */
 	public void setEntidadEnfocada(final Ente e, final int limiteMaximoX, final int limiteMinimoX,
 			final int limiteMaximoY, final int limiteMinimoY, final boolean contarDimensionEnte) {
 		if (e == null) {
 			return;
 		}
 		this.entidadEnfocada = e;
+		this.limitesPersonalizados = true;
 
 		final int enteAncho = (contarDimensionEnte && (e.getArea() != null)) ? e.getArea().width / 2 : 0;
 		final int enteAlto = (contarDimensionEnte && (e.getArea() != null)) ? e.getArea().height / 2 : 0;
@@ -113,6 +227,10 @@ public class GestorDeLimites extends Ente {
 		this.limiteMinimoY = limiteMinimoY - enteAlto;
 		this.limiteMaximoY = limiteMaximoY - enteAlto;
 	}
+
+	// =========================================================================
+	// === ACCESORES Y COORDENADAS POLIMÓRFICAS (ENTE)
+	// =========================================================================
 
 	public Ente getEntidadEnfocada() {
 		return this.entidadEnfocada;
@@ -170,14 +288,16 @@ public class GestorDeLimites extends Ente {
 		return this.eliminado;
 	}
 
-//	@Override
-//	public Rectangle getArea() {
-//		if ((this.entidadEnfocada != null) && (this.entidadEnfocada.getArea() != null)) {
-//			final Rectangle a = this.entidadEnfocada.getArea();
-//			return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), a.width, a.height);
-//		}
-//		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), 1, 1);
-//	}
+	@Override
+	public Rectangle getArea() {
+		if ((this.entidadEnfocada != null) && (this.entidadEnfocada.getArea() != null)) {
+			final Rectangle a = this.entidadEnfocada.getArea();
+			this.areaReutilizable.setBounds(this.getPosicionXInt(), this.getPosicionYInt(), a.width, a.height);
+			return this.areaReutilizable;
+		}
+		this.areaReutilizable.setBounds(this.getPosicionXInt(), this.getPosicionYInt(), 1, 1);
+		return this.areaReutilizable;
+	}
 
 	@Override
 	public int getAncho() {

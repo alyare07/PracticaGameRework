@@ -1,0 +1,168 @@
+1. MAPA DE COMUNICACIÓN ENTRE COMPONENTES
+
+[ JUEGO / GAMEPLAY ]
+      (Jugador, Proyectiles, Hechizos, Antorchas, Carga de Mapas)
+                                   |
+                                   | Invoca métodos públicos
+                                   v
+                    +-----------------------------+
+                    |    Globales.GESTOR_LUZ      |
+                    +-----------------------------+
+                     /             |             \
+       Posee/Controla             Posee           Almacena en VRAM
+            /                      |                      \
+           v                       v                       v
+  +------------------+   +-------------------+   +--------------------+
+  |  CicloDiaNoche   |   |   FuenteLuz [128] |   |   VolatileImage    |
+  |                  |   |    (Pool Zero-GC) |   |    (Lightmap VRAM) |
+  +------------------+   +-------------------+   +--------------------+
+           |                       |                       |
+           | Modula color          | Modula radio y        | Recibe dibujo de
+           | ambiental             | sigue al Ente         | sombras y luces
+           v                       v                       v
+  [ ColorAmbiente ]       [ RadioActual (px) ]   [ AlphaComposite.DST_OUT ]
+  (Día, Tarde, Noche)     (Fórmula de Fuego)      (Perforación de sombra)
+  
+2. DIAGRAMA DE FLUJO: CICLO LÓGICO (60 APS / TICKS)
+
+[ GestorJuego.actualizar() ]
+                               |
+                               v
+                  [ GestorLuz.actualizar() ]
+                               |
+            +------------------+------------------+
+            |                                     |
+            v                                     v
+   ¿Es mapa exterior?                    [ Bucle de Luces Activas ]
+ (modoAmbienteFijo == false)                 (0 a cantidadActivas - 1)
+            |                                     |
+            v                                     v
+ [ CicloDiaNoche.actualizar() ]          [ FuenteLuz.actualizar() ]
+            |                                     |
+            +--> Suma tiempo al reloj             +--> ¿Tiene Ente anclado?
+            |    (horaActual += dt * vel)              |-- SÍ -> Sigue su posición (X, Y).
+            |                                          |-- ¿Ente murió? -> Apaga la luz.
+            +--> Interpola colores RGBA                \-- NO -> Mantiene posición fija.
+                 (Amanecer / Día / Noche)         |
+            |                                     +--> ¿Tiene parpadeo de fuego?
+            v                                          |-- SÍ -> Modula radio con Seno:
+   [ ColorAmbienteActual ]                             |   Radio = Base + sin(14t) + 0.5*sin(27t)
+   (Listo para el render)                              \-- NO -> Radio = RadioBase.
+   
+   
+3. DIAGRAMA DE FLUJO: PIPELINE GRÁFICO (RENDERIZADO)
+Este flujo ocurre en GestorJuego.pintar(), dividiendo la pantalla en 3 capas estrictas:
+
+=========================================================================
+ === FASE 1: CAPA DE MUNDO (CON ZOOM, TEMBLOR Y ROTACIÓN)
+ =========================================================================
+   [ Mapa / Terreno ]  -----> Dibuja tiles y suelo.
+   [ Entidades Y-Sort] -----> Dibuja árboles, cofres, monstruos y Jugador.
+   [ Partículas ]      -----> Dibuja chispas, sangre y humo.
+   [ Textos Daño ]     -----> Dibuja números de combate flotantes.
+
+ =========================================================================
+ === RESTAURACIÓN DE MATRIZ (Regreso a Espacio de Pantalla 1:1 Fijo)
+ =========================================================================
+                               |
+                               v
+ =========================================================================
+ === FASE 2: CAPA DE ILUMINACIÓN Y NOCHE [ GestorLuz.pintar(g) ]
+ =========================================================================
+                               |
+                               v
+            ¿ColorAmbiente es transparente (Alpha == 0)?
+                 /                           \
+               SÍ                             NO
+               /                               \
+     [ 0% Costo de GPU ]            [ Inicia Render del Lightmap ]
+    (Es mediodía soleado:                          |
+     Retorna de inmediato)                         v
+                              1. VACIADO DE MEMORIA VRAM:
+                                 gLight.setComposite(AlphaComposite.CLEAR);
+                                 gLight.fillRect(0, 0, 640, 360);
+                                                   |
+                                                   v
+                              2. ESTAMPAR LA OSCURIDAD AMBIENTAL:
+                                 gLight.setComposite(AlphaComposite.SRC_OVER);
+                                 gLight.setColor(colorAmbiente);
+                                 gLight.fillRect(0, 0, 640, 360);
+                                                   |
+                                                   v
+                              3. PERFORAR AGUJEROS DE LUZ:
+                                 gLight.setComposite(AlphaComposite.DST_OUT);
+                                 Para cada luz activa:
+                                   a) Proyecta (X, Y) con Cámara, Zoom y Giro.
+                                   b) Escala radio de luz según Zoom.
+                                   c) Dibuja la textura de halo pre-horneada.
+                                   *(El blanco del halo borra la sombra)*
+                                                   |
+                                                   v
+                              4. ESTAMPAR LIGHTMAP SOBRE LA PANTALLA:
+                                 g.drawImage(lightmap, 0, 0, null);
+
+ =========================================================================
+ === FASE 3: CAPAS DE INTERFAZ / HUD (NO SE OSCURECE JAMÁS)
+ =========================================================================
+   [ Barras de Vida/Maná ] ---> 100% brillante y legible sobre la noche.
+   [ Inventarios y Slots ] ---> 100% visible sin sombras.
+   [ Textos de Debug ]    ---> 100% visible.
+
+4. GUÍA DE USO Y COMUNICACIÓN EN GAMEPLAY (CASOS DE USO)
+Caso A: Al cargar un mapa nuevo (Transición de Escenario)
+
+[ GestorJuego.cargarMapa() ]
+                       |
+        +--------------+---------------+
+        |                              |
+        v                              v
+ ¿Es mapa Exterior?             ¿Es Cueva o Mazmorra?
+ (Bosque, Pueblo, Ruta)         (Subterráneo, Mina)
+        |                              |
+        v                              v
+ Globales.GESTOR_LUZ            Globales.GESTOR_LUZ
+   .restablecerModoExterior();    .establecerModoCueva(true);
+ (El sol y el reloj de 24h      (100% oscuridad permanente,
+  controlan la luz)              sin paso de tiempo solar)
+  
+  
+Caso B: Creación y Anclaje de Luces
+[ ACCIÓN DE JUEGO ]
+                      |
+        +-------------+-------------+
+        |                           |
+        v                           v
+ [ Antorcha en Pared ]      [ Jugador / Bola de Fuego ]
+ (Luz en posición fija)     (Luz anclada a Ente móvil)
+        |                           |
+        v                           v
+ Globales.GESTOR_LUZ        Globales.GESTOR_LUZ
+   .agregarLuzEstatica(       .agregarLuzAnclada(
+     x, y, TipoLuz.ANTORCHA);   jugador, TipoLuz.LINTERNA_JUGADOR);
+                                    |
+                                    +-> Si el jugador ya tenía linterna:
+                                        Actualiza el radio sin duplicar.
+                                        
+Caso C: Mecánicas de Pociones y Modificadores de Visión
+[ Jugador bebe Poción de Visión Nocturna ]
+                      |
+                      v
+ FuenteLuz linterna = Globales.GESTOR_LUZ
+     .agregarLuzAnclada(Globales.JUGADOR, TipoLuz.LINTERNA_JUGADOR);
+                      |
+                      v
+ linterna.setMultiplicadorRadio(1.75); // Expande la visión un +75% en vivo
+ 
+ 
+Caso D: Control del Tiempo y Descanso (Dormir en Cama / Eventos)
+[ El Jugador duerme en una Cama / Posada ]
+                      |
+                      v
+ Globales.GESTOR_LUZ.getCiclo().irAAmanecer(); // Salta a las 06:30
+                      |
+                      v
+  [ Cinemática o Pausa de Tiempo ]
+                      |
+                      v
+ Globales.GESTOR_LUZ.getCiclo().pausarTiempo();   // Congela el reloj
+ Globales.GESTOR_LUZ.getCiclo().reanudarTiempo(); // Reanuda el reloj

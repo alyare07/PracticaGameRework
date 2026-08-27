@@ -388,6 +388,9 @@ public abstract class Criatura extends Ente {
 
 	public void curar(final double puntos) {
 		this.vida = Math.min(this.vidaMaxima, this.vida + puntos);
+
+		// Curación (número verde "+50"):
+		Globales.GESTOR_TEXTOS.agregarCuracion((int) puntos, this.getPosicionX(), this.getPosicionY());
 	}
 
 	public void establecerVida(final double puntos) {
@@ -603,6 +606,19 @@ public abstract class Criatura extends Ente {
 		if (this.mundo != null) {
 			this.mundo.agregarParticula(
 					new Sangre(this.getPosicionXInt() + (this.ANCHO / 2), this.getPosicionYInt() + (this.ALTO / 2)));
+			// Daño normal (número blanco que salta):
+			Globales.GESTOR_TEXTOS.agregarDanio((int) damage, this.getPosicionX(), this.getPosicionY(), false);
+
+			// Daño crítico (número rojo grande con "¡58!" + sacudida de cámara):
+//			Globales.GESTOR_TEXTOS.agregarDanio(58, this.getPosicionX(), this.getPosicionY(), true);
+//			Globales.CAMARA.aplicarImpactoCritico(100);
+
+			// Curación (número verde "+50"):
+//			Globales.GESTOR_TEXTOS.agregarCuracion(50, this.getPosicionX(), this.getPosicionY());
+
+			// Mensaje de estado ("¡FALLO!", "¡BLOQUEO!"):
+//			Globales.GESTOR_TEXTOS.agregarTexto("¡FALLO!", this.getPosicionX(), this.getPosicionY(),
+//					TipoTextoFlotante.ESTADO);
 		}
 	}
 

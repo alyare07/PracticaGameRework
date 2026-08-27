@@ -157,55 +157,60 @@ public class ZoneBox extends Ente {
 	}
 
 	/**
-	 * Renderiza en pantalla las entidades contenidas en esta celda.
-	 * <p>
-	 * Utiliza {@link RenderEntidad#estaPintado()} para garantizar que si una
-	 * entidad abarca múltiples celdas vecinos, solo se dibuje una única vez por
-	 * frame visual.
-	 * </p>
+	 * Recolecta todas las entidades visibles de esta celda en la cola de
+	 * renderizado unificada de {@link Mundo}, deduplicando aquellas que ocupen
+	 * múltiples celdas.
 	 *
-	 * @param g Contexto gráfico {@link Graphics2D} sobre el cual pintar.
+	 * @param mundo Referencia al mundo contenedor.
 	 */
-	@Override
-	public void pintar(final Graphics2D g) {
+	public void recolectarEntidadesParaRender(final Mundo mundo) {
 		RenderEntidad re = null;
 
+		// 1. Complementos (Árboles, casas, muros)
 		for (final Complemento c : this.COMPLEMENTOS) {
-			re = this.mundo.getRenders().getRender(c);
+			re = mundo.getRenders().getRender(c);
 			if ((re != null) && !re.estaPintado()) {
-				c.pintar(g);
+				mundo.agregarAColaRender(c);
 				re.pintado();
 			}
 		}
 
+		// 2. Objetos (Cofres, barriles)
 		for (final Objeto c : this.OBJETOS) {
-			re = this.mundo.getRenders().getRender(c);
+			re = mundo.getRenders().getRender(c);
 			if ((re != null) && !re.estaPintado()) {
-				c.pintar(g);
+				mundo.agregarAColaRender(c);
 				re.pintado();
 			}
 		}
 
+		// 3. Criaturas (Enemigos, NPCs)
+		for (final Criatura c : this.CRIATURAS) {
+			re = mundo.getRenders().getRender(c);
+			if ((re != null) && !re.estaPintado()) {
+				mundo.agregarAColaRender(c);
+				re.pintado();
+			}
+		}
+
+		// 4. Zonas TP
+		for (final ZonaTP zonaTP : this.ZONAS_TP) {
+			re = mundo.getRenders().getRender(zonaTP);
+			if ((re != null) && !re.estaPintado()) {
+				mundo.agregarAColaRender(zonaTP);
+				re.pintado();
+			}
+		}
+	}
+
+	@Override
+	public void pintar(final Graphics2D g) {
+		// Los ítems planos del suelo se pintan en su propia pasada de base
+		RenderEntidad re = null;
 		for (final Item i : this.ITEMS) {
 			re = this.mundo.getRenders().getRender(i);
 			if ((re != null) && !re.estaPintado()) {
 				i.pintar(g);
-				re.pintado();
-			}
-		}
-
-		for (final Criatura c : this.CRIATURAS) {
-			re = this.mundo.getRenders().getRender(c);
-			if ((re != null) && !re.estaPintado()) {
-				c.pintar(g);
-				re.pintado();
-			}
-		}
-
-		for (final ZonaTP zonaTP : this.ZONAS_TP) {
-			re = this.mundo.getRenders().getRender(zonaTP);
-			if ((re != null) && !re.estaPintado()) {
-				zonaTP.pintar(g);
 				re.pintado();
 			}
 		}

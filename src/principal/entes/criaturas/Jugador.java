@@ -257,8 +257,10 @@ public class Jugador extends Criatura {
 			return;
 		}
 
-		this.curar();
-
+		if (Globales.RATON.presionadoClickIzqUnicaAct()
+				&& Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())) {
+			this.curar();
+		}
 		// Detección del tile pisado en la base de los pies para modificadores de
 		// velocidad
 		if (this.mundo != null) {
@@ -740,6 +742,18 @@ public class Jugador extends Criatura {
 	}
 
 	private void curar() {
+		// 1. Al explotar una granada o bola de fuego:
+//		Globales.PARTICULAS.emitirExplosion(this.getPosicionX(), this.getPosicionY(), 40);
+
+//		// 2. Al asestar un golpe crítico o recibir daño:
+//		Globales.PARTICULAS.emitirSangre(this.getPosicionX(), this.getPosicionY(), -1, 1, 3);
+//
+		// 3. Al caminar o hacer un Dash:
+//		Globales.PARTICULAS.emitirPolvoPaso(this.getPosicionX(), this.getPosicionY(), 5);
+//
+//		// 4. Al tomar una poción o usar magia:
+		Globales.PARTICULAS.emitirMagia(this.getCentroX(), this.getCentroY(), 15);
+
 		if (this.vida >= this.vidaMaxima) {
 			return;
 		}
@@ -1098,7 +1112,9 @@ public class Jugador extends Criatura {
 
 	@Override
 	public void recibirAtaque(final double damage, final Ente causante) {
+
 		super.recibirAtaque(damage, causante);
+
 	}
 
 	@Override

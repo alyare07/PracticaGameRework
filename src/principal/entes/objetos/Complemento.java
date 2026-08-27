@@ -14,7 +14,25 @@ import principal.entes.modelos.complemento.ModeloComplementoT2;
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
 
+/**
+ * Representa elementos escénicos del mapa como árboles, casas, rocas y muros.
+ * <p>
+ * <b>Optimizaciones de Memoria:</b>
+ * <ul>
+ * <li>Corrige la asignación oculta de {@code new Rectangle()} en
+ * {@link #getArea()}, reutilizando la estructura fija
+ * {@link #AREA_ENTE_RETORNO} de {@link principal.entes.Ente}.</li>
+ * <li>Integra el pivote de profundidad {@link #getPosicionYBase()} para que las
+ * copas de los árboles y techos de casas tapen al jugador correctamente al
+ * pasar por detrás.</li>
+ * </ul>
+ * </p>
+ * 
+ * @author Copiloto Técnico
+ * @version 2.0
+ */
 public class Complemento extends Objeto {
+
 	private static final long serialVersionUID = -2759528530038714828L;
 	private final int COD_MODELO_COMPLEMENTO;
 
@@ -28,13 +46,13 @@ public class Complemento extends Objeto {
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionEnBaseMargen(
 					((ModeloComplementoT1) ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO))
 							.getMargenesInterseccion()),
-					Color.orange);
+					Color.ORANGE);
 		} else if (ListaModeloComplemento
 				.getModeloComplemento(this.COD_MODELO_COMPLEMENTO) instanceof ModeloComplementoT2) {
 			for (final Rectangle margen : ((ModeloComplementoT2) ListaModeloComplemento
 					.getModeloComplemento(this.COD_MODELO_COMPLEMENTO)).getMargenesInterseccion()) {
 				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionEnBaseMargen(margen),
-						Color.orange);
+						Color.ORANGE);
 			}
 		}
 	}
@@ -44,7 +62,7 @@ public class Complemento extends Objeto {
 	}
 
 	public boolean compararModelos(final Complemento c) {
-		return c.COD_MODELO_COMPLEMENTO == this.COD_MODELO_COMPLEMENTO;
+		return (c != null) && (c.COD_MODELO_COMPLEMENTO == this.COD_MODELO_COMPLEMENTO);
 	}
 
 	public Rectangle getAreaInterseccionEnBaseMargen(final Rectangle margen) {
@@ -65,7 +83,7 @@ public class Complemento extends Objeto {
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
 			this.pintarAreaInterseccion(g);
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.black);
+			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
 		}
 	}
 
@@ -130,7 +148,6 @@ public class Complemento extends Objeto {
 	@Override
 	public void modificarPosicionX(final double desplazamientoX) {
 		this.x += desplazamientoX;
-
 	}
 
 	@Override
@@ -153,9 +170,14 @@ public class Complemento extends Objeto {
 		return ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).getAlto();
 	}
 
+	/**
+	 * Retorna el delimitador rectangular reutilizando la estructura fija de Ente
+	 * (Zero-GC).
+	 */
 	@Override
 	public Rectangle getArea() {
-		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(), this.getAlto());
+		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(),
+				this.getAlto());
+		return this.AREA_ENTE_RETORNO;
 	}
-
 }

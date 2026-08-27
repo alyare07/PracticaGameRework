@@ -155,6 +155,9 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 			this.tilePisado = this.mapa.getMundoActual().getTerreno().getTileReferenciado(pieX, pieY);
 		}
+
+		Globales.GESTOR_TEXTOS.actualizar();
+		Globales.PARTICULAS.actualizar();
 	}
 
 	private void actualizarCambioCamaraConEntesYZoom() {
@@ -299,7 +302,12 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			if (this.mapa != null) {
 				this.mapa.pintar(gMundo);
 			}
-			Globales.JUGADOR.pintar(gMundo);
+			// Capa de Partículas en el Mundo
+			Globales.PARTICULAS.pintar(gMundo);
+//			Globales.JUGADOR.pintar(gMundo);
+
+			// 1.3 Capa de Textos de Daño Flotantes en el Mundo
+			Globales.GESTOR_TEXTOS.pintar(gMundo);
 
 			gMundo.translate(-offsetMundoX, -offsetMundoY);
 

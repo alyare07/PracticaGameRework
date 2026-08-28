@@ -113,7 +113,7 @@ public abstract class Item extends Objeto {
 		 * =====================================================================
 		 */
 		// 1. Cálculo de la onda senoidal de levitación
-		final double faseUnica = (this.x * 0.05) + (this.y * 0.05);
+		final double faseUnica = (this.getPosicionX() * 0.05) + (this.getPosicionY() * 0.05);
 		final int offsetFlotacion = (int) Math.round(Math.sin((Globales.animacion * 0.12) + faseUnica) * 1.5);
 
 		// 2. Sombra de contacto elíptica en el suelo (Zero-GC)
@@ -130,7 +130,8 @@ public abstract class Item extends Objeto {
 		}
 
 		// 4. Sprite del ítem flotando suavemente en el eje vertical
-		DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.x, this.y + offsetFlotacion);
+		DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(),
+				this.getPosicionYInt() + offsetFlotacion);
 	}
 
 	// =========================================================================

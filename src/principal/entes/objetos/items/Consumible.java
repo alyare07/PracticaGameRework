@@ -104,36 +104,6 @@ public abstract class Consumible extends Item {
 	}
 
 	@Override
-	public void eliminar() {
-		this.eliminado = true;
-	}
-
-	@Override
-	public double getPosicionX() {
-		return this.x;
-	}
-
-	@Override
-	public double getPosicionY() {
-		return this.y;
-	}
-
-	@Override
-	public void modificarPosicionX(final double desplazamientoX) {
-		this.x += desplazamientoX;
-	}
-
-	@Override
-	public void modificarPosicionY(final double desplazamientoY) {
-		this.y += desplazamientoY;
-	}
-
-	@Override
-	public boolean estaEliminado() {
-		return this.eliminado;
-	}
-
-	@Override
 	public int getTipoItem() {
 		return ListaModelosItem.getModeloConsumible(this.CODIGO_MODELO).getTipoItem();
 	}

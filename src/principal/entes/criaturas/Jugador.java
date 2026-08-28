@@ -325,21 +325,25 @@ public class Jugador extends Criatura {
 
 		if (this.getPosicionYInt() < this.RECTANGLE_AUXILIAR.y) {
 			final double dist = this.RECTANGLE_AUXILIAR.y - this.getPosicionYInt();
-			this.y = (dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.y : this.y + Math.min(dist, this.velocidad);
+			this.setPosicionY((dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.y
+					: this.getPosicionY() + Math.min(dist, this.velocidad));
 			this.direccion = Direccion.SUR;
 		} else if (this.getPosicionYInt() > this.RECTANGLE_AUXILIAR.y) {
 			final double dist = this.getPosicionYInt() - this.RECTANGLE_AUXILIAR.y;
-			this.y = (dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.y : this.y - Math.min(dist, this.velocidad);
+			this.setPosicionY((dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.y
+					: this.getPosicionY() - Math.min(dist, this.velocidad));
 			this.direccion = Direccion.NORTE;
 		}
 
 		if (this.getPosicionXInt() < this.RECTANGLE_AUXILIAR.x) {
 			final double dist = this.RECTANGLE_AUXILIAR.x - this.getPosicionXInt();
-			this.x = (dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.x : this.x + Math.min(dist, this.velocidad);
+			this.setPosicionX((dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.x
+					: this.getPosicionX() + Math.min(dist, this.velocidad));
 			this.direccion = Direccion.ESTE;
 		} else if (this.getPosicionXInt() > this.RECTANGLE_AUXILIAR.x) {
 			final double dist = this.getPosicionXInt() - this.RECTANGLE_AUXILIAR.x;
-			this.x = (dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.x : this.x - Math.min(dist, this.velocidad);
+			this.setPosicionX((dist < this.velocidad) ? this.RECTANGLE_AUXILIAR.x
+					: this.getPosicionX() - Math.min(dist, this.velocidad));
 			this.direccion = Direccion.OESTE;
 		}
 
@@ -376,7 +380,7 @@ public class Jugador extends Criatura {
 		}
 
 		if (Globales.TECLADO.TECLA_ARRIBA.presionado()) {
-			if ((((int) (this.y - this.velocidad)) >= 0) && !this.mundo
+			if ((((int) (this.getPosicionY() - this.velocidad)) >= 0) && !this.mundo
 					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 2))) {
 				this.modificarPosicionY(-this.velocidad);
 			}
@@ -385,8 +389,9 @@ public class Jugador extends Criatura {
 		}
 
 		if (Globales.TECLADO.TECLA_ABAJO.presionado()) {
-			if (((this.y + this.velocidad) <= (this.mundo.getTerreno().getAlto() - this.ALTO)) && !this.mundo
-					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 3))) {
+			if (((this.getPosicionY() + this.velocidad) <= (this.mundo.getTerreno().getAlto() - this.ALTO))
+					&& !this.mundo
+							.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 3))) {
 				this.modificarPosicionY(this.velocidad);
 			}
 			enMovimiento = true;
@@ -394,7 +399,7 @@ public class Jugador extends Criatura {
 		}
 
 		if (Globales.TECLADO.TECLA_IZQUIERDA.presionado()) {
-			if (((this.x - this.velocidad) >= 0) && !this.mundo
+			if (((this.getPosicionX() - this.velocidad) >= 0) && !this.mundo
 					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, -1))) {
 				this.modificarPosicionX(-this.velocidad);
 			}
@@ -403,8 +408,9 @@ public class Jugador extends Criatura {
 		}
 
 		if (Globales.TECLADO.TECLA_DERECHA.presionado()) {
-			if (((this.x + this.velocidad) <= (this.mundo.getTerreno().getAncho() - this.ANCHO)) && !this.mundo
-					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 1))) {
+			if (((this.getPosicionX() + this.velocidad) <= (this.mundo.getTerreno().getAncho() - this.ANCHO))
+					&& !this.mundo
+							.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 1))) {
 				this.modificarPosicionX(this.velocidad);
 			}
 			enMovimiento = true;
@@ -474,9 +480,10 @@ public class Jugador extends Criatura {
 			final Pistola pistola = (Pistola) armaEquipada;
 			final int offsetX = (this.direccion == Direccion.OESTE) ? -8 : 8;
 			final int offsetY = (this.direccion == Direccion.NORTE) ? -8 : 8;
-			pistola.disparar((int) this.x + offsetX, (int) this.y + offsetY, this.direccion, mundo, this, false);
+			pistola.disparar(this.getPosicionXInt() + offsetX, this.getPosicionYInt() + offsetY, this.direccion, mundo,
+					this, false);
 		} else if (armaEquipada instanceof Desarmado) {
-			this.ataqueMele((int) this.x + 8, (int) this.y + 8, this.direccion, mundo);
+			this.ataqueMele((int) this.getPosicionX() + 8, (int) this.getPosicionY() + 8, this.direccion, mundo);
 		}
 	}
 
@@ -737,8 +744,9 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarAreaRecoleccion() {
-		((Ellipse2D.Double) this.areaRecoleccion).setFrame((this.x - (this.recoleccionLado / 2.0)) + (this.ANCHO / 2.0),
-				(this.y - (this.recoleccionLado / 2.0)) + (this.ALTO / 2.0), this.recoleccionLado,
+		((Ellipse2D.Double) this.areaRecoleccion).setFrame(
+				(this.getPosicionX() - (this.recoleccionLado / 2.0)) + (this.ANCHO / 2.0),
+				(this.getPosicionY() - (this.recoleccionLado / 2.0)) + (this.ALTO / 2.0), this.recoleccionLado,
 				this.recoleccionLado);
 	}
 
@@ -753,30 +761,32 @@ public class Jugador extends Criatura {
 	}
 
 	public Shape getAreaInterseccionMovimiento() {
-		this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.x + 2.0, this.y + 12.0, 8.0, 8.0);
+		this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.getPosicionX() + 2.0, this.getPosicionY() + 12.0, 8.0,
+				8.0);
 		return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 	}
 
 	public Shape getAreaInterseccionMovimiento(final double desplazamiento, final int direccion) {
 		switch (direccion) {
 		case -1:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((this.x + 2.0) - desplazamiento, this.y + 12.0, 8.0,
-					8.0);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((this.getPosicionX() + 2.0) - desplazamiento,
+					this.getPosicionY() + 12.0, 8.0, 8.0);
 			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		case 1:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((this.x + 2.0) + desplazamiento, this.y + 12.0, 8.0,
-					8.0);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((this.getPosicionX() + 2.0) + desplazamiento,
+					this.getPosicionY() + 12.0, 8.0, 8.0);
 			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		case 2:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.x + 2.0, (this.y + 12.0) - desplazamiento, 8.0,
-					8.0);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.getPosicionX() + 2.0,
+					(this.getPosicionY() + 12.0) - desplazamiento, 8.0, 8.0);
 			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		case 3:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.x + 2.0, (this.y + 12.0) + desplazamiento, 8.0,
-					8.0);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.getPosicionX() + 2.0,
+					(this.getPosicionY() + 12.0) + desplazamiento, 8.0, 8.0);
 			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		default:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.x + 2.0, this.y + 12.0, 8.0, 8.0);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.getPosicionX() + 2.0, this.getPosicionY() + 12.0,
+					8.0, 8.0);
 			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		}
 	}
@@ -808,14 +818,41 @@ public class Jugador extends Criatura {
 
 	@Override
 	public void modificarPosicionX(final double desplazamientoX) {
-		this.x += desplazamientoX;
+		if (desplazamientoX > 0) {
+			this.direccion = Direccion.ESTE;
+		} else if (desplazamientoX < 0) {
+			this.direccion = Direccion.OESTE;
+		}
+		this.setPosicionXSinVerificarZonebox(this.getPosicionX() + desplazamientoX);
 		this.desplazamientoX += desplazamientoX;
 	}
 
 	@Override
 	public void modificarPosicionY(final double desplazamientoY) {
-		this.y += desplazamientoY;
+		if (desplazamientoY > 0) {
+			this.direccion = Direccion.SUR;
+		} else if (desplazamientoY < 0) {
+			this.direccion = Direccion.NORTE;
+		}
+		this.setPosicionYSinVerificarZonebox(this.getPosicionY() + desplazamientoY);
 		this.desplazamientoY += desplazamientoY;
+	}
+
+	@Override
+	public void setPosicion(final double x, final double y) {
+		this.setPosicionXSinVerificarZonebox(x);
+		this.setPosicionYSinVerificarZonebox(y);
+		this.moviendoPorRecorrido = false;
+	}
+
+	@Override
+	public void setPosicionX(final double x) {
+		super.setPosicionXSinVerificarZonebox(x);
+	}
+
+	@Override
+	public void setPosicionY(final double y) {
+		super.setPosicionYSinVerificarZonebox(y);
 	}
 
 	public int getDesplazamientoX() {
@@ -826,28 +863,23 @@ public class Jugador extends Criatura {
 		return (int) Math.round(this.desplazamientoY);
 	}
 
-	public void establecerPosicion(final double x, final double y) {
-		this.x = x;
-		this.y = y;
-		this.moviendoPorRecorrido = false;
-	}
-
 	public int getPosicionXParado() {
-		return (int) this.x + 3;
+		return this.getPosicionXInt() + 3;
 	}
 
 	public int getPosicionYParado() {
-		return ((int) this.y + this.ALTO) - 1;
+		return (this.getPosicionYInt() + this.ALTO) - 1;
 	}
 
 	public Point getPosicionParado() {
-		this.PUNTO_AUXILIAR.setLocation((int) this.x + (this.ANCHO / 2), ((int) this.y + this.ALTO) - 10);
+		this.PUNTO_AUXILIAR.setLocation(this.getPosicionXInt() + (this.ANCHO / 2),
+				(this.getPosicionYInt() + this.ALTO) - 10);
 		return this.PUNTO_AUXILIAR;
 	}
 
 	public Point getPosicionTileParado() {
-		this.PUNTO_AUXILIAR.setLocation((int) (this.x + 3) / Constantes.LADO_TILE,
-				(int) ((this.y + this.ALTO) - 1) / Constantes.LADO_TILE);
+		this.PUNTO_AUXILIAR.setLocation((this.getPosicionXInt() + 3) / Constantes.LADO_TILE,
+				((this.getPosicionYInt() + this.ALTO) - 1) / Constantes.LADO_TILE);
 		return this.PUNTO_AUXILIAR;
 	}
 
@@ -866,7 +898,8 @@ public class Jugador extends Criatura {
 
 	@Override
 	public Point getPosicionTile() {
-		this.PUNTO_AUXILIAR.setLocation((int) this.x / Constantes.LADO_TILE, (int) this.y / Constantes.LADO_TILE);
+		this.PUNTO_AUXILIAR.setLocation(this.getPosicionXInt() / Constantes.LADO_TILE,
+				this.getPosicionYInt() / Constantes.LADO_TILE);
 		return this.PUNTO_AUXILIAR;
 	}
 

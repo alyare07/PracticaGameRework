@@ -90,8 +90,8 @@ public abstract class Criatura extends Ente {
 	protected final int ANCHO;
 	protected final int ALTO;
 	protected double velocidad = 1.0;
-	protected double x;
-	protected double y;
+	private double x;
+	private double y;
 
 	// =========================================================================
 	// === GESTIÓN DE VIDA Y BARRA FANTASMA (VIDA-LAG)
@@ -215,6 +215,7 @@ public abstract class Criatura extends Ente {
 
 	@Override
 	public void actualizar() {
+		this.verificarZoneBox();
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
 		this.actualizarBarraFantasma(dt);
 	}
@@ -626,13 +627,31 @@ public abstract class Criatura extends Ente {
 		return this.atrasDeComplemento;
 	}
 
-	public void setPosicionX(final int x) {
+	public void setPosicionX(final double x) {
+		this.x = x;
+		this.marcarPosicionModificada();
+	}
+
+	public void setPosicionY(final double y) {
+		this.y = y;
+		this.marcarPosicionModificada();
+	}
+
+	/*
+	 * ----SOLO CRIATURAS QUE SE NO REQUIERAN ZONEBOX----
+	 **/
+	protected void setPosicionYSinVerificarZonebox(final double y) {
+		this.y = y;
+	}
+
+	protected void setPosicionXSinVerificarZonebox(final double x) {
 		this.x = x;
 	}
 
-	public void setPosicionY(final int y) {
-		this.y = y;
-	}
+	/*
+	 * -----------------
+	 * 
+	 **/
 
 	protected int getPosicionXIntDibujado() {
 		return (int) this.x - this.margenXInicialSprite;
@@ -657,6 +676,7 @@ public abstract class Criatura extends Ente {
 	@Override
 	public void eliminar() {
 		this.eliminado = true;
+		this.desvincularDeZonas();
 	}
 
 	@Override
@@ -680,6 +700,13 @@ public abstract class Criatura extends Ente {
 	}
 
 	@Override
+	public void setPosicion(final double x, final double y) {
+		this.x = x;
+		this.y = y;
+		this.marcarPosicionModificada();
+	}
+
+	@Override
 	public void modificarPosicionX(final double desplazamientoX) {
 		if (desplazamientoX > 0) {
 			this.direccion = Direccion.ESTE;
@@ -687,6 +714,7 @@ public abstract class Criatura extends Ente {
 			this.direccion = Direccion.OESTE;
 		}
 		this.x += desplazamientoX;
+		this.marcarPosicionModificada();
 	}
 
 	@Override
@@ -697,11 +725,7 @@ public abstract class Criatura extends Ente {
 			this.direccion = Direccion.NORTE;
 		}
 		this.y += desplazamientoY;
-	}
-
-	@Override
-	public boolean estaEliminado() {
-		return this.eliminado;
+		this.marcarPosicionModificada();
 	}
 
 	protected void reiniciarRecorridoAEstrella() {

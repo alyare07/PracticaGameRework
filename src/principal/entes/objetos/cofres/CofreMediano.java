@@ -42,7 +42,7 @@ public class CofreMediano extends Cofre {
 
 	@Override
 	public Objeto copiar() {
-		return new CofreMediano(this.x, this.y);// COPIAR TAMBIEN EL INVENTARIO
+		return new CofreMediano(this.getPosicionXInt(), this.getPosicionYInt());// COPIAR TAMBIEN EL INVENTARIO
 	}
 
 	@Override

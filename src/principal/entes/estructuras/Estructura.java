@@ -11,26 +11,30 @@ public class Estructura extends Ente {
 	protected final int X;
 	protected final int Y;
 
-	public Estructura(final int x, final int y, int ancho, int alto) {
-		ANCHO = ancho;
-		ALTO = alto;
+	public Estructura(final int x, final int y, final int ancho, final int alto) {
+		this.ANCHO = ancho;
+		this.ALTO = alto;
 		this.X = x;
 		this.Y = y;
 	}
 
-	public void pintar(Graphics2D g) {
+	@Override
+	public void pintar(final Graphics2D g) {
 	}
 
+	@Override
 	public void actualizar() {
 
 	}
 
+	@Override
 	public int getAncho() {
-		return ANCHO;
+		return this.ANCHO;
 	}
 
+	@Override
 	public int getAlto() {
-		return ALTO;
+		return this.ALTO;
 	}
 
 	@Override
@@ -50,12 +54,12 @@ public class Estructura extends Ente {
 
 	@Override
 	public double getPosicionX() {
-		return (double) this.X;
+		return this.X;
 	}
 
 	@Override
 	public double getPosicionY() {
-		return (double) this.Y;
+		return this.Y;
 	}
 
 	@Override
@@ -72,10 +76,15 @@ public class Estructura extends Ente {
 	public boolean estaEliminado() {
 		return this.eliminado;
 	}
-	
-	
+
+	@Override
 	public Rectangle getArea() {
-		return new Rectangle(getPosicionXInt(), getPosicionYInt(), getAncho(), getAlto());
+		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(), this.getAlto());
+	}
+
+	@Override
+	public void setPosicion(final double x, final double y) {
+
 	}
 
 }

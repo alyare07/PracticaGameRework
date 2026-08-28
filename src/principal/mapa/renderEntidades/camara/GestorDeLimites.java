@@ -1,5 +1,6 @@
 package principal.mapa.renderEntidades.camara;
 
+import java.awt.Graphics2D;
 import java.awt.Rectangle;
 
 import principal.entes.Ente;
@@ -311,5 +312,15 @@ public class GestorDeLimites extends Ente {
 		return ((this.entidadEnfocada != null) && (this.entidadEnfocada.getArea() != null))
 				? this.entidadEnfocada.getArea().height
 				: 1;
+	}
+
+	@Override
+	public void setPosicion(final double x, final double y) {
+
+	}
+
+	@Override
+	public void pintar(final Graphics2D g) {
+
 	}
 }

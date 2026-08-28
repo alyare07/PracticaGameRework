@@ -73,7 +73,7 @@ public class Pistola extends Arma {
 
 	@Override
 	public Objeto copiar() {
-		return new Pistola(this.x, this.y, this.CODIGO_MODELO, this.municion);
+		return new Pistola(this.getPosicionXInt(), this.getPosicionYInt(), this.CODIGO_MODELO, this.municion);
 	}
 
 	@Override
@@ -85,8 +85,8 @@ public class Pistola extends Arma {
 	@Override
 	protected JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", this.x);
-		json.put("y", this.y);
+		json.put("x", this.getPosicionXInt());
+		json.put("y", this.getPosicionYInt());
 		json.put("codModelo", this.CODIGO_MODELO);
 		json.put("municion", this.municion.getCantidad());
 		json.put("municionLimite", this.municion.getLimite());

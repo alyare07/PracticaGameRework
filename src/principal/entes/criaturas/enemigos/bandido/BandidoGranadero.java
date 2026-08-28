@@ -125,8 +125,8 @@ public class BandidoGranadero extends Bandido {
 	 */
 	@Override
 	public Ellipse2D getAreaDeteccionLogica() {
-		this.areaDeteccionLogica.setFrame((this.x - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0),
-				(this.y - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0), this.areaDeteccionAncho,
+		this.areaDeteccionLogica.setFrame((this.getPosicionX() - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0),
+				(this.getPosicionY() - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0), this.areaDeteccionAncho,
 				this.areaDeteccionAlto);
 		return this.areaDeteccionLogica;
 	}

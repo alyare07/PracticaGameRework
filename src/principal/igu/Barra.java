@@ -230,6 +230,10 @@ public abstract class Barra extends Ente {
 		return this.eliminado;
 	}
 
+	@Override
+	public void setPosicion(final double x, final double y) {
+	}
+
 	public void restaurar() {
 		this.eliminado = false;
 	}

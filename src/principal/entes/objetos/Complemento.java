@@ -75,9 +75,10 @@ public class Complemento extends Objeto {
 		if (!Globales.TECLADO.TECLA_OCULTAR_COMPLEMENTOS.presionado()) {
 			if (ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).animar()) {
 				ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).getAnimacion().pintar(g,
-						this.x, this.y);
+						this.getPosicionXInt(), this.getPosicionYInt());
 			} else {
-				DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.x, this.y);
+				DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(),
+						this.getPosicionYInt());
 			}
 		}
 
@@ -89,8 +90,8 @@ public class Complemento extends Objeto {
 
 	public JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", this.x);
-		json.put("y", this.y);
+		json.put("x", this.getPosicionXInt());
+		json.put("y", this.getPosicionYInt());
 		json.put("codModelo", this.getCodigoModelo());
 		return json;
 	}
@@ -122,7 +123,7 @@ public class Complemento extends Objeto {
 
 	@Override
 	public Objeto copiar() {
-		return new Complemento(this.x, this.y, this.COD_MODELO_COMPLEMENTO);
+		return new Complemento(this.getPosicionXInt(), this.getPosicionYInt(), this.COD_MODELO_COMPLEMENTO);
 	}
 
 	@Override
@@ -133,26 +134,6 @@ public class Complemento extends Objeto {
 	@Override
 	public void eliminar() {
 		this.eliminado = true;
-	}
-
-	@Override
-	public double getPosicionX() {
-		return this.x;
-	}
-
-	@Override
-	public double getPosicionY() {
-		return this.y;
-	}
-
-	@Override
-	public void modificarPosicionX(final double desplazamientoX) {
-		this.x += desplazamientoX;
-	}
-
-	@Override
-	public void modificarPosicionY(final double desplazamientoY) {
-		this.y += desplazamientoY;
 	}
 
 	@Override
@@ -180,4 +161,5 @@ public class Complemento extends Objeto {
 				this.getAlto());
 		return this.AREA_ENTE_RETORNO;
 	}
+
 }

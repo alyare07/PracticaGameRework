@@ -36,7 +36,7 @@ public final class Sangre extends Particula {
 
 	@Override
 	public Objeto copiar() {
-		return new Sangre(x, y);
+		return new Sangre(this.getPosicionXInt(), this.getPosicionYInt());
 	}
 
 	@Override
@@ -46,22 +46,12 @@ public final class Sangre extends Particula {
 
 	@Override
 	public double getPosicionX() {
-		return x;
+		return this.getPosicionXInt();
 	}
 
 	@Override
 	public double getPosicionY() {
-		return y;
-	}
-
-	@Override
-	public void modificarPosicionX(double desplazamientoX) {
-		this.x += desplazamientoX;
-	}
-
-	@Override
-	public void modificarPosicionY(double desplazamientoY) {
-		this.y += desplazamientoY;
+		return this.getPosicionYInt();
 	}
 
 	@Override

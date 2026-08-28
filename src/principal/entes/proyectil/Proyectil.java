@@ -83,6 +83,12 @@ public abstract class Proyectil extends Ente implements Serializable {
 
 	}
 
+	@Override
+	public void setPosicion(final double x, final double y) {
+		this.x = x;
+		this.y = y;
+	}
+
 	public Direccion getDireccion() {
 		return this.DIRECCION;
 	}

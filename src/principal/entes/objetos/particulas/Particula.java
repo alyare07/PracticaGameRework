@@ -19,15 +19,16 @@ public abstract class Particula extends Objeto {
 		this.tiempoVidaMs = tiempoVidaMs;
 	}
 
+	@Override
 	public void actualizar() {
-		if (this.GT_CREACION.transcurrioMiliSegundos(tiempoVidaMs)) {
+		if (this.GT_CREACION.transcurrioMiliSegundos(this.tiempoVidaMs)) {
 			this.eliminado = true;
 		}
 	}
-	
+
+	@Override
 	public Rectangle getArea() {
-		return new Rectangle(getPosicionXInt(), getPosicionYInt(), getAncho(), getAlto());
+		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(), this.getAlto());
 	}
-	
 
 }

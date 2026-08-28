@@ -28,7 +28,8 @@ public class ArbolCofre extends Objeto implements Contenedor {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.x - 14, this.y - 18);
+		DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt() - 14,
+				this.getPosicionYInt() - 18);
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
 		}
@@ -72,7 +73,7 @@ public class ArbolCofre extends Objeto implements Contenedor {
 
 	@Override
 	public Objeto copiar() {
-		return new ArbolCofre(this.x, this.y);
+		return new ArbolCofre(this.getPosicionXInt(), this.getPosicionYInt());
 	}
 
 	@Override
@@ -82,22 +83,12 @@ public class ArbolCofre extends Objeto implements Contenedor {
 
 	@Override
 	public double getPosicionX() {
-		return this.x;
+		return this.getPosicionXInt();
 	}
 
 	@Override
 	public double getPosicionY() {
-		return this.y;
-	}
-
-	@Override
-	public void modificarPosicionX(final double desplazamientoX) {
-		this.x += desplazamientoX;
-	}
-
-	@Override
-	public void modificarPosicionY(final double desplazamientoY) {
-		this.y += desplazamientoY;
+		return this.getPosicionYInt();
 	}
 
 	@Override

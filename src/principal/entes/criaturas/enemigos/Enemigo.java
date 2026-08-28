@@ -188,8 +188,8 @@ public abstract class Enemigo extends Criatura {
 		}
 
 		// 1. Centro actual de la criatura
-		final double centroX = this.x + (this.ANCHO / 2.0);
-		final double centroY = this.y + (this.ALTO / 2.0);
+		final double centroX = this.getPosicionX() + (this.ANCHO / 2.0);
+		final double centroY = this.getPosicionY() + (this.ALTO / 2.0);
 
 		// 2. Consultar el nodo Dijkstra correspondiente al centro
 		final NodoD n = d.getNodoCercano((int) centroX, (int) centroY);
@@ -423,13 +423,13 @@ public abstract class Enemigo extends Criatura {
 		super.pintar(g);
 		if (Globales.TECLADO.TECLA_DEBUG.presionado() && Globales.estadoJuego) {
 			DibujoDebug.dibujarFiguraEllipseRefCamara(g,
-					new Rectangle((int) ((this.x - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0)),
-							(int) ((this.y - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0)),
+					new Rectangle((int) ((this.getPosicionX() - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0)),
+							(int) ((this.getPosicionY() - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0)),
 							(int) this.areaDeteccionAncho, (int) this.areaDeteccionAlto),
 					Color.RED);
 			DibujoDebug.dibujarFiguraEllipseRefCamara(g,
-					new Rectangle((int) ((this.x - (this.areaDeteccionAncho / 8.0)) + (this.ANCHO / 2.0)),
-							(int) ((this.y - (this.areaDeteccionAlto / 8.0)) + (this.ALTO / 2.0)),
+					new Rectangle((int) ((this.getPosicionX() - (this.areaDeteccionAncho / 8.0)) + (this.ANCHO / 2.0)),
+							(int) ((this.getPosicionY() - (this.areaDeteccionAlto / 8.0)) + (this.ALTO / 2.0)),
 							(int) (this.areaDeteccionAncho / 4.0), (int) (this.areaDeteccionAlto / 4.0)),
 					Color.ORANGE);
 		}
@@ -451,8 +451,8 @@ public abstract class Enemigo extends Criatura {
 	}
 
 	public Ellipse2D getAreaDeteccionLogica() {
-		return new Ellipse2D.Double((this.x - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0),
-				(this.y - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0), this.areaDeteccionAncho,
+		return new Ellipse2D.Double((this.getPosicionX() - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0),
+				(this.getPosicionY() - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0), this.areaDeteccionAncho,
 				this.areaDeteccionAlto);
 	}
 

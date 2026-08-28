@@ -114,11 +114,13 @@ public class ZonaTP extends Ente {
 	@Override
 	public void modificarPosicionX(final double desplazamientoX) {
 		this.AREA.x += (int) desplazamientoX;
+		this.verificarZoneBox();
 	}
 
 	@Override
 	public void modificarPosicionY(final double desplazamientoY) {
 		this.AREA.y += (int) desplazamientoY;
+		this.verificarZoneBox();
 	}
 
 	@Override
@@ -134,6 +136,13 @@ public class ZonaTP extends Ente {
 	@Override
 	public int getAlto() {
 		return this.AREA.height;
+	}
+
+	@Override
+	public void setPosicion(final double x, final double y) {
+		this.AREA.x = (int) Math.round(x);
+		this.AREA.y = (int) Math.round(y);
+		this.verificarZoneBox();
 	}
 
 }

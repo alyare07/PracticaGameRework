@@ -53,12 +53,12 @@ public class BandidoGarrote extends Bandido {
 
 	@Override
 	protected double getXRangoAtaqueMele() {
-		return this.x + (this.ANCHO / 2);
+		return this.getPosicionX() + (this.ANCHO / 2);
 	}
 
 	@Override
 	protected double getYRangoAtaqueMele() {
-		return this.y + (this.ALTO / 2);
+		return this.getPosicionY() + (this.ALTO / 2);
 	}
 
 	@Override

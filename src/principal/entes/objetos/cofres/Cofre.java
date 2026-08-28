@@ -94,26 +94,6 @@ public abstract class Cofre extends Objeto implements Contenedor {
 	}
 
 	@Override
-	public double getPosicionX() {
-		return this.x;
-	}
-
-	@Override
-	public double getPosicionY() {
-		return this.y;
-	}
-
-	@Override
-	public void modificarPosicionX(final double desplazamientoX) {
-		this.x = (int) desplazamientoX;
-	}
-
-	@Override
-	public void modificarPosicionY(final double desplazamientoY) {
-		this.y = (int) desplazamientoY;
-	}
-
-	@Override
 	public boolean estaEliminado() {
 		return this.eliminado;
 	}
@@ -125,6 +105,7 @@ public abstract class Cofre extends Objeto implements Contenedor {
 
 	@Override
 	public String toString() {
-		return "Cofre [X=" + this.x + ", Y=" + this.y + ", estado=" + this.INVENTARIO.getEstadoInventario() + "]";
+		return "Cofre [X=" + this.getPosicionXInt() + ", Y=" + this.getPosicionYInt() + ", estado="
+				+ this.INVENTARIO.getEstadoInventario() + "]";
 	}
 }

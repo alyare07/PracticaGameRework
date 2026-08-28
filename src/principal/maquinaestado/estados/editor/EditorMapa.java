@@ -225,10 +225,10 @@ public class EditorMapa implements EstadoJuego {
 	 */
 	private void inicializarCamara() {
 		Globales.CAMARA.setEntidadEnfocada(Globales.JUGADOR);
-		Globales.JUGADOR.establecerPosicion(Globales.JUGADOR.getMargenX(), Globales.JUGADOR.getMargenY());
+		Globales.JUGADOR.setPosicion(Globales.JUGADOR.getMargenX(), Globales.JUGADOR.getMargenY());
 		this.x = Globales.JUGADOR.getMargenX();
 		this.y = Globales.JUGADOR.getMargenY();
-		Globales.JUGADOR.establecerPosicion(this.x, this.y);
+		Globales.JUGADOR.setPosicion(this.x, this.y);
 	}
 
 	// =========================================================================
@@ -409,25 +409,25 @@ public class EditorMapa implements EstadoJuego {
 		if (Globales.TECLADO.TECLA_ARRIBA.presionado()) {
 			if ((this.y - velocidad) >= 0) {
 				this.y -= velocidad;
-				Globales.JUGADOR.establecerPosicion(this.x, this.y);
+				Globales.JUGADOR.setPosicion(this.x, this.y);
 			}
 		}
 		if (Globales.TECLADO.TECLA_ABAJO.presionado()) {
 			if ((this.y + velocidad) <= (this.ALTO - (Constantes.ALTO_JUEGO / 2))) {
 				this.y += velocidad;
-				Globales.JUGADOR.establecerPosicion(this.x, this.y);
+				Globales.JUGADOR.setPosicion(this.x, this.y);
 			}
 		}
 		if (Globales.TECLADO.TECLA_IZQUIERDA.presionado()) {
 			if ((this.x - velocidad) >= 0) {
 				this.x -= velocidad;
-				Globales.JUGADOR.establecerPosicion(this.x, this.y);
+				Globales.JUGADOR.setPosicion(this.x, this.y);
 			}
 		}
 		if (Globales.TECLADO.TECLA_DERECHA.presionado()) {
 			if ((this.x + velocidad) <= (this.ANCHO - this.PALETAS.AREA.width)) {
 				this.x += velocidad;
-				Globales.JUGADOR.establecerPosicion(this.x, this.y);
+				Globales.JUGADOR.setPosicion(this.x, this.y);
 			}
 		}
 	}

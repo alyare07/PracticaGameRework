@@ -37,11 +37,11 @@ public class Spawn {
 
 	public void moverJugadorCentrado() {
 		final Jugador jugador = Globales.JUGADOR;
-		jugador.establecerPosicion(this.getX() - (jugador.getAncho() / 2), this.getY() - (jugador.getAlto() / 2));
+		jugador.setPosicion(this.getX() - (jugador.getAncho() / 2), this.getY() - (jugador.getAlto() / 2));
 	}
 
 	public void moverJugador() {
 		final Jugador jugador = Globales.JUGADOR;
-		jugador.establecerPosicion(this.getX(), this.getY());
+		jugador.setPosicion(this.getX(), this.getY());
 	}
 }

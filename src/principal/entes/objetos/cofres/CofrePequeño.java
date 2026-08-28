@@ -42,7 +42,7 @@ public class CofrePequeño extends Cofre {
 
 	@Override
 	public Objeto copiar() {
-		return new CofrePequeño(this.x, this.y); // COPIAR TAMBIEN EL INVENTARIO
+		return new CofrePequeño(this.getPosicionXInt(), this.getPosicionYInt()); // COPIAR TAMBIEN EL INVENTARIO
 	}
 
 	@Override

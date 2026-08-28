@@ -1,5 +1,6 @@
 package principal.entes;
 
+import java.awt.Graphics2D;
 import java.awt.Rectangle;
 
 /**
@@ -71,5 +72,21 @@ public class AsistenteCamara extends Ente {
 	@Override
 	public int getAlto() {
 		return this.AREA.height;
+	}
+
+	@Override
+	public void setPosicion(final double x, final double y) {
+		this.AREA.x = (int) Math.round(x);
+		this.AREA.y = (int) Math.round(y);
+	}
+
+	@Override
+	public void actualizar() {
+
+	}
+
+	@Override
+	public void pintar(final Graphics2D g) {
+
 	}
 }

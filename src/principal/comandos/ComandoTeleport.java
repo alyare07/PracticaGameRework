@@ -23,7 +23,7 @@ public class ComandoTeleport extends Comando {
 		final double x = this.parsearDouble(args[0], Globales.JUGADOR.getPosicionX());
 		final double y = this.parsearDouble(args[1], Globales.JUGADOR.getPosicionY());
 
-		Globales.JUGADOR.establecerPosicion(x, y);
+		Globales.JUGADOR.setPosicion(x, y);
 		System.out.println("[Consola] Jugador teletransportado a: (" + x + ", " + y + ")");
 	}
 }

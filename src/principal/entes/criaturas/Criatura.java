@@ -598,6 +598,10 @@ public abstract class Criatura extends Ente {
 		return this.tieneEstado(Estado.PERSIGUIENDO);
 	}
 
+	public void setVelocidadBase(final double velBase) {
+		this.velocidadEstandar = velBase;
+	}
+
 	// =========================================================================
 	// === GETTERS Y SETTERS DE POSICIÓN
 	// =========================================================================

@@ -826,7 +826,7 @@ public class Jugador extends Criatura {
 		return (int) Math.round(this.desplazamientoY);
 	}
 
-	public void establecerPosicion(final int x, final int y) {
+	public void establecerPosicion(final double x, final double y) {
 		this.x = x;
 		this.y = y;
 		this.moviendoPorRecorrido = false;

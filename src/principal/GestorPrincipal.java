@@ -2,6 +2,16 @@ package principal;
 
 import java.util.concurrent.locks.LockSupport;
 
+import principal.comandos.ComandoAmbiente;
+import principal.comandos.ComandoClima;
+import principal.comandos.ComandoCurar;
+import principal.comandos.ComandoHora;
+import principal.comandos.ComandoKillAll;
+import principal.comandos.ComandoLuz;
+import principal.comandos.ComandoLuzMundo;
+import principal.comandos.ComandoSigilo;
+import principal.comandos.ComandoTeleport;
+import principal.comandos.ComandoVelocidad;
 import principal.graficos.SuperficieDibujo;
 import principal.graficos.Ventana;
 import principal.maquinaestado.GestorEstados;
@@ -61,6 +71,12 @@ public class GestorPrincipal {
 		this.gestorEstados = new GestorEstados();
 		this.superficieDibujo = SuperficieDibujo.obetenerSuperficieDibujo();
 		this.ventana = new Ventana("Juego", this.superficieDibujo);
+
+		// --- Registro de Comandos de Consola ---
+		this.registrarComandos();
+
+		// Inicia el hilo en segundo plano
+		Globales.GESTOR_COMANDOS.iniciarEscuchaConsola();
 	}
 
 	/**
@@ -152,6 +168,7 @@ public class GestorPrincipal {
 	 * Procesa las actualizaciones lógicas del motor.
 	 */
 	private void actualizar() {
+		Globales.GESTOR_COMANDOS.actualizar(); // <-- Procesa comandos pendientes de forma segura
 		Globales.RATON.actualizar(this.superficieDibujo);
 		Globales.TECLADO.actualizar();
 		this.gestorEstados.actualizar();
@@ -209,5 +226,21 @@ public class GestorPrincipal {
 
 	public Ventana getVentana() {
 		return this.ventana;
+	}
+
+	private void registrarComandos() {
+		// =====================================================================
+		// === REGISTRO DE COMANDOS DE DESARROLLADOR
+		// =====================================================================
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoCurar());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoClima());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoTeleport());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoHora());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoLuz());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoLuzMundo());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoAmbiente());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoSigilo());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoKillAll());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoVelocidad());
 	}
 }

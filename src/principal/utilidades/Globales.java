@@ -5,6 +5,7 @@ import java.awt.Toolkit;
 import principal.Main;
 import principal.animaciones.listaHojasSprite.ListaHojaSprites;
 import principal.clima.GestorClima;
+import principal.comandos.GestorComandos;
 import principal.controles.Raton;
 import principal.controles.Teclado;
 import principal.entes.criaturas.Jugador;
@@ -53,6 +54,7 @@ public class Globales {
 	public static final GestorParticulas GESTOR_PARTICULAS = new GestorParticulas();
 	public static final GestorLuz GESTOR_LUZ = new GestorLuz();
 	public static final GestorClima GESTOR_CLIMA = new GestorClima();
+	public static final GestorComandos GESTOR_COMANDOS = new GestorComandos();
 
 	public static void actualizarFactorEscalado() {
 		final int escalaX = ANCHO_PANTALLA_COMPLETA / Constantes.ANCHO_JUEGO; // 1920 / 640 = 3

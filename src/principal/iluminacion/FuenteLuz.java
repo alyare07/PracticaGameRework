@@ -257,16 +257,30 @@ public class FuenteLuz {
 	/**
 	 * Apaga la luz, resetea sus parámetros y desvincula la entidad anclada, dejando
 	 * la ranura lista para ser reutilizada por el pool.
+	 * <p>
+	 * <b>Idempotente y Recursion-Safe:</b> Rompe las referencias locales antes de
+	 * notificar a la entidad para evitar desbordamientos de pila.
+	 * </p>
 	 */
 	public void apagar() {
+		// Guarda de idempotencia: si ya está inactiva y desacoplada, no hace nada
+		if (!this.activa && (this.enteAnclado == null)) {
+			return;
+		}
+
 		this.activa = false;
 		this.temporal = false;
+
 		if (this.enteAnclado != null) {
-			if (this.enteAnclado.getLuzAsignada() == this) {
-				this.enteAnclado.asignarLuz(null);
+			final Ente enteTemporal = this.enteAnclado;
+			this.enteAnclado = null; // Rompe la referencia hacia el Ente primero
+
+			// Si el Ente todavía la tiene asignada, le pide limpiarse
+			if (enteTemporal.getLuzAsignada() == this) {
+				enteTemporal.asignarLuz(null);
 			}
-			this.enteAnclado = null;
 		}
+
 		this.offsetX = 0.0;
 		this.offsetY = 0.0;
 	}

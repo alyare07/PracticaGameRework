@@ -99,24 +99,32 @@ public abstract class Ente {
 
 	/**
 	 * Asigna y vincula una fuente de luz a esta entidad. Si ya poseía una luz
-	 * previa, la anterior se apaga para evitar duplicados.
+	 * previa, la anterior se apaga de forma segura.
 	 *
 	 * @param luz Fuente de luz activa asignada.
 	 */
 	public void asignarLuz(final FuenteLuz luz) {
-		if ((this.luzAsignada != null) && (this.luzAsignada != luz)) {
-			this.luzAsignada.apagar();
+		if (this.luzAsignada == luz) {
+			return;
 		}
+
+		// Desacoplamos primero la referencia local para romper el ciclo recursivo
+		final FuenteLuz luzPrevia = this.luzAsignada;
 		this.luzAsignada = luz;
+
+		if (luzPrevia != null) {
+			luzPrevia.apagar();
+		}
 	}
 
 	/**
-	 * Apaga y desvincula la luz activa de esta entidad en tiempo $O(1)$.
+	 * Apaga y desvincula la luz activa de esta entidad en tiempo O(1).
 	 */
 	public void desvincularLuz() {
 		if (this.luzAsignada != null) {
-			this.luzAsignada.apagar();
-			this.luzAsignada = null;
+			final FuenteLuz luzPrevia = this.luzAsignada;
+			this.luzAsignada = null; // Rompe la referencia antes de apagar
+			luzPrevia.apagar();
 		}
 	}
 

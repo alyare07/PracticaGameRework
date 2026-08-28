@@ -1,0 +1,203 @@
+================================================================================
+===     SISTEMA METEOROLÓGICO, BIOMAS PROCEDURALES Y PARTÍCULAS SCREEN-SPACE  ===
+===                           ARQUITECTURA TÉCNICA                           ===
+================================================================================
+
+1. MAPA DE COMUNICACIÓN ENTRE COMPONENTES
+
+    [ POSICIÓN DEL JUGADOR EN EL MUNDO ]
+        (Globales.JUGADOR: jx, jy)
+                    |
+                    | Evalúa colisión punto-rectángulo O(N)
+                    v
+    +----------------------------------+
+    |     GestorZonasAmbiente          | <----+ Registra hasta 32 ZonaAmbiente
+    |  (Mediador Espacial de Biomas)   |      | por mapa (Zero-GC)
+    +----------------------------------+
+          /                      \
+ Modula  /                        \ Modula Niebla Bioma
+ Inmersión (0..1)                  \ Local e Inmersión
+        v                            v
++------------------+       +------------------------------------+
+|   GestorLuz      | <---> |        Globales.GESTOR_CLIMA       |
+| (Reloj 24h/Sol)  |       |   (Gestor Maestro de Atmósfera)    |
++------------------+       +------------------------------------+
+  ^       |                  /         |          |          \
+  |       | Dispara         /          |          |           \
+  |       | Flashes        /           |          |            \
+  |       | Ópticos       v            v          v             v
+  |       |       +---------------+ +----------+ +-----------+ +--------------+
+  |       +-----> | Simulador     | | Control  | | Texturas  | | Particula[400|
+  |               | Termodinámico | | Viento   | | Pre-bake  | | Pool Zero-GC |
+  |               | (Temp/Hum/Bar)| | Ráfagas  | | VRAM      | | Screen-Space |
+  |               +---------------+ +----------+ +-----------+ +--------------+
+  |                      |              |              |               |
+  | Consulta Hora        v              v              v               v
+  +-- Solar (0..24h)   [ Cadenas ]  [ Vectores ]   [ 512px Nubes ] [ Envoltura ]
+      para Curva      [ Markov  ]  [ vx / vy  ]   [ 256px Niebla] [ Toroidal  ]
+      Térmica          PerfilClima  Sinusoidales   Smoothstep HD   Margen 40px
+
+
+2. DIAGRAMA DE FLUJO: CICLO LÓGICO (60 APS / TICKS)
+
+[ GestorJuego.actualizar() ]
+             |
+             +---------------------------------------------------+
+             |                                                   |
+             v                                                   v
+[ GestorZonasAmbiente.actualizar(dt) ]               [ GestorClima.actualizar() ]
+             |                                                   |
+ 1. Evalúa ZonaAmbiente[32]:                                     +--> 1. ¿Ciclo Automático Activo?
+    - Si contiene al Jugador:                                    |    |-- SÍ -> tiempoRestante -= dt
+      factorInmersion += 0.66 * dt (Max 1.0)                     |    |         ¿Llegó a 0? -> Aplica
+    - Si no contiene al Jugador:                                 |    |         clima pronosticado y
+      factorInmersion -= 0.66 * dt (Min 0.0)                     |    |         calcula nuevo Markov.
+             |                                                   |    \-- NO -> Mantiene clima fijo.
+ 2. ¿Cambió de Zona respecto al frame anterior?                  |
+    |-- SÍ (Entró a Cueva / Interior):                           +--> 2. ACTUALIZACIÓN TERMODINÁMICA:
+    |   - GestorLuz.establecerAmbienteTransicion()               |    - Hora solar (GestorLuz): sin((h-8)/24)*4.5°C
+    |-- SÍ (Salió a Exterior / Bioma):                           |    - Aplica modificador del clima (Lluvia/Nieve)
+    |   - GestorLuz.restablecerModoExterior()                    |    - Lerp suave: (target - actual) * dt * 0.1
+    \-- NO: Mantiene estado.                                     |
+             |                                                   +--> 3. SIMULACIÓN DE RÁFAGAS Y VIENTO:
+ 3. Envía modulación continua a Gestores:                        |    - tiempoRafaga += dt * 1.5
+    - GestorLuz: Tinte de bioma exterior con factor.             |    - Ráfaga armónica: 1.0 + sin(t) * 0.25
+    - GestorClima: Niebla y factor de inmersión.                 |    - Calcula vxViento / vyViento
+                                                                 |
+                                                                 +--> 4. DESPLAZAMIENTO UV DE TEXTURAS:
+                                                                 |    - scrollNubes = (scroll + v*vel*dt) % 512
+                                                                 |    - scrollNiebla = (scroll + v*vel*dt) % 256
+                                                                 |
+                                                                 +--> 5. FÍSICA DE PARTÍCULAS SCREEN-SPACE:
+                                                                 |    Bucle de 0 a cantidadActivas - 1:
+                                                                 |    - Aplica vectores + oscilación seno/coseno.
+                                                                 |    - Envoltura toroidal en [-40, Ancho+40]
+                                                                 |      y [-40, Alto+40] (Cero Asignación Heap).
+                                                                 |
+                                                                 +--> 6. SECUENCIADOR DE TORMENTAS:
+                                                                      - Decrementa temporizador de rayo.
+                                                                      - Si detona: Flash en GestorLuz +
+                                                                        calcula retardo acústico de trueno.
+
+
+3. DIAGRAMA DE FLUJO: PIPELINE GRÁFICO Y ESTRATIFICACIÓN VISUAL
+
+================================================================================
+ === FASE 1: CAPA DE MUNDO [ GestorJuego -> bufferMundo (Escala 1:1) ]
+ ================================================================================
+   [ Mapa / Terreno ]  -----> Dibuja tiles contiguos sin costuras (Nearest Neighbor).
+   [ Entidades Y-Sort] -----> Dibuja criaturas, cofres, NPCs y Jugador.
+   [ Partículas Mundo] -----> Dibuja sangre, chispas y proyectiles (Espacio Mundo).
+   [ Textos Flotantes] -----> Dibuja números de daño flotantes.
+
+ ================================================================================
+ === PROYECCIÓN DE MATRIZ DE CÁMARA (Zoom, Temblor y Rotación)
+ ================================================================================
+   g.drawImage(bufferMundo, ...) -> Proyecta el búfer a pantalla aplicando matriz.
+   Restauración LIFO             -> Regreso a Espacio de Pantalla Lógico (640x360).
+
+ ================================================================================
+ === FASE 2: CAPA ATMOSFÉRICA [ GestorClima.pintar(g) ] (Espacio de Pantalla)
+ ================================================================================
+   1. SOMBRAS DE NUBES DIURNAS (512x512 Smoothstep):
+      - Consulta Alpha de Oscuridad en GestorLuz.
+      - Si Oscuridad < 130: Dibuja grilla UV con desplazamiento de viento.
+      - Noche cerrada: Se desvanecen solas (0% interferencia visual).
+                            |
+                            v
+   2. NIEBLA PROCEDURAL Y BRUMA AMBIENTAL (256x256):
+      - Modulada por la niebla global del clima + inmersión de GestorZonasAmbiente.
+      - Dibuja grilla UV con desplazamiento vectorial de viento.
+                            |
+                            v
+   3. PARTICULAS ATMOSFÉRICAS DIRECTAS (Screen-Space Pool):
+      - AlphaComposite SRC_OVER directo.
+      - Lluvia / Ácido   -> drawLine() con pendiente de viento y longitud.
+      - Nieve / Ceniza   -> fillRect() con tamaño dinámico y oscilación.
+      - Hojas / Pétalos  -> fillRect() con matriz de aspecto rectangular.
+      - Esporas Mágicas  -> fillRect() flotantes ascendentes.
+
+ ================================================================================
+ === FASE 3: CAPA DE ILUMINACIÓN Y PENUMBRA [ GestorLuz.pintar(g) ]
+ ================================================================================
+   [ Lightmap VRAM ]   -----> Tiñe la penumbra sobre el mundo, nubes y partículas.
+   [ Fuentes de Luz ]  -----> Perfora penumbra (DST_OUT) e ilumina lluvia/niebla.
+
+ ================================================================================
+ === FASE 4: CAPA DE INTERFAZ / HUD (Inmune a Clima, Sombras y Oscuridad)
+ ================================================================================
+   [ HUD / Barras ]    -----> Barras de Vida, Maná, Estamina (100% legibles).
+   [ Inventarios ]     -----> Ventanas de slots, cofres e interacción.
+   [ Textos de Debug ] -----> APS, FPS, Coordenadas, Termómetro y Barómetro.
+
+
+4. GUÍA DE USO Y COMUNICACIÓN EN GAMEPLAY (CASOS DE USO)
+
+--------------------------------------------------------------------------------
+Caso A: Registro y Transición de Biomas al Cargar Mapa
+--------------------------------------------------------------------------------
+// En GestorJuego.cargarMapa() / GestorNivel:
+Globales.GESTOR_ZONAS.limpiarZonas();
+
+// Zona 1: Bosque exterior con niebla leve (no bloquea el sol)
+ZonaAmbiente bosque = new ZonaAmbiente(0, 0, 1280, 720, false, IntensidadNiebla.LEVE);
+bosque.setColorAmbiente(new Color(20, 30, 40));
+Globales.GESTOR_ZONAS.registrarZona(bosque);
+
+// Zona 2: Cueva subterránea (apaga el reloj solar y entra a penumbra total)
+ZonaAmbiente cueva = new ZonaAmbiente(1280, 0, 640, 640, true, IntensidadNiebla.DESACTIVADA);
+cueva.setColorAmbiente(new Color(5, 5, 10)); // Oscuridad casi pura
+Globales.GESTOR_ZONAS.registrarZona(cueva);
+
+--------------------------------------------------------------------------------
+Caso B: Forzado Manual de Clima para Eventos / Mazmorras / Jefes
+--------------------------------------------------------------------------------
+// Desactiva la simulación aleatoria y fuerza Tormenta de Arena de inmediato:
+Globales.GESTOR_CLIMA.setCicloAutomaticoHabilitado(false);
+Globales.GESTOR_CLIMA.setClima(TipoClima.TORMENTA_ARENA, 2.0); // Fundido en 2.0 seg
+
+// Reactivar simulación orgánica tras vencer al jefe:
+Globales.GESTOR_CLIMA.setPerfilBioma(PerfilClima.TEMPLADO_BOSQUE);
+Globales.GESTOR_CLIMA.setCicloAutomaticoHabilitado(true);
+
+--------------------------------------------------------------------------------
+Caso C: Mecánicas de Supervivencia y Estado Térmico del Jugador
+--------------------------------------------------------------------------------
+// En Jugador.actualizar():
+double temp = Globales.GESTOR_CLIMA.getTemperaturaCelsius();
+
+if (temp < 0.0 && !Globales.JUGADOR.tieneEquipamientoTermico()) {
+    // Congelamiento por frío extremo (Ventisca o Montaña Helada)
+    Globales.JUGADOR.aplicarDanioPorSegundo(2.0);
+} else if (temp > 38.0) {
+    // Golpe de calor / Deshidratación (Desierto o Tierras Volcánicas)
+    Globales.JUGADOR.reducirEstaminaMaxima(0.5);
+}
+
+--------------------------------------------------------------------------------
+Caso D: Influencia Balística y Física del Viento sobre Proyectiles
+--------------------------------------------------------------------------------
+// En Flecha / Proyectil.actualizar():
+if (Globales.GESTOR_CLIMA.getFuerzaViento() > 1.5) {
+    // Desvía proyectiles ligeros según la dirección del viento
+    double vientoX = Math.cos(Globales.GESTOR_CLIMA.getClimaActual().getAnguloVientoGrados());
+    this.posicionX += vientoX * (Globales.GESTOR_CLIMA.getFuerzaViento() * 12.0) * dt;
+}
+
+--------------------------------------------------------------------------------
+Caso E: Integración con NPCs Meteorólogos o Carteles de Aldea
+--------------------------------------------------------------------------------
+// Al interactuar con un NPC sabio o consultar un barómetro en la posada:
+String reporte = Globales.GESTOR_CLIMA.getReporteMeteorologico();
+String barometro = "Presion actual: " + (int)Globales.GESTOR_CLIMA.getPresionHPa() + " hPa";
+dialogoGUI.mostrarTexto(reporte + "\n" + barometro);
+
+--------------------------------------------------------------------------------
+Caso F: Modo Debug Acelerado para Pruebas en Eclipse
+--------------------------------------------------------------------------------
+// En el método de teclas de depuración (ej. F8):
+// Pasa a ciclos de 5 segundos por clima con 1 segundo de fundido suave
+Globales.GESTOR_CLIMA.activarModoPruebaRapida(5.0, 1.0);
+
+// Forzar salto instantáneo al próximo clima sin esperar el timer:
+Globales.GESTOR_CLIMA.forzarSiguienteClima();

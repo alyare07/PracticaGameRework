@@ -171,6 +171,16 @@ public final class DibujoDebug {
 		dibujarString(g, s, x, y, c);
 	}
 
+	public static void dibujarStringConSombra(final Graphics2D g, final String s, final int x, final int y,
+			final Color c, final Color sombra, final float tmanoFuente) {
+		if (s == null) {
+			return;
+		}
+		g.setFont(g.getFont().deriveFont(tmanoFuente));
+		dibujarString(g, s, x + 1, y + 1, sombra);
+		dibujarString(g, s, x, y, c);
+	}
+
 	public static void dibujarRectanguloRelleno(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto) {
 		objetosDibujados++;

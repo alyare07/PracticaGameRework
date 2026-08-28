@@ -35,7 +35,6 @@ import principal.utilidades.Constantes;
  * </ul>
  * </p>
  * 
- * @author Copiloto Técnico
  * @version 2.5
  */
 public class DijkstraRework {

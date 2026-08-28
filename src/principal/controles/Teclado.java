@@ -91,6 +91,15 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_ZOOM_OUT;
 	public final Tecla TECLA_ZOOM_REINICIAR;
 
+	public final Tecla TECLA_NUM_1;
+	public final Tecla TECLA_NUM_2;
+	public final Tecla TECLA_NUM_3;
+	public final Tecla TECLA_NUM_4;
+	public final Tecla TECLA_NUM_5;
+	public final Tecla TECLA_NUM_6;
+	public final Tecla TECLA_NUM_7;
+	public final Tecla TECLA_NUM_8;
+	public final Tecla TECLA_NUM_9;
 	// =========================================================================
 	// === BÚFERES PRIMITIVOS DE ESTADO
 	// =========================================================================
@@ -135,7 +144,17 @@ public class Teclado implements KeyListener {
 		// Controles de Zoom
 		this.TECLA_ZOOM_IN = new Tecla(KeyEvent.VK_PLUS, "Zoom In");
 		this.TECLA_ZOOM_OUT = new Tecla(KeyEvent.VK_MINUS, "Zoom Out");
-		this.TECLA_ZOOM_REINICIAR = new Tecla(KeyEvent.VK_0, "Zoom Reset");
+		this.TECLA_ZOOM_REINICIAR = new Tecla(KeyEvent.VK_ASTERISK, "Zoom Reset");
+
+		this.TECLA_NUM_1 = new Tecla(KeyEvent.VK_1, "Num_1");
+		this.TECLA_NUM_2 = new Tecla(KeyEvent.VK_2, "Num_2");
+		this.TECLA_NUM_3 = new Tecla(KeyEvent.VK_3, "Num_3");
+		this.TECLA_NUM_4 = new Tecla(KeyEvent.VK_4, "Num_4");
+		this.TECLA_NUM_5 = new Tecla(KeyEvent.VK_5, "Num_5");
+		this.TECLA_NUM_6 = new Tecla(KeyEvent.VK_6, "Num_6");
+		this.TECLA_NUM_7 = new Tecla(KeyEvent.VK_7, "Num_7");
+		this.TECLA_NUM_8 = new Tecla(KeyEvent.VK_8, "Num_8");
+		this.TECLA_NUM_9 = new Tecla(KeyEvent.VK_9, "Num_9");
 
 		this.TECLA_INVENTARIO = new TeclaAccionCondicionada(KeyEvent.VK_I, "Inventario") {
 			@Override
@@ -200,6 +219,16 @@ public class Teclado implements KeyListener {
 		this.TECLAS.add(this.TECLA_ZOOM_IN);
 		this.TECLAS.add(this.TECLA_ZOOM_OUT);
 		this.TECLAS.add(this.TECLA_ZOOM_REINICIAR);
+
+		this.TECLAS.add(this.TECLA_NUM_1);
+		this.TECLAS.add(this.TECLA_NUM_2);
+		this.TECLAS.add(this.TECLA_NUM_3);
+		this.TECLAS.add(this.TECLA_NUM_4);
+		this.TECLAS.add(this.TECLA_NUM_5);
+		this.TECLAS.add(this.TECLA_NUM_6);
+		this.TECLAS.add(this.TECLA_NUM_7);
+		this.TECLAS.add(this.TECLA_NUM_8);
+		this.TECLAS.add(this.TECLA_NUM_9);
 	}
 
 	private void cargarTeclasAListaModificables() {

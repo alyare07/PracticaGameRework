@@ -37,10 +37,10 @@ public class BandidoPistolero extends Bandido {
 
 	@Override
 	public void actualizar() {
+		super.actualizar();
 		if (this.pistola.getMunicion().getCantidad() <= 1) {
 			this.pistola.getMunicion().restablecer();
 		}
-		super.actualizar();
 	}
 
 	@Override

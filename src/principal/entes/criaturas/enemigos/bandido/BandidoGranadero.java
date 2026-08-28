@@ -28,11 +28,11 @@ public class BandidoGranadero extends Bandido {
 
 	@Override
 	public void actualizar() {
+		super.actualizar();
 		// Recarga automática para mantener munición infinita en el enemigo
 		if (this.granada.getCantidad() <= 1) {
 			this.granada.establecerCantidad(100);
 		}
-		super.actualizar();
 	}
 
 	@Override
@@ -63,10 +63,8 @@ public class BandidoGranadero extends Bandido {
 				this.enAccion = false;
 
 				// Arrojar granada apuntando al centro de la caja de colisión del jugador
-				final int targetX = Globales.JUGADOR.getPosicionXInt()
-						+ (Globales.JUGADOR.getAncho() / 2);
-				final int targetY = Globales.JUGADOR.getPosicionYInt()
-						+ (Globales.JUGADOR.getAlto() / 2);
+				final int targetX = Globales.JUGADOR.getPosicionXInt() + (Globales.JUGADOR.getAncho() / 2);
+				final int targetY = Globales.JUGADOR.getPosicionYInt() + (Globales.JUGADOR.getAlto() / 2);
 
 				this.granada.arrojar(targetX, targetY, this.direccion, this.mundo, this, false);
 
@@ -83,8 +81,7 @@ public class BandidoGranadero extends Bandido {
 		}
 
 		// --- FASE 2: Evaluación de visión y toma de decisiones ---
-		final boolean jugadorEnVisión = this.getAreaDeteccionLogica()
-				.intersects(Globales.JUGADOR.getRectangulo());
+		final boolean jugadorEnVisión = this.getAreaDeteccionLogica().intersects(Globales.JUGADOR.getRectangulo());
 		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
 				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
@@ -98,9 +95,8 @@ public class BandidoGranadero extends Bandido {
 				this.removerEstado(Estado.PERSIGUIENDO);
 
 				// Orientación visual hacia la posición del jugador
-				this.direccion = Globales.FUNCIONES.getDireccionMirando(this.getPosicionXInt(),
-						this.getPosicionYInt(), Globales.JUGADOR.getPosicionXInt(),
-						Globales.JUGADOR.getPosicionYInt(), true);
+				this.direccion = Globales.FUNCIONES.getDireccionMirando(this.getPosicionXInt(), this.getPosicionYInt(),
+						Globales.JUGADOR.getPosicionXInt(), Globales.JUGADOR.getPosicionYInt(), true);
 
 				if (this.GT_ATAQUE_INICIAL_COOLDOWN.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
 					if (!this.realizandoAtaque) {

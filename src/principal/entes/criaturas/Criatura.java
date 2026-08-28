@@ -13,7 +13,6 @@ import java.util.Set;
 import org.json.simple.JSONObject;
 
 import principal.entes.Ente;
-import principal.entes.objetos.particulas.Sangre;
 import principal.ia.aEstrella.NodoA;
 import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
@@ -23,8 +22,21 @@ import principal.utilidades.Globales;
 
 /**
  * Clase abstracta base para todas las entidades vivas (Jugador, Enemigos,
- * NPCs). Define la gestión de vida, posición, movimiento por Pathfinding (A*) y
- * estados.
+ * NPCs).
+ * <p>
+ * <b>Nuevas Características de Combate:</b>
+ * <ul>
+ * <li><b>Barra Fantasma de Daño (Ease-Out HP):</b> Gestiona un valor trailing
+ * {@link #vidaLag} que amortigua visualmente el daño recibido con una barra
+ * amarilla.</li>
+ * <li><b>Hit-Flash Blanco (65 ms):</b> Destello sólido de impacto.</li>
+ * <li><b>Y-Sorting de Profundidad:</b> Anclaje al suelo por
+ * {@link #getPosicionYBase()}.</li>
+ * </ul>
+ * </p>
+ * 
+ * @author Copiloto Técnico
+ * @version 3.0
  */
 public abstract class Criatura extends Ente {
 
@@ -59,37 +71,50 @@ public abstract class Criatura extends Ente {
 		}
 	}
 
+	// =========================================================================
+	// === COLORES CONSTANTES DE BARRA DE VIDA (ZERO-GC)
+	// =========================================================================
+	private static final Color COLOR_FONDO_BARRA = Color.BLACK;
+	private static final Color COLOR_BARRA_LAG = new Color(255, 205, 40); // Amarillo dorado de impacto
+	private static final Color COLOR_BARRA_VIDA = new Color(235, 30, 30); // Rojo puro de vida actual
+
 	/** Velocidades acumuladas continuas para inercia y giros suaves */
 	protected double velActualX = 0.0;
 	protected double velActualY = 0.0;
 
-	/**
-	 * Factor de agilidad de giro (0.1 = giro muy suave y pesado, 0.35 = ágil y
-	 * reactivo). Ajustable según el tipo de enemigo (un zombie gira más lento que
-	 * un goblin).
-	 */
 	protected double agilidadGiro = 0.25;
-	/** Radio en píxeles para empezar a anticipar la siguiente curva */
 	protected static final double RADIO_ANTICIPACION_ESQUINA = 12.0;
-	/**
-	 * Radio en píxeles para considerar que la criatura ya alcanzó el nodo actual
-	 */
 	protected static final double RADIO_LLEGADA_WAYPOINT = 4.0;
 
-	// EnumSet prealocado. No genera garbage collection durante el juego.
 	private final Set<Estado> estados = EnumSet.noneOf(Estado.class);
 	protected final int ANCHO;
 	protected final int ALTO;
 	protected double velocidad = 1.0;
 	protected double x;
 	protected double y;
+
+	// =========================================================================
+	// === GESTIÓN DE VIDA Y BARRA FANTASMA (VIDA-LAG)
+	// =========================================================================
 	protected double vida;
+
+	/**
+	 * Valor de vida visual retrasado. Desciende suavemente hacia {@link #vida} tras
+	 * recibir un golpe, generando la barra amarilla de impacto.
+	 */
+	protected double vidaLag;
+
 	protected double vidaMaxima;
 	protected double velocidadEstandar = 0.5;
 
-	protected final GestorTiempo GT_ESPERA; // Temporizador de acción de espera
-	protected final GestorTiempo GT_ATACADO; // Tiempo transcurrido desde el último ataque recibido
-	protected final GestorTiempo GT_CURACION; // Temporizador de regeneración de vida
+	protected final GestorTiempo GT_ESPERA;
+	protected final GestorTiempo GT_ATACADO;
+	protected final GestorTiempo GT_CURACION;
+
+	/** Duración exacta del destello blanco de impacto (65 ms). */
+	protected static final int TIEMPO_MS_FLASH_DANIO = 65;
+	protected final GestorTiempo GT_FLASH_DANIO;
+
 	protected double vidaRegen;
 	protected Direccion direccion;
 	protected boolean atrasDeComplemento;
@@ -107,8 +132,6 @@ public abstract class Criatura extends Ente {
 
 	protected static final Random ALEATORIO = new Random();
 
-	// --- CONSTRUCTORES ---
-
 	public Criatura(final double x, final double y, final int ancho, final int alto) {
 		this(x, y, ancho, alto, 100.0, 100.0, 0.5);
 	}
@@ -122,9 +145,6 @@ public abstract class Criatura extends Ente {
 		this(x, y, ancho, alto, 100.0, 100.0, velocidad);
 	}
 
-	/**
-	 * Constructor principal centralizado para evitar duplicación de código.
-	 */
 	private Criatura(final double x, final double y, final int ancho, final int alto, final double vida,
 			final double vidaMaxima, final double velocidadEstandar) {
 		this.establecerMargenesSprite();
@@ -137,16 +157,107 @@ public abstract class Criatura extends Ente {
 
 		this.vidaMaxima = vidaMaxima;
 		this.vida = Math.min(vida, vidaMaxima);
+		this.vidaLag = this.vida; // Inicialmente sincronizada
 
 		this.GT_ESPERA = new GestorTiempo();
 		this.GT_ATACADO = new GestorTiempo();
 		this.GT_CURACION = new GestorTiempo();
+		this.GT_FLASH_DANIO = new GestorTiempo();
+
 		this.vidaRegen = 1.0;
 		this.direccion = Direccion.ESTE;
 		this.recorridoA = new ArrayDeque<NodoA>();
 	}
 
-	// --- MÉTODOS DE DIBUJO ---
+	// =========================================================================
+	// === ACTUALIZACIÓN LÓGICA DE LA BARRA FANTASMA
+	// =========================================================================
+
+	/*
+	 * =========================================================================
+	 * EXPLICACIÓN DIDÁCTICA: INTERPOLACIÓN EXPONENCIAL (EASE-OUT LERP)
+	 * ------------------------------------------------------------------------- 1.
+	 * SI LA VIDA CAE: 'vida' baja instantáneamente a 40, pero 'vidaLag' sigue en
+	 * 100. En cada tick, 'vidaLag' se acerca a 'vida' a una velocidad proporcional
+	 * a la distancia que le falta recorrer: paso = (vidaLag - vida) * 4.5 * dt
+	 * 
+	 * 2. EFECTO VISUAL: Comienza bajando rápido y frena suavemente al final
+	 * (Ease-Out), tardando exactamente unos 350 ms en completarse.
+	 * 
+	 * 3. SI HAY CURACIÓN: Si la vida sube (ej: poción), 'vidaLag' se actualiza de
+	 * inmediato para no mostrar una barra amarilla inexistente.
+	 * =========================================================================
+	 */
+	/**
+	 * Drena la barra fantasma amarilla de forma rápida y suave en ~350 ms.
+	 *
+	 * @param dt Delta de tiempo en segundos (1.0 / 60.0).
+	 */
+	public void actualizarBarraFantasma(final double dt) {
+		if (this.vidaLag > this.vida) {
+			final double diferencia = this.vidaLag - this.vida;
+			// =========================================================================
+			// FÓRMULA CALIBRADA PARA 1 SEGUNDO DE DURACIÓN:
+			// - 'diferencia * 3.0': Reduce la velocidad exponencial para tardar 1 segundo.
+			// - 'this.vidaMaxima * 0.6': Garantiza que golpes pequeños no se queden
+			// colgados.
+			// =========================================================================
+			final double velocidadDrenado = Math.max(this.vidaMaxima * 0.6, diferencia * 3.0);
+			this.vidaLag -= velocidadDrenado * dt;
+
+			if (this.vidaLag < this.vida) {
+				this.vidaLag = this.vida;
+			}
+		} else {
+			this.vidaLag = this.vida;
+		}
+	}
+
+	@Override
+	public void actualizar() {
+		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
+		this.actualizarBarraFantasma(dt);
+	}
+
+	// =========================================================================
+	// === MÉTODOS DE HIT-FLASH Y COMBATE
+	// =========================================================================
+
+	public boolean estaEnFlashDanio() {
+		return !this.GT_FLASH_DANIO.transcurrioMiliSegundos(TIEMPO_MS_FLASH_DANIO);
+	}
+
+	public void activarFlashDanio() {
+		this.GT_FLASH_DANIO.establecerReferenciaTiempoActual();
+	}
+
+	/**
+	 * Procesa la recepción de daño, reducción de vida, hit-flash blanco, partículas
+	 * de sangre y textos flotantes.
+	 *
+	 * @param damage   Puntos de daño a restar.
+	 * @param causante Entidad que originó el ataque.
+	 */
+	public void recibirAtaque(final double damage, final Ente causante) {
+		// 1. Reducir la vida real (activa muerte si llega a 0)
+		this.reducirVida(damage);
+
+		// 2. Activar destello blanco de impacto (Hit-Flash de 65 ms)
+		this.activarFlashDanio();
+
+		// 3. Emisión de sangre y números de combate flotantes
+		if (this.mundo != null) {
+			final double dirX = (causante != null) ? Math.signum(this.x - causante.getPosicionX()) : 0.0;
+			final double dirY = (causante != null) ? Math.signum(this.y - causante.getPosicionY()) : 0.0;
+
+			Globales.GESTOR_PARTICULAS.emitirSangre(this.getCentroX(), this.getCentroY(), dirX, dirY, 15);
+			Globales.GESTOR_TEXTOS.agregarDanio((int) damage, this.getPosicionX(), this.getPosicionY(), false);
+		}
+	}
+
+	// =========================================================================
+	// === RENDERIZADO CON BARRA FANTASMA
+	// =========================================================================
 
 	public Rectangle getRectangulo() {
 		return new Rectangle((int) this.x, (int) this.y, this.ANCHO, this.ALTO);
@@ -160,7 +271,6 @@ public abstract class Criatura extends Ente {
 			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.CYAN);
 		}
 
-		// Renderizado del camino A* en modo debug
 		if ((Globales.CAMARA.getEntidadEnfocada() == this)
 				&& (!this.recorridoA.isEmpty() || (this.nodoADestino != null))) {
 			g.setFont(g.getFont().deriveFont(7f));
@@ -170,8 +280,6 @@ public abstract class Criatura extends Ente {
 			final int altoTile = dimNodo.height;
 
 			int pos = 1;
-
-			// Iteración limpia sobre la cola sin consumirla
 			for (final NodoA n : this.recorridoA) {
 				final int xMundo = n.getXNodo() * anchoTile;
 				final int yMundo = n.getYNodo() * altoTile;
@@ -189,7 +297,6 @@ public abstract class Criatura extends Ente {
 				pos++;
 			}
 
-			// Destino inmediato en Amarillo
 			if (this.nodoADestino != null) {
 				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoADestino.getXNodo() * anchoTile,
 						this.nodoADestino.getYNodo() * altoTile, anchoTile, altoTile, Color.YELLOW);
@@ -200,14 +307,7 @@ public abstract class Criatura extends Ente {
 	protected void pintarIndicadorVida(final Graphics2D g) {
 		if (this.estaEstadoPersiguiendo() || this.estaEstadoAtacando()) {
 			this.pintarRectanguloBarraVida(g);
-
 		} else if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getPosicionX(),
-				this.getPosicionY(), this.ANCHO, this.ALTO)) {
-			this.pintarRectanguloBarraVida(g);
-			this.pintarValorVida(g);
-			return;
-		}
-		if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getPosicionX(),
 				this.getPosicionY(), this.ANCHO, this.ALTO)) {
 			this.pintarRectanguloBarraVida(g);
 			this.pintarValorVida(g);
@@ -224,22 +324,40 @@ public abstract class Criatura extends Ente {
 		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 	}
 
+	/**
+	 * Dibuja la barra de vida en 3 capas: 1. Fondo negro delimitador. 2. Barra
+	 * amarilla de daño (vidaLag) que desciende suavemente. 3. Barra roja frontal
+	 * (vida actual) que cae instantáneamente.
+	 */
 	private void pintarRectanguloBarraVida(final Graphics2D g) {
-		this.getPosicionXInt();
-		this.getPosicionYInt();
-		// BUSCAR LA FORMA DE DEJAR DE CREAR NUEVOS RECTANGLE EN EL ACT
-		final int porcentajeBarraActual = ((int) ((this.vida * 100) / this.vidaMaxima) * this.ANCHO) / 100;
+		final int posX = this.getPosicionXInt();
+		final int posY = this.getPosicionYInt();
 
-		// Barra negra indicador
-		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getPosicionXInt() - 1, this.getPosicionYInt() - 5,
-				this.ANCHO + 2, 4, Color.BLACK);
-		// barra vida actual
-		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getPosicionXInt(), this.getPosicionYInt() - 4,
-				porcentajeBarraActual, 2, Color.RED);
+		// Ancho de la barra roja actual
+		final int anchoRojo = (int) Math.round((this.vida * this.ANCHO) / this.vidaMaxima);
+
+		// Ancho de la barra amarilla de daño (Lag)
+		final int anchoAmarillo = (int) Math.round((this.vidaLag * this.ANCHO) / this.vidaMaxima);
+
+		// 1. Marco negro de base
+		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, posX - 1, posY - 5, this.ANCHO + 2, 4, COLOR_FONDO_BARRA);
+
+		// 2. Barra amarilla fantasma (muestra el trozo de daño recibido)
+		if (anchoAmarillo > 0) {
+			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoAmarillo, 2, COLOR_BARRA_LAG);
+		}
+
+		// 3. Barra roja de vida real frontal
+		if (anchoRojo > 0) {
+			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoRojo, 2, COLOR_BARRA_VIDA);
+		}
 	}
 
+	// =========================================================================
+	// === NAVEGACIÓN Y PATHFINDING A*
+	// =========================================================================
+
 	protected void moverANodoADestino() {
-		// 1. Si no hay nodo activo, extraemos el primero de la ruta
 		if (this.nodoADestino == null) {
 			this.nodoADestino = this.recorridoA.poll();
 			if (this.nodoADestino == null) {
@@ -249,11 +367,9 @@ public abstract class Criatura extends Ente {
 			}
 		}
 
-		// 2. Centro de masa actual de la criatura
 		final double centroX = this.x + (this.ANCHO / 2.0);
 		final double centroY = this.y + (this.ALTO / 2.0);
 
-		// 3. Centro de la casilla destino actual
 		double targetX = this.nodoADestino.getXMundo() + (this.nodoADestino.getAncho() / 2.0);
 		double targetY = this.nodoADestino.getYMundo() + (this.nodoADestino.getAlto() / 2.0);
 
@@ -261,8 +377,6 @@ public abstract class Criatura extends Ente {
 		double diffY = targetY - centroY;
 		double distAlNodo = Math.hypot(diffX, diffY);
 
-		// 4. AVANCE DE WAYPOINT ROBUSTO (Proximidad O Superación de Plano por Producto
-		// Punto)
 		NodoA siguienteNodo = this.recorridoA.peek();
 		boolean avanzarNodo = (distAlNodo <= Math.max(RADIO_LLEGADA_WAYPOINT, this.velocidad));
 
@@ -270,16 +384,11 @@ public abstract class Criatura extends Ente {
 			final double sigX = siguienteNodo.getXMundo() + (siguienteNodo.getAncho() / 2.0);
 			final double sigY = siguienteNodo.getYMundo() + (siguienteNodo.getAlto() / 2.0);
 
-			// Vector del segmento: del nodo actual al siguiente nodo
 			final double segX = sigX - targetX;
 			final double segY = sigY - targetY;
-
-			// Vector de posición: del nodo actual hacia la criatura
 			final double posRelX = centroX - targetX;
 			final double posRelY = centroY - targetY;
 
-			// Producto Punto (Dot Product): Si es positivo, la criatura ya cruzó el nodo
-			// actual hacia el siguiente
 			final double dot = (segX * posRelX) + (segY * posRelY);
 			if (dot > 0) {
 				avanzarNodo = true;
@@ -294,7 +403,6 @@ public abstract class Criatura extends Ente {
 				return;
 			}
 
-			// Actualizamos coordenadas con el nuevo nodo extraído
 			targetX = this.nodoADestino.getXMundo() + (this.nodoADestino.getAncho() / 2.0);
 			targetY = this.nodoADestino.getYMundo() + (this.nodoADestino.getAlto() / 2.0);
 			diffX = targetX - centroX;
@@ -303,7 +411,6 @@ public abstract class Criatura extends Ente {
 			siguienteNodo = this.recorridoA.peek();
 		}
 
-		// 5. LOOKAHEAD (Curvatura suave al aproximarse a la esquina)
 		if ((siguienteNodo != null) && (distAlNodo < RADIO_ANTICIPACION_ESQUINA)) {
 			final double sigX = siguienteNodo.getXMundo() + (siguienteNodo.getAncho() / 2.0);
 			final double sigY = siguienteNodo.getYMundo() + (siguienteNodo.getAlto() / 2.0);
@@ -317,7 +424,6 @@ public abstract class Criatura extends Ente {
 			distAlNodo = Math.hypot(diffX, diffY);
 		}
 
-		// 6. DIRECCIÓN VECTORIAL E INERCIA
 		if (distAlNodo > 0.001) {
 			final double paso = Math.min(this.velocidad, distAlNodo);
 			final double dirDeseadaX = (diffX / distAlNodo) * paso;
@@ -350,7 +456,9 @@ public abstract class Criatura extends Ente {
 		this.velocidad = this.velocidadEstandar;
 	}
 
-	// --- GESTIÓN DE VIDA ---
+	// =========================================================================
+	// === GESTIÓN DE VIDA
+	// =========================================================================
 
 	public double getVida() {
 		return this.vida;
@@ -374,22 +482,24 @@ public abstract class Criatura extends Ente {
 	public void establecerVidaMaxima(final double puntos) {
 		this.vidaMaxima = puntos;
 		this.vida = puntos;
+		this.vidaLag = puntos;
 	}
 
 	public void aumentarVidaMaxima(final double puntos) {
 		this.vidaMaxima += puntos;
 		this.vida += puntos;
+		this.vidaLag += puntos;
 	}
 
 	public void reducirVidaMaxima(final double puntos) {
 		this.vidaMaxima = Math.max(50, this.vidaMaxima - puntos);
 		this.vida = Math.min(this.vida, this.vidaMaxima);
+		this.vidaLag = Math.min(this.vidaLag, this.vidaMaxima);
 	}
 
 	public void curar(final double puntos) {
 		this.vida = Math.min(this.vidaMaxima, this.vida + puntos);
-
-		// Curación (número verde "+50"):
+		this.vidaLag = this.vida; // En curación, la barra amarilla no genera lag
 		Globales.GESTOR_TEXTOS.agregarCuracion((int) puntos, this.getPosicionX(), this.getPosicionY());
 	}
 
@@ -402,27 +512,26 @@ public abstract class Criatura extends Ente {
 		} else {
 			this.vida = puntos;
 		}
+		this.vidaLag = this.vida;
 	}
 
 	public void sanar() {
 		this.vida = this.vidaMaxima;
+		this.vidaLag = this.vidaMaxima;
 	}
 
 	public void calcularRutaAEstrella(final int xObjetivo, final int yObjetivo) {
 		if (this.mundo == null) {
 			return;
 		}
-
-		// A* poblará la cola recorridoA
 		this.mundo.getAEstrellaX12X20().getRecorrido(this.getPosicionXInt(), this.getPosicionYInt(), xObjetivo,
 				yObjetivo, this.recorridoA);
-
-		// .poll() extrae el primer paso y lo remueve de la cola. Si la cola está vacía,
-		// devuelve null.
 		this.nodoADestino = this.recorridoA.poll();
 	}
 
-	// --- GESTIÓN DE ESTADOS ---
+	// =========================================================================
+	// === MÁQUINA DE ESTADOS (ENUMSET ZERO-GC)
+	// =========================================================================
 
 	public String getStringEstados() {
 		final StringBuilder sb = new StringBuilder();
@@ -432,40 +541,23 @@ public abstract class Criatura extends Ente {
 		return sb.toString();
 	}
 
-	/**
-	 * Verifica si la criatura tiene activo un estado específico. O(1) a nivel de
-	 * bitmask.
-	 */
 	public boolean tieneEstado(final Estado estado) {
 		return this.estados.contains(estado);
 	}
 
-	/**
-	 * Agrega un estado sin duplicar ni generar objetos nuevos.
-	 */
 	public void meterEstado(final Estado estado) {
 		this.estados.add(estado);
 	}
 
-	/**
-	 * Remueve un estado activo de forma atómica.
-	 */
 	public void removerEstado(final Estado estado) {
 		this.estados.remove(estado);
 	}
 
-	/**
-	 * Limpia todos los estados y asigna únicamente el estado indicado. Ideal para
-	 * transiciones como volver a ESTANDAR o entrar en MUERTO.
-	 */
 	public void setEstadoUnico(final Estado estado) {
 		this.estados.clear();
 		this.estados.add(estado);
 	}
 
-	/**
-	 * Remueve todos los estados activos.
-	 */
 	public void limpiarEstados() {
 		this.estados.clear();
 	}
@@ -506,7 +598,9 @@ public abstract class Criatura extends Ente {
 		return this.tieneEstado(Estado.PERSIGUIENDO);
 	}
 
-	// --- GETTERS Y SETTERS DE POSICIÓN ---
+	// =========================================================================
+	// === GETTERS Y SETTERS DE POSICIÓN
+	// =========================================================================
 
 	public Set<Estado> getEstado() {
 		return this.estados;
@@ -550,6 +644,10 @@ public abstract class Criatura extends Ente {
 
 	public int getMargenYSprite() {
 		return this.margenYInicialSprite;
+	}
+
+	public double getVidaLag() {
+		return this.vidaLag;
 	}
 
 	@Override
@@ -602,26 +700,6 @@ public abstract class Criatura extends Ente {
 		return this.eliminado;
 	}
 
-	public void recibirAtaque(final double damage, final Ente causante) {
-		if (this.mundo != null) {
-			this.mundo.agregarParticula(
-					new Sangre(this.getPosicionXInt() + (this.ANCHO / 2), this.getPosicionYInt() + (this.ALTO / 2)));
-			// Daño normal (número blanco que salta):
-			Globales.GESTOR_TEXTOS.agregarDanio((int) damage, this.getPosicionX(), this.getPosicionY(), false);
-
-			// Daño crítico (número rojo grande con "¡58!" + sacudida de cámara):
-//			Globales.GESTOR_TEXTOS.agregarDanio(58, this.getPosicionX(), this.getPosicionY(), true);
-//			Globales.CAMARA.aplicarImpactoCritico(100);
-
-			// Curación (número verde "+50"):
-//			Globales.GESTOR_TEXTOS.agregarCuracion(50, this.getPosicionX(), this.getPosicionY());
-
-			// Mensaje de estado ("¡FALLO!", "¡BLOQUEO!"):
-//			Globales.GESTOR_TEXTOS.agregarTexto("¡FALLO!", this.getPosicionX(), this.getPosicionY(),
-//					TipoTextoFlotante.ESTADO);
-		}
-	}
-
 	protected void reiniciarRecorridoAEstrella() {
 		this.recorridoA.clear();
 		this.nodoADestino = null;
@@ -656,15 +734,6 @@ public abstract class Criatura extends Ente {
 		super.setMundo(mundo);
 	}
 
-	public int getCentroX() {
-		return this.getPosicionXInt() + (this.ANCHO / 2);
-	}
-
-	public int getCentroY() {
-		return this.getPosicionYInt() + (this.ALTO / 2);
-	}
-
-	// --- MÉTODOS ABSTRACTOS ---
 	public abstract void establecerMargenesSprite();
 
 	protected abstract JSONObject exportarParaJSON();

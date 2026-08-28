@@ -1,12 +1,20 @@
 package principal.animaciones;
 
 import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 
 import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTIempoActualizacion;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 
+/**
+ * Controlador de fotogramas y temporización de animaciones con soporte para
+ * renderizado estándar, transparencia y máscaras de impacto Hit-Flash.
+ * 
+ * @author Copiloto Técnico
+ * @version 2.0
+ */
 public class Animacion {
 
 	protected final HojaSprite hojasprite;
@@ -18,15 +26,10 @@ public class Animacion {
 	protected final int MAX_SPRITE_POSICION;
 	protected boolean pausado;
 	private int codPintado;
-	private boolean inversa;
+	private final boolean inversa;
 
 	public Animacion(final HojaSprite hojasprite, final boolean repetitiva, final int tiempoMSFrames) {
-		this.hojasprite = hojasprite;
-		this.repetitiva = repetitiva;
-		this.TIEMPO_MS_POR_FRAMES = tiempoMSFrames;
-		this.MAX_SPRITE_POSICION = hojasprite.getCantidadSprite() - 1;
-		this.GT_DURACION_ANIMACION = new GestorTIempoActualizacion();
-		this.animando = true;
+		this(hojasprite, repetitiva, tiempoMSFrames, false);
 	}
 
 	public Animacion(final HojaSprite hojasprite, final boolean repetitiva, final int tiempoMSFrames,
@@ -44,6 +47,22 @@ public class Animacion {
 	}
 
 	public void pintar(final Graphics2D g, final double x, final double y, final boolean refJugador) {
+		this.pintar(g, x, y, refJugador, false);
+	}
+
+	/**
+	 * Renderiza el frame actual alternando entre la textura normal y la máscara
+	 * blanca de impacto.
+	 *
+	 * @param g          Contexto gráfico {@link Graphics2D}.
+	 * @param x          Coordenada X.
+	 * @param y          Coordenada Y.
+	 * @param refJugador {@code true} para aplicar desplazamiento de cámara.
+	 * @param flash      {@code true} para dibujar la silueta blanca de daño
+	 *                   (Hit-Flash).
+	 */
+	public void pintar(final Graphics2D g, final double x, final double y, final boolean refJugador,
+			final boolean flash) {
 		if (!this.animando) {
 			return;
 		}
@@ -53,11 +72,16 @@ public class Animacion {
 				&& this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES)) {
 			return;
 		}
+
+		final BufferedImage spriteActual = flash ? this.hojasprite.getSpriteFlash(this.spritePosicion)
+				: this.hojasprite.getSprite(this.spritePosicion);
+
 		if (refJugador) {
-			DibujoDebug.dibujarImagenRefCamara(g, this.hojasprite.getSprite(this.spritePosicion), (int) x, (int) y);
+			DibujoDebug.dibujarImagenRefCamara(g, spriteActual, (int) x, (int) y);
 		} else {
-			DibujoDebug.dibujarImagen(g, this.hojasprite.getSprite(this.spritePosicion), (int) x, (int) y);
+			DibujoDebug.dibujarImagen(g, spriteActual, (int) x, (int) y);
 		}
+
 		if (Globales.pausa) {
 			if (!this.pausado) {
 				this.pausado = true;
@@ -65,6 +89,7 @@ public class Animacion {
 		} else if (this.pausado) {
 			this.pausado = false;
 		}
+
 		if (this.codPintado != Globales.getCodActualizacion()) {
 			if (!this.pausado) {
 				this.codPintado = Globales.getCodActualizacion();
@@ -81,11 +106,15 @@ public class Animacion {
 				}
 			}
 		}
-
 	}
 
 	public void pintarConTransparencia(final Graphics2D g, final double x, final double y, final boolean refJugador,
 			final float alpha) {
+		this.pintarConTransparencia(g, x, y, refJugador, alpha, false);
+	}
+
+	public void pintarConTransparencia(final Graphics2D g, final double x, final double y, final boolean refJugador,
+			final float alpha, final boolean flash) {
 		if (!this.animando) {
 			return;
 		}
@@ -96,13 +125,15 @@ public class Animacion {
 			return;
 		}
 
+		final BufferedImage spriteActual = flash ? this.hojasprite.getSpriteFlash(this.spritePosicion)
+				: this.hojasprite.getSprite(this.spritePosicion);
+
 		if (refJugador) {
-			DibujoDebug.dibujarImagenConTransparenciaRefCamara(g, this.hojasprite.getSprite(this.spritePosicion),
-					(int) x, (int) y, alpha);
+			DibujoDebug.dibujarImagenConTransparenciaRefCamara(g, spriteActual, (int) x, (int) y, alpha);
 		} else {
-			DibujoDebug.dibujarImagenConTransparencia(g, this.hojasprite.getSprite(this.spritePosicion), (int) x,
-					(int) y, alpha);
+			DibujoDebug.dibujarImagenConTransparencia(g, spriteActual, (int) x, (int) y, alpha);
 		}
+
 		if (Globales.pausa) {
 			if (!this.pausado) {
 				this.pausado = true;
@@ -110,6 +141,7 @@ public class Animacion {
 		} else if (this.pausado) {
 			this.pausado = false;
 		}
+
 		if (this.codPintado != Globales.getCodActualizacion()) {
 			if (!this.pausado) {
 				this.codPintado = Globales.getCodActualizacion();
@@ -142,7 +174,6 @@ public class Animacion {
 		} else {
 			this.spritePosicion = 0;
 		}
-
 		this.GT_DURACION_ANIMACION.reiniciarTiempo();
 	}
 
@@ -162,10 +193,7 @@ public class Animacion {
 				this.spritePosicion = this.MAX_SPRITE_POSICION;
 			}
 		}
-
 	}
-
-	// En Animacion.java:
 
 	public int getSpritePosicion() {
 		if (this.codPintado != Globales.getCodActualizacion()) {
@@ -182,11 +210,9 @@ public class Animacion {
 	}
 
 	public boolean animacionFinalizada() {
-//		System.out.println("Repetitiva: " + this.repetitiva +" , posicion final: "+(this.spritePosicion == this.MAX_SPRITE_POSICION)+ " tiempo transcurrido: "+this.GT_DURACION_ANIMACION.transcurrioMS(TIEMPO_MS_POR_FRAMES));
 		return (!this.repetitiva
 				&& ((this.inversa && (this.spritePosicion == 0))
 						|| (!this.inversa && (this.spritePosicion == this.MAX_SPRITE_POSICION)))
 				&& this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES));
 	}
-
 }

@@ -2,6 +2,7 @@ package principal.entes.objetos.items;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+
 import org.json.simple.JSONObject;
 
 import principal.entes.modelos.item.ListaModelosItem;
@@ -11,11 +12,10 @@ public abstract class Portable extends Item {
 	private static final long serialVersionUID = 4861089138825196600L;
 	protected final String CODIGO_MODELO;
 
-	public Portable(int x, int y, final String codModelo) {
+	public Portable(final int x, final int y, final String codModelo) {
 		super(x, y);
 		this.CODIGO_MODELO = codModelo;
-		
-		
+
 	}
 
 	public Portable(final String codModelo) {
@@ -30,7 +30,6 @@ public abstract class Portable extends Item {
 	@Override
 	public void pintar(final Graphics2D g) {
 		super.pintar(g);
-		DibujoDebug.dibujarImagenRefCamara(g, getTextura(), this.x, this.y);
 	}
 
 	@Override
@@ -39,8 +38,8 @@ public abstract class Portable extends Item {
 	}
 
 	@Override
-	public void pintarInventario(Graphics2D g, int x, int y) {
-		DibujoDebug.dibujarImagen(g, getTexturaInventario(), x, y);
+	public void pintarInventario(final Graphics2D g, final int x, final int y) {
+		DibujoDebug.dibujarImagen(g, this.getTexturaInventario(), x, y);
 	}
 
 	@Override
@@ -68,7 +67,6 @@ public abstract class Portable extends Item {
 		return ListaModelosItem.getModeloPortable(this.CODIGO_MODELO).esSolido();
 	}
 
-
 	@Override
 	public void eliminar() {
 		this.eliminado = true;
@@ -85,13 +83,13 @@ public abstract class Portable extends Item {
 	}
 
 	@Override
-	public void modificarPosicionX(double desplazamientoX) {
+	public void modificarPosicionX(final double desplazamientoX) {
 		this.x += desplazamientoX;
 
 	}
 
 	@Override
-	public void modificarPosicionY(double desplazamientoY) {
+	public void modificarPosicionY(final double desplazamientoY) {
 		this.y += desplazamientoY;
 	}
 
@@ -114,6 +112,5 @@ public abstract class Portable extends Item {
 	public String exportarTipoItem() {
 		return "Portable";
 	}
-
 
 }

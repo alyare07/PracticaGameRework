@@ -73,6 +73,7 @@ public abstract class Enemigo extends Criatura {
 
 	@Override
 	public void actualizar() {
+		super.actualizar();
 		this.curar();
 		if (Globales.TECLADO.TECLA_DIJKSTRA.presionado()) {
 
@@ -522,7 +523,6 @@ public abstract class Enemigo extends Criatura {
 
 	@Override
 	public void recibirAtaque(final double damage, final Ente causante) {
-		this.reducirVida(damage);
 		if (causante instanceof Jugador) {
 			this.GT_ATACADO.establecerReferenciaTiempoActual();
 			this.meterEstado(Estado.PERSIGUIENDO);

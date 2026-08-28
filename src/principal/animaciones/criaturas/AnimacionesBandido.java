@@ -23,16 +23,12 @@ public class AnimacionesBandido {
 
 	public AnimacionesBandido() {
 		this.ANIMACIONES = new HashMap<String, AnimacionDireccionada>();
-		this.ANIMACIONES.put(ESTANDAR,
-				new AnimacionDireccionada(
-						new Animacion(Globales.LISTA_HOJAS_SPRITES.BANDIDO.ESTANDAR_ARRIBA, true,
-								this.TIEMPO_MS_POR_FRAME),
-						new Animacion(Globales.LISTA_HOJAS_SPRITES.BANDIDO.ESTANDAR_ABAJO, true,
-								this.TIEMPO_MS_POR_FRAME),
-						new Animacion(Globales.LISTA_HOJAS_SPRITES.BANDIDO.ESTANDAR_DERECHA, true,
-								this.TIEMPO_MS_POR_FRAME),
-						new Animacion(Globales.LISTA_HOJAS_SPRITES.BANDIDO.ESTANDAR_IZQUIERDA, true,
-								this.TIEMPO_MS_POR_FRAME)));
+		this.ANIMACIONES.put(ESTANDAR, new AnimacionDireccionada(
+				new Animacion(Globales.LISTA_HOJAS_SPRITES.BANDIDO.ESTANDAR_ARRIBA, true, this.TIEMPO_MS_POR_FRAME),
+				new Animacion(Globales.LISTA_HOJAS_SPRITES.BANDIDO.ESTANDAR_ABAJO, true, this.TIEMPO_MS_POR_FRAME),
+				new Animacion(Globales.LISTA_HOJAS_SPRITES.BANDIDO.ESTANDAR_DERECHA, true, this.TIEMPO_MS_POR_FRAME),
+				new Animacion(Globales.LISTA_HOJAS_SPRITES.BANDIDO.ESTANDAR_IZQUIERDA, true,
+						this.TIEMPO_MS_POR_FRAME)));
 		this.ANIMACIONES.put(CAMINANDO,
 				new AnimacionDireccionada(
 						new Animacion(Globales.LISTA_HOJAS_SPRITES.BANDIDO.CAMINANDO_ARRIBA, true,
@@ -97,11 +93,16 @@ public class AnimacionesBandido {
 
 	public void pintar(final Graphics2D g, final int x, final int y, final Direccion direccion, final String tipo,
 			final boolean transparente, final boolean refCamara) {
+		this.pintar(g, x, y, direccion, tipo, transparente, refCamara, false);
+	}
+
+	public void pintar(final Graphics2D g, final int x, final int y, final Direccion direccion, final String tipo,
+			final boolean transparente, final boolean refCamara, final boolean flash) {
 		final float alpha = 0.5f;
 		if (transparente) {
-			this.ANIMACIONES.get(tipo).pintarConTransparencia(g, x, y, refCamara, alpha, direccion);
+			this.ANIMACIONES.get(tipo).pintarConTransparencia(g, x, y, refCamara, alpha, direccion, flash);
 		} else {
-			this.ANIMACIONES.get(tipo).pintar(g, x, y, refCamara, direccion);
+			this.ANIMACIONES.get(tipo).pintar(g, x, y, refCamara, direccion, flash);
 		}
 	}
 

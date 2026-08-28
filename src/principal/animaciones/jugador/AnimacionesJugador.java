@@ -12,6 +12,12 @@ import principal.entes.criaturas.Jugador;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 
+/**
+ * Gestor de animaciones del jugador con soporte de transparencia y Hit-Flash.
+ * 
+ * @author Copiloto Técnico
+ * @version 2.0
+ */
 public class AnimacionesJugador {
 
 	private final HashMap<String, AnimacionDireccionada> ANIMACIONES;
@@ -32,25 +38,21 @@ public class AnimacionesJugador {
 				.put(ESTANDAR,
 						new AnimacionDireccionada(
 								new Animacion(
-										new HojaSprite(
-												Globales.FUNCIONES.CARGADOR_RECURSOS
-														.cargarImagenCompatibleTranslucida(
-																"/imagenes/sprites/player_sprites.png")
-														.getSubimage(0, lado, lado * 4, lado),
-												lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME),
-								new Animacion(
-										new HojaSprite(
-												Globales.FUNCIONES.CARGADOR_RECURSOS
-														.cargarImagenCompatibleTranslucida(
-																"/imagenes/sprites/player_sprites.png")
-														.getSubimage(0, 0, lado * 4, lado),
-												lado, opaca),
+										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
+												.cargarImagenCompatibleTranslucida(
+														"/imagenes/sprites/player_sprites.png")
+												.getSubimage(0, lado, lado * 4, lado), lado, opaca),
 										true, this.TIEMPO_MS_POR_FRAME),
 								new Animacion(new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
 										.cargarImagenCompatibleTranslucida("/imagenes/sprites/player_sprites.png")
-										.getSubimage(0, 2 * lado, lado * 4, lado), lado, opaca), true,
+										.getSubimage(0, 0, lado * 4, lado), lado, opaca), true,
 										this.TIEMPO_MS_POR_FRAME),
+								new Animacion(
+										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
+												.cargarImagenCompatibleTranslucida(
+														"/imagenes/sprites/player_sprites.png")
+												.getSubimage(0, 2 * lado, lado * 4, lado), lado, opaca),
+										true, this.TIEMPO_MS_POR_FRAME),
 								new Animacion(
 										new HojaSprite(
 												Globales.FUNCIONES.TEXTURAS_TOOLS
@@ -60,16 +62,15 @@ public class AnimacionesJugador {
 																.getSubimage(0, 2 * lado, lado * 4, lado)),
 												lado, opaca),
 										true, this.TIEMPO_MS_POR_FRAME)));
+
 		this.ANIMACIONES
 				.put(CAMINANDO,
 						new AnimacionDireccionada(
 								new Animacion(
-										new HojaSprite(
-												Globales.FUNCIONES.CARGADOR_RECURSOS
-														.cargarImagenCompatibleTranslucida(
-																"/imagenes/sprites/player_sprites.png")
-														.getSubimage(0, 4 * lado, lado * 4, lado),
-												lado, opaca),
+										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
+												.cargarImagenCompatibleTranslucida(
+														"/imagenes/sprites/player_sprites.png")
+												.getSubimage(0, 4 * lado, lado * 4, lado), lado, opaca),
 										true, this.TIEMPO_MS_POR_FRAME - 50),
 								new Animacion(new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
 										.cargarImagenCompatibleTranslucida("/imagenes/sprites/player_sprites.png")
@@ -90,27 +91,26 @@ public class AnimacionesJugador {
 																.getSubimage(0, 5 * lado, lado * 4, lado)),
 												lado, opaca),
 										true, this.TIEMPO_MS_POR_FRAME)));
+
 		this.ANIMACIONES
 				.put(ARMADO_ESTANDAR,
 						new AnimacionDireccionada(
 								new Animacion(
-										new HojaSprite(
-												Globales.FUNCIONES.CARGADOR_RECURSOS
-														.cargarImagenCompatibleTranslucida(
-																"/imagenes/sprites/player_sprites.png")
-														.getSubimage(0, 7 * lado, lado * 4, lado),
-												lado, opaca),
+										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
+												.cargarImagenCompatibleTranslucida(
+														"/imagenes/sprites/player_sprites.png")
+												.getSubimage(0, 7 * lado, lado * 4, lado), lado, opaca),
 										true, this.TIEMPO_MS_POR_FRAME),
+								new Animacion(new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
+										.cargarImagenCompatibleTranslucida("/imagenes/sprites/player_sprites.png")
+										.getSubimage(0, 6 * lado, lado * 4, lado), lado, opaca), true,
+										this.TIEMPO_MS_POR_FRAME),
 								new Animacion(
 										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
 												.cargarImagenCompatibleTranslucida(
 														"/imagenes/sprites/player_sprites.png")
-												.getSubimage(0, 6 * lado, lado * 4, lado), lado, opaca),
+												.getSubimage(0, 8 * lado, lado * 4, lado), lado, opaca),
 										true, this.TIEMPO_MS_POR_FRAME),
-								new Animacion(new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-										.cargarImagenCompatibleTranslucida("/imagenes/sprites/player_sprites.png")
-										.getSubimage(0, 8 * lado, lado * 4, lado), lado, opaca), true,
-										this.TIEMPO_MS_POR_FRAME),
 								new Animacion(
 										new HojaSprite(
 												Globales.FUNCIONES.TEXTURAS_TOOLS
@@ -120,29 +120,26 @@ public class AnimacionesJugador {
 																.getSubimage(0, 8 * lado, lado * 4, lado)),
 												lado, opaca),
 										true, this.TIEMPO_MS_POR_FRAME)));
+
 		this.ANIMACIONES
 				.put(ARMADO_CAMINANDO,
 						new AnimacionDireccionada(
 								new Animacion(
-										new HojaSprite(
-												Globales.FUNCIONES.CARGADOR_RECURSOS
-														.cargarImagenCompatibleTranslucida(
-																"/imagenes/sprites/player_sprites.png")
-														.getSubimage(0, 10 * lado, lado * 4, lado),
-												lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME),
-								new Animacion(
-										new HojaSprite(
-												Globales.FUNCIONES.CARGADOR_RECURSOS
-														.cargarImagenCompatibleTranslucida(
-																"/imagenes/sprites/player_sprites.png")
-														.getSubimage(0, 9 * lado, lado * 4, lado),
-												lado, opaca),
+										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
+												.cargarImagenCompatibleTranslucida(
+														"/imagenes/sprites/player_sprites.png")
+												.getSubimage(0, 10 * lado, lado * 4, lado), lado, opaca),
 										true, this.TIEMPO_MS_POR_FRAME),
 								new Animacion(new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
 										.cargarImagenCompatibleTranslucida("/imagenes/sprites/player_sprites.png")
-										.getSubimage(0, 11 * lado, lado * 4, lado), lado, opaca), true,
+										.getSubimage(0, 9 * lado, lado * 4, lado), lado, opaca), true,
 										this.TIEMPO_MS_POR_FRAME),
+								new Animacion(
+										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
+												.cargarImagenCompatibleTranslucida(
+														"/imagenes/sprites/player_sprites.png")
+												.getSubimage(0, 11 * lado, lado * 4, lado), lado, opaca),
+										true, this.TIEMPO_MS_POR_FRAME),
 								new Animacion(
 										new HojaSprite(
 												Globales.FUNCIONES.TEXTURAS_TOOLS
@@ -152,45 +149,46 @@ public class AnimacionesJugador {
 																.getSubimage(0, 11 * lado, lado * 4, lado)),
 												lado, opaca),
 										true, this.TIEMPO_MS_POR_FRAME)));
-
 	}
 
 	public void pintar(final Graphics2D g, final int x, final int y) {
 		final Jugador jugador = Globales.JUGADOR;
 		final boolean transparencia = jugador.atrasDeComplemento();
+		final boolean flash = jugador.estaEnFlashDanio();
 		final float alpha = 0.5f;
 		final Direccion direccion = jugador.getDireccion();
 		final Set<Estado> ESTADO = jugador.getEstado();
+
 		if (jugador.pistolaEquipada() && !ESTADO.contains(Estado.ARROJANDO)) {
 			if (ESTADO.contains(Estado.ESTANDAR)) {
 				if (transparencia) {
-					this.ANIMACIONES.get(ARMADO_ESTANDAR).pintarConTransparencia(g, x, y, false, alpha, direccion);
+					this.ANIMACIONES.get(ARMADO_ESTANDAR).pintarConTransparencia(g, x, y, false, alpha, direccion,
+							flash);
 				} else {
-					this.ANIMACIONES.get(ARMADO_ESTANDAR).pintar(g, x, y, false, direccion);
+					this.ANIMACIONES.get(ARMADO_ESTANDAR).pintar(g, x, y, false, direccion, flash);
 				}
 				return;
 			}
 			if (transparencia) {
-				this.ANIMACIONES.get(ARMADO_CAMINANDO).pintarConTransparencia(g, x, y, false, alpha, direccion);
+				this.ANIMACIONES.get(ARMADO_CAMINANDO).pintarConTransparencia(g, x, y, false, alpha, direccion, flash);
 			} else {
-				this.ANIMACIONES.get(ARMADO_CAMINANDO).pintar(g, x, y, false, direccion);
+				this.ANIMACIONES.get(ARMADO_CAMINANDO).pintar(g, x, y, false, direccion, flash);
 			}
 		} else {
 			if (ESTADO.contains(Estado.ESTANDAR)) {
 				if (transparencia) {
-					this.ANIMACIONES.get(ESTANDAR).pintarConTransparencia(g, x, y, false, alpha, direccion);
+					this.ANIMACIONES.get(ESTANDAR).pintarConTransparencia(g, x, y, false, alpha, direccion, flash);
 				} else {
-					this.ANIMACIONES.get(ESTANDAR).pintar(g, x, y, false, direccion);
+					this.ANIMACIONES.get(ESTANDAR).pintar(g, x, y, false, direccion, flash);
 				}
 				return;
 			}
 
 			if (transparencia) {
-				this.ANIMACIONES.get(CAMINANDO).pintarConTransparencia(g, x, y, false, alpha, direccion);
+				this.ANIMACIONES.get(CAMINANDO).pintarConTransparencia(g, x, y, false, alpha, direccion, flash);
 			} else {
-				this.ANIMACIONES.get(CAMINANDO).pintar(g, x, y, false, direccion);
+				this.ANIMACIONES.get(CAMINANDO).pintar(g, x, y, false, direccion, flash);
 			}
 		}
 	}
-
 }

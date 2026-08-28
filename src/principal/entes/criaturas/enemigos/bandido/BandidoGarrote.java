@@ -16,6 +16,7 @@ public class BandidoGarrote extends Bandido {
 
 	@Override
 	public void actualizar() {
+		super.actualizar();
 		if (this.realizandoAtaque && !this.pintarAtaque) {
 			this.pintarAtaque = true;
 		}
@@ -24,8 +25,6 @@ public class BandidoGarrote extends Bandido {
 			this.pintarAtaque = false;
 			this.ANIMACION.getAnimacion(AnimacionesBandido.GARROTE_ATACANDO, this.direccion).reiniciarAnimacion();
 		}
-		super.actualizar();
-
 	}
 
 	@Override
@@ -35,18 +34,20 @@ public class BandidoGarrote extends Bandido {
 	}
 
 	private void pintarSprite(final Graphics2D g) {
+		final boolean flash = this.estaEnFlashDanio();
+
 		if (this.pintarAtaque) {
 			this.ANIMACION.pintar(g, this.getPosicionXIntDibujado(), this.getPosicionYIntDibujado(), this.direccion,
-					AnimacionesBandido.GARROTE_ATACANDO, this.atrasDeComplemento, true);
+					AnimacionesBandido.GARROTE_ATACANDO, this.atrasDeComplemento, true, flash);
 		} else if (!this.estaEstadoCaminando()) {
 			this.ANIMACION.pintar(g, this.getPosicionXIntDibujado(), this.getPosicionYIntDibujado(), this.direccion,
-					AnimacionesBandido.GARROTE_ESTANDAR, this.atrasDeComplemento, true);
+					AnimacionesBandido.GARROTE_ESTANDAR, this.atrasDeComplemento, true, flash);
 		} else if (this.estaEstadoPersiguiendo() || this.estaEstadoCaminando()) {
 			this.ANIMACION.pintar(g, this.getPosicionXIntDibujado(), this.getPosicionYIntDibujado(), this.direccion,
-					AnimacionesBandido.GARROTE_CAMINANDO, this.atrasDeComplemento, true);
+					AnimacionesBandido.GARROTE_CAMINANDO, this.atrasDeComplemento, true, flash);
 		} else {
 			this.ANIMACION.pintar(g, this.getPosicionXIntDibujado(), this.getPosicionYIntDibujado(), this.direccion,
-					AnimacionesBandido.GARROTE_ESTANDAR, this.atrasDeComplemento, true);
+					AnimacionesBandido.GARROTE_ESTANDAR, this.atrasDeComplemento, true, flash);
 		}
 	}
 
@@ -69,5 +70,4 @@ public class BandidoGarrote extends Bandido {
 	protected double getGrosorRangoAtaqueMele() {
 		return 6;
 	}
-
 }

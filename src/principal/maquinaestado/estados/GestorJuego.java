@@ -10,6 +10,7 @@ import java.awt.Transparency;
 import java.awt.image.VolatileImage;
 import java.util.ArrayList;
 
+import principal.clima.PerfilClima;
 import principal.controles.Raton;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura.Direccion;
@@ -20,6 +21,8 @@ import principal.entes.proyectil.explosivo.BolaFuego;
 import principal.eventos.Evento;
 import principal.eventos.EventoJugadorZonaTP;
 import principal.igu.MotorIGU;
+import principal.iluminacion.CicloDiaNoche;
+import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.TipoLuz;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
@@ -98,6 +101,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	// =========================================================================
 	// === CONSTRUCTOR
 	// =========================================================================
+	private FuenteLuz auxFuenteLuzTempoPrueba;
 
 	public GestorJuego(final GestorEstados ge, final GestorPartida gp) {
 		this.GE = ge;
@@ -131,8 +135,31 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		// Controles de prueba de cámara
 		this.actualizarCambioCamaraConEntesYZoom();
 
-		if (Globales.TECLADO.TECLA_PUNTO.presionadoUnicaActualizacion()) {
-			Globales.GESTOR_LUZ.getCiclo().setHora(0.0); // 00:00 Noche cerrada
+		if (Globales.TECLADO.TECLA_NUM_1.presionadoUnicaActualizacion()) {
+			Globales.GESTOR_LUZ.getCiclo().setHora(CicloDiaNoche.FaseDia.MADRUGADA); // 00:00 Noche cerrada
+
+		}
+		if (Globales.TECLADO.TECLA_NUM_2.presionadoUnicaActualizacion()) {
+//			Globales.GESTOR_LUZ.getCiclo().setHora(CicloDiaNoche.FaseDia.NOCHE); // 00:00 Noche cerrada
+//			Globales.GESTOR_CLIMA.setNivelNiebla(IntensidadNiebla.INTENSA, 5);
+			Globales.GESTOR_CLIMA.setSombrasNubesHabilitadas(false);
+//			Globales.GESTOR_CLIMA.setTormentaActiva(true);
+
+//			Globales.GESTOR_LUZ.getCiclo().setModoOscuridadTotal(true);
+//			Globales.GESTOR_LUZ.getCiclo().pausarTiempo();
+
+			// Al explotar la granada en (posX, posY), crea un flash de 180px que dura 0.35
+			// segundos
+//			final double posX = Globales.JUGADOR.getCentroX();
+//			final double posY = Globales.JUGADOR.getCentroY();
+
+		}
+
+		if (Globales.TECLADO.TECLA_NUM_3.presionadoUnicaActualizacion()) {
+			Globales.GESTOR_CLIMA.activarModoPruebaRapida(10, 5);
+		}
+		if (Globales.TECLADO.TECLA_NUM_4.presionadoUnicaActualizacion()) {
+			Globales.GESTOR_LUZ.getCiclo().pausarTiempo();
 		}
 
 		// Actualización de jugador
@@ -159,7 +186,12 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 		Globales.GESTOR_TEXTOS.actualizar();
 		Globales.GESTOR_PARTICULAS.actualizar();
+		Globales.GESTOR_CLIMA.actualizar();
 		Globales.GESTOR_LUZ.actualizar();
+
+		if (this.auxFuenteLuzTempoPrueba != null) {
+			this.auxFuenteLuzTempoPrueba.orientarSegunDireccion(Globales.JUGADOR.getDireccion());
+		}
 	}
 
 	private void actualizarCambioCamaraConEntesYZoom() {
@@ -343,8 +375,12 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			g.translate(-Constantes.CENTROX, -Constantes.CENTROY);
 		}
 
-		// Capa de Iluminación Dinámica y Noche (Sobre el mundo, pero debajo del HUD)
+		// 2. CAPA ATMOSFÉRICA (Nubes diurnas y Niebla)
+		Globales.GESTOR_CLIMA.pintar(g);
+
+		// 3. CAPA DE ILUMINACIÓN Y PENUMBRA (Lightmap VRAM)
 		Globales.GESTOR_LUZ.pintar(g);
+
 		// =========================================================================
 		// === FASE 3: CAPAS DE INTERFAZ / HUD (ESCALA FIJA 1:1)
 		// =========================================================================
@@ -390,6 +426,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		this.pintarTiempoJugado(g);
+		this.pintarHoraJuego(g);
 
 		if (Globales.TECLADO.TECLA_DEBUG_TILE_INFO.presionado()) {
 			DibujoDebug.dibujarString(g, (this.tilePisado != null) ? this.tilePisado.toString() : "PuntoTile: (none)",
@@ -444,6 +481,19 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		DibujoDebug.dibujarString(g, texto, 20, 20, Color.CYAN);
 	}
 
+	private void pintarHoraJuego(final Graphics2D g) {
+		DibujoDebug.dibujarStringConSombra(g, "[" + Globales.GESTOR_LUZ.getCiclo().getHoraFormato24h() + "]",
+				Constantes.ANCHO_JUEGO - 50, 15, Color.YELLOW, Color.ORANGE, 12f);
+		DibujoDebug.dibujarStringConSombra(g, "/" + Globales.GESTOR_LUZ.getCiclo().getNombreMomentoDelDia() + "\\",
+				Constantes.ANCHO_JUEGO - 50, 35, Color.YELLOW, Color.DARK_GRAY, 9f);
+		DibujoDebug.dibujarStringConSombra(g, "<" + Globales.GESTOR_CLIMA.getNombreClimaActual() + ">",
+				Constantes.ANCHO_JUEGO - 70, 55, Color.WHITE, Color.RED, 9f);
+		DibujoDebug.dibujarStringConSombra(g,
+				"(" + String.format("%.1f", Globales.GESTOR_CLIMA.getTemperaturaCelsius()) + "°C "
+						+ Globales.GESTOR_CLIMA.getFuerzaViento() + "Fv)",
+				Constantes.ANCHO_JUEGO - 60, 75, Color.LIGHT_GRAY, Color.CYAN, 9f);
+	}
+
 	@Override
 	public void cargarMapa(final GestorCarga gc, final String nombreMapa, final boolean reset,
 			final String nombreSpawn) {
@@ -451,7 +501,9 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			gc.setPorcentajeCarga(10);
 			gc.setDetalleCarga("Cargando mapa " + nombreMapa);
 		}
-
+		// 1. Limpieza total de luces del mapa previo (Evita fugas de memoria y luces
+		// fantasma)
+		Globales.GESTOR_LUZ.apagarTodasLasLuces();
 		this.mapa = MapaManager.cargarMapa(nombreMapa, gc);
 
 		if ((this.mapa == null) || (this.mapa.getMundoActual() == null)) {
@@ -492,10 +544,16 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			gc.setDetalleCarga("¡Carga completa!");
 			gc.setCompleto(true);
 		}
-		Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.LINTERNA_JUGADOR);
-		Globales.GESTOR_LUZ.agregarLuzEstatica(Globales.JUGADOR.getPosicionX(), Globales.JUGADOR.getPosicionY(),
-				TipoLuz.ANTORCHA);
 
+		// 2. Vincular la linterna del jugador y luces iniciales del mapa
+		this.auxFuenteLuzTempoPrueba = Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.LINTERNA_CONICA,
+				100);
+		this.auxFuenteLuzTempoPrueba.setOffset(-5, -6);
+////		Globales.GESTOR_LUZ.agregarLuzEstatica(Globales.JUGADOR.getPosicionX(), Globales.JUGADOR.getPosicionY(),
+////				TipoLuz.ANTORCHA);
+//2
+		// Al cargar el mapa:
+		Globales.GESTOR_CLIMA.setPerfilBioma(PerfilClima.TEMPLADO_BOSQUE);
 	}
 
 	public void agregarObjetosAlMundo() {

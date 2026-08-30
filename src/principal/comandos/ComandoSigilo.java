@@ -2,6 +2,10 @@ package principal.comandos;
 
 import principal.utilidades.Globales;
 
+/**
+ * Comando para auditar el estado de iluminación, penumbra y visibilidad del
+ * jugador frente a la IA enemiga.
+ */
 public class ComandoSigilo extends Comando {
 
 	public ComandoSigilo() {
@@ -10,8 +14,13 @@ public class ComandoSigilo extends Comando {
 
 	@Override
 	public void ejecutar(final String[] args) {
-		if (Globales.JUGADOR == null || Globales.GESTOR_LUZ == null) {
-			System.err.println("[Consola] Jugador o GestorLuz no listos.");
+		this.ejecutar(args, null);
+	}
+
+	@Override
+	public void ejecutar(final String[] args, final EmisorRespuesta emisor) {
+		if ((Globales.JUGADOR == null) || (Globales.GESTOR_LUZ == null)) {
+			this.enviarError(emisor, "Jugador o GestorLuz no listos.");
 			return;
 		}
 
@@ -22,14 +31,29 @@ public class ComandoSigilo extends Comando {
 		final float nivelLuz = Globales.GESTOR_LUZ.getNivelLuzEn(jx, jy);
 		final int porcentajeLuz = (int) Math.round(nivelLuz * 100.0);
 
-		System.out.println("=================== ESTADO DE SIGILO / IA ===================");
-		System.out.println("Posicion Jugador     : (" + (int) jx + ", " + (int) jy + ")");
-		System.out.println("¿Esta Iluminado?     : " + (iluminado ? "SI (Visible a distancia)" : "NO (Oculto en Penumbra)"));
-		System.out.println("Nivel de Claridad    : " + porcentajeLuz + "%");
-		System.out.println("Oscuridad Ambiental  : " + Globales.GESTOR_LUZ.getAlphaOscuridadActual() + " / 255");
-		System.out.println("Fase del Dia / Hora  : " + Globales.GESTOR_LUZ.getCiclo().getHoraFormato24h() 
-				+ " (" + Globales.GESTOR_LUZ.getCiclo().getNombreMomentoDelDia() + ")");
-		System.out.println("Modo Interior/Cueva  : " + (Globales.GESTOR_LUZ.isModoAmbienteFijo() ? "SI" : "NO (Exterior)"));
-		System.out.println("=============================================================");
+		// Construimos el bloque completo para enviarlo en un único frame/paquete TCP a
+		// Termux
+		final StringBuilder sb = new StringBuilder();
+		sb.append("\n=================== ESTADO DE SIGILO / IA ===================\n");
+		sb.append("Posicion Jugador     : (").append((int) jx).append(", ").append((int) jy).append(")\n");
+		sb.append("¿Esta Iluminado?     : ").append(iluminado ? "SI (Visible a distancia)" : "NO (Oculto en Penumbra)")
+				.append("\n");
+		sb.append("Nivel de Claridad    : ").append(porcentajeLuz).append("%\n");
+		sb.append("Oscuridad Ambiental  : ").append(Globales.GESTOR_LUZ.getAlphaOscuridadActual()).append(" / 255\n");
+
+		if (Globales.GESTOR_LUZ.getCiclo() != null) {
+			sb.append("Fase del Dia / Hora  : ").append(Globales.GESTOR_LUZ.getCiclo().getHoraFormato24h()).append(" (")
+					.append(Globales.GESTOR_LUZ.getCiclo().getNombreMomentoDelDia()).append(")\n");
+		}
+
+		sb.append("Modo Interior/Cueva  : ").append(Globales.GESTOR_LUZ.isModoAmbienteFijo() ? "SI" : "NO (Exterior)")
+				.append("\n");
+		sb.append("=============================================================");
+
+		if (emisor != null) {
+			emisor.enviarMensaje(sb.toString());
+		} else {
+			System.out.println(sb.toString());
+		}
 	}
 }

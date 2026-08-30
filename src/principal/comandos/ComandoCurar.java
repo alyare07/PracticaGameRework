@@ -2,6 +2,10 @@ package principal.comandos;
 
 import principal.utilidades.Globales;
 
+/**
+ * Comando para restaurar la salud del jugador. Compatible con la consola local
+ * y la terminal remota de Termux.
+ */
 public class ComandoCurar extends Comando {
 
 	public ComandoCurar() {
@@ -10,23 +14,28 @@ public class ComandoCurar extends Comando {
 
 	@Override
 	public void ejecutar(final String[] args) {
+		this.ejecutar(args, null);
+	}
+
+	@Override
+	public void ejecutar(final String[] args, final EmisorRespuesta emisor) {
 		if (Globales.JUGADOR == null) {
-			System.err.println("[Consola] El jugador aun no esta inicializado en el mundo.");
+			this.enviarError(emisor, "El jugador aun no esta inicializado en el mundo.");
 			return;
 		}
 
 		if (args.length == 0) {
-			// Sin argumentos: Curación total (asumiendo método recuperarSalud o setSalud)
+			// Sin argumentos: Curación total
 			Globales.JUGADOR.sanar();
-			System.out.println("[Consola] Jugador curado al 100%.");
+			this.enviarInfo(emisor, "Jugador curado al 100%.");
 		} else {
 			// Con argumento: curar cantidad específica
 			final int cantidad = this.parsearEntero(args[0], 0);
 			if (cantidad > 0) {
 				Globales.JUGADOR.curar(cantidad);
-				System.out.println("[Consola] Se han restaurado " + cantidad + " puntos de salud al jugador.");
+				this.enviarInfo(emisor, "Se han restaurado " + cantidad + " puntos de salud al jugador.");
 			} else {
-				System.err.println("[Consola] La cantidad a curar debe ser mayor a 0.");
+				this.enviarError(emisor, "La cantidad a curar debe ser un numero entero mayor a 0.");
 			}
 		}
 	}

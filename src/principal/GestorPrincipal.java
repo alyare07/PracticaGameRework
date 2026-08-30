@@ -77,6 +77,9 @@ public class GestorPrincipal {
 
 		// Inicia el hilo en segundo plano
 		Globales.GESTOR_COMANDOS.iniciarEscuchaConsola();
+
+		// Inicia tanto la escucha del Scanner como el Servidor TCP de terminal remota
+		Globales.GESTOR_COMANDOS.iniciarServicios();
 	}
 
 	/**

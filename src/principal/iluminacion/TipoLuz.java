@@ -16,7 +16,7 @@ public enum TipoLuz {
 	ANTORCHA(75, new Color(255, 160, 40), 0.85f, true, 4.0, false, 360.0),
 	FOGATA(135, new Color(255, 120, 20), 0.90f, true, 7.0, false, 360.0),
 	VELA_TENUE(45, new Color(255, 200, 100), 0.70f, true, 2.5, false, 360.0),
-	AURA_JUGADOR(65, new Color(255, 245, 215), 0.65f, false, 0.0, false, 360.0),
+	AURA_JUGADOR(65, new Color(0, 0, 0), 0.1f, false, 0.0, false, 360.0),
 	BOLA_FUEGO(90, new Color(255, 100, 10), 0.95f, true, 5.5, false, 360.0),
 	MAGIA_ARCANO(70, new Color(70, 210, 255), 0.90f, true, 3.0, false, 360.0),
 	DESTELLO_EXPLOSION(160, new Color(255, 235, 170), 1.0f, false, 0.0, false, 360.0),

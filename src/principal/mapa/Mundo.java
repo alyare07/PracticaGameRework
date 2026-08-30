@@ -43,26 +43,48 @@ import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
 
 /**
- * Gestor principal del mundo del juego.
+ * Gestor central del Mundo en el motor RPG 2D.
  * <p>
- * Administra el terreno, las partículas, proyectiles, nodos de navegación
- * masiva (Dijkstra) y el particionado espacial mediante una grilla plana 1D de
- * {@link ZoneBox} para acceso en memoria contigua $O(1)$ puro sin sobrecarga de
- * HashMaps.
+ * <b>RESPONSABILIDADES ARQUITECTURALES:</b>
+ * <ul>
+ * <li><b>Particionado Espacial:</b> Grilla contigua 1D de {@link ZoneBox}
+ * (64x64 px) para consultas $O(1)$.</li>
+ * <li><b>Renderizado por Profundidad (Y-Sorting):</b> Cola dinámica expandible
+ * con ordenamiento in-place Zero-GC.</li>
+ * <li><b>Inteligencia Artificial y Navegación:</b> Coordinador de grafos
+ * {@link DijkstraRework} (multitud) y {@link AEstrella} (preciso).</li>
+ * <li><b>Sincronización Lógica vs Gráfica:</b> Generación de códigos únicos de
+ * frame ({@code codAct} / {@code codPintado}) para deduplicación de entidades
+ * en múltiples zonas.</li>
+ * </ul>
  * </p>
  * 
- * @version 3.1
+ * @version 3.2 (Java 8 Compatible - Zero-GC Architecture)
  */
 public class Mundo {
 
+	/** Escenario que contiene el terreno, capas y metadatos del mapa activo. */
 	protected final Escenario ESCENARIO;
+
+	/** Mapa de puntos de aparición (Spawns) guardados por nombre identificador. */
 	protected final HashMap<String, Spawn> PUNTOS_SPAWN_JUGADOR = new HashMap<String, Spawn>();
+
+	/**
+	 * Dimensión en píxeles del lado de cada cuadrícula de particionado espacial.
+	 */
 	protected final int LADO_ZONEBOX = 64;
+
+	/**
+	 * Bandera para solicitar una recalibración inmediata del mapa de distancias
+	 * Dijkstra.
+	 */
 	private boolean forzarUnaActualizacionDijkstra;
 
 	// =========================================================================
-	// === ARREGLO PLANO 1D PARA BÚSQUEDA O(1) REAL EN MEMORIA CONTIGUA
+	// === PARTICIONADO ESPACIAL EN MEMORIA CONTIGUA 1D (O(1))
 	// =========================================================================
+
+	/** Arreglo plano de celdas espaciales. Acceso: (gy * cantZonasX) + gx. */
 	protected ZoneBox[] ZONAS_ARRAY;
 	protected int cantZonasX;
 	protected int cantZonasY;
@@ -70,35 +92,84 @@ public class Mundo {
 	// =========================================================================
 	// === COLA DE RENDERIZADO AUTO-EXPANDIBLE CON Y-SORTING (ZERO-GC)
 	// =========================================================================
+
+	/** Capacidad inicial del búfer de entidades a dibujar por frame. */
 	private static final int CAPACIDAD_INICIAL_COLA = 512;
+
+	/**
+	 * Búfer plano reutilizable para ordenar entidades por eje Y sin generar basura
+	 * en memoria (Zero-GC).
+	 */
 	private Ente[] colaRenderEntidades = new Ente[CAPACIDAD_INICIAL_COLA];
 	private int cantEntidadesEnCola = 0;
 
-	// Set ultra-rápido basado en identidad de puntero (==) sin costo de .equals()
-	// ni .hashCode()
-	protected final Set<Ente> ENTES_REGISTRADOS = Collections.newSetFromMap(new IdentityHashMap<>());
+	/**
+	 * Set de entidades vivas en el mundo.
+	 * <p>
+	 * <b>OPTIMIZACIÓN:</b> Se usa un {@link IdentityHashMap} donde la comparación
+	 * se hace por igualdad de punteros ({@code ==}) en vez de llamar a
+	 * {@code equals()} y {@code hashCode()}. Esto ahorra miles de ciclos de CPU en
+	 * cada tick.
+	 * </p>
+	 */
+	protected final Set<Ente> ENTES_REGISTRADOS = Collections.newSetFromMap(new IdentityHashMap<Ente, Boolean>());
 
+	/** Lista de partículas visuales efímeras (humo, chispas, sangre, etc.). */
 	protected final ArrayList<Particula> PARTICULAS = new ArrayList<Particula>();
+
+	/** Lista de proyectiles activos (flechas, magia, balas, etc.). */
 	protected final ArrayList<Proyectil> PROYECTILES = new ArrayList<Proyectil>();
+
+	/**
+	 * Motor de búsqueda masiva hacia el jugador por campo de flujo (Flowfield /
+	 * Dijkstra).
+	 */
 	protected final DijkstraRework dijkstra;
+
+	/**
+	 * Motor de búsqueda A* para criaturas que requieren rutas individuales
+	 * precisas.
+	 */
 	protected final AEstrella AESTRELLA_X12X20;
+
+	/**
+	 * Código de frame lógico actual (previene doble actualización de entidades en
+	 * múltiples zonas).
+	 */
 	protected int codAct;
+
+	/**
+	 * Código de frame de renderizado actual (previene dibujar dos veces la misma
+	 * entidad en un frame).
+	 */
 	protected int codPintado;
+
+	/** Clave por defecto para el punto de spawn inicial del jugador. */
 	public static final String CLAVE_PUNTO_SPAWN_COMIENZO = "Comienzo";
 
 	// =========================================================================
 	// === CONSTRUCTORES
 	// =========================================================================
 
+	/**
+	 * Constructor estándar para inicializar un Mundo con su escenario y spawn
+	 * principal.
+	 *
+	 * @param esc      Escenario cargado.
+	 * @param comienzo Coordenada del punto de spawn de partida.
+	 */
 	public Mundo(final Escenario esc, final Point comienzo) {
 		this.ESCENARIO = esc;
 		this.generarZonas();
+
 		for (final Item i : this.ESCENARIO.generarItemsEnTerreno()) {
 			this.meterEntidad(i);
 		}
+
 		esc.generarListaComplementos(this);
 		this.generarCriaturas(esc.generarListaCriaturas(this));
 		this.ESCENARIO.generarObjetosEnTerreno(this);
+
 		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(comienzo, CLAVE_PUNTO_SPAWN_COMIENZO));
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
 		this.dijkstra.actualizar(new Point(this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getX(),
@@ -106,6 +177,15 @@ public class Mundo {
 		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(12, 20));
 	}
 
+	/**
+	 * Constructor para inicializar el Mundo actualizando una barra de progreso en
+	 * la pantalla de carga.
+	 *
+	 * @param esc             Escenario cargado.
+	 * @param comienzo        Coordenada inicial de spawn.
+	 * @param gc              Gestor de carga con la barra de progreso visual.
+	 * @param porcentajeCarga Porcentaje asignado a esta etapa.
+	 */
 	public Mundo(final Escenario esc, final Point comienzo, final GestorCarga gc, final int porcentajeCarga) {
 		this.ESCENARIO = esc;
 		int pesoCarga = 25;
@@ -142,6 +222,11 @@ public class Mundo {
 		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(12, 20));
 	}
 
+	/**
+	 * Constructor ligero utilizado exclusivamente por el Editor de Mapas.
+	 *
+	 * @param terrenoSoloParaEDITOR Terreno base sobre el que se trabajará.
+	 */
 	public Mundo(final Terreno terrenoSoloParaEDITOR) {
 		this.ESCENARIO = new Escenario(terrenoSoloParaEDITOR, "[]", "[]", "[]", "[]");
 		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(new Point(), CLAVE_PUNTO_SPAWN_COMIENZO));
@@ -154,11 +239,13 @@ public class Mundo {
 	// === PARTICIONADO ESPACIAL (GRILLA 1D)
 	// =========================================================================
 
+	/**
+	 * Crea las celdas espaciales {@link ZoneBox} necesarias para cubrir el tamaño
+	 * total del terreno.
+	 */
 	private void generarZonas() {
-		final int limiteY = this.ESCENARIO.getTerreno().CANTIDAD_ALTO_GROUPTILE
-				* this.ESCENARIO.getTerreno().LADO_GRUPO_TILE;
-		final int limiteX = this.ESCENARIO.getTerreno().CANTIDAD_ANCHO_GROUPTILE
-				* this.ESCENARIO.getTerreno().LADO_GRUPO_TILE;
+		final int limiteY = this.ESCENARIO.getTerreno().getAlto();
+		final int limiteX = this.ESCENARIO.getTerreno().getAncho();
 
 		this.cantZonasX = Math.max(1, (int) Math.ceil((double) limiteX / this.LADO_ZONEBOX));
 		this.cantZonasY = Math.max(1, (int) Math.ceil((double) limiteY / this.LADO_ZONEBOX));
@@ -176,12 +263,13 @@ public class Mundo {
 	}
 
 	/**
-	 * Acceso $O(1)$ directo por cálculo aritmético en el arreglo continuo.
+	 * Obtiene la celda {@link ZoneBox} situada en la columna y fila dadas de la
+	 * grilla.
 	 *
-	 * @param gx Índice de la columna en la grilla espacial.
-	 * @param gy Índice de la fila en la grilla espacial.
-	 * @return La celda {@link ZoneBox} correspondiente o {@code null} si está fuera
-	 *         de rango.
+	 * @param gx Columna en la grilla espacial.
+	 * @param gy Fila en la grilla espacial.
+	 * @return La instancia {@link ZoneBox} correspondiente, o {@code null} si está
+	 *         fuera de rango.
 	 */
 	public ZoneBox getZonaGrid(final int gx, final int gy) {
 		if ((gx < 0) || (gx >= this.cantZonasX) || (gy < 0) || (gy >= this.cantZonasY)) {
@@ -194,6 +282,9 @@ public class Mundo {
 	// === BUCLE PRINCIPAL (ACTUALIZAR & PINTAR)
 	// =========================================================================
 
+	/**
+	 * Ejecuta la actualización lógica del mundo a 60 ticks por segundo.
+	 */
 	public void actualizar() {
 		this.actualizarDijkstra();
 		this.actualizarZonas();
@@ -202,32 +293,57 @@ public class Mundo {
 		this.updateNextCodAct();
 	}
 
+	/**
+	 * Renderiza el mundo completo en capas con Frustum Culling y Y-Sorting.
+	 *
+	 * @param g Contexto gráfico de Java 2D.
+	 */
 	public void pintar(final Graphics2D g) {
+		// 1. Capa inferior: Suelo / Terreno
 		this.ESCENARIO.getTerreno().pintar(g);
+
+		// 2. Partículas debajo de entidades (efectos de suelo)
 		this.pintarParticulas(g);
+
+		// 3. Entidades, complementos y jugador ordenados en profundidad por su eje Y
 		this.pintarZonas(g);
+
+		// 4. Capa superior: Proyectiles en el aire
 		this.pintarProyectiles(g);
 
+		// 5. Capa de Depuración (si la tecla de debug está pulsada)
 		if (Globales.TECLADO.TECLA_DIJKSTRA_INFO.presionado()) {
 			this.pintarNodosOptimizado(g);
 		}
 
+		// Incrementar el token de frame para la siguiente pasada
 		this.updateNextCodPintado();
 	}
 
 	/**
-	 * Renderiza únicamente las celdas espaciales ({@link ZoneBox}) y las entidades
-	 * contenidas dentro del campo de visión visible (Frustum Culling) con
-	 * Y-Sorting.
+	 * Renderiza las celdas espaciales y ordena todas las entidades visibles por
+	 * profundidad Y.
+	 * <p>
+	 * <b>EXPLICACIÓN DEL Y-SORTING Y ZERO-GC:</b> En los juegos 2D con vista
+	 * cenital, los personajes que están más abajo en la pantalla (mayor Y) deben
+	 * tapar visualmente a los que están más arriba. <br>
+	 * 1. En lugar de usar {@code ArrayList.sort()} con lambdas (lo que crearía
+	 * objetos basura y saturaría el GC), recolectamos las entidades en un arreglo
+	 * plano pre-asignado {@code colaRenderEntidades}. 2. Aplicamos <b>Insertion
+	 * Sort</b> in-place. Como las entidades se mueven pocos píxeles por frame, la
+	 * lista ya viene casi ordenada del frame anterior, logrando que el ordenamiento
+	 * corra en tiempo $O(N)$ casi puro. 3. Dibujamos en orden y limpiamos el
+	 * arreglo asignando {@code null} para no retener objetos en RAM.
+	 * </p>
 	 *
-	 * @param g Contexto gráfico 2D.
+	 * @param g Contexto gráfico.
 	 */
 	protected void pintarZonas(final Graphics2D g) {
 		if ((this.ZONAS_ARRAY == null) || (this.ZONAS_ARRAY.length == 0)) {
 			return;
 		}
 
-		// 1. Limpiamos la cola de render del frame anterior
+		// Reiniciamos el contador de la cola (sin instanciar arreglos nuevos)
 		this.cantEntidadesEnCola = 0;
 
 		final double zoomActivo = Math.max(0.2, Globales.CAMARA.getZoomFinal());
@@ -255,7 +371,8 @@ public class Mundo {
 
 		ZoneBox zbAux = null;
 
-		// 2. Pasada 1: Pintar ítems del suelo y recolectar entidades a ordenar
+		// 1. PASADA 1: Dibujar ítems del suelo y recolectar entidades para el
+		// ordenamiento
 		for (int gridY = inicioGridY; gridY <= finGridY; gridY++) {
 			final int offsetFila = gridY * this.cantZonasX;
 			for (int gridX = inicioGridX; gridX <= finGridX; gridX++) {
@@ -267,12 +384,13 @@ public class Mundo {
 			}
 		}
 
-		// 3. Incluimos al Jugador en la cola para que participe del ordenamiento
-		if (!Globales.JUGADOR.estaEliminado()) {
+		// 2. Incluir al Jugador para que participe del ordenamiento de profundidad
+		if (!Globales.JUGADOR.estaEliminado() && !Globales.isEstadoEditor()) {
 			this.agregarAColaRender(Globales.JUGADOR);
 		}
 
-		// Insertion sort in-place (Zero-GC y $O(N)$ sobre lista casi ordenada)
+		// 3. ORDENAMIENTO POR INSERCIÓN IN-PLACE (O(N) sobre listas casi ordenadas,
+		// Zero-GC)
 		for (int i = 1; i < this.cantEntidadesEnCola; i++) {
 			final Ente clave = this.colaRenderEntidades[i];
 			final int yBaseClave = clave.getPosicionYBase();
@@ -285,16 +403,16 @@ public class Mundo {
 			this.colaRenderEntidades[j + 1] = clave;
 		}
 
-		// 4. Pasada 2: Dibujar todas las entidades en orden de profundidad perfecto
+		// 4. PASADA 2: Dibujar todas las entidades en orden de profundidad perfecto
 		for (int i = 0; i < this.cantEntidadesEnCola; i++) {
 			this.colaRenderEntidades[i].pintar(g);
-			this.colaRenderEntidades[i] = null; // Evita retención en memoria (GC friendly)
+			this.colaRenderEntidades[i] = null; // Liberamos referencia para evitar Memory Leaks
 		}
 	}
 
 	/**
-	 * Actualiza la lógica de las celdas espaciales contenidas dentro del frustum de
-	 * simulación activa.
+	 * Actualiza la lógica de las celdas espaciales y entidades dentro del radio
+	 * activo de simulación.
 	 */
 	protected void actualizarZonas() {
 		if ((this.ZONAS_ARRAY == null) || (this.ZONAS_ARRAY.length == 0)) {
@@ -309,6 +427,8 @@ public class Mundo {
 		final double cos = Math.cos(rotAbs);
 		final double sin = Math.sin(rotAbs);
 
+		// Margen adicional de 2 zonas para que los enemigos no se "congelen" en el
+		// borde visible
 		final int margenSimulacion = this.LADO_ZONEBOX * 2;
 		final int radioSimulacionX = (int) Math
 				.ceil(((Constantes.CENTROX * cos) + (Constantes.CENTROY * sin)) / zoomActivo) + (int) shakeX
@@ -337,6 +457,12 @@ public class Mundo {
 		}
 	}
 
+	/**
+	 * Agrega una entidad a la cola de renderizado del frame actual. Si la cola se
+	 * llena, duplica su tamaño automáticamente usando {@link System#arraycopy}.
+	 *
+	 * @param e Entidad a dibujar en este frame.
+	 */
 	public void agregarAColaRender(final Ente e) {
 		if (e == null) {
 			return;
@@ -353,6 +479,13 @@ public class Mundo {
 	// === GESTIÓN E INSERCIÓN DE ENTIDADES
 	// =========================================================================
 
+	/**
+	 * Inserta y vincula una entidad en el mundo y en todas las {@link ZoneBox} que
+	 * intersecta.
+	 *
+	 * @param e Entidad a ingresar.
+	 * @return {@code true} si la entidad fue agregada con éxito.
+	 */
 	public boolean meterEntidad(final Ente e) {
 		if ((e == null) || this.ENTES_REGISTRADOS.contains(e)) {
 			return false;
@@ -361,29 +494,30 @@ public class Mundo {
 			return false;
 		}
 
-		// Obtenemos las celdas que intersecta de forma matemática AABB
+		// Obtenemos las zonas que solapa
 		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(e);
 		if (zonas.isEmpty()) {
 			return false;
 		}
 
-		// 1. Asignamos el mundo y vinculamos bidireccionalmente con cada ZoneBox
+		// 1. Asignar mundo y registrar bidireccionalmente
 		e.setMundo(this);
-		for (int i = 0; i < zonas.size(); i++) {
+		final int totalZonas = zonas.size();
+		for (int i = 0; i < totalZonas; i++) {
 			final ZoneBox zb = zonas.get(i);
 			zb.addEntidad(e);
 			e.getZonasOcupadas().add(zb);
 		}
 
-		// 2. Registramos la entidad en el mundo
+		// 2. Registrar en el set de identidades
 		this.ENTES_REGISTRADOS.add(e);
 
-		// 3. Verificación de colisiones de sólidos en tiles
+		// 3. Registrar colisión sólida en los tiles subyacentes si corresponde
 		if ((e instanceof Objeto) && ((Objeto) e).esSolido()) {
 			this.objetoSolidoVerificarTile((Objeto) e);
 		}
 
-		// 4. Debug en modo editor
+		// 4. Depuración en modo editor
 		if (Globales.isEstadoEditor()) {
 			System.out.println(
 					"Entidad " + e + " agregada en x: " + e.getPosicionXInt() + " , y: " + e.getPosicionYInt());
@@ -392,18 +526,20 @@ public class Mundo {
 		return true;
 	}
 
+	/**
+	 * Vincula un objeto sólido a los tiles correspondientes para que los algoritmos
+	 * de pathfinding detecten el bloqueo de paso.
+	 */
 	private void objetoSolidoVerificarTile(final Objeto obj) {
 		if (obj instanceof Complemento) {
 			final Complemento c = (Complemento) obj;
-			if (ListaModeloComplemento.getModeloComplemento(c.getCodigoModelo()) instanceof ModeloComplementoT1) {
+			final Object modelo = ListaModeloComplemento.getModeloComplemento(c.getCodigoModelo());
+
+			if (modelo instanceof ModeloComplementoT1) {
 				this.objetoSolidoVerificarTileByArea(c,
-						c.getAreaInterseccionEnBaseMargen(
-								((ModeloComplementoT1) ListaModeloComplemento.getModeloComplemento(c.getCodigoModelo()))
-										.getMargenesInterseccion()));
-			} else if (ListaModeloComplemento
-					.getModeloComplemento(c.getCodigoModelo()) instanceof ModeloComplementoT2) {
-				for (final Rectangle margen : ((ModeloComplementoT2) ListaModeloComplemento
-						.getModeloComplemento(c.getCodigoModelo())).getMargenesInterseccion()) {
+						c.getAreaInterseccionEnBaseMargen(((ModeloComplementoT1) modelo).getMargenesInterseccion()));
+			} else if (modelo instanceof ModeloComplementoT2) {
+				for (final Rectangle margen : ((ModeloComplementoT2) modelo).getMargenesInterseccion()) {
 					this.objetoSolidoVerificarTileByArea(c, c.getAreaInterseccionEnBaseMargen(margen));
 				}
 			}
@@ -412,37 +548,28 @@ public class Mundo {
 		}
 	}
 
+	/**
+	 * Asocia un objeto a los tiles que quedan cubiertos por su área de impacto.
+	 */
 	private void objetoSolidoVerificarTileByArea(final Objeto obj, final Rectangle area) {
-		GroupTile gt = this.getTerreno().getGrupoTileReferenciado(area.x, area.y);
-		if (gt != null) {
-			for (final Tile t : gt.getTiles()) {
-				t.meterObjetoSolido(obj);
-			}
-			gt = null;
+		if (area == null) {
+			return;
 		}
+		final int ladoTile = this.getTerreno().ladoTile();
+		final int minTX = Math.max(0, Math.floorDiv(area.x, ladoTile));
+		final int maxTX = Math.min(this.getTerreno().CANTIDAD_TILES_X - 1,
+				Math.floorDiv((area.x + area.width) - 1, ladoTile));
+		final int minTY = Math.max(0, Math.floorDiv(area.y, ladoTile));
+		final int maxTY = Math.min(this.getTerreno().CANTIDAD_TILES_Y - 1,
+				Math.floorDiv((area.y + area.height) - 1, ladoTile));
 
-		gt = this.getTerreno().getGrupoTileReferenciado(area.x + area.width, area.y);
-		if (gt != null) {
-			for (final Tile t : gt.getTiles()) {
-				t.meterObjetoSolido(obj);
+		for (int ty = minTY; ty <= maxTY; ty++) {
+			for (int tx = minTX; tx <= maxTX; tx++) {
+				final Tile t = this.getTerreno().getTileGrid(tx, ty);
+				if (t != null) {
+					t.meterObjetoSolido(obj);
+				}
 			}
-			gt = null;
-		}
-
-		gt = this.getTerreno().getGrupoTileReferenciado(area.x, area.y + area.height);
-		if (gt != null) {
-			for (final Tile t : gt.getTiles()) {
-				t.meterObjetoSolido(obj);
-			}
-			gt = null;
-		}
-
-		gt = this.getTerreno().getGrupoTileReferenciado(area.x + area.width, area.y + area.height);
-		if (gt != null) {
-			for (final Tile t : gt.getTiles()) {
-				t.meterObjetoSolido(obj);
-			}
-			gt = null;
 		}
 	}
 
@@ -451,25 +578,29 @@ public class Mundo {
 	// =========================================================================
 
 	public ArrayList<ZoneBox> getZonasIntersectadas(final Ente e) {
-		return this.getZonasIntersectadas(e.getArea());
+		return (e != null) ? this.getZonasIntersectadas(e.getArea()) : new ArrayList<ZoneBox>(0);
 	}
 
 	/**
-	 * Proyección espacial AABB uniforme para cualquier forma geométrica con cálculo
-	 * O(1).
+	 * Obtiene la lista de {@link ZoneBox} cubiertas por una figura geométrica.
+	 * Corrige matemáticamente los bordes usando la regla inclusiva {@code - 1}.
+	 *
+	 * @param s Forma geométrica a evaluar.
+	 * @return Lista de celdas espaciales intersectadas.
 	 */
 	public ArrayList<ZoneBox> getZonasIntersectadas(final Shape s) {
-		final Rectangle r = s.getBounds();
-		final ArrayList<ZoneBox> lista = new ArrayList<>(4);
-
-		if ((this.cantZonasX <= 0) || (this.cantZonasY <= 0)) {
+		final ArrayList<ZoneBox> lista = new ArrayList<ZoneBox>(4);
+		if ((s == null) || (this.cantZonasX <= 0) || (this.cantZonasY <= 0)) {
 			return lista;
 		}
 
+		final Rectangle r = s.getBounds();
 		final int minGX = Math.max(0, Math.floorDiv(r.x, this.LADO_ZONEBOX));
-		final int maxGX = Math.min(this.cantZonasX - 1, Math.floorDiv(r.x + r.width, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1,
+				Math.floorDiv((r.x + Math.max(1, r.width)) - 1, this.LADO_ZONEBOX));
 		final int minGY = Math.max(0, Math.floorDiv(r.y, this.LADO_ZONEBOX));
-		final int maxGY = Math.min(this.cantZonasY - 1, Math.floorDiv(r.y + r.height, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1,
+				Math.floorDiv((r.y + Math.max(1, r.height)) - 1, this.LADO_ZONEBOX));
 
 		for (int gy = minGY; gy <= maxGY; gy++) {
 			final int offsetFila = gy * this.cantZonasX;
@@ -488,49 +619,53 @@ public class Mundo {
 	}
 
 	public HashSet<Item> getItemsIntersectados(final Shape area) {
-		final Rectangle rArea = area.getBounds();
 		final HashSet<Item> lista = new HashSet<Item>();
-		if (!this.getTerreno().AreaDentroDelTerreno(rArea)) {
+		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
 			return lista;
 		}
-		for (final ZoneBox zb : this.getZonasIntersectadas(area)) {
-			lista.addAll(zb.getItemsIntersectados(area));
+		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
+		final int totalZonas = zonas.size();
+		for (int i = 0; i < totalZonas; i++) {
+			lista.addAll(zonas.get(i).getItemsIntersectados(area));
 		}
 		return lista;
 	}
 
 	public ArrayList<Criatura> getCriaturasIntersectadas(final Shape area, final boolean tenerEnCuentaJugador) {
-		final Rectangle rArea = area.getBounds();
 		final ArrayList<Criatura> lista = new ArrayList<Criatura>();
-		if (!this.getTerreno().AreaDentroDelTerreno(rArea)) {
+		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
 			return lista;
 		}
 		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
 			lista.add(Globales.JUGADOR);
 		}
 
-		for (final ZoneBox zb : this.getZonasIntersectadas(area)) {
-			lista.addAll(zb.getCriaturasIntersectadas(area));
+		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
+		final int totalZonas = zonas.size();
+		for (int i = 0; i < totalZonas; i++) {
+			lista.addAll(zonas.get(i).getCriaturasIntersectadas(area));
 		}
 
 		return lista;
 	}
 
 	public ArrayList<Ente> getEnteIntersectados(final Shape area, final boolean tenerEnCuentaJugador) {
-		final Rectangle rArea = area.getBounds();
 		final ArrayList<Ente> lista = new ArrayList<Ente>();
-		if (!this.getTerreno().AreaDentroDelTerreno(rArea)) {
+		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
 			return lista;
 		}
 		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
 			lista.add(Globales.JUGADOR);
 		}
 
-		for (final ZoneBox zb : this.getZonasIntersectadas(area)) {
-			lista.addAll(zb.getEntesIntersectados(area));
+		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
+		final int totalZonas = zonas.size();
+		for (int i = 0; i < totalZonas; i++) {
+			lista.addAll(zonas.get(i).getEntesIntersectados(area));
 		}
 
-		for (int i = 0; i < this.PROYECTILES.size(); i++) {
+		final int totalProyectiles = this.PROYECTILES.size();
+		for (int i = 0; i < totalProyectiles; i++) {
 			final Proyectil p = this.PROYECTILES.get(i);
 			if (area.intersects(p.getArea())) {
 				lista.add(p);
@@ -542,9 +677,16 @@ public class Mundo {
 
 	public ArrayList<Criatura> getCriaturasIntersectadasConEnte(final Ente e) {
 		final ArrayList<Criatura> criaturas = new ArrayList<Criatura>();
-		for (final ZoneBox zb : this.getZonasIntersectadas(e)) {
-			final ArrayList<Criatura> criatZona = zb.getCriaturas();
-			for (int i = 0; i < criatZona.size(); i++) {
+		if (e == null) {
+			return criaturas;
+		}
+		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(e);
+		final int totalZonas = zonas.size();
+
+		for (int z = 0; z < totalZonas; z++) {
+			final ArrayList<Criatura> criatZona = zonas.get(z).getCriaturas();
+			final int totalCriat = criatZona.size();
+			for (int i = 0; i < totalCriat; i++) {
 				final Criatura c = criatZona.get(i);
 				if (!criaturas.contains(c)) {
 					criaturas.add(c);
@@ -555,16 +697,17 @@ public class Mundo {
 	}
 
 	public boolean intersectaAlgunaCriatura(final Shape area, final boolean tenerEnCuentaJugador) {
-		final Rectangle rArea = area.getBounds();
-		if (!this.getTerreno().AreaDentroDelTerreno(rArea)) {
+		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
 			return false;
 		}
 		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
 			return true;
 		}
 
-		for (final ZoneBox zb : this.getZonasIntersectadas(area)) {
-			if (zb.intersectaAlgunaCriatura(area)) {
+		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
+		final int totalZonas = zonas.size();
+		for (int i = 0; i < totalZonas; i++) {
+			if (zonas.get(i).intersectaAlgunaCriatura(area)) {
 				return true;
 			}
 		}
@@ -577,13 +720,14 @@ public class Mundo {
 	}
 
 	public boolean colisionaConObjetoSolido(final Shape area) {
-		final Rectangle rArea = area.getBounds();
-		if (!this.getTerreno().AreaDentroDelTerreno(rArea)) {
+		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
 			return false;
 		}
 
-		for (final ZoneBox zb : this.getZonasIntersectadas(area)) {
-			if (zb.intersectaObjetoSolido(area)) {
+		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
+		final int totalZonas = zonas.size();
+		for (int i = 0; i < totalZonas; i++) {
+			if (zonas.get(i).intersectaObjetoSolido(area)) {
 				return true;
 			}
 		}
@@ -592,12 +736,17 @@ public class Mundo {
 	}
 
 	public boolean colisionaConAlgoSolidoPermanente(final Shape area) {
+		if (area == null) {
+			return false;
+		}
 		if (this.getTerreno().intersectaSolidoDijkstra(area.getBounds())) {
 			return true;
 		}
 
-		for (final ZoneBox zb : this.getZonasIntersectadas(area)) {
-			if (zb.intersectaObjetoSolidoPermanente(area)) {
+		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
+		final int totalZonas = zonas.size();
+		for (int i = 0; i < totalZonas; i++) {
+			if (zonas.get(i).intersectaObjetoSolidoPermanente(area)) {
 				return true;
 			}
 		}
@@ -605,13 +754,14 @@ public class Mundo {
 	}
 
 	public boolean colisionaConObjetoSolidoPeroEnZonaNoSolida(final Shape area) {
-		final Rectangle rArea = area.getBounds();
-		if (!this.getTerreno().AreaDentroDelTerreno(rArea)) {
+		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
 			return false;
 		}
 
-		for (final ZoneBox zb : this.getZonasIntersectadas(area)) {
-			if (zb.intersectaAreaNoSolidaDeAlgunComplemento(area)) {
+		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
+		final int totalZonas = zonas.size();
+		for (int i = 0; i < totalZonas; i++) {
+			if (zonas.get(i).intersectaAreaNoSolidaDeAlgunComplemento(area)) {
 				return true;
 			}
 		}
@@ -619,6 +769,9 @@ public class Mundo {
 	}
 
 	public boolean agregarItemEnPosicionJugador(final Item item, final boolean copiar) {
+		if (item == null) {
+			return false;
+		}
 		final int x = Globales.JUGADOR.getPosicionXParado();
 		final int y = Globales.JUGADOR.getPosicionYParado();
 		item.setPosicion(x, y);
@@ -630,9 +783,19 @@ public class Mundo {
 	}
 
 	// =========================================================================
-	// === GESTIÓN DE PARTÍCULAS Y PROYECTILES (CORREGIDO CON BUCLES INVERTIDOS)
+	// === GESTIÓN DE PARTÍCULAS Y PROYECTILES (BUCLES INVERTIDOS SEGUROS)
 	// =========================================================================
 
+	/**
+	 * Actualiza las partículas recorriendo de atrás hacia adelante.
+	 * <p>
+	 * <b>POR QUÉ UN BUCLE INVERTIDO:</b> Al eliminar un elemento de un
+	 * {@link ArrayList} en un bucle tradicional (de 0 a N), todos los elementos
+	 * subsiguientes se desplazan a la izquierda, provocando que el siguiente
+	 * elemento se salte sin actualizar. Recorrer de {@code size - 1} a {@code 0}
+	 * evita ese problema sin generar objetos {@link Iterator}.
+	 * </p>
+	 */
 	private void actualizarParticulas() {
 		for (int i = this.PARTICULAS.size() - 1; i >= 0; i--) {
 			final Particula p = this.PARTICULAS.get(i);
@@ -643,6 +806,9 @@ public class Mundo {
 		}
 	}
 
+	/**
+	 * Actualiza los proyectiles activos con bucle invertido seguro.
+	 */
 	private void actualizarProyectiles() {
 		for (int i = this.PROYECTILES.size() - 1; i >= 0; i--) {
 			final Proyectil p = this.PROYECTILES.get(i);
@@ -654,19 +820,23 @@ public class Mundo {
 	}
 
 	private void pintarParticulas(final Graphics2D g) {
-		for (int i = 0; i < this.PARTICULAS.size(); i++) {
+		final int total = this.PARTICULAS.size();
+		for (int i = 0; i < total; i++) {
 			this.PARTICULAS.get(i).pintar(g);
 		}
 	}
 
 	private void pintarProyectiles(final Graphics2D g) {
-		for (int i = 0; i < this.PROYECTILES.size(); i++) {
+		final int total = this.PROYECTILES.size();
+		for (int i = 0; i < total; i++) {
 			this.PROYECTILES.get(i).pintar(g);
 		}
 	}
 
 	public void agregarParticula(final Particula p) {
-		this.PARTICULAS.add(p);
+		if (p != null) {
+			this.PARTICULAS.add(p);
+		}
 	}
 
 	public void crearProyectil(final int damage, final double velocidad, final boolean penetrante, final int alcance,
@@ -677,7 +847,9 @@ public class Mundo {
 	}
 
 	public void crearProyectil(final Proyectil proyectil) {
-		this.PROYECTILES.add(proyectil);
+		if (proyectil != null) {
+			this.PROYECTILES.add(proyectil);
+		}
 	}
 
 	// =========================================================================
@@ -686,6 +858,10 @@ public class Mundo {
 
 	private static final Font FUENTE_DEBUG_NODOS = new Font(Font.SANS_SERIF, Font.PLAIN, 6);
 
+	/**
+	 * Dibuja los valores numéricos de distancia del mapa de calor de Dijkstra para
+	 * depuración visual.
+	 */
 	private void pintarNodosOptimizado(final Graphics2D g) {
 		final Font fontOriginal = g.getFont();
 		g.setFont(FUENTE_DEBUG_NODOS);
@@ -736,6 +912,10 @@ public class Mundo {
 		g.setFont(fontOriginal);
 	}
 
+	/**
+	 * Actualiza el grafo Dijkstra hacia la posición del jugador si hay criaturas
+	 * activas requiriendo ruta.
+	 */
 	private void actualizarDijkstra() {
 		if (Globales.TECLADO.TECLA_DIJKSTRA.presionado() && this.dijkstra.hayEntidadesAlPendiente()) {
 			this.dijkstra.actualizar(Globales.JUGADOR.getPosicionParado());
@@ -761,13 +941,20 @@ public class Mundo {
 	}
 
 	// =========================================================================
-	// === ACCESORES, SPAWN Y SERIALIZACIÓN JSON
+	// === ACCESORES, CICLOS DE VIDA Y SERIALIZACIÓN JSON
 	// =========================================================================
 
+	/**
+	 * Incrementa el token de ciclo lógico. Si alcanza {@link Integer#MAX_VALUE},
+	 * reinicia a {@link Integer#MIN_VALUE} sin desbordamiento destructivo.
+	 */
 	public void updateNextCodAct() {
 		this.codAct = (this.codAct < Integer.MAX_VALUE) ? this.codAct + 1 : Integer.MIN_VALUE;
 	}
 
+	/**
+	 * Incrementa el token de ciclo de renderizado.
+	 */
 	public void updateNextCodPintado() {
 		this.codPintado = (this.codPintado < Integer.MAX_VALUE) ? this.codPintado + 1 : Integer.MIN_VALUE;
 	}
@@ -804,13 +991,17 @@ public class Mundo {
 		return this.ENTES_REGISTRADOS;
 	}
 
+	/**
+	 * Elimina todas las criaturas vivas del mundo de forma segura y desvincula sus
+	 * recursos.
+	 */
 	public void eliminarCriaturas() {
 		final Iterator<Ente> it = this.ENTES_REGISTRADOS.iterator();
 		while (it.hasNext()) {
 			final Ente e = it.next();
 			if (e instanceof Criatura) {
-				e.eliminar(); // Apaga su luz y se desvincula de sus ZoneBox automáticamente
-				it.remove(); // Se remueve del set de forma segura
+				e.eliminar(); // Apaga luces y desvincula de las ZoneBox
+				it.remove(); // Remueve del set de forma segura
 			}
 		}
 	}
@@ -821,19 +1012,22 @@ public class Mundo {
 
 	private int generarCriaturas(final ArrayList<Criatura> criaturas) {
 		int cant = 0;
-		for (final Criatura c : criaturas) {
-			this.meterEntidad(c);
+		final int total = criaturas.size();
+		for (int i = 0; i < total; i++) {
+			this.meterEntidad(criaturas.get(i));
 			cant++;
 		}
 		return cant;
 	}
 
 	/**
-	 * Remueve y desvincula una entidad individual del mundo.
+	 * Remueve y desvincula una entidad individual del mundo y de sus zonas.
+	 *
+	 * @param e Entidad a remover.
 	 */
 	public void eliminarEntidad(final Ente e) {
 		if ((e != null) && this.ENTES_REGISTRADOS.remove(e)) {
-			e.eliminar(); // Apaga luz y limpia sus ZoneBox
+			e.eliminar(); // Apaga luces y limpia referencias en ZoneBox
 		}
 	}
 
@@ -846,12 +1040,17 @@ public class Mundo {
 	}
 
 	public void moverJugadorPuntoComienzo() {
-		this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).moverJugadorCentrado();
+		final Spawn spawn = this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO);
+		if (spawn != null) {
+			spawn.moverJugadorCentrado();
+		}
 	}
 
 	public void llenarSpawn(final ArrayList<Spawn> lista) {
-		for (final Spawn spawn : lista) {
-			this.PUNTOS_SPAWN_JUGADOR.put(spawn.getNombre(), spawn);
+		if (lista != null) {
+			for (final Spawn spawn : lista) {
+				this.PUNTOS_SPAWN_JUGADOR.put(spawn.getNombre(), spawn);
+			}
 		}
 	}
 
@@ -866,26 +1065,19 @@ public class Mundo {
 		final JSONArray listaCriaturas = new JSONArray();
 		final JSONArray listaItems = new JSONArray();
 		final JSONArray listaObjetos = new JSONArray();
-		Complemento complemento = null;
-		Item item = null;
-		Cofre cofre = null;
 
 		for (final Ente e : this.getEntes()) {
 			if (e instanceof Criatura) {
-				// Serialización de criaturas según se requiera
+				// Serialización opcional de criaturas
 			} else if (e instanceof Complemento) {
-				complemento = (Complemento) e;
-				listaComplementos.add(complemento.exportarParaJSON());
-			} else if (e instanceof Objeto) {
-				if (e instanceof Item) {
-					item = (Item) e;
-					listaItems.add(item.getJsonItem());
-				} else if (e instanceof Cofre) {
-					cofre = (Cofre) e;
-					listaObjetos.add(cofre.exportarParaJson());
-				}
+				listaComplementos.add(((Complemento) e).exportarParaJSON());
+			} else if (e instanceof Item) {
+				listaItems.add(((Item) e).getJsonItem());
+			} else if (e instanceof Cofre) {
+				listaObjetos.add(((Cofre) e).exportarParaJson());
 			}
 		}
+
 		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class), listaComplementos);
 		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class), listaCriaturas);
 		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class), listaItems);
@@ -898,15 +1090,16 @@ public class Mundo {
 		final JSONObject jsonMundo = this.getEntesInJson();
 		jsonMundo.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class),
 				this.ESCENARIO.getTerreno().getTilesJson());
+
 		final JSONArray listaPuntosSpawn = new JSONArray();
-		JSONObject jsonSpawn = null;
 		for (final Spawn s : this.PUNTOS_SPAWN_JUGADOR.values()) {
-			jsonSpawn = new JSONObject();
-			jsonSpawn.put("x", s.getX());
-			jsonSpawn.put("y", s.getY());
+			final JSONObject jsonSpawn = new JSONObject();
+			jsonSpawn.put("x", Integer.valueOf(s.getX()));
+			jsonSpawn.put("y", Integer.valueOf(s.getY()));
 			jsonSpawn.put("nombre", s.getNombre());
 			listaPuntosSpawn.add(jsonSpawn);
 		}
+
 		jsonMundo.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class), listaPuntosSpawn);
 		return jsonMundo;
 	}

@@ -7,7 +7,7 @@ import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.io.Serializable;
-import java.util.HashMap;
+import java.util.ArrayList;
 
 import org.json.simple.JSONObject;
 
@@ -22,82 +22,81 @@ import principal.utilidades.Globales;
 import principal.utilidades.Textura;
 
 /**
- * Representa la unidad celda individual (Tile) dentro de la grilla del mapa.
+ * Representa una celda individual (Tile) dentro de la grilla espacial del mapa.
  * <p>
- * <b>Arquitectura y Patrones de Diseño:</b>
- * <ul>
- * <li><b>Patrón Flyweight:</b> Cada instancia de {@code Tile} solo almacena su
- * posición, su geometría básica y referencias numéricas. Toda la información
- * pesada (texturas, animaciones, alteración de velocidad y estados de
- * obstáculo) reside de forma compartida en {@link ModeloTile} dentro de
- * {@link ListaModeloTile}.</li>
- * <li><b>Subgrilla de Sólidos Locales:</b> Mantiene una colección de
- * referencias directas a los objetos físicos que solapan esta celda espacial
- * ({@code OBJETOS_SOLIDADOS}), permitiendo que las físicas y la navegación por
- * Pathfinding (Dijkstra / A*) evalúen transitabilidad en tiempo constante
- * $O(1)$.</li>
- * <li><b>Renderizado Multicapa Inteligente:</b> Soporta una capa de fondo
- * opcional ({@code codigoModeloFondo}) y una capa principal autotileada y
- * animada con cero asignación en memoria en el bucle principal.</li>
- * </ul>
+ * <b>Patrón de Diseño Flyweight (Peso Ligero):</b> En un mapa con miles de
+ * tiles, guardar la imagen, propiedades de colisión completas y animaciones en
+ * cada celda consumiría gigabytes de RAM. Por ello, la clase {@code Tile} solo
+ * guarda sus coordenadas espaciales y un identificador
+ * {@code CODIGO_MODELO_TILE}. La información pesada se consulta en tiempo real
+ * a {@link ModeloTile}.
  * </p>
  * 
- * @author Copiloto Técnico
- * @version 2.0
+ * @version 2.0 (Java 8 Compatible - Zero-GC Friendly)
  */
 public class Tile implements Serializable {
+
 	private static final long serialVersionUID = -445324235886L;
 
-	/** Dimensión en píxeles del lado del tile (ej: 16 px). */
+	/** Dimensión del lado del tile en píxeles (ancho y alto). */
 	protected final int LADO;
 
-	/** Coordenada X absoluta en el mundo (píxeles). */
+	/** Posición espacial X absoluta en píxeles dentro del Mundo. */
 	protected final int X;
 
-	/** Coordenada Y absoluta en el mundo (píxeles). */
+	/** Posición espacial Y absoluta en píxeles dentro del Mundo. */
 	protected final int Y;
 
-	/** Área rectangular que delimita los límites físicos del tile en el mundo. */
+	/**
+	 * Rectángulo inmutable que define los límites espaciales del tile. Se crea una
+	 * única vez en el constructor para evitar instanciar 'new Rectangle()' durante
+	 * las comprobaciones continuas de colisión en el Game Loop.
+	 */
 	protected final Rectangle AREA;
 
-	/** Identificador del modelo lógico base asignado a este tile. */
+	/** Identificador del tipo de tile (ej: Pasto, Agua, Roca, Muro). */
 	protected final int CODIGO_MODELO_TILE;
 
 	/**
-	 * Contenedor de entidades y complementos sólidos que intersectan el área de
-	 * este tile. Utilizado para acelerar la detección de colisiones y la matriz de
-	 * transitabilidad de Dijkstra.
+	 * Lista de objetos o complementos sólidos presentes sobre este tile.
+	 * <p>
+	 * <b>OPTIMIZACIÓN DE MEMORIA (Lazy Initialization):</b> Más del 80% de los
+	 * tiles del mapa suelen ser transitables y estar vacíos. Mantener la lista como
+	 * {@code null} en lugar de instanciar {@code new ArrayList<>()} ahorra cientos
+	 * de megabytes de RAM en mapas extensos. Solo se crea memoria si un objeto
+	 * sólido realmente entra al tile.
+	 * </p>
 	 */
-	protected final HashMap<Objeto, Objeto> OBJETOS_SOLIDADOS = new HashMap<Objeto, Objeto>();
+	protected ArrayList<Objeto> objetosSolidos = null;
 
 	/**
-	 * Identificador del modelo que se dibujará como capa inferior (fondo). Valor
-	 * {@code 0} indica ausencia de fondo extra.
+	 * Código del modelo del fondo si el tile utiliza una capa inferior (ej: arena
+	 * debajo de pasto).
 	 */
 	protected int codigoModeloFondo = 0;
 
 	/**
-	 * Máscara calculada de 4-bits (0 a 15) que determina los bordes del autotile.
+	 * Máscara de bits (Autotiling / Bitmasking). Permite determinar de forma
+	 * matemática qué bordes o esquinas deben conectarse con tiles vecinos del mismo
+	 * tipo (valores del 0 al 255 codificados en 8 bits).
 	 */
 	protected byte mascaraBit = 0;
 
 	/**
-	 * Índice determinista de variación decorativa (0 a 3: base limpia, flores,
-	 * piedras, etc.).
+	 * Índice de variación cosmética aleatoria (ej: flor en el pasto, grieta en la
+	 * piedra). Usar un 'byte' en vez de 'int' ahorra 3 bytes por cada tile del
+	 * mapa.
 	 */
 	protected byte variacionPropia = 0;
 
-	// =========================================================================
-	// === CONSTRUCTORES
-	// =========================================================================
-
 	/**
-	 * Construye una celda individual de terreno con su delimitador espacial.
+	 * Constructor principal para un Tile de la grilla.
 	 *
-	 * @param x                Coordenada X en píxeles.
-	 * @param y                Coordenada Y en píxeles.
-	 * @param lado             Dimensión del lado del tile en píxeles.
-	 * @param codigoModeloTile Identificador del modelo de tile asignado.
+	 * @param x                Posición X en píxeles.
+	 * @param y                Posición Y en píxeles.
+	 * @param lado             Tamaño del lado en píxeles (generalmente 32 o 64 px).
+	 * @param codigoModeloTile ID del modelo base que define la apariencia y
+	 *                         comportamiento.
 	 */
 	public Tile(final int x, final int y, final int lado, final int codigoModeloTile) {
 		this.X = x;
@@ -108,32 +107,19 @@ public class Tile implements Serializable {
 	}
 
 	// =========================================================================
-	// === RENDERIZADO (GAME LOOP Y EDITOR)
+	// === MÉTODOS DE RENDERIZADO (DIBUJADO)
 	// =========================================================================
 
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN TÉCNICA: RENDERIZADO POR CAPAS EN O(1)
-	 * ------------------------------------------------------------------------- 1.
-	 * Capa Inferior (Fondo): Si 'codigoModeloFondo != 0', dibuja primero la textura
-	 * del terreno base (ej. Tierra o Agua) para que los bordes transparentes del
-	 * pasto superior no muestren el fondo negro de la ventana. 2. Capa Superior
-	 * (Principal): Consulta a 'ModeloTile.getCodTextura()' pasándole la máscara de
-	 * 4-bits y la variación. Si el tile tiene animación global (como el agua), se
-	 * le suma el offset del frame activo (+0, +20, +40). 3. Cero Asignaciones: No
-	 * se instancian objetos 'new' durante el renderizado.
-	 * =========================================================================
-	 */
-
 	/**
-	 * Dibuja las capas gráfica del tile (fondo y textura principal calculada).
-	 * Método de rendimiento crítico $O(1)$, seguro para el recolector de basura (GC
-	 * Friendly).
+	 * Dibuja las capas que componen el aspecto visual del Tile: 1. Capa de Fondo
+	 * (si existe una transición o capa base). 2. Capa Principal (la textura
+	 * calculada con su máscara de autotiling y variación).
 	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
+	 * @param g Contexto gráfico de Java AWT/Graphics2D.
 	 */
 	private void pintarCapas(final Graphics2D g) {
-		// 1. CAPA INFERIOR: Pintar el fondo si existe
+		// 1. Capa Fondo (ejemplo: fondo de tierra debajo de una capa de pasto
+		// transparente)
 		if (this.codigoModeloFondo != 0) {
 			final ModeloTile modeloFondo = ListaModeloTile.getModelo(this.codigoModeloFondo);
 			if (modeloFondo != null) {
@@ -142,7 +128,7 @@ public class Tile implements Serializable {
 			}
 		}
 
-		// 2. CAPA SUPERIOR: Pintar el tile principal (Autotile estático o animado)
+		// 2. Capa Principal
 		final ModeloTile modelo = ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE);
 		if (modelo != null) {
 			final int texturaFinal = modelo.getCodTextura(this.mascaraBit, this.variacionPropia);
@@ -151,39 +137,40 @@ public class Tile implements Serializable {
 	}
 
 	/**
-	 * Renderiza el tile en pantalla durante la ejecución normal del juego.
+	 * Dibuja el tile durante el ciclo de juego normal aplicando coordenadas de
+	 * cámara.
 	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
+	 * @param g Contexto gráfico.
 	 */
 	public void pintar(final Graphics2D g) {
+		// Verificamos si el usuario desactivó visualmente el terreno para depuración
 		if (!Globales.TECLADO.TECLA_OCULTAR_TERRENO.presionado()) {
 			this.pintarCapas(g);
 		}
 
+		// Dibuja la cuadrícula de depuración si la tecla de debug está activa
 		if (Globales.TECLADO.TECLA_DEBUG_TILE.presionado() && Globales.estadoJuego) {
 			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
 		}
 	}
 
 	/**
-	 * Renderiza el tile en el editor de mapas con soporte de contornos de
-	 * depuración.
+	 * Dibuja el tile dentro del entorno del Editor de Mapas.
 	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
+	 * @param g Contexto gráfico.
 	 */
 	public void pintarEditor(final Graphics2D g) {
 		this.pintarCapas(g);
-
-		if (!Globales.editorSelectGroupTile && Globales.TECLADO.TECLA_DEBUG_TILE.presionado()) {
+		if (Globales.TECLADO.TECLA_DEBUG_TILE.presionado()) {
 			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
 		}
 	}
 
 	/**
-	 * Renderiza el tile dentro de la interfaz gráfica de paletas del editor (sin
-	 * compensación de cámara).
+	 * Dibuja el tile en la paleta de herramientas de selección del Editor (sin
+	 * referencia a cámara).
 	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
+	 * @param g Contexto gráfico.
 	 */
 	public void pintarPaleta(final Graphics2D g) {
 		DibujoDebug.dibujarImagen(g, this.getTexturaImagen(), this.X, this.Y);
@@ -191,9 +178,10 @@ public class Tile implements Serializable {
 	}
 
 	/**
-	 * Dibuja un rectángulo de contorno para resaltar visualmente el tile.
+	 * Dibuja un rectángulo coloreado en el perímetro del tile para depuración
+	 * visual de áreas.
 	 *
-	 * @param g     Contexto gráfico {@link Graphics2D}.
+	 * @param g     Contexto gráfico.
 	 * @param color Color del contorno.
 	 */
 	public void pintarContorno(final Graphics2D g, final Color color) {
@@ -204,74 +192,82 @@ public class Tile implements Serializable {
 	// === GESTIÓN DE OBJETOS SÓLIDOS Y COLISIONES
 	// =========================================================================
 
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN TÉCNICA: REGISTRO DE SÓLIDOS ESPACIALES
-	 * -------------------------------------------------------------------------
-	 * Cuando un 'Objeto' o 'Complemento' sólido se coloca en el mapa, se registra
-	 * en las celdas 'Tile' que su caja de colisión solapa.
-	 * 
-	 * De esta forma, cuando el algoritmo de Dijkstra o el Jugador comprueban
-	 * colisión: 1. Primero evalúan 'this.esSolido()' (Tile base). 2. Si es falso,
-	 * evalúan si 'this.contieneObjetosSolidos()' es verdadero. 3. Solo iteran los
-	 * objetos específicos de esta celda con retorno temprano.
-	 * =========================================================================
-	 */
-
 	/**
-	 * Asocia un objeto sólido a esta celda si existe intersección espacial con su
-	 * área.
+	 * Registra un objeto sólido dentro de este tile si sus límites espaciales se
+	 * intersectan.
 	 *
-	 * @param obj Objeto o complemento a registrar.
+	 * @param obj Objeto u obstáculo a registrar.
 	 */
 	public void meterObjetoSolido(final Objeto obj) {
-		if (obj == null) {
+		if ((obj == null) || (obj.getArea() == null)) {
 			return;
 		}
 
+		// Comprobación preliminar de colisión por caja delimitadora (AABB)
 		if (obj.getArea().intersects(this.AREA)) {
+			// Si es un complemento con colisión precisa, validamos su forma exacta
 			if (obj instanceof Complemento) {
 				final Complemento c = (Complemento) obj;
-				if (c.intersecta(this.AREA)) {
-					this.OBJETOS_SOLIDADOS.put(c, obj);
+				if (!c.intersecta(this.AREA)) {
+					return;
 				}
-				return;
 			}
-			if (this.AREA.intersects(obj.getArea())) {
-				this.OBJETOS_SOLIDADOS.put(obj, obj);
+
+			// Inicialización perezosa: reservamos memoria solo cuando se necesita
+			if (this.objetosSolidos == null) {
+				this.objetosSolidos = new ArrayList<>(2);
+			}
+
+			if (!this.objetosSolidos.contains(obj)) {
+				this.objetosSolidos.add(obj);
 			}
 		}
 	}
 
 	/**
-	 * Desregistra un objeto sólido de esta celda.
+	 * Remueve un objeto sólido del tile. Si la lista queda vacía, se libera de la
+	 * memoria regresándola a {@code null}.
 	 *
 	 * @param obj Objeto a remover.
 	 */
 	public void sacarObjetoSolido(final Objeto obj) {
-		if (obj != null) {
-			this.OBJETOS_SOLIDADOS.remove(obj);
+		if ((this.objetosSolidos != null) && (obj != null)) {
+			this.objetosSolidos.remove(obj);
+			if (this.objetosSolidos.isEmpty()) {
+				this.objetosSolidos = null; // Liberamos la referencia para ahorro de RAM
+			}
 		}
 	}
 
+	/**
+	 * @return Cantidad de objetos sólidos registrados en esta celda.
+	 */
 	public int getCantObjetosSolidos() {
-		return this.OBJETOS_SOLIDADOS.size();
-	}
-
-	public void limpiarObjetosSolidos() {
-		this.OBJETOS_SOLIDADOS.clear();
-	}
-
-	public boolean contieneObjetosSolidos() {
-		return !this.OBJETOS_SOLIDADOS.isEmpty();
+		return (this.objetosSolidos != null) ? this.objetosSolidos.size() : 0;
 	}
 
 	/**
-	 * Evalúa si este tile es intransitable para el algoritmo de Pathfinding /
-	 * Dijkstra.
+	 * Elimina todos los objetos sólidos registrados y libera la lista interna.
+	 */
+	public void limpiarObjetosSolidos() {
+		this.objetosSolidos = null;
+	}
+
+	/**
+	 * @return {@code true} si el tile contiene al menos un objeto sólido
+	 *         registrado.
+	 */
+	public boolean contieneObjetosSolidos() {
+		return (this.objetosSolidos != null) && !this.objetosSolidos.isEmpty();
+	}
+
+	/**
+	 * Determina si el tile es intransitable para los algoritmos de Pathfinding
+	 * (Dijkstra y A*). Una celda es intransitable si su modelo base es un obstáculo
+	 * (ej: Agua profunda, Pared) o si tiene objetos/estructuras encima que impidan
+	 * el paso.
 	 *
-	 * @return {@code true} si el tile base es obstáculo o si contiene objetos
-	 *         sólidos.
+	 * @return {@code true} si no se puede caminar a través de este tile.
 	 */
 	public boolean esSolidoDijkstra() {
 		if (this.getEstado() == ModeloTile.ESTADO_OBSTACULO) {
@@ -281,68 +277,69 @@ public class Tile implements Serializable {
 	}
 
 	/**
-	 * Evalúa si el modelo base del tile está configurado como obstáculo
-	 * impenetrable.
+	 * Determina si la naturaleza intrínseca del tile es sólida (sin contar objetos
+	 * externos).
 	 *
-	 * @return {@code true} si el estado del modelo es
-	 *         {@link ModeloTile#ESTADO_OBSTACULO}.
+	 * @return {@code true} si el modelo base del tile está marcado como obstáculo.
 	 */
 	public boolean esSolido() {
 		return this.getEstado() == ModeloTile.ESTADO_OBSTACULO;
 	}
 
 	/**
-	 * Comprueba colisión física precisa entre una forma geométrica arbitraria y
-	 * este tile (incluyendo los objetos sólidos que residen en él).
+	 * Comprueba si una forma geométrica (hitbox de criatura, ataque o proyectil)
+	 * colisiona con el tile o con alguno de los objetos sólidos presentes en él.
+	 * <p>
+	 * <b>OPTIMIZACIÓN ZERO-GC:</b> Se utiliza un bucle {@code for} indexado
+	 * estándar con {@code get(i)} en lugar de un {@code for-each}. El
+	 * {@code for-each} crearía un objeto {@link java.util.Iterator} en memoria en
+	 * cada llamada, saturando el Garbage Collector a 60 FPS.
+	 * </p>
 	 *
-	 * @param s Forma geométrica {@link Shape} a verificar.
-	 * @return {@code true} al encontrar la primera colisión sólida.
+	 * @param s Forma geométrica a evaluar (Rectangle, Polygon, Area, etc.).
+	 * @return {@code true} si existe colisión física.
 	 */
 	public boolean hayColisionConAlgoSolido(final Shape s) {
 		if (s == null) {
 			return false;
 		}
 
+		// Si el tile mismo es sólido, colisiona inmediatamente
 		if (this.esSolido()) {
 			return true;
 		}
 
-		if (this.contieneObjetosSolidos()) {
-			for (final Objeto obj : this.OBJETOS_SOLIDADOS.values()) {
+		// Si hay objetos registrados, recorremos uno a uno sin generar iteradores
+		if (this.objetosSolidos != null) {
+			final int total = this.objetosSolidos.size();
+			for (int i = 0; i < total; i++) {
+				final Objeto obj = this.objetosSolidos.get(i);
 				if ((obj != null) && obj.intersecta(s)) {
-					return true; // Retorno temprano al primer objeto colisionado
+					return true;
 				}
 			}
 		}
+
 		return false;
 	}
 
 	/**
-	 * Evalúa si un rectángulo intersecta con el área física delimitadora de este
-	 * tile.
+	 * Comprueba si un rectángulo colisiona con el área rectangular de este tile.
 	 *
 	 * @param area Rectángulo a comprobar.
-	 * @return {@code true} si existe solapamiento espacial.
+	 * @return {@code true} si hay intersección.
 	 */
 	public boolean intersecta(final Rectangle area) {
-		if (area == null) {
-			return false;
-		}
-		return area.intersects(this.AREA);
+		return (area != null) && area.intersects(this.AREA);
 	}
 
 	/**
-	 * Calcula la posición de colocación de un objeto según el modo de alineación
-	 * del editor.
-	 * <p>
-	 * <i>Nota de rendimiento:</i> Instancia un nuevo {@link Point}. Usar únicamente
-	 * en rutinas de edición o inicialización fuera del bucle de juego continuo.
-	 * </p>
+	 * Calcula la posición donde debe encajar un objeto dentro del tile según una
+	 * regla de alineación.
 	 *
-	 * @param codigoZonaPosicion Código de posicionamiento (ej.
-	 *                           {@link PaletaComplento#POSICIONAMIENTO_CENTRO}).
+	 * @param codigoZonaPosicion Constante de alineación (ej: CENTRO).
 	 * @param obj                Objeto a posicionar.
-	 * @return Coordenadas de inserción calculadas.
+	 * @return Un nuevo {@link Point} con la posición absoluta calculada.
 	 */
 	public Point getPosicionSegunZonaYArea(final int codigoZonaPosicion, final Objeto obj) {
 		final Point punto = new Point();
@@ -359,6 +356,7 @@ public class Tile implements Serializable {
 				punto.x = this.X;
 				punto.y = this.Y;
 			} else {
+				// Centrado matemático estándar: (Posicion + MitadContenedor) - MitadElemento
 				punto.x = (this.X + (this.LADO / 2)) - (ancho / 2);
 				punto.y = (this.Y + (this.LADO / 2)) - (alto / 2);
 			}
@@ -366,54 +364,72 @@ public class Tile implements Serializable {
 		default:
 			punto.x = this.X;
 			punto.y = this.Y;
+			break;
 		}
 		return punto;
 	}
 
 	// =========================================================================
-	// === AUTOTILING Y CONFIGURACIÓN DINÁMICA
+	// === GETTERS Y SETTERS
 	// =========================================================================
 
 	public void setMascaraBit(final byte mascara) {
 		this.mascaraBit = mascara;
 	}
 
+	public byte getMascaraBit() {
+		return this.mascaraBit;
+	}
+
 	public void setVariacionPropia(final byte variacion) {
 		this.variacionPropia = variacion;
+	}
+
+	public byte getVariacionPropia() {
+		return this.variacionPropia;
 	}
 
 	public void setCodigoModeloFondo(final int codigoFondo) {
 		this.codigoModeloFondo = codigoFondo;
 	}
 
-	// =========================================================================
-	// === ACCESORES Y GETTERS FLYWEIGHT
-	// =========================================================================
+	public int getCodigoModeloFondo() {
+		return this.codigoModeloFondo;
+	}
 
 	/**
-	 * Obtiene la imagen de textura calculada en tiempo real para este tile.
+	 * Obtiene la imagen de textura actual asignada a este tile según su modelo y
+	 * máscara.
 	 *
-	 * @return {@link BufferedImage} correspondiente a la máscara y variación
-	 *         actual.
+	 * @return {@link BufferedImage} con los píxeles de la textura, o {@code null}
+	 *         si el modelo no existe.
 	 */
 	public BufferedImage getTexturaImagen() {
 		final ModeloTile m = ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE);
-		if (m != null) {
-			return Textura.getTextura(m.getCodTextura(this.mascaraBit, this.variacionPropia));
-		}
-		return null;
+		return (m != null) ? Textura.getTextura(m.getCodTextura(this.mascaraBit, this.variacionPropia)) : null;
 	}
 
+	/**
+	 * Retorna el estado base del tile (ej: SÓLIDO, TRANSITABLE, ETC.).
+	 *
+	 * @return Código de estado entero definido en {@link ModeloTile}.
+	 */
 	public int getEstado() {
 		final ModeloTile m = ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE);
 		return (m != null) ? m.getEstado() : 0;
 	}
 
+	/**
+	 * @return ID de textura base del modelo de tile.
+	 */
 	public int getCodigoTextura() {
 		final ModeloTile m = ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE);
 		return (m != null) ? m.getCodTextura() : 0;
 	}
 
+	/**
+	 * @return El rectángulo inmutable que delimita al Tile.
+	 */
 	public Rectangle getArea() {
 		return this.AREA;
 	}
@@ -435,25 +451,30 @@ public class Tile implements Serializable {
 	}
 
 	/**
-	 * Retorna la posición en píxeles del tile.
-	 * <p>
-	 * <i>Nota:</i> Genera una nueva instancia de {@link Point}. Para lecturas de
-	 * rendimiento en el Game Loop, preferir {@link #getPosicionX()} y
-	 * {@link #getPosicionY()}.
-	 * </p>
+	 * @return La posición absoluta en píxeles del tile como un {@link Point}.
 	 */
 	public Point getPosicion() {
 		return new Point(this.X, this.Y);
 	}
 
 	/**
-	 * Retorna la coordenada discreta en la grilla de tiles.
+	 * Obtiene las coordenadas discretas de este tile en la matriz del mapa
+	 * (columna, fila).
 	 * <p>
-	 * <i>Nota:</i> Genera una nueva instancia de {@link Point}.
+	 * <b>EXPLICACIÓN MATEMÁTICA (Math.floorDiv vs División Común):</b> Si la
+	 * coordenada X es -5 y el LADO es 32:
+	 * <ul>
+	 * <li>División común (-5 / 32) = 0 (trunca hacia cero, mezclando el cuadrante
+	 * negativo con el positivo).</li>
+	 * <li>Math.floorDiv(-5, 32) = -1 (redondea hacia abajo, asignando la celda
+	 * correcta en mapas con coordenadas negativas).</li>
+	 * </ul>
 	 * </p>
+	 *
+	 * @return Coordenadas de grilla (X/LADO, Y/LADO).
 	 */
 	public Point getPosicionTile() {
-		return new Point(this.X / this.LADO, this.Y / this.LADO);
+		return new Point(Math.floorDiv(this.X, this.LADO), Math.floorDiv(this.Y, this.LADO));
 	}
 
 	// =========================================================================
@@ -461,23 +482,23 @@ public class Tile implements Serializable {
 	// =========================================================================
 
 	/**
-	 * Exporta los datos lógicos esenciales del tile para su persistencia en JSON.
+	 * Serializa las propiedades esenciales del tile a un objeto {@link JSONObject}.
 	 *
-	 * @return Objeto {@link JSONObject} serializado.
+	 * @return Objeto JSON listo para persistir en disco.
 	 */
 	@SuppressWarnings("unchecked")
 	public JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", this.getPosicionX());
-		json.put("y", this.getPosicionY());
-		json.put("codModelo", this.getCodModelo());
+		json.put("x", Integer.valueOf(this.X));
+		json.put("y", Integer.valueOf(this.Y));
+		json.put("codModelo", Integer.valueOf(this.CODIGO_MODELO_TILE));
 		return json;
 	}
 
 	/**
-	 * Reconstruye una instancia de {@link Tile} desde su representación en JSON.
+	 * Deserializa un tile a partir de su representación JSON.
 	 *
-	 * @param json Objeto JSON con los datos deserializados.
+	 * @param json Objeto JSON con los datos del tile.
 	 * @return Nueva instancia de {@link Tile}.
 	 */
 	public static Tile crearDesdeJson(final JSONObject json) {
@@ -489,7 +510,6 @@ public class Tile implements Serializable {
 
 	@Override
 	public String toString() {
-		return "Tile [AREA= x: " + this.AREA.x + " ,y: " + this.AREA.y + " , W: " + this.AREA.width + " ,H: "
-				+ this.AREA.height + ", MODELO_TILE=" + ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE) + "]";
+		return "Tile [AREA= x: " + this.AREA.x + ", y: " + this.AREA.y + ", COD=" + this.CODIGO_MODELO_TILE + "]";
 	}
 }

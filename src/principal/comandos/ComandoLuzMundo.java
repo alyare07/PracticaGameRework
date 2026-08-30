@@ -4,22 +4,35 @@ import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.TipoLuz;
 import principal.utilidades.Globales;
 
+/**
+ * Comando para generar fuentes de luz estáticas en el mapa en tiempo de
+ * ejecución.
+ * <p>
+ * Compatible con la consola de Eclipse y la terminal remota de Termux
+ * (Android).
+ * </p>
+ */
 public class ComandoLuzMundo extends Comando {
 
 	public ComandoLuzMundo() {
-		super("spawnluz", "spawnluz <tipo> [x y] [radio]", 
+		super("spawnluz", "spawnluz <tipo> [x y] [radio]",
 				"Planta una fuente de luz estatica en el suelo (en la posicion del jugador o en X,Y).");
 	}
 
 	@Override
 	public void ejecutar(final String[] args) {
-		if (Globales.GESTOR_LUZ == null || Globales.JUGADOR == null) {
-			System.err.println("[Consola] Gestores no disponibles.");
+		this.ejecutar(args, null);
+	}
+
+	@Override
+	public void ejecutar(final String[] args, final EmisorRespuesta emisor) {
+		if ((Globales.GESTOR_LUZ == null) || (Globales.JUGADOR == null)) {
+			this.enviarError(emisor, "El subsistema de iluminacion o el jugador no estan inicializados.");
 			return;
 		}
 
 		if (args.length == 0) {
-			System.err.println("[Consola] Uso: spawnluz <tipo> (en posicion actual) o spawnluz <tipo> <x> <y> [radio]");
+			this.enviarError(emisor, "Sintaxis requerida: spawnluz <tipo> [radio] o spawnluz <tipo> <x> <y> [radio]");
 			return;
 		}
 
@@ -28,7 +41,12 @@ public class ComandoLuzMundo extends Comando {
 		try {
 			tipo = TipoLuz.valueOf(tipoStr);
 		} catch (final IllegalArgumentException e) {
-			System.err.println("[Consola] Tipo de luz no valido: " + tipoStr);
+			final StringBuilder sb = new StringBuilder("Tipo de luz no valido: '").append(tipoStr)
+					.append("'. Disponibles: ");
+			for (final TipoLuz t : TipoLuz.values()) {
+				sb.append(t.name().toLowerCase()).append(" ");
+			}
+			this.enviarError(emisor, sb.toString());
 			return;
 		}
 
@@ -37,7 +55,7 @@ public class ComandoLuzMundo extends Comando {
 		double radio = tipo.getRadioBase();
 
 		if (args.length == 2) {
-			// spawnluz <tipo> <radio> (en los pies del jugador)
+			// spawnluz <tipo> <radio> (en los pies del jugador con radio personalizado)
 			radio = this.parsearDouble(args[1], radio);
 		} else if (args.length >= 3) {
 			// spawnluz <tipo> <x> <y> [radio]
@@ -50,10 +68,10 @@ public class ComandoLuzMundo extends Comando {
 
 		final FuenteLuz luz = Globales.GESTOR_LUZ.agregarLuzEstatica(x, y, tipo, radio);
 		if (luz != null) {
-			System.out.println("[Consola] Luz estatica '" + tipo.name() + "' creada en (" 
-					+ (int) x + ", " + (int) y + ") con radio " + (int) radio + "px.");
+			this.enviarInfo(emisor, "Luz estatica '" + tipo.name() + "' creada en (" + (int) x + ", " + (int) y
+					+ ") con radio " + (int) radio + "px.");
 		} else {
-			System.err.println("[Consola] No hay ranuras disponibles en el pool de luces (Capacidad: 256).");
+			this.enviarError(emisor, "No hay ranuras disponibles en el pool de luces (Capacidad maxima alcanzada).");
 		}
 	}
 }

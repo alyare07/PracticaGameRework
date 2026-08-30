@@ -17,7 +17,6 @@ import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
 import principal.graficos.SuperficieDibujo;
-import principal.mapa.GroupTile;
 import principal.mapa.Terreno;
 import principal.mapa.Tile;
 import principal.mapa.escenario.Escenario;
@@ -74,7 +73,7 @@ public class EditorMapa implements EstadoJuego {
 	private final int ALTO;
 
 	/** Instancia del terreno que se está editando en tiempo real. */
-	private final Terreno MAPA;
+	private final Terreno TERRENO;
 
 	/** Posición X de la cámara libre del editor en el mundo. */
 	private int x;
@@ -160,13 +159,13 @@ public class EditorMapa implements EstadoJuego {
 		this.LADO_GRUPO_TILE = ladoTile * 2;
 		this.ANCHO = anchoTiles * ladoTile;
 		this.ALTO = altoTiles * ladoTile;
-		this.MAPA = new Terreno(anchoTiles, altoTiles, this.LADO_TILE, idModeloTile);
+		this.TERRENO = new Terreno(anchoTiles, altoTiles, this.LADO_TILE, idModeloTile);
 
 		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
 				Constantes.ALTO_JUEGO);
 		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
 				this.PALETA_MAPA.height);
-		this.MUNDO_EDITOR = new MundoEditor(this.MAPA);
+		this.MUNDO_EDITOR = new MundoEditor(this.TERRENO);
 
 		this.inicializarCamara();
 	}
@@ -180,17 +179,17 @@ public class EditorMapa implements EstadoJuego {
 	 */
 	public EditorMapa(final Terreno terreno, final GestorEstados ge) {
 		this.GE = ge;
-		this.MAPA = terreno;
-		this.ANCHO = this.MAPA.getAncho();
-		this.ALTO = this.MAPA.getAlto();
-		this.LADO_TILE = this.MAPA.ladoTile();
+		this.TERRENO = terreno;
+		this.ANCHO = this.TERRENO.getAncho();
+		this.ALTO = this.TERRENO.getAlto();
+		this.LADO_TILE = this.TERRENO.ladoTile();
 		this.LADO_GRUPO_TILE = this.LADO_TILE * 2;
 
 		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
 				Constantes.ALTO_JUEGO);
 		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
 				this.PALETA_MAPA.height);
-		this.MUNDO_EDITOR = new MundoEditor(this.MAPA);
+		this.MUNDO_EDITOR = new MundoEditor(this.TERRENO);
 
 		this.inicializarCamara();
 	}
@@ -204,17 +203,17 @@ public class EditorMapa implements EstadoJuego {
 	 */
 	public EditorMapa(final String rutaMapa, final GestorEstados ge) {
 		this.GE = ge;
-		this.MAPA = EscenarioLoader.importarEscenario(new File(rutaMapa)).getTerreno();
-		this.ANCHO = this.MAPA.getAncho();
-		this.ALTO = this.MAPA.getAlto();
-		this.LADO_TILE = this.MAPA.ladoTile();
+		this.TERRENO = EscenarioLoader.importarEscenario(new File(rutaMapa)).getTerreno();
+		this.ANCHO = this.TERRENO.getAncho();
+		this.ALTO = this.TERRENO.getAlto();
+		this.LADO_TILE = this.TERRENO.ladoTile();
 		this.LADO_GRUPO_TILE = this.LADO_TILE * 2;
 
 		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
 				Constantes.ALTO_JUEGO);
 		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
 				this.PALETA_MAPA.height);
-		this.MUNDO_EDITOR = new MundoEditor(this.MAPA);
+		this.MUNDO_EDITOR = new MundoEditor(this.TERRENO);
 
 		this.inicializarCamara();
 	}
@@ -288,22 +287,26 @@ public class EditorMapa implements EstadoJuego {
 	 * reutilización de {@link #areaTileSelected}.
 	 */
 	private void actualizarTileApuntado() {
-		// Validar que el cursor no esté sobre la interfaz lateral de paletas
 		if (this.AREA_MOUSE_APUNTADO.x > (this.x + this.PALETA_MAPA.width)) {
 			this.tileApuntadoValido = false;
 			return;
 		}
 
-		final Tile t = Globales.editorSelectGroupTile
-				? this.MAPA.getGrupoTileReferenciado(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y)
-				: this.MAPA.getTileReferenciado(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y);
-
+		final Tile t = this.TERRENO.getTileReferenciado(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y);
 		if (t == null) {
 			this.tileApuntadoValido = false;
 			return;
 		}
 
-		this.areaTileSelected.setBounds(t.getPosicionX(), t.getPosicionY(), t.getLado(), t.getLado());
+		// Si está activo el modo 2x2, el recuadro es de 32x32 px alineado a la grilla
+		// de 32
+		if (Globales.editorSelectGroupTile) {
+			final int x32 = (t.getPosicionX() >> 5) << 5; // floor a múltiplo de 32
+			final int y32 = (t.getPosicionY() >> 5) << 5;
+			this.areaTileSelected.setBounds(x32, y32, this.LADO_TILE * 2, this.LADO_TILE * 2);
+		} else {
+			this.areaTileSelected.setBounds(t.getPosicionX(), t.getPosicionY(), this.LADO_TILE, this.LADO_TILE);
+		}
 		this.tileApuntadoValido = true;
 	}
 
@@ -322,15 +325,15 @@ public class EditorMapa implements EstadoJuego {
 	 * =========================================================================
 	 */
 	private void alterarTileSeleccionado() {
+
 		if (this.RATON.presionadoClickIzq() && this.PALETA_MAPA.intersects(this.RATON.getPuntoPresionado())) {
 			final Paleta paleta = this.PALETAS.getPaletaActual();
 			if (!this.tileApuntadoValido) {
 				return;
 			}
 
-			final Tile tileTerrenoSeleccionado = Globales.editorSelectGroupTile
-					? this.MAPA.getGrupoTileReferenciado(this.areaTileSelected.x, this.areaTileSelected.y)
-					: this.MAPA.getTileReferenciado(this.areaTileSelected.x, this.areaTileSelected.y);
+			final Tile tileTerrenoSeleccionado = this.TERRENO.getTileReferenciado(this.areaTileSelected.x,
+					this.areaTileSelected.y);
 
 			if (paleta instanceof PaletaTile) {
 				final PaletaTile paletaTile = ((PaletaTile) paleta);
@@ -338,8 +341,8 @@ public class EditorMapa implements EstadoJuego {
 				if (tilePaletaSeleccionado == null) {
 					return;
 				}
-
-				if (paletaTile.valoresYaEstalecidosPreviamente(tileTerrenoSeleccionado)) {
+				if ((tileTerrenoSeleccionado != null)
+						&& paletaTile.valoresYaEstalecidosPreviamente(tileTerrenoSeleccionado)) {
 					return;
 				}
 				if (this.areaTileSelected.equals(this.ultimaAreaTileAlterado)) {
@@ -347,23 +350,19 @@ public class EditorMapa implements EstadoJuego {
 				}
 				this.ultimaAreaTileAlterado.setBounds(this.areaTileSelected);
 
-				if (tileTerrenoSeleccionado instanceof GroupTile) {
-					final GroupTile gt = (GroupTile) tileTerrenoSeleccionado;
-
-					// Actualización en bloque 2x2 sin instanciar objetos
-					this.MAPA.establecerTileReferenciado(gt.getTile1().getPosicionX(), gt.getTile1().getPosicionY(),
-							tilePaletaSeleccionado);
-					this.MAPA.establecerTileReferenciado(gt.getTile2().getPosicionX(), gt.getTile2().getPosicionY(),
-							tilePaletaSeleccionado);
-					this.MAPA.establecerTileReferenciado(gt.getTile3().getPosicionX(), gt.getTile3().getPosicionY(),
-							tilePaletaSeleccionado);
-					this.MAPA.establecerTileReferenciado(gt.getTile4().getPosicionX(), gt.getTile4().getPosicionY(),
+				// Si el modo pincel 2x2 está activo, pinta las 4 celdas
+				if (Globales.editorSelectGroupTile) {
+					final int x = this.areaTileSelected.x;
+					final int y = this.areaTileSelected.y;
+					this.TERRENO.establecerTileReferenciado(x, y, tilePaletaSeleccionado);
+					this.TERRENO.establecerTileReferenciado(x + this.LADO_TILE, y, tilePaletaSeleccionado);
+					this.TERRENO.establecerTileReferenciado(x, y + this.LADO_TILE, tilePaletaSeleccionado);
+					this.TERRENO.establecerTileReferenciado(x + this.LADO_TILE, y + this.LADO_TILE,
 							tilePaletaSeleccionado);
 				} else {
-					this.MAPA.establecerTileReferenciado(this.areaTileSelected.x, this.areaTileSelected.y,
+					this.TERRENO.establecerTileReferenciado(this.areaTileSelected.x, this.areaTileSelected.y,
 							tilePaletaSeleccionado);
 				}
-
 			} else if (paleta instanceof PaletaComplento) {
 				final PaletaComplento paletaComplemento = ((PaletaComplento) paleta);
 				if (paletaComplemento.getComplementoSeleccionado() != null) {
@@ -452,29 +451,7 @@ public class EditorMapa implements EstadoJuego {
 	 * @param g Contexto gráfico {@link Graphics2D}.
 	 */
 	private void pintarTerreno(final Graphics2D g) {
-		final int minX = Globales.CAMARA.getPosicionXInt() - Constantes.CENTROX - this.LADO_GRUPO_TILE;
-		final int maxX = (Globales.CAMARA.getPosicionXInt() + Constantes.CENTROX + this.LADO_GRUPO_TILE)
-				- this.PALETAS.AREA.width;
-
-		final int minY = Globales.CAMARA.getPosicionYInt() - Constantes.CENTROY - this.LADO_GRUPO_TILE;
-		final int maxY = Globales.CAMARA.getPosicionYInt() + Constantes.CENTROY + this.LADO_GRUPO_TILE;
-
-		final int inicioX = Math.floorDiv(minX, this.LADO_GRUPO_TILE) * this.LADO_GRUPO_TILE;
-		final int finX = Math.floorDiv(maxX, this.LADO_GRUPO_TILE) * this.LADO_GRUPO_TILE;
-
-		final int inicioY = Math.floorDiv(minY, this.LADO_GRUPO_TILE) * this.LADO_GRUPO_TILE;
-		final int finY = Math.floorDiv(maxY, this.LADO_GRUPO_TILE) * this.LADO_GRUPO_TILE;
-
-		GroupTile gt = null;
-
-		for (int yActual = inicioY; yActual <= finY; yActual += this.LADO_GRUPO_TILE) {
-			for (int xActual = inicioX; xActual <= finX; xActual += this.LADO_GRUPO_TILE) {
-				gt = this.MAPA.getGrupoTileReferenciado(xActual, yActual);
-				if (gt != null) {
-					gt.pintarEditor(g);
-				}
-			}
-		}
+		this.TERRENO.pintar(g); // Delega directamente al render optimizado de Terreno
 	}
 
 	/**
@@ -562,7 +539,7 @@ public class EditorMapa implements EstadoJuego {
 		final String complementos = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class);
 		final String objetos = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class);
 
-		final Escenario esc = new Escenario(this.MAPA, jsonEntes.get(criaturas).toString(),
+		final Escenario esc = new Escenario(this.TERRENO, jsonEntes.get(criaturas).toString(),
 				jsonEntes.get(items).toString(), jsonEntes.get(complementos).toString(),
 				jsonEntes.get(objetos).toString());
 

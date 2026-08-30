@@ -32,6 +32,7 @@ import principal.mapa.escenario.tps.PuertaMapa;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.mapa.mapas.Mapa;
 import principal.mapa.mapas.MapaManager;
+import principal.mapa.renderEntidades.camara.efectos.TipoEfectoCamara;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.maquinaestado.estados.pantallaCarga.cargaMapa;
@@ -159,7 +160,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			Globales.GESTOR_CLIMA.activarModoPruebaRapida(10, 5);
 		}
 		if (Globales.TECLADO.TECLA_NUM_4.presionadoUnicaActualizacion()) {
-			Globales.GESTOR_LUZ.getCiclo().pausarTiempo();
+			Globales.CAMARA.getGestorEfectos().reproducirEfectoTemporal(TipoEfectoCamara.BARCO_NAVEGACION, 10000, 1);
 		}
 
 		// Actualización de jugador
@@ -546,9 +547,9 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		// 2. Vincular la linterna del jugador y luces iniciales del mapa
-		this.auxFuenteLuzTempoPrueba = Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.LINTERNA_CONICA,
+		this.auxFuenteLuzTempoPrueba = Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.AURA_JUGADOR,
 				100);
-		this.auxFuenteLuzTempoPrueba.setOffset(-5, -6);
+		this.auxFuenteLuzTempoPrueba.setOffset(4, 3);
 ////		Globales.GESTOR_LUZ.agregarLuzEstatica(Globales.JUGADOR.getPosicionX(), Globales.JUGADOR.getPosicionY(),
 ////				TipoLuz.ANTORCHA);
 //2

@@ -2,6 +2,10 @@ package principal.comandos;
 
 import principal.utilidades.Globales;
 
+/**
+ * Comando para modificar en tiempo real la velocidad de desplazamiento del
+ * jugador. Compatible con la consola de Eclipse y la terminal remota de Termux.
+ */
 public class ComandoVelocidad extends Comando {
 
 	public ComandoVelocidad() {
@@ -10,32 +14,38 @@ public class ComandoVelocidad extends Comando {
 
 	@Override
 	public void ejecutar(final String[] args) {
+		this.ejecutar(args, null);
+	}
+
+	@Override
+	public void ejecutar(final String[] args, final EmisorRespuesta emisor) {
 		if (Globales.JUGADOR == null) {
-			System.err.println("[Consola] El jugador no esta disponible.");
+			this.enviarError(emisor, "El jugador no esta disponible o no ha sido inicializado en el mundo.");
 			return;
 		}
 
 		if (args.length == 0) {
-			System.err.println("[Consola] Debes especificar un valor. Uso: velocidad <valor> (ej: velocidad 2.5) o velocidad reset");
+			this.enviarError(emisor,
+					"Debes especificar un valor. Uso: velocidad <valor> (ej: velocidad 2.5) o velocidad reset");
 			return;
 		}
 
 		final String param = args[0].toLowerCase();
 
-		// Restablece la velocidad estándar
+		// Restablece la velocidad estándar (1.0)
 		if (param.equals("reset") || param.equals("normal") || param.equals("default")) {
 			Globales.JUGADOR.setVelocidadBase(1.0);
-			System.out.println("[Consola] Velocidad base del jugador restablecida a 1.0.");
+			this.enviarInfo(emisor, "Velocidad base del jugador restablecida a 1.0.");
 			return;
 		}
 
-		// Parseo de valor numérico
+		// Parseo del valor numérico
 		final double nuevaVelocidad = this.parsearDouble(args[0], -1.0);
 		if (nuevaVelocidad > 0.0) {
 			Globales.JUGADOR.setVelocidadBase(nuevaVelocidad);
-			System.out.println("[Consola] Velocidad base del jugador ajustada a: " + nuevaVelocidad);
+			this.enviarInfo(emisor, "Velocidad base del jugador ajustada a: " + nuevaVelocidad);
 		} else {
-			System.err.println("[Consola] La velocidad debe ser un numero decimal positivo (ej: 0.8, 1.5, 3.0).");
+			this.enviarError(emisor, "La velocidad debe ser un numero decimal positivo (ej: 0.8, 1.5, 3.0).");
 		}
 	}
 }

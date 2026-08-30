@@ -1,5 +1,5 @@
 ====================================================================================================
-🗺️ 1. MAPA ESTRUCTURAL DE RELACIONES Y ARQUITECTURA ESPACIAL
+🗺️ 1. MAPA ESTRUCTURAL DE RELACIONES Y ARQUITECTURA ESPACIAL (NUEVO)
 ====================================================================================================
 
                                     +-----------------------+
@@ -8,32 +8,40 @@
                                     +-----------+-----------+
                                                 |
                +--------------------------------+--------------------------------+
-               | (1) Posee Grilla Espacial                                       | (2) Posee Registro Central
+               | (1) Posee Grilla Plana 1D                                       | (2) Registro Central O(1)
                v                                                                 v
 +-----------------------------+                                    +---------------------------+
-|   HashMap<Point, ZoneBox>   |                                    |         MapRender         |
-|  (Celdas Espaciales 64x64)  |                                    | (Control Maestro Renders) |
-+--------------+--------------+                                    +-------------+-------------+
+|      ZoneBox[] ZONAS        |                                    |   Set<Ente> REGISTRADOS   |
+| (Indexación O(1) Contigua)  |                                    | (IdentityHashMap Directo) |
+| [gy * cantZonasX + gx]      |                                    +-------------+-------------+
++--------------+--------------+                                                  |
                |                                                                 |
-               | Contiene N                                                      | Posee (IdentityHashMap)
+               | Contiene N                                                      | Contiene N
                v                                                                 v
-+-----------------------------+                                    +---------------------------+
-|           ZoneBox           |<=========(N a M: Referencia)======>|       RenderEntidad       |
-|    (Partición Espacial)     |  [lista: LinkedHashSet<ZoneBox>]   |    (Proxy / Deduplicador) |
-+--------------+--------------+                                    +-------------+-------------+
-               |                                                                 |
-               |-- AREA: Rectangle (64x64 px)                                    |-- codAct: int
-               |-- tempCriaturas, tempItems... (Listas GC)                       |-- codPaint: int
-               |                                                                 |
-               | Clasifica y Contiene                                            | Envolve / Administra (1 a 1)
-               v                                                                 v
++-----------------------------+ <=============(Vínculo Bidireccional)============+
+|           ZoneBox           |  [zonasOcupadas: ArrayList<ZoneBox>]
+|    (Partición Espacial)     |  [CRIATURAS, ITEMS, OBJETOS, COMPLEMENTOS, TPS]
++--------------+--------------+
+               |
+               |-- AREA: Rectangle (64x64 px)
+               |-- Recolección Directa O(1)
+               |
+               v
 +-----------------------------------------------------------------------------------------------+
-|                                       Ente (Jerarquía)                                        |
-|   ├─ Criatura (Enemigos, NPCs, Jugador)                                                       |
-|   ├─ Item (Objetos tirados en el suelo)                                                       |
-|   ├─ Cofre / Contenedor (Almacenamiento)                                                      |
-|   ├─ Complemento (Árboles, Rocas, Decorados)                                                  |
-|   └─ ZonaTP (Puntos de Transición / Teletransporte)                                           |
+|                                       Ente (Clase Base)                                       |
+|   ├─ private double x, y (Encapsulamiento estricto)                                           |
+|   ├─ codUltimaActualizacion: int  (Deduplicación Lógica sin Mapas)                            |
+|   ├─ codUltimoPintado: int        (Deduplicación Visual sin Mapas)                            |
+|   ├─ posicionModificada: boolean  (Dirty Flag de Movimiento)                                  |
+|   ├─ zonasOcupadas: ArrayList<ZoneBox> (Celdas activas)                                       |
+|   └─ AREA_ENTE_RETORNO: Rectangle (Zero-GC Bounds)                                            |
+|                                                                                               |
+|   [ Jerarquía de Especialización ]                                                            |
+|   ├─ Criatura (Jugador, Enemigos, NPCs - Dinámicos con Pathfinding A*)                        |
+|   ├─ Item (Objetos apoyados en el suelo)                                                      |
+|   ├─ Objeto / Cofre (Contenedores Interactivos)                                               |
+|   ├─ Complemento (Árboles, Casas, Muros - Estáticos con Y-Base Sorting)                       |
+|   └─ ZonaTP (Transiciones de Escenario)                                                       |
 +-----------------------------------------------------------------------------------------------+
 
 
@@ -46,171 +54,187 @@
                     ▼
        [ Mundo.actualizarZonas() ]
                     │
-                    ├─► 1. CULLING DE CÁMARA (Frustum Espacial con Margen)
-                    │      minX = Camara.X - CENTROX - (3 * LADO_TILE)
-                    │      maxX = Camara.X + CENTROX + (3 * LADO_TILE)
-                    │      minY = Camara.Y - CENTROY - (3 * LADO_TILE)
-                    │      maxY = Camara.Y + CENTROY + (3 * LADO_TILE)
+                    ├─► 1. CULLING DINÁMICO DE CÁMARA (AABB Rotado + Zoom + Shake + Margen)
+                    │      radioSimulacionX = ceil((CENTROX*cos + CENTROY*sin) / zoom) + shakeX + 2*LADO
+                    │      radioSimulacionY = ceil((CENTROX*sin + CENTROY*cos) / zoom) + shakeY + 2*LADO
                     │
-                    ├─► 2. CONVERSIÓN A COORDENADAS DE GRILLA DISCRETA
-                    │      inicioGridX = Math.floorDiv(minX, ladoZona)
-                    │      finGridX    = Math.floorDiv(maxX, ladoZona)
-                    │      (Soporta indexación negativa sin desfasaje)
+                    ├─► 2. CONVERSIÓN A GRILLA DISCRETA AABB
+                    │      inicioGridX = Math.max(0, Math.floorDiv(minX, LADO_ZONEBOX))
+                    │      finGridX    = Math.min(cantZonasX - 1, Math.floorDiv(maxX, LADO_ZONEBOX))
                     │
-                    ├─► 3. ITERACIÓN OPTIMIZADA (Zero Heap Allocation)
-                    │      Reutiliza la instancia 'Point claveBusqueda'
-                    │      Recorre celdas visibles: zonas.get(claveBusqueda)
+                    ├─► 3. ITERACIÓN EN ARREGLO CONTIGUO (Zero Hash Lookup / L1-Cache Friendly)
+                    │      ZoneBox zb = ZONAS_ARRAY[gridY * cantZonasX + gridX]
                     │
                     ▼
            [ ZoneBox.actualizar() ]
                     │
                     ├─► ¿Está activo el Editor de Mapas?
                     │    ├─ (SÍ) ──► [ Interrumpir Actualización ]
-                    │    └─ (NO) ──► [ Continuar con las Entidades ]
+                    │    └─ (NO) ──► [ Continuar con Entidades ]
                     │
                     ▼
-       [ Volcado a Listas Temporales ] ──► (Inmunidad a ConcurrentModificationException)
-       (tempCofres, tempCriaturas, tempItems, tempTPs)
+   [ Bucle Directo sobre Colecciones (OBJETOS, CRIATURAS, ITEMS, TPS) ]
                     │
                     ▼
-   [ Bucle por Entidad en Lista Temporal ]
-                    │
-                    ▼
-       ¿La entidad sigue existiendo en el Set de la ZoneBox?
+          ¿ente.estaActualizado(Mundo.codAct)?
                     │
              ┌──────┴──────┐
-            (NO)          (SÍ)
+            (SÍ)          (NO)
              │             │
-        [ Ignorar ]        ▼
-                 [ Obtener RenderEntidad desde MapRender ]
-                           │
-                           ▼
-                 ¿re.estaRenderizado()? (codAct == Mundo.codAct)
-                           │
-             ┌─────────────┴─────────────┐
-            (SÍ)                        (NO)
-             │                           │
-     [ DEDUPLICACIÓN: ]                  ├─► 1. Ente.actualizar() (Lógica / IA / Física)
-     [ Ya actualizada ]                  ├─► 2. RenderEntidad.update() (Migración espacial)
-     [ en este tick   ]                  └─► 3. RenderEntidad.renderizado() (codAct = Mundo.codAct)
+     [ DEDUPLICACIÓN ]     ├─► 1. ente.actualizar() (Lógica / Física / IA)
+     [ Ya actualizada]     │        └─ (Si se mueve: setters activan posicionModificada = true)
+     [ en este tick  ]     ├─► 2. ente.verificarZoneBox() (Actualización diferida si hubo movimiento)
+                           └─► 3. ente.marcarActualizado(Mundo.codAct)
 
 
 ====================================================================================================
-🎨 3. PIPELINE DE RENDERIZADO VISUAL (PAINT / FPS PIPELINE & Z-ORDER)
+🎨 3. PIPELINE DE RENDERIZADO VISUAL (PAINT / FPS PIPELINE & Y-SORTING)
 ====================================================================================================
 
-Para garantizar consistencia visual absoluta y cero parpadeos, el motor renderiza cada ZoneBox
-visible respetando el orden estricto de capas y deduplicando entidades multizona:
+El renderizado desacopla los elementos planos del suelo de los elementos con altura tridimensional,
+ordenando estos últimos en tiempo real por su base de apoyo (Pies / Raíces) mediante Insertion Sort:
 
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ CAPA 4: Zonas de Teletransporte (ZonaTP)                                                         │
-│  └─ if (!re.estaPintado()) { zonaTP.pintar(g); re.pintado(); }                                  │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ CAPA 3: Criaturas y Entidades Vivas (Jugador, Enemigos, NPCs)                                    │
-│  └─ if (!re.estaPintado()) { criatura.pintar(g); re.pintado(); }                                │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ CAPA 2: Ítems Arrojados en el Suelo                                                              │
-│  └─ if (!re.estaPintado()) { item.pintar(g); re.pintado(); }                                    │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ CAPA 1: Contenedores y Objetos Interactivos (Cofres / Vaults)                                    │
-│  └─ if (!re.estaPintado()) { cofre.pintar(g); re.pintado(); }                                   │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ CAPA 0: Entorno Estático y Complementos Sólidos (Árboles, Estructuras, Rocas)                    │
-│  └─ if (!re.estaPintado()) { complemento.pintar(g); re.pintado(); }                             │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
-
-* Regla de Pintado: Un Ente que abarque 2, 3 o 4 ZoneBox solo se dibujará en la PRIMERA ZoneBox
-  que lo procese en ese frame visual, ya que 're.pintado()' iguala 'codPaint = Mundo.codPintado'.
-
-
-====================================================================================================
-🔄 4. MIGRACIÓN ESPACIAL Y AUTOLIMPIEZA (RenderEntidad.verificarZoneBox)
-====================================================================================================
-
-Cuando una entidad se desplaza por el mundo, sus límites geométricos cambian. El método
-'verificarZoneBox()' sincroniza dinámicamente las celdas asociadas sin generar sobrecarga.
-
-                       [ RenderEntidad.update() ]
-                                   │
-                                   ▼
-                         ¿ENTIDAD.estaEliminado()?
-                                  /         \
-                                (SÍ)        (NO)
-                                /             \
-           [ RenderEntidad.eliminarEntidad() ]  ▼
-           ├─ Limpia todas sus ZoneBox        [ RenderEntidad.verificarZoneBox() ]
-           └─ MapRender.eliminarEntidad()      │
-                                               ├─────────────────────────────────────────┐
-                                               ▼                                         ▼
-                                   ┌─────────────────────────┐               ┌─────────────────────────┐
-                                   │ FASE 1: DESVINCULACIÓN  │               │  FASE 2: INCORPORACIÓN  │
-                                   │    (Zonas Obsoletas)    │               │      (Nuevas Zonas)     │
-                                   └───────────┬─────────────┘               └───────────┬─────────────┘
-                                               │                                         │
-                                               ▼                                         ▼
-                                     Itera sobre 'this.lista'                 Mundo.getZonasIntersectadas()
-                                     ¿Sigue intersectando el área?            ¿Ya estaba registrada en 'lista'?
-                                            /           \                                /          \
-                                          (SÍ)          (NO)                           (SÍ)         (NO)
-                                           │              │                             │            │
-                                       [ Mantener ]   [ zb.eliminarEntidad() ]     [ Ignorar ]   [ lista.add(zb) ]
-                                                      [ iter.remove()        ]                   [ zb.addEntidad() ]
-                                                              │                                      │
-                                               ┌──────────────┘                                      │
-                                               ▼                                                     │
-                                   ┌─────────────────────────┐                                       │
-                                   │   FASE 3: AUTOLIMPIEZA  │◄──────────────────────────────────────┘
-                                   │      (Fuera del Mapa)   │
-                                   └───────────┬─────────────┘
-                                               │
-                                               ▼
-                                      ¿'this.lista' quedó vacía?
-                                            /           \
-                                          (SÍ)          (NO)
-                                          /               \
-                                [ ENTIDAD.eliminar() ]  [ Entidad posicionada ]
-                                [ eliminarEntidad()  ]  [ y sincronizada OK   ]
+[ Mundo.pintarZonas(Graphics2D g) ]
+                    │
+                    ├─► 1. FRUSTUM CULLING VISUAL EXACTO (Compensación de Zoom y Rotación)
+                    │      Determina celdas visibles en ZONAS_ARRAY[gy * cantZonasX + gx]
+                    │
+                    ├─► 2. PASADA 1: ÍTEMS DE SUELO Y RECOLECCIÓN
+                    │      │
+                    │      ├─► zb.pintar(g) ──► Dibuja Ítems del suelo directamente en capa base
+                    │      │
+                    │      └─► zb.recolectarEntidadesParaRender(Mundo)
+                    │             Si (!ente.estaPintado(Mundo.codPintado))
+                    │                ├─► mundo.agregarAColaRender(ente)
+                    │                └─► ente.marcarPintado(Mundo.codPintado)
+                    │
+                    ├─► 3. INCLUSIÓN DEL JUGADOR
+                    │      mundo.agregarAColaRender(Globales.JUGADOR)
+                    │
+                    ├─► 4. ORDENAMIENTO DE PROFUNDIDAD IN-PLACE (Insertion Sort Zero-GC)
+                    │      Ordena 'colaRenderEntidades' de menor a mayor 'ente.getPosicionYBase()'
+                    │      (Complejidad O(N) lineal sobre lista casi ordenada en < 0.02 ms)
+                    │
+                    ▼
+   [ PASADA 2: DIBUJO SECUENCIAL EN ORDEN Z PERFECTO ]
+   for (int i = 0; i < cantEntidadesEnCola; i++) {
+       colaRenderEntidades[i].pintar(g);
+       colaRenderEntidades[i] = null; // Limpieza inmediata de punteros para el GC
+   }
 
 
 ====================================================================================================
-🧩 5. MECANISMO DE DEDUPLICACIÓN POR CÓDIGOS DE FRAME (FRAME CODES)
+🔄 4. MIGRACIÓN ESPACIAL POR DIRTY FLAG (Ente.verificarZoneBox)
 ====================================================================================================
 
-Escenario: Un Ogro (Criatura de 48x48 px) está parado exactamente sobre el límite de 4 celdas.
+La actualización espacial ocurre de forma diferida (Deferred Update) una única vez por frame,
+únicamente si la entidad ejecutó un cambio real en sus coordenadas.
 
-           Grilla Espacial                     Procesamiento Lógico en Tick #1040
+                          [ Modificadores de Posición ]
+                    (setX, setY, setPosicion, modificarPosicion)
+                                       │
+                                       ▼
+                     [ this.posicionModificada = true ]
+                                       │
+                                       ▼
+                       [ Ente.verificarZoneBox() ]
+                                       │
+                                       ▼
+                     ¿mundo == null || !posicionModificada?
+                                   /       \
+                                 (SÍ)      (NO)
+                                 /           \
+                           [ Retornar ]       ▼
+                          (0 ciclos CPU)  ¿estaEliminado()?
+                                          /          \
+                                        (SÍ)         (NO)
+                                        /              \
+                           [ desvincularDeZonas() ]     ▼
+                           [ Apagar FuenteLuz     ]   ┌─────────────────────────────────────────┐
+                                                      │ Sincronización AABB con ZONAS_ARRAY     │
+                                                      └───────────────────┬─────────────────────┘
+                                                                          │
+                                         ┌────────────────────────────────┴──────────────────────┐
+                                         ▼                                                       ▼
+                             ┌─────────────────────────┐                             ┌─────────────────────────┐
+                             │ FASE 1: DESVINCULACIÓN  │                             │  FASE 2: INCORPORACIÓN  │
+                             │    (Celdas Obsoletas)   │                             │      (Nuevas Celdas)    │
+                             └───────────┬─────────────┘                             └───────────┬─────────────┘
+                                         │                                                       │
+                                         ▼                                                       ▼
+                               Itera 'this.zonasOcupadas'                             Mundo.getZonasIntersectadas()
+                               ¿Sigue tocando el área?                                ¿Ya estaba en zonasOcupadas?
+                                      /        \                                              /        \
+                                    (SÍ)       (NO)                                         (SÍ)       (NO)
+                                     │           │                                           │           │
+                                 [Mantener] [zb.eliminarEntidad(this)]                   [Ignorar] [zonasOcupadas.add(zb)]
+                                            [zonasOcupadas.remove(i) ]                             [zb.addEntidad(this)  ]
+                                                         │                                               │
+                                         ┌───────────────┘                                               │
+                                         ▼                                                               │
+                             ┌─────────────────────────┐                                                 │
+                             │   FASE 3: AUTOLIMPIEZA  │◄────────────────────────────────────────────────┘
+                             │      (Fuera del Mapa)   │
+                             └───────────┬─────────────┘
+                                         │
+                                         ▼
+                                ¿zonasOcupadas.isEmpty()?
+                                      /        \
+                                    (SÍ)       (NO)
+                                    /            \
+                           [ this.eliminar() ]  [ this.posicionModificada = false ]
+                           (Purga completa)     (Sincronización completada OK)
+
+
+====================================================================================================
+🧩 5. MECANISMO DE DEDUPLICACIÓN DIRECTA POR FLAGS EN REGISTRO CPU
+====================================================================================================
+
+Escenario: Un Ogro (Criatura grande de 64x64 px) solapa simultáneamente 4 celdas espaciales.
+
+           Grilla Plana 1D                     Procesamiento Lógico en Tick #1040
      +--------------+--------------+
      |              |              |           Mundo.getCodAct() = 1040
-     |  ZoneBox A   |  ZoneBox B   |
-     |        ┌─────┼─────┐        |           1. Mundo itera ZoneBox A:
+     |   ZONAS[0]   |   ZONAS[1]   |
+     |        ┌─────┼─────┐        |           1. Mundo procesa ZONAS[0]:
      +--------│  O  G  R  │O-------+              - Encuentra al Ogro.
-     |        └─────┼─────┘        |              - Ogro.codAct (1039) != 1040 ──► SE ACTUALIZA.
-     |  ZoneBox C   |  ZoneBox D   |              - Ogro.codAct pasa a ser 1040.
-     |              |              |
-     +--------------+--------------+           2. Mundo itera ZoneBox B, C y D:
-                                                  - Encuentran al Ogro.
-                                                  - Ogro.codAct (1040) == 1040 ──► SE OMITE.
+     |        └─────┼─────┘        |              - Ogro.estaActualizado(1040) -> FALSE (valía 1039).
+     |   ZONAS[w]   |  ZONAS[w+1]  |              - Ejecuta Ogro.actualizar().
+     |              |              |              - Ogro.marcarActualizado(1040).
+     +--------------+--------------+
+                                               2. Mundo procesa ZONAS[1], ZONAS[w] y ZONAS[w+1]:
+                                                  - Encuentran al mismo Ogro.
+                                                  - Ogro.estaActualizado(1040) -> TRUE.
+                                                  - SE OMITE AL INSTANTE (1 ciclo de CPU, 0 Maps).
                                                   - Resultado: Lógica ejecutada exactamente 1 VEZ.
 
 
 ====================================================================================================
-⚡ 6. ESPECIFICACIONES DE RENDIMIENTO Y OPTIMIZACIONES GC
+⚡ 6. ESPECIFICACIONES DE RENDIMIENTO Y OPTIMIZACIONES ZERO-GC (ACTUALIZADO)
 ====================================================================================================
 
-1. MapRender con IdentityHashMap<Ente, RenderEntidad>:
-   - Comparación por referencia directa (k1 == k2) en vez de equals()/hashCode().
-   - Costo O(1) estricto. Cero autoboxing y sin colisiones por hash degradado.
+1. Grilla Plana Unidimensional (ZoneBox[] ZONAS_ARRAY):
+   - Mapeo aritmético directo en O(1): indice = (gridY * cantZonasX) + gridX.
+   - Elimina la sobrecarga de tablas Hash, cálculo de buckets y colisiones.
+   - Datos contiguos en memoria: maximiza el aprovechamiento de la memoria caché L1/L2 de la CPU.
 
-2. Reutilización de Memoria en ZoneBox (Scratchpad Pattern):
-   - 'tempCriaturas', 'tempItems', 'tempCofres' y 'tempTPs' se instancian UNA SOLA VEZ en el constructor.
-   - En cada tick se ejecutan .clear() y .addAll(), manteniendo las colecciones en memoria contigua
-     sin obligar al Garbage Collector a reclamar arreglos temporales ni objetos Iterator.
+2. Eliminación Total de Clases Envoltorio (RenderEntidad y MapRender purgados):
+   - 0 objetos intermediarios instanciados por cada entidad en el mapa.
+   - Al spawnear 10.000 entidades, se ahorran más de 30.000 objetos en el Heap (envoltorios, sets, entries).
 
-3. Clave de Búsqueda Mutante en Mundo.actualizarZonas():
-   - Una única instancia 'Point claveBusqueda = new Point()' reasignada con '.setLocation(gridX, gridY)'.
-   - 0 objetos 'Point' instanciados por frame, evitando miles de asignaciones por segundo en el Heap.
+3. Deduplicación O(1) Pura por Puntero Local en Ente:
+   - 'codUltimaActualizacion' y 'codUltimoPintado' residen dentro del propio objeto Ente.
+   - Elimina miles de consultas 'IdentityHashMap.get()' por frame en render y actualización.
 
-4. Indexación Matemática Robusta:
-   - 'Math.floorDiv(pos, ladoZona)' garantiza que las zonas con coordenadas negativas mantengan
-     una continuidad exacta en la matriz/hash sin generar desbordamientos ni solapamientos visuales.
+4. Patrón Dirty Flag Diferido (posicionModificada):
+   - Entidades estáticas (árboles, casas, rocas, cofres) ejecutan 0 verificaciones espaciales tras la carga.
+   - Movimientos diagonales o físicas multi-paso solo sincronizan la grilla 1 vez por tick.
+
+5. Corrección de Asignaciones Ocultas en Heap (Zero-GC):
+   - 'Objeto.getArea()' y 'Complemento.getArea()' reutilizan 'AREA_ENTE_RETORNO' sin crear 'new Rectangle()'.
+   - Remoción segura de proyectiles y partículas mediante iteración inversa (i--) eliminando saltos de frames.
+
+6. Renderizado con Y-Sorting In-Place:
+   - Reutilización continua del arreglo 'colaRenderEntidades' con auto-expansión dinámica.
+   - Ordenamiento por profundidad con Insertion Sort en tiempo lineal O(N) para listas casi ordenadas.
 ====================================================================================================

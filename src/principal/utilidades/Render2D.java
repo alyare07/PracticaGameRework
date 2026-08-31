@@ -8,92 +8,143 @@ import java.awt.Image;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 
 /**
- * Biblioteca centralizada de dibujo 2D, depuración gráfica y métricas de
- * renderizado.
- * <p>
- * <b>Arquitectura de Coordenadas y Rendimiento:</b>
- * <ul>
- * <li><b>Separación Estricta de Capas:</b>
- * <ul>
- * <li><i>Métodos Directos:</i> Dibujan en coordenadas absolutas de pantalla
- * (Espacio HUD 1:1).</li>
- * <li><i>Métodos RefCamara:</i> Convierten automáticamente coordenadas del
- * mundo al espacio visible restando la posición de la cámara mediante
- * {@link Globales#getXDesplazamientoCamara(int)}.</li>
- * </ul>
- * </li>
- * <li><b>Cero Asignaciones en el Heap (Zero-GC):</b> Reemplaza clases
- * geométricas pesadas (como {@link java.awt.geom.Ellipse2D}) por primitivas
- * nativas de {@link Graphics2D} ({@code drawOval}, {@code fillRect}).</li>
- * <li><b>Métricas de Rendimiento en Tiempo Real (OPF):</b> Monitorea la
- * cantidad exacta de objetos y primitivas dibujadas en cada fotograma mediante
- * {@link #objetosDibujados}.</li>
- * </ul>
- * </p>
+ * Biblioteca centralizada de renderizado 2D, proyección de cámara, deformación
+ * eólica de vegetación y telemetría gráfica de alto rendimiento (Zero-GC).
  * 
- * @author Copiloto Técnico
- * @version 2.5
+ * @version 4.0
  */
-public final class DibujoDebug {
+public final class Render2D {
 
-	/**
-	 * Contador acumulativo de objetos y primitivas dibujadas en el frame actual
-	 * (OPF).
-	 */
+	// =========================================================================
+	// === 1. TELEMETRÍA GRÁFICA (OBJETOS POR FRAME / OPF)
+	// =========================================================================
+
 	private static int objetosDibujados = 0;
 
-	private DibujoDebug() {
-		// Constructor privado para clase estática de utilidades
+	private static final AlphaComposite[] COMPOSITES_OPACIDAD = new AlphaComposite[101];
+	static {
+		for (int i = 0; i <= 100; i++) {
+			COMPOSITES_OPACIDAD[i] = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, i / 100.0f);
+		}
 	}
 
-	// =========================================================================
-	// === 1. CONTROL DE MÉTRICAS (OBJETOS POR FRAME / OPF)
-	// =========================================================================
+	private static AlphaComposite obtenerComposite(final float alpha) {
+		final int indice = Math.max(0, Math.min(100, Math.round(alpha * 100.0f)));
+		return COMPOSITES_OPACIDAD[indice];
+	}
 
-	/**
-	 * Retorna la cantidad total de llamadas de dibujo realizadas en el último
-	 * frame.
-	 *
-	 * @return Contador de objetos dibujados (OPF).
-	 */
+	private Render2D() {
+	}
+
 	public static int getContadorObjetos() {
 		return objetosDibujados;
 	}
 
-	/**
-	 * Restablece el contador de métricas a cero. Invocado al inicio de cada frame
-	 * en {@code SuperficieDibujo}.
-	 */
 	public static void reiniciarContadorObjetos() {
 		objetosDibujados = 0;
 	}
 
+	public static void registrarLlamadas(final int cantidad) {
+		objetosDibujados += cantidad;
+	}
+
 	// =========================================================================
-	// === 2. DIBUJO DIRECTO / ESPACIO DE PANTALLA (HUD E INTERFAZ 1:1)
+	// === 2. DIBUJO CON DEFORMACIÓN EÓLICA (VEGETACIÓN REACTIVA)
+	// =========================================================================
+
+	/**
+	 * Dibuja un sprite de vegetación (árbol, arbusto, flor, estandarte) en
+	 * coordenadas de mundo inclinando su copa según la fuerza del viento, mientras
+	 * las raíces permanecen ancladas al suelo.
+	 *
+	 * @param g              Contexto gráfico {@link Graphics2D}.
+	 * @param img            Sprite del árbol o planta.
+	 * @param x              Coordenada X de mundo.
+	 * @param y              Coordenada Y de mundo.
+	 * @param fuerzaBalanceo Factor de inclinación calculado por
+	 *                       {@code GestorClima}.
+	 */
+	public static void dibujarImagenConBalanceoRefCamara(final Graphics2D g, final Image img, final int x, final int y,
+			final double fuerzaBalanceo) {
+		if ((g == null) || (img == null)) {
+			return;
+		}
+
+		objetosDibujados++;
+
+		final int rx = Globales.getXDesplazamientoCamara(x);
+		final int ry = Globales.getYDesplazamientoCamara(y);
+		final int w = img.getWidth(null);
+		final int h = img.getHeight(null);
+
+		final AffineTransform transformOriginal = g.getTransform();
+		try {
+			// Punto de anclaje en la base central (raíces/tronco en el suelo)
+			g.translate(rx + (w / 2), ry + h);
+			g.shear(fuerzaBalanceo, 0.0);
+			g.drawImage(img, -(w / 2), -h, null);
+		} finally {
+			g.setTransform(transformOriginal);
+		}
+	}
+
+	public static void dibujarImagenConBalanceo(final Graphics2D g, final Image img, final int x, final int y,
+			final double fuerzaBalanceo) {
+		if ((g == null) || (img == null)) {
+			return;
+		}
+
+		objetosDibujados++;
+
+		final int w = img.getWidth(null);
+		final int h = img.getHeight(null);
+
+		final AffineTransform transformOriginal = g.getTransform();
+		try {
+			g.translate(x + (w / 2), y + h);
+			g.shear(fuerzaBalanceo, 0.0);
+			g.drawImage(img, -(w / 2), -h, null);
+		} finally {
+			g.setTransform(transformOriginal);
+		}
+	}
+
+	// =========================================================================
+	// === 3. DIBUJO DIRECTO / ESPACIO DE PANTALLA (HUD 1:1)
 	// =========================================================================
 
 	public static void dibujarFigura(final Graphics2D g2D, final Shape figura, final Color color) {
+		if ((g2D == null) || (figura == null)) {
+			return;
+		}
 		objetosDibujados++;
 		g2D.setColor(color);
 		g2D.draw(figura);
 	}
 
 	public static void dibujarFiguraEllipse(final Graphics2D g, final Rectangle area, final Color color) {
+		if (area == null) {
+			return;
+		}
 		dibujarFiguraEllipse(g, area.x, area.y, area.width, area.height, color);
 	}
 
 	public static void dibujarFiguraEllipse(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto, final Color color) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.setColor(color);
 		g.drawOval(x, y, ancho, alto);
 	}
 
 	public static void dibujarImagen(final Graphics2D g, final Image img, final int x, final int y) {
-		if (img == null) {
+		if ((g == null) || (img == null)) {
 			return;
 		}
 		objetosDibujados++;
@@ -101,7 +152,7 @@ public final class DibujoDebug {
 	}
 
 	public static void dibujarImagen(final Graphics2D g, final BufferedImage img, final int x, final int y) {
-		if (img == null) {
+		if ((g == null) || (img == null)) {
 			return;
 		}
 		objetosDibujados++;
@@ -117,18 +168,18 @@ public final class DibujoDebug {
 
 	public static void dibujarImagenConTransparencia(final Graphics2D g, final BufferedImage img, final int x,
 			final int y, final float alpha) {
-		if (img == null) {
+		if ((g == null) || (img == null)) {
 			return;
 		}
 		objetosDibujados++;
 		final Composite comOriginal = g.getComposite();
-		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0.0f, Math.min(1.0f, alpha))));
+		g.setComposite(obtenerComposite(alpha));
 		g.drawImage(img, x, y, null);
 		g.setComposite(comOriginal);
 	}
 
 	public static void dibujarString(final Graphics2D g, final String s, final int x, final int y) {
-		if (s == null) {
+		if ((g == null) || (s == null)) {
 			return;
 		}
 		objetosDibujados++;
@@ -143,7 +194,7 @@ public final class DibujoDebug {
 	}
 
 	public static void dibujarString(final Graphics2D g, final String s, final int x, final int y, final Color c) {
-		if (s == null) {
+		if ((g == null) || (s == null)) {
 			return;
 		}
 		objetosDibujados++;
@@ -158,13 +209,9 @@ public final class DibujoDebug {
 		dibujarString(g, s, p.x, p.y, c);
 	}
 
-	/**
-	 * Dibuja un texto con sombra de alto contraste para máxima legibilidad en
-	 * interfaces.
-	 */
 	public static void dibujarStringConSombra(final Graphics2D g, final String s, final int x, final int y,
 			final Color c, final Color sombra) {
-		if (s == null) {
+		if ((g == null) || (s == null)) {
 			return;
 		}
 		dibujarString(g, s, x + 1, y + 1, sombra);
@@ -172,23 +219,26 @@ public final class DibujoDebug {
 	}
 
 	public static void dibujarStringConSombra(final Graphics2D g, final String s, final int x, final int y,
-			final Color c, final Color sombra, final float tmanoFuente) {
-		if (s == null) {
+			final Color c, final Color sombra, final float tamanoFuente) {
+		if ((g == null) || (s == null)) {
 			return;
 		}
-		g.setFont(g.getFont().deriveFont(tmanoFuente));
+		g.setFont(g.getFont().deriveFont(tamanoFuente));
 		dibujarString(g, s, x + 1, y + 1, sombra);
 		dibujarString(g, s, x, y, c);
 	}
 
 	public static void dibujarRectanguloRelleno(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.fillRect(x, y, ancho, alto);
 	}
 
 	public static void dibujarRectanguloRelleno(final Graphics2D g, final Rectangle r) {
-		if (r == null) {
+		if ((g == null) || (r == null)) {
 			return;
 		}
 		dibujarRectanguloRelleno(g, r.x, r.y, r.width, r.height);
@@ -196,13 +246,16 @@ public final class DibujoDebug {
 
 	public static void dibujarRectanguloRelleno(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto, final Color c) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.setColor(c);
 		g.fillRect(x, y, ancho, alto);
 	}
 
 	public static void dibujarRectanguloRelleno(final Graphics2D g, final Rectangle r, final Color c) {
-		if (r == null) {
+		if ((g == null) || (r == null)) {
 			return;
 		}
 		dibujarRectanguloRelleno(g, r.x, r.y, r.width, r.height, c);
@@ -210,12 +263,15 @@ public final class DibujoDebug {
 
 	public static void dibujarRectanguloContorno(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.drawRect(x, y, ancho, alto);
 	}
 
 	public static void dibujarRectanguloContorno(final Graphics2D g, final Rectangle r) {
-		if (r == null) {
+		if ((g == null) || (r == null)) {
 			return;
 		}
 		dibujarRectanguloContorno(g, r.x, r.y, r.width, r.height);
@@ -223,13 +279,16 @@ public final class DibujoDebug {
 
 	public static void dibujarRectanguloContorno(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto, final Color c) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.setColor(c);
 		g.drawRect(x, y, ancho, alto);
 	}
 
 	public static void dibujarRectanguloContorno(final Graphics2D g, final Rectangle r, final Color c) {
-		if (r == null) {
+		if ((g == null) || (r == null)) {
 			return;
 		}
 		dibujarRectanguloContorno(g, r.x, r.y, r.width, r.height, c);
@@ -237,12 +296,18 @@ public final class DibujoDebug {
 
 	public static void dibujarLinea(final Graphics2D g, final int x1, final int y1, final int x2, final int y2,
 			final Color c) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.setColor(c);
 		g.drawLine(x1, y1, x2, y2);
 	}
 
 	public static void dibujarLinea(final Graphics2D g, final int x1, final int y1, final int x2, final int y2) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.drawLine(x1, y1, x2, y2);
 	}
@@ -262,7 +327,7 @@ public final class DibujoDebug {
 	}
 
 	// =========================================================================
-	// === 3. DIBUJO CON REFERENCIA A CÁMARA / ESPACIO DE MUNDO (RELATIVO)
+	// === 4. DIBUJO CON REFERENCIA A CÁMARA / ESPACIO DE MUNDO (RELATIVO)
 	// =========================================================================
 
 	public static void dibujarFiguraEllipseRefCamara(final Graphics2D g, final Rectangle area, final Color color) {
@@ -274,13 +339,16 @@ public final class DibujoDebug {
 
 	public static void dibujarFiguraEllipseRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto, final Color color) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.setColor(color);
 		g.drawOval(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho, alto);
 	}
 
 	public static void dibujarImagenRefCamara(final Graphics2D g, final Image img, final int x, final int y) {
-		if (img == null) {
+		if ((g == null) || (img == null)) {
 			return;
 		}
 		objetosDibujados++;
@@ -288,7 +356,7 @@ public final class DibujoDebug {
 	}
 
 	public static void dibujarImagenRefCamara(final Graphics2D g, final BufferedImage img, final int x, final int y) {
-		if (img == null) {
+		if ((g == null) || (img == null)) {
 			return;
 		}
 		objetosDibujados++;
@@ -304,18 +372,18 @@ public final class DibujoDebug {
 
 	public static void dibujarImagenConTransparenciaRefCamara(final Graphics2D g, final BufferedImage img, final int x,
 			final int y, final float alpha) {
-		if (img == null) {
+		if ((g == null) || (img == null)) {
 			return;
 		}
 		objetosDibujados++;
 		final Composite comOriginal = g.getComposite();
-		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0.0f, Math.min(1.0f, alpha))));
+		g.setComposite(obtenerComposite(alpha));
 		g.drawImage(img, Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), null);
 		g.setComposite(comOriginal);
 	}
 
 	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final int x, final int y) {
-		if (s == null) {
+		if ((g == null) || (s == null)) {
 			return;
 		}
 		objetosDibujados++;
@@ -331,7 +399,7 @@ public final class DibujoDebug {
 
 	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final int x, final int y,
 			final Color c) {
-		if (s == null) {
+		if ((g == null) || (s == null)) {
 			return;
 		}
 		objetosDibujados++;
@@ -346,14 +414,9 @@ public final class DibujoDebug {
 		dibujarStringRefCamara(g, s, p.x, p.y, c);
 	}
 
-	/**
-	 * Dibuja un texto en coordenadas del mundo con sombra de contraste proyectada
-	 * con la cámara. Ideal para nombres de criaturas, textos de daño flotante y
-	 * etiquetas en el mundo.
-	 */
 	public static void dibujarStringConSombraRefCamara(final Graphics2D g, final String s, final int x, final int y,
 			final Color c, final Color sombra) {
-		if (s == null) {
+		if ((g == null) || (s == null)) {
 			return;
 		}
 		final int renderX = Globales.getXDesplazamientoCamara(x);
@@ -364,12 +427,15 @@ public final class DibujoDebug {
 
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.fillRect(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho, alto);
 	}
 
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final Rectangle r) {
-		if (r == null) {
+		if ((g == null) || (r == null)) {
 			return;
 		}
 		dibujarRectanguloRellenoRefCamara(g, r.x, r.y, r.width, r.height);
@@ -377,13 +443,16 @@ public final class DibujoDebug {
 
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto, final Color c) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.setColor(c);
 		g.fillRect(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho, alto);
 	}
 
 	public static void dibujarRectanguloRellenoRefCamara(final Graphics2D g, final Rectangle r, final Color c) {
-		if (r == null) {
+		if ((g == null) || (r == null)) {
 			return;
 		}
 		dibujarRectanguloRellenoRefCamara(g, r.x, r.y, r.width, r.height, c);
@@ -391,12 +460,15 @@ public final class DibujoDebug {
 
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.drawRect(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho, alto);
 	}
 
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final Rectangle r) {
-		if (r == null) {
+		if ((g == null) || (r == null)) {
 			return;
 		}
 		dibujarRectanguloContornoRefCamara(g, r.x, r.y, r.width, r.height);
@@ -404,13 +476,16 @@ public final class DibujoDebug {
 
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final int x, final int y, final int ancho,
 			final int alto, final Color c) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.setColor(c);
 		g.drawRect(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho, alto);
 	}
 
 	public static void dibujarRectanguloContornoRefCamara(final Graphics2D g, final Rectangle r, final Color c) {
-		if (r == null) {
+		if ((g == null) || (r == null)) {
 			return;
 		}
 		dibujarRectanguloContornoRefCamara(g, r.x, r.y, r.width, r.height, c);
@@ -418,6 +493,9 @@ public final class DibujoDebug {
 
 	public static void dibujarLineaRefCamara(final Graphics2D g, final int x1, final int y1, final int x2, final int y2,
 			final Color c) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.setColor(c);
 		g.drawLine(Globales.getXDesplazamientoCamara(x1), Globales.getYDesplazamientoCamara(y1),
@@ -426,6 +504,9 @@ public final class DibujoDebug {
 
 	public static void dibujarLineaRefCamara(final Graphics2D g, final int x1, final int y1, final int x2,
 			final int y2) {
+		if (g == null) {
+			return;
+		}
 		objetosDibujados++;
 		g.drawLine(Globales.getXDesplazamientoCamara(x1), Globales.getYDesplazamientoCamara(y1),
 				Globales.getXDesplazamientoCamara(x2), Globales.getYDesplazamientoCamara(y2));

@@ -12,7 +12,7 @@ import principal.maquinaestado.estados.menu.herramientas.CajaTecla;
 import principal.maquinaestado.estados.menu.herramientas.Componente;
 import principal.maquinaestado.estados.menu.herramientas.Label;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 public class MenuConfiguracion extends Menu {
@@ -63,9 +63,9 @@ public class MenuConfiguracion extends Menu {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarImagen(g, this.FONDO, 0, 0);
+		Render2D.dibujarImagen(g, this.FONDO, 0, 0);
 //		DibujoDebug.dibujarRectanguloRelleno(g, new Rectangle(this.AREA_CONFIGURACIONES.x,this.AREA_CONFIGURACIONES.y-desplazamiento,this.AREA_CONFIGURACIONES.width,this.AREA_CONFIGURACIONES.height), Color.orange);
-		DibujoDebug.dibujarRectanguloContorno(g,
+		Render2D.dibujarRectanguloContorno(g,
 				new Rectangle(this.AREA_CONFIGURACIONES.x, this.AREA_CONFIGURACIONES.y - this.desplazamiento - 1,
 						this.AREA_CONFIGURACIONES.width, this.AREA_CONFIGURACIONES.height),
 				Color.red);

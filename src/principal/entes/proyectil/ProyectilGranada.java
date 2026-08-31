@@ -15,7 +15,7 @@ import principal.entes.modelos.item.ModeloGranada;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.arrojadizos.granadas.Granada;
 import principal.mapa.Mundo;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 import principal.utilidades.Textura;
@@ -94,9 +94,9 @@ public class ProyectilGranada extends ProyectilGeneral {
 		if (this.realizoImpacto) {
 			this.ANIMACION_EXPLOSION.pintar(g, this.AREA_DESTINO.getX(), this.AREA_DESTINO.getY() - 16, true);
 		} else {
-			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_X10_GRANADA_1), (int) this.x,
+			Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_X10_GRANADA_1), (int) this.x,
 					(int) this.y);
-			DibujoDebug.dibujarFiguraEllipseRefCamara(g, this.AREA_DESTINO.getBounds(), Color.CYAN);
+			Render2D.dibujarFiguraEllipseRefCamara(g, this.AREA_DESTINO.getBounds(), Color.CYAN);
 			super.pintar(g);
 		}
 	}

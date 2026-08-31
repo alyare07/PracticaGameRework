@@ -6,7 +6,7 @@ import java.awt.Point;
 import principal.entes.objetos.items.Item;
 import principal.inventario.slot.Slot;
 import principal.mapa.Mundo;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 public final class ItemPuntero {
 
@@ -108,7 +108,7 @@ public final class ItemPuntero {
 		if ((this.item == null) || (posicionPuntero == null)) {
 			return;
 		}
-		DibujoDebug.dibujarImagen(g, this.item.getTextura(), posicionPuntero);
+		Render2D.dibujarImagen(g, this.item.getTextura(), posicionPuntero);
 	}
 
 	public boolean contieneItem() {

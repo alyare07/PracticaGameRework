@@ -8,7 +8,7 @@ import java.util.HashMap;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Jugador;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 public class ZonaTP extends Ente {
 	private boolean eliminado;
@@ -38,13 +38,13 @@ public class ZonaTP extends Ente {
 	@Override
 	public void pintar(final Graphics2D g) {
 		if (this.puertaTP instanceof PuertaArea) {
-			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.AREA,
+			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA,
 					new Color(140 / 255, 134f / 255, 230f / 255, 0.43f));
 		} else if (this.puertaTP instanceof PuertaZona) {
-			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.AREA,
+			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA,
 					new Color(245f / 255, 20f / 255, 243f / 255, 0.43f));
 		} else if (this.puertaTP instanceof PuertaMapa) {
-			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.AREA,
+			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA,
 					new Color(251f / 255, 20f / 255, 43f / 255, 0.43f));
 		}
 	}

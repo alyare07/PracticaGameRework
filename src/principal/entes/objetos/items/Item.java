@@ -10,7 +10,7 @@ import org.json.simple.JSONObject;
 
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 /**
@@ -122,15 +122,15 @@ public abstract class Item extends Objeto {
 		final int sombraX = this.getPosicionXInt() + ((ancho - sombraAncho) / 2);
 		final int sombraY = (this.getPosicionYInt() + alto) - (sombraAlto / 2);
 
-		DibujoDebug.dibujarFiguraEllipseRefCamara(g, sombraX, sombraY, sombraAncho, sombraAlto, COLOR_SOMBRA_SUELO);
+		Render2D.dibujarFiguraEllipseRefCamara(g, sombraX, sombraY, sombraAncho, sombraAlto, COLOR_SOMBRA_SUELO);
 
 		// 3. Debug de colisiones si está activo
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.isEstadoJuego()) {
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
 		}
 
 		// 4. Sprite del ítem flotando suavemente en el eje vertical
-		DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(),
+		Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(),
 				this.getPosicionYInt() + offsetFlotacion);
 	}
 

@@ -11,7 +11,7 @@ import principal.entes.modelos.tile.ListaModeloTile;
 import principal.entes.objetos.especial.CuadradoInvisible;
 import principal.entes.objetos.especial.ListaObjetosEspeciales;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 public class GrupoPaleta {
 
@@ -84,7 +84,7 @@ public class GrupoPaleta {
 	}
 
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarRectanguloRelleno(g, this.AREA, Color.gray);
+		Render2D.dibujarRectanguloRelleno(g, this.AREA, Color.gray);
 		if (this.LISTA.isEmpty()) {
 			return;
 		}
@@ -117,12 +117,12 @@ public class GrupoPaleta {
 		for (int i = 0; i < this.AREAS_BOTONES_PALETA.size(); i++) {
 			final Rectangle r = this.AREAS_BOTONES_PALETA.get(i);
 			if (i == this.indice) {
-				DibujoDebug.dibujarRectanguloRelleno(g, r, Color.CYAN);
+				Render2D.dibujarRectanguloRelleno(g, r, Color.CYAN);
 			} else {
-				DibujoDebug.dibujarRectanguloRelleno(g, r, Color.white);
+				Render2D.dibujarRectanguloRelleno(g, r, Color.white);
 			}
 
-			DibujoDebug.dibujarString(g, String.valueOf(numeroPaleta), r.x + 2, (r.y + r.height) - 1, Color.black);
+			Render2D.dibujarString(g, String.valueOf(numeroPaleta), r.x + 2, (r.y + r.height) - 1, Color.black);
 			numeroPaleta++;
 		}
 	}
@@ -135,13 +135,13 @@ public class GrupoPaleta {
 		for (int i = 0; i < this.AREAS_BOTONES_POSICION.size(); i++) {
 			r = this.AREAS_BOTONES_POSICION.get(i);
 			if (((PaletaComplento) this.LISTA.get(this.indice)).getPosicionamientoActual() == i) {
-				DibujoDebug.dibujarRectanguloRelleno(g, r, Color.CYAN);
-				DibujoDebug.dibujarString(g, this.TEXTO_POSICIONES.get(i), r.x + 1, (r.y + r.height) - 1, Color.BLACK);
+				Render2D.dibujarRectanguloRelleno(g, r, Color.CYAN);
+				Render2D.dibujarString(g, this.TEXTO_POSICIONES.get(i), r.x + 1, (r.y + r.height) - 1, Color.BLACK);
 				continue;
 
 			}
-			DibujoDebug.dibujarRectanguloRelleno(g, r, Color.white);
-			DibujoDebug.dibujarString(g, this.TEXTO_POSICIONES.get(i), r.x + 1, (r.y + r.height) - 1, Color.BLACK);
+			Render2D.dibujarRectanguloRelleno(g, r, Color.white);
+			Render2D.dibujarString(g, this.TEXTO_POSICIONES.get(i), r.x + 1, (r.y + r.height) - 1, Color.BLACK);
 		}
 	}
 

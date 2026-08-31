@@ -5,7 +5,7 @@ import java.awt.Rectangle;
 import java.util.HashMap;
 
 import principal.utilidades.Animacion;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 import principal.utilidades.Textura;
 
@@ -66,16 +66,16 @@ public class ListaModeloComplemento {
 					public void pintar(final Graphics2D g, final int x, final int y) {
 						final int resto = Globales.animacion % 400;
 						if ((resto >= 100) && (resto <= 200)) {
-							DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_0), x,
+							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_0), x,
 									y);
 						} else if ((resto > 200) && (resto <= 300)) {
-							DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_1), x,
+							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_1), x,
 									y);
 						} else if ((resto > 300) && (resto <= 400)) {
-							DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_2), x,
+							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_2), x,
 									y);
 						} else {
-							DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_3), x,
+							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_3), x,
 									y);
 						}
 					}

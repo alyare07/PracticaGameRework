@@ -5,6 +5,7 @@ import java.awt.Toolkit;
 import principal.Main;
 import principal.animaciones.listaHojasSprite.ListaHojaSprites;
 import principal.clima.GestorClima;
+import principal.clima.GestorZonasAmbiente;
 import principal.comandos.GestorComandos;
 import principal.controles.Raton;
 import principal.controles.Teclado;
@@ -20,7 +21,17 @@ import principal.particulas.GestorParticulas;
 import principal.utilidades.funciones.Funciones;
 import principal.utilidades.inventario.GestorInventario;
 
+/**
+ * Contenedor maestro de estado global, subsistemas estáticos e instancias
+ * compartidas en memoria (Zero-GC).
+ * 
+ * @version 3.0
+ */
 public class Globales {
+
+	// =========================================================================
+	// === 1. MÉTRICAS Y BANDERAS DE MOTOR
+	// =========================================================================
 
 	public static int fps;
 	public static int aps;
@@ -36,10 +47,20 @@ public class Globales {
 	public static boolean editorSelectGroupTile;
 	public static boolean viendoContenedor;
 	public static InventarioVault inventarioVault;
+
+	// =========================================================================
+	// === 2. RESOLUCIÓN Y ESCALADO DE PANTALLA
+	// =========================================================================
+
 	public static int ANCHO_PANTALLA_COMPLETA = Toolkit.getDefaultToolkit().getScreenSize().width;
 	public static int ALTO_PANTALLA_COMPLETA = Toolkit.getDefaultToolkit().getScreenSize().height;
 	public static double FACTOR_ESCALADO_X = ANCHO_PANTALLA_COMPLETA / (double) (Constantes.ANCHO_JUEGO);
 	public static double FACTOR_ESCALADO_Y = ALTO_PANTALLA_COMPLETA / (double) Constantes.ALTO_JUEGO;
+
+	// =========================================================================
+	// === 3. SUBSISTEMAS Y GESTORES MAESTROS (SINGLETONS STATIC)
+	// =========================================================================
+
 	public static final GestorTiempo TECLEO_RECOGIDA = new GestorTiempo();
 	public static final Teclado TECLADO = new Teclado();
 	public static final Raton RATON = new Raton();
@@ -54,12 +75,17 @@ public class Globales {
 	public static final GestorParticulas GESTOR_PARTICULAS = new GestorParticulas();
 	public static final GestorLuz GESTOR_LUZ = new GestorLuz();
 	public static final GestorClima GESTOR_CLIMA = new GestorClima();
+	public static final GestorZonasAmbiente GESTOR_ZONAS_AMBIENTE = new GestorZonasAmbiente();
 	public static final GestorComandos GESTOR_COMANDOS = new GestorComandos();
 
+	// =========================================================================
+	// === MÉTODOS DE ESCALADO Y CONSULTAS
+	// =========================================================================
+
 	public static void actualizarFactorEscalado() {
-		final int escalaX = ANCHO_PANTALLA_COMPLETA / Constantes.ANCHO_JUEGO; // 1920 / 640 = 3
-		final int escalaY = ALTO_PANTALLA_COMPLETA / Constantes.ALTO_JUEGO; // 1080 / 360 = 3
-		final int nuevaEscala = Math.max(1, Math.min(escalaX, escalaY)); // Resultado: 3
+		final int escalaX = ANCHO_PANTALLA_COMPLETA / Constantes.ANCHO_JUEGO;
+		final int escalaY = ALTO_PANTALLA_COMPLETA / Constantes.ALTO_JUEGO;
+		final int nuevaEscala = Math.max(1, Math.min(escalaX, escalaY));
 
 		if (nuevaEscala == (int) FACTOR_ESCALADO_X) {
 			return;
@@ -69,34 +95,19 @@ public class Globales {
 		FACTOR_ESCALADO_Y = nuevaEscala;
 	}
 
-	/**
-	 * Codigo de la actualizacion del momento.
-	 * 
-	 * @return El codigo de la actualizacion.
-	 */
 	public static int getCodActualizacion() {
-		return Main.gp.getCodigoActualizacion();
+		return (Main.gp != null) ? Main.gp.getCodigoActualizacion() : 0;
 	}
 
-	/**
-	 * Verifica si el estado del juego es {@link EditorMapa}.
-	 * 
-	 * @return TRUE si el estado es {@link EditorMapa} FALSE si no lo es.
-	 */
 	public static boolean isEstadoEditor() {
-		if (Main.gp.getGestorEstados() == null) {
+		if ((Main.gp == null) || (Main.gp.getGestorEstados() == null)) {
 			return false;
 		}
 		return Main.gp.getGestorEstados().getEstadoActual() instanceof EditorMapa;
 	}
 
-	/**
-	 * Verifica si el estado del juego es {@link GestorJuego}.
-	 * 
-	 * @return TRUE si el estado es {@link GestorJuego} o FALSE si no lo es.
-	 */
 	public static boolean isEstadoJuego() {
-		if (Main.gp.getGestorEstados() == null) {
+		if ((Main.gp == null) || (Main.gp.getGestorEstados() == null)) {
 			return false;
 		}
 		if (Main.gp.getGestorEstados().getEstadoActual() instanceof GestorPartida) {
@@ -106,26 +117,15 @@ public class Globales {
 		return false;
 	}
 
-	/**
-	 * Calcula el valor para una coordena X teniendo en cuenta el desplazamiento de
-	 * la {@link Camara}.
-	 * 
-	 * @param x El valor de la coordenada X a calcular.
-	 * @return El valor de X desplazado segun la {@link Camara}.
-	 */
+	// =========================================================================
+	// === COORDENADAS PROYECTADAS CON CÁMARA
+	// =========================================================================
+
 	public static int getXDesplazamientoCamara(final int x) {
-		return (x - CAMARA.getPosicionXInt()) + CAMARA.getMargenX();
+		return (CAMARA != null) ? (x - CAMARA.getPosicionXInt()) + CAMARA.getMargenX() : x;
 	}
 
-	/**
-	 * Calcula el valor para una coordena Y teniendo en cuenta el desplazamiento de
-	 * la {@link Camara}.
-	 * 
-	 * @param y El valor de la coordenada Y a calcular.
-	 * @return El valor de Y desplazado segun la {@link Camara}.
-	 */
 	public static int getYDesplazamientoCamara(final int y) {
-		return (y - CAMARA.getPosicionYInt()) + CAMARA.getMargenY();
+		return (CAMARA != null) ? (y - CAMARA.getPosicionYInt()) + CAMARA.getMargenY() : y;
 	}
-
 }

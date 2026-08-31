@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import principal.entes.objetos.items.Item;
 import principal.graficos.SuperficieDibujo;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 /**
@@ -62,11 +62,11 @@ public final class GeneradorTooltip {
 			final int boxY = this.calcularCoordenadaY(raton.y, altoTotal);
 
 			final Color fondoFinal = (colorFondo != null) ? colorFondo : COLOR_FONDO_DEFECTO;
-			DibujoDebug.dibujarRectanguloRelleno(g, boxX, boxY, anchoTotal, altoTotal, fondoFinal);
-			DibujoDebug.dibujarRectanguloContorno(g, boxX, boxY, anchoTotal, altoTotal, COLOR_BORDE_DEFECTO);
+			Render2D.dibujarRectanguloRelleno(g, boxX, boxY, anchoTotal, altoTotal, fondoFinal);
+			Render2D.dibujarRectanguloContorno(g, boxX, boxY, anchoTotal, altoTotal, COLOR_BORDE_DEFECTO);
 
 			final Color letraFinal = (colorLetra != null) ? colorLetra : Color.WHITE;
-			DibujoDebug.dibujarString(g, texto, boxX + PADDING_INTERNO, (boxY + PADDING_INTERNO + altoTexto) - 2,
+			Render2D.dibujarString(g, texto, boxX + PADDING_INTERNO, (boxY + PADDING_INTERNO + altoTexto) - 2,
 					letraFinal);
 
 		} finally {
@@ -126,13 +126,13 @@ public final class GeneradorTooltip {
 			final int boxY = this.calcularCoordenadaY(raton.y, altoTotal);
 
 			// 5. Renderizar Fondo Único y Borde
-			DibujoDebug.dibujarRectanguloRelleno(g, boxX, boxY, anchoTotal, altoTotal, COLOR_FONDO_DEFECTO);
-			DibujoDebug.dibujarRectanguloContorno(g, boxX, boxY, anchoTotal, altoTotal, COLOR_BORDE_DEFECTO);
+			Render2D.dibujarRectanguloRelleno(g, boxX, boxY, anchoTotal, altoTotal, COLOR_FONDO_DEFECTO);
+			Render2D.dibujarRectanguloContorno(g, boxX, boxY, anchoTotal, altoTotal, COLOR_BORDE_DEFECTO);
 
 			// 6. Renderizar Nombre (GRANDE Y DORADO)
 			g.setFont(fuenteTitulo);
 			int yCursor = (boxY + PADDING_INTERNO + altoNombre) - 2;
-			DibujoDebug.dibujarString(g, nombre, boxX + PADDING_INTERNO, yCursor, COLOR_TITULO_DEFECTO);
+			Render2D.dibujarString(g, nombre, boxX + PADDING_INTERNO, yCursor, COLOR_TITULO_DEFECTO);
 
 			// 7. Renderizar Información (PEQUEÑA Y GRIS)
 			if ((infoLines != null) && !infoLines.isEmpty()) {
@@ -143,7 +143,7 @@ public final class GeneradorTooltip {
 					if ((linea != null) && !linea.isEmpty()) {
 						final int altoLinea = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, linea);
 						yCursor += altoLinea + ESPACIADO_LINEAS;
-						DibujoDebug.dibujarString(g, linea, boxX + PADDING_INTERNO, yCursor - 2, COLOR_INFO_DEFECTO);
+						Render2D.dibujarString(g, linea, boxX + PADDING_INTERNO, yCursor - 2, COLOR_INFO_DEFECTO);
 					}
 				}
 			}

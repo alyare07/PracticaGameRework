@@ -8,7 +8,7 @@ import java.util.HashMap;
 
 import principal.controles.Raton;
 import principal.mapa.Tile;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 public class PaletaTile extends Paleta {
 
@@ -91,11 +91,11 @@ public class PaletaTile extends Paleta {
 		for (Tile t : TILES.values()) {
 			t.pintarPaleta(g);
 		}
-		DibujoDebug.dibujarRectanguloContorno(g, this.X, this.Y, this.ANCHO, this.ALTO, Color.yellow);
+		Render2D.dibujarRectanguloContorno(g, this.X, this.Y, this.ANCHO, this.ALTO, Color.yellow);
 		if (this.tileSeleccionado != null) {
 			final Rectangle area = this.tileSeleccionado.getArea();
-			DibujoDebug.dibujarRectanguloContorno(g, area, Color.WHITE);
-			DibujoDebug.dibujarRectanguloContorno(g, area.x - 1, area.y - 1, area.width + 2, area.height + 2,
+			Render2D.dibujarRectanguloContorno(g, area, Color.WHITE);
+			Render2D.dibujarRectanguloContorno(g, area.x - 1, area.y - 1, area.width + 2, area.height + 2,
 					Color.BLACK);
 		}
 	}

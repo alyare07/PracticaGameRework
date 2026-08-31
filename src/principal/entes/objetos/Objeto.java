@@ -8,7 +8,7 @@ import java.awt.image.BufferedImage;
 import java.io.Serializable;
 
 import principal.entes.Ente;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 /**
@@ -171,9 +171,9 @@ public abstract class Objeto extends Ente implements Serializable {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.x, this.y);
+		Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.x, this.y);
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
 		}
 	}
 
@@ -183,7 +183,7 @@ public abstract class Objeto extends Ente implements Serializable {
 	 * @param g Contexto gráfico 2D.
 	 */
 	public void pintarFijo(final Graphics2D g) {
-		DibujoDebug.dibujarImagen(g, this.getTextura(), this.getPosicionXInt(), this.getPosicionYInt());
+		Render2D.dibujarImagen(g, this.getTextura(), this.getPosicionXInt(), this.getPosicionYInt());
 	}
 
 	// =========================================================================

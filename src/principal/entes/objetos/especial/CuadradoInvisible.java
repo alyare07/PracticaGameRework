@@ -5,7 +5,7 @@ import java.awt.image.BufferedImage;
 
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 public class CuadradoInvisible extends Complemento {
 	private final int CODIGO_MODELO;
@@ -17,13 +17,13 @@ public class CuadradoInvisible extends Complemento {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(), this.getPosicionYInt());
+		Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(), this.getPosicionYInt());
 	}
 
 	@Override
 	public void pintarFijo(final Graphics2D g) {
 		final int lado = this.getAncho();
-		DibujoDebug.dibujarRectanguloRelleno(g, this.getPosicionXInt(), this.getPosicionYInt(), lado, lado,
+		Render2D.dibujarRectanguloRelleno(g, this.getPosicionXInt(), this.getPosicionYInt(), lado, lado,
 				ListaObjetosEspeciales.getModeloCuadrado(this.CODIGO_MODELO).getColor());
 	}
 

@@ -5,7 +5,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 /**
  * Unidad individual de texto flotante reutilizable en memoria (Zero-GC).
@@ -161,7 +161,7 @@ public class TextoFlotante {
 		// =========================================================================
 		// DIBUJO DE TEXTO CON SOMBRA DE ALTO CONTRASTE REFERENCIADO A CÁMARA
 		// =========================================================================
-		DibujoDebug.dibujarStringConSombraRefCamara(g, this.texto, renderX, renderY, this.colorTexto, Color.BLACK);
+		Render2D.dibujarStringConSombraRefCamara(g, this.texto, renderX, renderY, this.colorTexto, Color.BLACK);
 
 		g.setFont(fuentePrevia);
 	}

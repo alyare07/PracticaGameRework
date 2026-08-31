@@ -16,9 +16,9 @@ import principal.entes.Ente;
 import principal.ia.aEstrella.NodoA;
 import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
 /**
  * Clase abstracta base para todas las entidades vivas (Jugador, Enemigos,
@@ -92,7 +92,7 @@ public abstract class Criatura extends Ente {
 	protected double velocidad = 1.0;
 	private double x;
 	private double y;
-
+	protected boolean modoDios = false;
 	// =========================================================================
 	// === GESTIÓN DE VIDA Y BARRA FANTASMA (VIDA-LAG)
 	// =========================================================================
@@ -240,6 +240,9 @@ public abstract class Criatura extends Ente {
 	 * @param causante Entidad que originó el ataque.
 	 */
 	public void recibirAtaque(final double damage, final Ente causante) {
+		if (this.modoDios) {
+			return; // Inmune a ataques y destello de daño
+		}
 		// 1. Reducir la vida real (activa muerte si llega a 0)
 		this.reducirVida(damage);
 
@@ -269,7 +272,7 @@ public abstract class Criatura extends Ente {
 		this.pintarIndicadorVida(g);
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.CYAN);
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.CYAN);
 		}
 
 		if ((Globales.CAMARA.getEntidadEnfocada() == this)
@@ -286,7 +289,7 @@ public abstract class Criatura extends Ente {
 				final int yMundo = n.getYNodo() * altoTile;
 				final String txt = String.valueOf(pos);
 
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, new Rectangle(xMundo, yMundo, anchoTile, altoTile),
+				Render2D.dibujarRectanguloContornoRefCamara(g, new Rectangle(xMundo, yMundo, anchoTile, altoTile),
 						Color.MAGENTA);
 
 				final int xTexto = (xMundo + (anchoTile / 2))
@@ -294,12 +297,12 @@ public abstract class Criatura extends Ente {
 				final int yTexto = (yMundo + (altoTile / 2))
 						+ (Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2);
 
-				DibujoDebug.dibujarStringRefCamara(g, txt, xTexto, yTexto, Color.BLACK);
+				Render2D.dibujarStringRefCamara(g, txt, xTexto, yTexto, Color.BLACK);
 				pos++;
 			}
 
 			if (this.nodoADestino != null) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoADestino.getXNodo() * anchoTile,
+				Render2D.dibujarRectanguloContornoRefCamara(g, this.nodoADestino.getXNodo() * anchoTile,
 						this.nodoADestino.getYNodo() * altoTile, anchoTile, altoTile, Color.YELLOW);
 			}
 		}
@@ -321,7 +324,7 @@ public abstract class Criatura extends Ente {
 		final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
 
 		final int xTexto = this.getPosicionXInt() + ((this.ANCHO - anchoTexto) / 2);
-		DibujoDebug.dibujarStringRefCamara(g, texto, xTexto, this.getPosicionYInt() - 6, Color.WHITE);
+		Render2D.dibujarStringRefCamara(g, texto, xTexto, this.getPosicionYInt() - 6, Color.WHITE);
 		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 	}
 
@@ -341,16 +344,16 @@ public abstract class Criatura extends Ente {
 		final int anchoAmarillo = (int) Math.round((this.vidaLag * this.ANCHO) / this.vidaMaxima);
 
 		// 1. Marco negro de base
-		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, posX - 1, posY - 5, this.ANCHO + 2, 4, COLOR_FONDO_BARRA);
+		Render2D.dibujarRectanguloRellenoRefCamara(g, posX - 1, posY - 5, this.ANCHO + 2, 4, COLOR_FONDO_BARRA);
 
 		// 2. Barra amarilla fantasma (muestra el trozo de daño recibido)
 		if (anchoAmarillo > 0) {
-			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoAmarillo, 2, COLOR_BARRA_LAG);
+			Render2D.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoAmarillo, 2, COLOR_BARRA_LAG);
 		}
 
 		// 3. Barra roja de vida real frontal
 		if (anchoRojo > 0) {
-			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoRojo, 2, COLOR_BARRA_VIDA);
+			Render2D.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoRojo, 2, COLOR_BARRA_VIDA);
 		}
 	}
 
@@ -474,6 +477,9 @@ public abstract class Criatura extends Ente {
 	}
 
 	public void reducirVida(final double puntos) {
+		if (this.modoDios) {
+			return; // Inmune a reducción de vida
+		}
 		this.vida = Math.max(0, this.vida - puntos);
 		if (this.vida <= 0) {
 			this.eliminar();
@@ -519,6 +525,23 @@ public abstract class Criatura extends Ente {
 	public void sanar() {
 		this.vida = this.vidaMaxima;
 		this.vidaLag = this.vidaMaxima;
+	}
+
+	public void setModoDios(final boolean modoDios) {
+		this.modoDios = modoDios;
+		if (this.modoDios) {
+			this.sanar();
+
+		}
+	}
+
+	public boolean isModoDios() {
+		return this.modoDios;
+	}
+
+	public boolean conmutarModoDios() {
+		this.setModoDios(!this.modoDios);
+		return this.modoDios;
 	}
 
 	public void calcularRutaAEstrella(final int xObjetivo, final int yObjetivo) {
@@ -745,6 +768,10 @@ public abstract class Criatura extends Ente {
 		criatura.put("tipo", this.exportarTipoCriatura());
 		criatura.put("entiti", datosCriatura);
 		return criatura;
+	}
+
+	public double getVelocidad() {
+		return this.velocidad;
 	}
 
 	@Override

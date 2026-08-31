@@ -6,7 +6,7 @@ import java.awt.Rectangle;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 
@@ -56,7 +56,7 @@ public class CajaTexto extends Componente {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarImagen(g, this.FONDO, this.AREA.x, this.AREA.y);
+		Render2D.dibujarImagen(g, this.FONDO, this.AREA.x, this.AREA.y);
 		this.pintarTexto(g);
 //		if (seleccionado) {
 //			DibujoDebug.dibujarLinea(g, this.AREA.x, this.AREA.y, this.AREA.x + this.AREA.width, this.AREA.y, Color.yellow);
@@ -65,7 +65,7 @@ public class CajaTexto extends Componente {
 
 	@Override
 	public void pintar(final Graphics2D g, final int desplazamientoY) {
-		DibujoDebug.dibujarImagen(g, this.FONDO, this.AREA.x, this.AREA.y - desplazamientoY);
+		Render2D.dibujarImagen(g, this.FONDO, this.AREA.x, this.AREA.y - desplazamientoY);
 		this.pintarTexto(g, desplazamientoY);
 	}
 
@@ -80,15 +80,15 @@ public class CajaTexto extends Componente {
 		if (ancho > this.imgTexto.getWidth()) {
 			desplazamientoIzquierdo = (this.imgTexto.getWidth() - ancho);
 			desplazamientoPuntero = this.imgTexto.getWidth();
-			DibujoDebug.dibujarString(imgG, this.texto, desplazamientoIzquierdo, this.imgTexto.getHeight() - 2,
+			Render2D.dibujarString(imgG, this.texto, desplazamientoIzquierdo, this.imgTexto.getHeight() - 2,
 					this.COLOR_TEXTO);
 		} else {
 			desplazamientoPuntero = ancho;
-			DibujoDebug.dibujarString(imgG, this.texto, desplazamientoIzquierdo, this.imgTexto.getHeight() - 2,
+			Render2D.dibujarString(imgG, this.texto, desplazamientoIzquierdo, this.imgTexto.getHeight() - 2,
 					this.COLOR_TEXTO);
 		}
 		imgG.dispose();
-		DibujoDebug.dibujarImagen(g, this.imgTexto, this.AREA.x + 2, this.AREA.y);
+		Render2D.dibujarImagen(g, this.imgTexto, this.AREA.x + 2, this.AREA.y);
 		this.pintarPuntero(g, desplazamientoPuntero);
 
 //		System.out.println(
@@ -106,15 +106,15 @@ public class CajaTexto extends Componente {
 		if (ancho > this.imgTexto.getWidth()) {
 			desplazamientoIzquierdo = (this.imgTexto.getWidth() - ancho);
 			desplazamientoPuntero = this.imgTexto.getWidth();
-			DibujoDebug.dibujarString(imgG, this.texto, desplazamientoIzquierdo,
+			Render2D.dibujarString(imgG, this.texto, desplazamientoIzquierdo,
 					this.imgTexto.getHeight() - 2 - desplazamientoY, this.COLOR_TEXTO);
 		} else {
 			desplazamientoPuntero = ancho;
-			DibujoDebug.dibujarString(imgG, this.texto, desplazamientoIzquierdo,
+			Render2D.dibujarString(imgG, this.texto, desplazamientoIzquierdo,
 					this.imgTexto.getHeight() - 2 - desplazamientoY, this.COLOR_TEXTO);
 		}
 		imgG.dispose();
-		DibujoDebug.dibujarImagen(g, this.imgTexto, this.AREA.x + 2, this.AREA.y - desplazamientoY);
+		Render2D.dibujarImagen(g, this.imgTexto, this.AREA.x + 2, this.AREA.y - desplazamientoY);
 		this.pintarPuntero(g, desplazamientoPuntero, desplazamientoY);
 
 //		System.out.println(
@@ -239,7 +239,7 @@ public class CajaTexto extends Componente {
 
 	private void pintarPuntero(final Graphics2D g, final int desplazamientoPuntero) {
 		if (this.seleccionado && this.punteroMostrar) {
-			DibujoDebug.dibujarString(g, "|", this.AREA.x + desplazamientoPuntero, (this.AREA.y + this.AREA.height) - 2,
+			Render2D.dibujarString(g, "|", this.AREA.x + desplazamientoPuntero, (this.AREA.y + this.AREA.height) - 2,
 					this.COLOR_TEXTO);
 			if (this.GT_PUNTERO.transcurrioMiliSegundos(this.MS_ESPERA_PUNTERO)) {
 				this.punteroMostrar = false;
@@ -256,7 +256,7 @@ public class CajaTexto extends Componente {
 
 	private void pintarPuntero(final Graphics2D g, final int desplazamientoPuntero, final int desplazamientoY) {
 		if (this.seleccionado && this.punteroMostrar) {
-			DibujoDebug.dibujarString(g, "|", this.AREA.x + desplazamientoPuntero,
+			Render2D.dibujarString(g, "|", this.AREA.x + desplazamientoPuntero,
 					(this.AREA.y + this.AREA.height) - 2 - desplazamientoY, this.COLOR_TEXTO);
 			if (this.GT_PUNTERO.transcurrioMiliSegundos(this.MS_ESPERA_PUNTERO)) {
 				this.punteroMostrar = false;

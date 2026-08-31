@@ -7,7 +7,7 @@ import java.awt.image.BufferedImage;
 
 import principal.entes.objetos.items.Item;
 import principal.inventario.slot.Slot;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 /**
  * Clase base abstracta para cualquier casilla del inventario destinada a
@@ -77,9 +77,9 @@ public abstract class SlotEquipamiento extends Slot {
 	 */
 	@Override
 	protected void pintarArea(final Graphics2D g, final Rectangle area) {
-		DibujoDebug.dibujarRectanguloRelleno(g, area, COLOR_FONDO);
+		Render2D.dibujarRectanguloRelleno(g, area, COLOR_FONDO);
 		if (this.apuntado) {
-			DibujoDebug.dibujarRectanguloContorno(g, area, COLOR_BORDE_APUNTADO);
+			Render2D.dibujarRectanguloContorno(g, area, COLOR_BORDE_APUNTADO);
 		}
 	}
 
@@ -94,7 +94,7 @@ public abstract class SlotEquipamiento extends Slot {
 		if (this.item != null) {
 			this.item.pintarInventario(g, area.x + this.MARGEN_ESPACIADO, area.y + this.MARGEN_ESPACIADO);
 		} else if (this.logo != null) {
-			DibujoDebug.dibujarImagen(g, this.logo, area.x, area.y);
+			Render2D.dibujarImagen(g, this.logo, area.x, area.y);
 		}
 	}
 

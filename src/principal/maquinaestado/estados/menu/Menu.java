@@ -10,7 +10,7 @@ import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.EstadoJuego;
 import principal.maquinaestado.estados.menu.herramientas.Componente;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 public abstract class Menu implements EstadoJuego {
@@ -37,7 +37,7 @@ public abstract class Menu implements EstadoJuego {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarImagen(g, this.FONDO, 0, 0);
+		Render2D.dibujarImagen(g, this.FONDO, 0, 0);
 		for (final Componente c : this.COMPONENTES) {
 			if (c.visible()) {
 				c.pintar(g);

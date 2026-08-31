@@ -12,7 +12,7 @@ import principal.mapa.escenario.EscenarioLoader;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.menu.herramientas.Boton;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 public class MenuEdirorSeleccion extends Menu {
@@ -90,7 +90,7 @@ public class MenuEdirorSeleccion extends Menu {
 		final int alto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, this.textoCarga);
 		final int puntoX = (this.DIMENSION.width / 2) - (ancho / 2);
 		final int puntoY = (this.DIMENSION.height / 2) + (alto / 2);
-		DibujoDebug.dibujarString(g, this.textoCarga, puntoX, puntoY, Color.YELLOW);
+		Render2D.dibujarString(g, this.textoCarga, puntoX, puntoY, Color.YELLOW);
 		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 
 	}

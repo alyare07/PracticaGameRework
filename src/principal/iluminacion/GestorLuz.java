@@ -12,38 +12,15 @@ import java.awt.image.VolatileImage;
 
 import principal.entes.Ente;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
 /**
  * Gestor maestro del subsistema de iluminación dinámica 2D, sombreado acelerado
- * en VRAM, ciclo solar de 24 horas y consultas de sigilo para la Inteligencia
- * Artificial.
- * <p>
- * <b>Pilares de Arquitectura y Rendimiento:</b>
- * <ul>
- * <li><b>Máscara en Espacio de Pantalla (Screen-Space Lightmap):</b> Renderiza
- * la oscuridad y los agujeros de luz sobre una {@link VolatileImage} acelerada
- * en VRAM a escala 1:1 ($640 \times 360$). Esto garantiza cobertura total de
- * esquina a esquina sin recuadros negros ni líneas de corte en ningún nivel de
- * zoom.</li>
- * <li><b>Pipeline Dual-Pass:</b> Perfora sombras restando opacidad mediante
- * {@link AlphaComposite#DST_OUT} y estampa el tinte cálido/arcano con
- * {@link AlphaComposite#SRC_OVER}.</li>
- * <li><b>Atenuación Diurna (Sunlight Washout):</b> Desvanece automáticamente el
- * tinte de las linternas y auras bajo la luz solar para evitar manchas
- * artificiales de luz sobre el pasto diurno.</li>
- * <li><b>Doble Frustum Culling O(1):</b> Descarta luces tanto en el renderizado
- * (Render Culling) como en la física de parpadeo de fuego en la lógica (Update
- * Culling), compensando zoom final, rotación ($\theta$) y temblores ($X,
- * Y$).</li>
- * <li><b>Pool de 256 Luces con Free-List Stack (Zero-GC):</b> Permite encender,
- * apagar y reutilizar fuentes de luz en tiempo constante sin instanciar objetos
- * en el Heap durante el juego.</li>
- * </ul>
- * </p>
+ * en VRAM, ciclo solar de 24 horas, rayos volumétricos (God Rays) y aura
+ * nocturna de penumbra suave.
  * 
- * @version 10.0
+ * @version 15.0
  */
 public class GestorLuz {
 
@@ -51,89 +28,50 @@ public class GestorLuz {
 	// === 1. CAPACIDAD Y TEXTURIZADO
 	// =========================================================================
 
-	/** Capacidad máxima de fuentes de luz simultáneas activas en memoria. */
 	private static final int CAPACIDAD_LUCES = 256;
-
-	/**
-	 * Dimensión en píxeles de las texturas cuadradas de halos pre-horneados en HD.
-	 */
 	private static final int RESOLUCION_HALO_HD = 256;
 
-	/**
-	 * Margen perimetral de holgura en píxeles de mundo para el Update Frustum
-	 * Culling.
-	 */
-	private static final int MARGEN_CULLING_MUNDO = 96;
-
-	// Composites estándar pre-instanciados (Zero-GC)
 	private static final AlphaComposite COMPOSITE_LIMPIEZA = AlphaComposite.getInstance(AlphaComposite.CLEAR);
 	private static final AlphaComposite COMPOSITE_NORMAL = AlphaComposite.getInstance(AlphaComposite.SRC_OVER);
 	private static final AlphaComposite COMPOSITE_PERFORAR = AlphaComposite.getInstance(AlphaComposite.DST_OUT);
 
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN DIDÁCTICA: POOL DE COMPOSITES PARA ATENUACIÓN DIURNA (ZERO-GC)
-	 * ------------------------------------------------------------------------- En
-	 * Java 2D, llamar a 'AlphaComposite.getInstance(SRC_OVER, float)' dentro del
-	 * bucle de renderizado puede generar basura en memoria si el valor float
-	 * cambia.
-	 *
-	 * Para que el tinte de color de las linternas se desvanezca suavemente al salir
-	 * el sol sin crear ningún objeto nuevo en el Heap:
-	 *
-	 * Pre-instanciamos 11 niveles fijos de opacidad (del 0% al 100% de fuerza del
-	 * tinte). Al dibujar, simplemente seleccionamos el índice '[0..10]'
-	 * correspondiente en O(1).
-	 * =========================================================================
-	 */
 	private static final AlphaComposite[] COMPOSITES_TINTE_ATENUADO = new AlphaComposite[11];
 	static {
 		for (int i = 0; i <= 10; i++) {
-			final float opacidad = (i / 10.0f) * 0.40f; // Máximo 40% de opacidad de tinte en noche cerrada
+			final float opacidad = (i / 10.0f) * 0.40f;
 			COMPOSITES_TINTE_ATENUADO[i] = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacidad);
 		}
 	}
 
+	private static final AlphaComposite[] COMPOSITES_RELAMPAGO = new AlphaComposite[11];
+	static {
+		for (int i = 0; i <= 10; i++) {
+			final float opacidad = (i / 10.0f) * 0.80f;
+			COMPOSITES_RELAMPAGO[i] = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacidad);
+		}
+	}
+
 	// =========================================================================
-	// === 2. POOL DE MEMORIA Y FREE-LIST STACK (ZERO-GC)
+	// === 2. POOL DE MEMORIA Y SUBSISTEMAS
 	// =========================================================================
 
-	/** Pool maestro de instancias pre-asignadas en memoria estática. */
 	private final FuenteLuz[] pool;
-
-	/**
-	 * Pila de índices libres para asignación y liberación en tiempo constante O(1).
-	 */
 	private final int[] indicesLibres;
-
-	/** Puntero al tope de la pila de ranuras libres. */
 	private int topePila;
 
-	/**
-	 * Arreglo contiguo de luces actualmente encendidas para iteración rápida de
-	 * CPU.
-	 */
 	private final FuenteLuz[] activas;
-
-	/** Cantidad de luces encendidas y procesándose en el fotograma actual. */
 	private int cantidadActivas;
 
-	/**
-	 * Controlador del reloj solar de 24 horas y transiciones de color ambiental.
-	 */
 	private final CicloDiaNoche ciclo;
-
-	/**
-	 * Framebuffer secundario acelerado en GPU donde se compone la máscara de
-	 * sombras.
-	 */
+	private final GestorRayosSol rayosSol;
+	private final OclusorSombras2D oclusorSombras;
 	private VolatileImage lightmap;
 
-	// Texturas de halo circular y cónico pre-generadas al arrancar el motor
 	private final BufferedImage texturaMascaraAlphaHD;
-	private final BufferedImage texturaMascaraConoHD;
-	private final BufferedImage[] texturasHaloColor;
-	private final BufferedImage[] texturasHaloColorCono;
+	private final BufferedImage texturaMascaraAuraHD; // Máscara tenue para Aura Jugador
+	private final BufferedImage[] texturasMascaraConoHD;
+	private final BufferedImage[][] texturasHaloColor;
+	private final BufferedImage[][] texturasHaloColorCono;
 
 	// =========================================================================
 	// === 3. ESTADOS DE AMBIENTE, CUEVAS Y BIOMAS
@@ -143,24 +81,20 @@ public class GestorLuz {
 	private boolean modoAmbienteFijo = false;
 	private Color colorAmbienteFijo = new Color(0, 0, 0, 255);
 
-	// Transición suave al entrar a cuevas/mazmorras
 	private boolean transicionActiva = false;
 	private Color colorTransicionOrigen;
 	private Color colorTransicionDestino;
 	private double tiempoTransicionTotal;
 	private double tiempoTransicionActual;
 
-	// Tinte ambiental recibido desde GestorZonasAmbiente
 	private Color colorTinteBioma = null;
 	private double factorInmersionBioma = 0.0;
 
-	// Flashes de explosiones y relámpagos
 	private boolean flashGlobalActivo = false;
 	private double duracionFlashGlobal = 0.0;
 	private double tiempoFlashGlobalRestante = 0.0;
 	private boolean flashGlobalRelampago = false;
 
-	// Dirty-Flags de Color para evitar 'new Color()' en cada tick (Zero-GC)
 	private int lastBaseR = -1, lastBaseG = -1, lastBaseB = -1, lastBaseA = -1;
 	private Color colorAmbienteCalculado = new Color(0, 0, 0, 0);
 
@@ -168,10 +102,6 @@ public class GestorLuz {
 	// === CONSTRUCTOR: INICIALIZACIÓN Y PRE-HORNEADO
 	// =========================================================================
 
-	/**
-	 * Inicializa el pool de 256 luces, la pila Free-List, el reloj solar y hornea
-	 * los gradientes radiales y cónicos en texturas de memoria estática.
-	 */
 	public GestorLuz() {
 		this.pool = new FuenteLuz[CAPACIDAD_LUCES];
 		this.indicesLibres = new int[CAPACIDAD_LUCES];
@@ -185,19 +115,31 @@ public class GestorLuz {
 		}
 
 		this.ciclo = new CicloDiaNoche();
+		this.rayosSol = new GestorRayosSol();
+		this.oclusorSombras = new OclusorSombras2D();
 
-		// 1. Horneado de máscaras de perforación alfa en HD
-		this.texturaMascaraAlphaHD = this.hornearTexturaMascaraHD();
-		this.texturaMascaraConoHD = this.hornearTexturaMascaraConoHD(85.0);
+		// 1. Horneado de máscaras alfa en HD
+		this.texturaMascaraAlphaHD = this.hornearTexturaMascaraHD(255);
+		this.texturaMascaraAuraHD = this.hornearTexturaMascaraHD(105); // Solo 40% de perforación para penumbra oscura
 
-		// 2. Horneado de halos coloreados por tipo de luz
 		final int totalTipos = TipoLuz.values().length;
-		this.texturasHaloColor = new BufferedImage[totalTipos];
-		this.texturasHaloColorCono = new BufferedImage[totalTipos];
+		this.texturasMascaraConoHD = new BufferedImage[totalTipos];
+		this.texturasHaloColor = new BufferedImage[totalTipos][3];
+		this.texturasHaloColorCono = new BufferedImage[totalTipos][3];
 
 		for (final TipoLuz tipo : TipoLuz.values()) {
-			this.texturasHaloColor[tipo.ordinal()] = this.hornearTexturaColorHD(tipo);
-			this.texturasHaloColorCono[tipo.ordinal()] = this.hornearTexturaColorConoHD(tipo);
+			final int ordinal = tipo.ordinal();
+
+			for (int nivel = 0; nivel < 3; nivel++) {
+				this.texturasHaloColor[ordinal][nivel] = this.hornearTexturaColorHD(tipo, nivel);
+			}
+
+			if (tipo.isEsCono()) {
+				this.texturasMascaraConoHD[ordinal] = this.hornearTexturaMascaraConoHD(tipo.getAnguloAperturaGrados());
+				for (int nivel = 0; nivel < 3; nivel++) {
+					this.texturasHaloColorCono[ordinal][nivel] = this.hornearTexturaColorConoHD(tipo, nivel);
+				}
+			}
 		}
 	}
 
@@ -205,21 +147,7 @@ public class GestorLuz {
 	// === PRE-HORNEADO PROCEDURAL DE GRADIENTES
 	// =========================================================================
 
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN DIDÁCTICA: ¿POR QUÉ PRE-HORNEAR LOS HALOS DE LUZ?
-	 * -------------------------------------------------------------------------
-	 * Calcular 'new RadialGradientPaint()' en cada frame para 30 antorchas obliga a
-	 * la CPU a calcular raíces cuadradas y miles de colores por segundo, generando
-	 * lag masivo y toneladas de basura en el Garbage Collector.
-	 *
-	 * Al "hornear" (dibujar una sola vez en el inicio) las texturas cuadradas
-	 * suaves: 1. Durante el juego la GPU solo hace 'gLight.drawImage(...)', lo cual
-	 * es ultra-rápido. 2. Cero consumo de CPU en cálculo de degradados y 0 bytes de
-	 * basura en memoria.
-	 * =========================================================================
-	 */
-	private BufferedImage hornearTexturaMascaraHD() {
+	private BufferedImage hornearTexturaMascaraHD(final int alphaCentro) {
 		final BufferedImage img = new BufferedImage(RESOLUCION_HALO_HD, RESOLUCION_HALO_HD,
 				BufferedImage.TYPE_INT_ARGB);
 		final Graphics2D g2d = img.createGraphics();
@@ -227,10 +155,8 @@ public class GestorLuz {
 
 		final float centro = RESOLUCION_HALO_HD / 2.0f;
 		final float[] fracciones = { 0.0f, 0.50f, 1.0f };
-		final Color[] colores = { new Color(255, 255, 255, 255), // Centro: 100% perforación de penumbra
-				new Color(255, 255, 255, 160), // Penumbra suave intermedia
-				new Color(255, 255, 255, 0) // Borde exterior
-		};
+		final Color[] colores = { new Color(255, 255, 255, alphaCentro),
+				new Color(255, 255, 255, (int) (alphaCentro * 0.55f)), new Color(255, 255, 255, 0) };
 
 		g2d.setPaint(new RadialGradientPaint(centro, centro, centro, fracciones, colores));
 		g2d.fillOval(0, 0, RESOLUCION_HALO_HD, RESOLUCION_HALO_HD);
@@ -238,15 +164,6 @@ public class GestorLuz {
 		return img;
 	}
 
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN DIDÁCTICA: CONO DIRECCIONAL PURO (SIN CÍRCULO DETRÁS)
-	 * -------------------------------------------------------------------------
-	 * Usamos 'Arc2D.PIE' centrado en (128, 128) con un ángulo de apertura de 85°.
-	 * El gradiente radial hace que el vértice que nace en el pecho del jugador
-	 * tenga 100% de luz y se difumine suavemente hacia el borde frontal.
-	 * =========================================================================
-	 */
 	private BufferedImage hornearTexturaMascaraConoHD(final double anguloApertura) {
 		final BufferedImage img = new BufferedImage(RESOLUCION_HALO_HD, RESOLUCION_HALO_HD,
 				BufferedImage.TYPE_INT_ARGB);
@@ -255,10 +172,8 @@ public class GestorLuz {
 
 		final float centro = RESOLUCION_HALO_HD / 2.0f;
 		final float[] fracciones = { 0.0f, 0.55f, 1.0f };
-		final Color[] colores = { new Color(255, 255, 255, 255), // Vértice en el personaje (máxima claridad)
-				new Color(255, 255, 255, 150), // Haz central
-				new Color(255, 255, 255, 0) // Borde del haz
-		};
+		final Color[] colores = { new Color(255, 255, 255, 255), new Color(255, 255, 255, 150),
+				new Color(255, 255, 255, 0) };
 
 		g2d.setPaint(new RadialGradientPaint(centro, centro, centro, fracciones, colores));
 		final double inicioAngulo = -(anguloApertura / 2.0);
@@ -268,14 +183,14 @@ public class GestorLuz {
 		return img;
 	}
 
-	private BufferedImage hornearTexturaColorHD(final TipoLuz tipo) {
+	private BufferedImage hornearTexturaColorHD(final TipoLuz tipo, final int nivelTermico) {
 		final BufferedImage img = new BufferedImage(RESOLUCION_HALO_HD, RESOLUCION_HALO_HD,
 				BufferedImage.TYPE_INT_ARGB);
 		final Graphics2D g2d = img.createGraphics();
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
 		final float centro = RESOLUCION_HALO_HD / 2.0f;
-		final Color base = tipo.getColorLuz();
+		final Color base = this.calcularColorTermico(tipo.getColorLuz(), nivelTermico, tipo == TipoLuz.MAGIA_ARCANO);
 		final int aMax = (int) (tipo.getIntensidad() * 255.0f);
 		final float[] fracciones = { 0.0f, 0.40f, 1.0f };
 		final Color[] colores = { new Color(base.getRed(), base.getGreen(), base.getBlue(), aMax),
@@ -288,14 +203,14 @@ public class GestorLuz {
 		return img;
 	}
 
-	private BufferedImage hornearTexturaColorConoHD(final TipoLuz tipo) {
+	private BufferedImage hornearTexturaColorConoHD(final TipoLuz tipo, final int nivelTermico) {
 		final BufferedImage img = new BufferedImage(RESOLUCION_HALO_HD, RESOLUCION_HALO_HD,
 				BufferedImage.TYPE_INT_ARGB);
 		final Graphics2D g2d = img.createGraphics();
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
 		final float centro = RESOLUCION_HALO_HD / 2.0f;
-		final Color base = tipo.getColorLuz();
+		final Color base = this.calcularColorTermico(tipo.getColorLuz(), nivelTermico, false);
 		final int aMax = (int) (tipo.getIntensidad() * 255.0f);
 		final float[] fracciones = { 0.0f, 0.45f, 1.0f };
 		final Color[] colores = { new Color(base.getRed(), base.getGreen(), base.getBlue(), aMax),
@@ -310,16 +225,46 @@ public class GestorLuz {
 		return img;
 	}
 
+	private Color calcularColorTermico(final Color base, final int nivel, final boolean esArcano) {
+		if (nivel == 1) {
+			return base;
+		}
+
+		int r = base.getRed();
+		int g = base.getGreen();
+		int b = base.getBlue();
+
+		if (esArcano) {
+			if (nivel == 0) {
+				g = Math.min(255, g + 25);
+				b = Math.min(255, b + 15);
+			} else {
+				r = Math.min(255, r + 45);
+				g = Math.max(0, g - 40);
+			}
+		} else if (nivel == 0) {
+			r = Math.min(255, r + 15);
+			g = Math.min(255, g + 35);
+			b = Math.min(255, b + 15);
+		} else {
+			r = Math.min(255, r + 10);
+			g = Math.max(0, g - 30);
+			b = Math.max(0, b - 10);
+		}
+
+		return new Color(r, g, b);
+	}
+
 	// =========================================================================
 	// === POOL Y GESTIÓN DE LUCES (ZERO-GC)
 	// =========================================================================
 
 	public FuenteLuz agregarLuzEstatica(final double x, final double y, final TipoLuz tipo) {
-		return this.agregarLuzEstatica(x, y, tipo, tipo.getRadioBase());
+		return this.agregarLuzEstatica(x, y, tipo, (tipo != null) ? tipo.getRadioBase() : 75.0);
 	}
 
 	public FuenteLuz agregarLuzEstatica(final double x, final double y, final TipoLuz tipo, final double radio) {
-		if (this.topePila == 0) {
+		if ((this.topePila == 0) || (tipo == null)) {
 			return null;
 		}
 		final int indice = this.indicesLibres[--this.topePila];
@@ -333,21 +278,11 @@ public class GestorLuz {
 		return this.agregarLuzAnclada(ente, tipo, (tipo != null) ? tipo.getRadioBase() : 100.0);
 	}
 
-	/**
-	 * Ancla una fuente de luz a una entidad móvil con deduplicación automática y
-	 * sincronización bidireccional.
-	 *
-	 * @param ente  Entidad a seguir.
-	 * @param tipo  Preset de iluminación.
-	 * @param radio Radio en píxeles deseado.
-	 * @return Referencia a la {@link FuenteLuz} asignada.
-	 */
 	public FuenteLuz agregarLuzAnclada(final Ente ente, final TipoLuz tipo, final double radio) {
-		if (ente == null) {
+		if ((ente == null) || (tipo == null)) {
 			return null;
 		}
 
-		// 1. Si la entidad ya poseía una luz activa, se actualiza in-situ
 		for (int i = 0; i < this.cantidadActivas; i++) {
 			final FuenteLuz l = this.activas[i];
 			if (l.getEnteAnclado() == ente) {
@@ -356,7 +291,6 @@ public class GestorLuz {
 			}
 		}
 
-		// 2. Si no tenía luz, se extrae una ranura del pool
 		if (this.topePila == 0) {
 			return null;
 		}
@@ -374,7 +308,7 @@ public class GestorLuz {
 
 	public FuenteLuz dispararFlashPosicional(final double x, final double y, final TipoLuz tipo, final double radio,
 			final double duracion) {
-		if (this.topePila == 0) {
+		if ((this.topePila == 0) || (tipo == null)) {
 			return null;
 		}
 		final int indice = this.indicesLibres[--this.topePila];
@@ -397,16 +331,17 @@ public class GestorLuz {
 		}
 		for (int i = 0; i < this.cantidadActivas; i++) {
 			if (this.activas[i].getEnteAnclado() == ente) {
-				this.activas[i].apagar();
+				final FuenteLuz luz = this.activas[i];
+				luz.apagar();
+				this.indicesLibres[this.topePila++] = luz.getIndicePool();
+				this.activas[i] = this.activas[this.cantidadActivas - 1];
+				this.activas[this.cantidadActivas - 1] = null;
+				this.cantidadActivas--;
 				break;
 			}
 		}
 	}
 
-	/**
-	 * Apaga todas las luces activas y reintegra los índices al pool (usado al
-	 * cambiar de mapa).
-	 */
 	public void apagarTodasLasLuces() {
 		for (int i = 0; i < this.cantidadActivas; i++) {
 			final FuenteLuz luz = this.activas[i];
@@ -417,18 +352,6 @@ public class GestorLuz {
 		this.cantidadActivas = 0;
 	}
 
-	// =========================================================================
-	// === CONSULTAS DE SIGILO E INTELIGENCIA ARTIFICIAL (IA QUERY O(1))
-	// =========================================================================
-
-	/**
-	 * Evalúa si una coordenada puntual del mundo se encuentra iluminada por el sol
-	 * o por una luz cercana.
-	 *
-	 * @param mundoX Coordenada X absoluta de mundo.
-	 * @param mundoY Coordenada Y absoluta de mundo.
-	 * @return {@code true} si el punto recibe luz visible.
-	 */
 	public boolean isPosicionIluminada(final double mundoX, final double mundoY) {
 		if (!this.modoAmbienteFijo && (this.ciclo.getColorAmbienteActual().getAlpha() < 50)) {
 			return true;
@@ -449,13 +372,11 @@ public class GestorLuz {
 					return true;
 				}
 				final double anguloPunto = Math.atan2(dy, dx);
-				double diff = Math.abs(anguloPunto - luz.getAnguloRotacion());
-				while (diff > Math.PI) {
-					diff = Math.abs(diff - (Math.PI * 2.0));
-				}
+				final double diff = Math.atan2(Math.sin(anguloPunto - luz.getAnguloRotacion()),
+						Math.cos(anguloPunto - luz.getAnguloRotacion()));
 
 				final double semiApertura = Math.toRadians(luz.getTipo().getAnguloAperturaGrados() / 2.0);
-				if (diff <= semiApertura) {
+				if (Math.abs(diff) <= semiApertura) {
 					return true;
 				}
 			}
@@ -463,10 +384,6 @@ public class GestorLuz {
 		return false;
 	}
 
-	/**
-	 * Retorna el nivel relativo de claridad en un punto (0.0 = oscuridad pura, 1.0
-	 * = claridad plena).
-	 */
 	public float getNivelLuzEn(final double mundoX, final double mundoY) {
 		if (this.isPosicionIluminada(mundoX, mundoY)) {
 			return 1.0f;
@@ -481,10 +398,6 @@ public class GestorLuz {
 		}
 		return this.ciclo.getColorAmbienteActual().getAlpha();
 	}
-
-	// =========================================================================
-	// === AMBIENTES Y TRANSICIONES
-	// =========================================================================
 
 	public void establecerModoCueva(final boolean total) {
 		this.establecerAmbienteTransicion(total ? new Color(0, 0, 0, 255) : new Color(10, 15, 30, 235), 1.2);
@@ -514,26 +427,6 @@ public class GestorLuz {
 		this.factorInmersionBioma = factorInmersion;
 	}
 
-	// =========================================================================
-	// === CICLO LÓGICO CON UPDATE FRUSTUM CULLING (60 APS)
-	// =========================================================================
-
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN DIDÁCTICA: UPDATE FRUSTUM CULLING EN COORDENADAS DE MUNDO
-	 * ------------------------------------------------------------------------- Si
-	 * tienes 256 antorchas en el mapa, calcular 'Math.sin()' y parpadeo para todas
-	 * en cada tick consume CPU innecesariamente.
-	 *
-	 * 1. Calculamos el área rectangular del mundo que la cámara está viendo
-	 * (compensando zoom final, rotación, temblor y un margen de seguridad).
-	 *
-	 * 2. Si una luz está fuera de este rectángulo: - Si está anclada a un ente,
-	 * actualizamos su posición para que nunca quede desfasada. - Si el ente murió
-	 * fuera de pantalla, apagamos la luz de inmediato. - Omitimos los cálculos
-	 * trigonométricos de la llama, ahorrando CPU al 100%.
-	 * =========================================================================
-	 */
 	public void actualizar() {
 		if (!this.iluminacionHabilitada) {
 			return;
@@ -562,61 +455,19 @@ public class GestorLuz {
 			}
 		}
 
-		// Cálculo del cuadro envolvente de visión de la cámara en píxeles de mundo
-		final double zoomActivo = (Globales.CAMARA != null) ? Math.max(0.2, Globales.CAMARA.getZoomFinal()) : 1.0;
-		final double rotAbs = (Globales.CAMARA != null)
-				? Math.abs(Globales.CAMARA.getGestorEfectos().getAnguloRotacion())
-				: 0.0;
-		final double shakeX = (Globales.CAMARA != null) ? Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetX())
-				: 0.0;
-		final double shakeY = (Globales.CAMARA != null) ? Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetY())
-				: 0.0;
+		final boolean hayTormenta = (Globales.GESTOR_CLIMA != null) && Globales.GESTOR_CLIMA.isTormentaActiva();
+		this.rayosSol.actualizar(dt, this.ciclo.getHoraActual(), this.modoAmbienteFijo, hayTormenta);
 
-		final double cos = Math.cos(rotAbs);
-		final double sin = Math.sin(rotAbs);
-
-		final int radioVisibleX = (int) Math
-				.ceil(((Constantes.CENTROX * cos) + (Constantes.CENTROY * sin)) / zoomActivo) + (int) shakeX
-				+ MARGEN_CULLING_MUNDO;
-		final int radioVisibleY = (int) Math
-				.ceil(((Constantes.CENTROX * sin) + (Constantes.CENTROY * cos)) / zoomActivo) + (int) shakeY
-				+ MARGEN_CULLING_MUNDO;
-
-		final int camX = (Globales.CAMARA != null) ? Globales.CAMARA.getPosicionXInt() : 0;
-		final int camY = (Globales.CAMARA != null) ? Globales.CAMARA.getPosicionYInt() : 0;
-
-		final int minMundoX = camX - radioVisibleX;
-		final int maxMundoX = camX + radioVisibleX;
-		final int minMundoY = camY - radioVisibleY;
-		final int maxMundoY = camY + radioVisibleY;
-
-		// Bucle de actualización con Update Frustum Culling
 		int i = 0;
 		while (i < this.cantidadActivas) {
 			final FuenteLuz luz = this.activas[i];
 
-			/*
-			 * Sincronización continua de entidades: Si la luz sigue a un Ente, actualizamos
-			 * su posición y validamos si murió, garantizando que nunca quede atrapada en
-			 * coordenadas viejas fuera de pantalla.
-			 */
-			if (luz.getEnteAnclado() != null) {
-				if (luz.getEnteAnclado().estaEliminado()) {
-					luz.apagar();
-					this.indicesLibres[this.topePila++] = luz.getIndicePool();
-					this.activas[i] = this.activas[this.cantidadActivas - 1];
-					this.activas[this.cantidadActivas - 1] = null;
-					this.cantidadActivas--;
-					continue;
-				}
-				luz.actualizarPosicionEnte();
-			}
-
-			// Descarte temprano de físicas pesadas para luces fuera de pantalla
-			final double rLuz = luz.getRadioActual();
-			if (((luz.getPosX() + rLuz) < minMundoX) || ((luz.getPosX() - rLuz) > maxMundoX)
-					|| ((luz.getPosY() + rLuz) < minMundoY) || ((luz.getPosY() - rLuz) > maxMundoY)) {
-				i++;
+			if ((luz.getEnteAnclado() != null) && luz.getEnteAnclado().estaEliminado()) {
+				luz.apagar();
+				this.indicesLibres[this.topePila++] = luz.getIndicePool();
+				this.activas[i] = this.activas[this.cantidadActivas - 1];
+				this.activas[this.cantidadActivas - 1] = null;
+				this.cantidadActivas--;
 				continue;
 			}
 
@@ -625,7 +476,6 @@ public class GestorLuz {
 			if (luz.isActiva()) {
 				i++;
 			} else {
-				// Eliminación Swap-and-Pop en tiempo O(1)
 				this.indicesLibres[this.topePila++] = luz.getIndicePool();
 				this.activas[i] = this.activas[this.cantidadActivas - 1];
 				this.activas[this.cantidadActivas - 1] = null;
@@ -641,10 +491,6 @@ public class GestorLuz {
 		}
 	}
 
-	// =========================================================================
-	// === RENDERIZADO EN VRAM (LIGHTMAP + CONOS)
-	// =========================================================================
-
 	private void verificarLightmap(final Graphics2D g) {
 		if ((this.lightmap == null) || (this.lightmap.getWidth() != Constantes.ANCHO_JUEGO)
 				|| (this.lightmap.getHeight() != Constantes.ALTO_JUEGO)
@@ -658,16 +504,12 @@ public class GestorLuz {
 		}
 	}
 
-	/**
-	 * Renderiza la máscara de sombras y perforaciones de luz adaptadas a la cámara
-	 * activa.
-	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
-	 */
 	public void pintar(final Graphics2D g) {
 		if (!this.iluminacionHabilitada) {
 			return;
 		}
+
+		this.rayosSol.pintar(g);
 
 		int rBase, gBase, bBase, aBase;
 		if (this.modoAmbienteFijo) {
@@ -696,7 +538,6 @@ public class GestorLuz {
 
 		final int alphaSombra = (int) Math.round(aBase * (1.0 - factorFlash));
 
-		// Descarte temprano si no hay sombras ni relámpagos que dibujar (0% GPU)
 		if ((alphaSombra <= 0) && (!this.flashGlobalActivo || !this.flashGlobalRelampago)) {
 			return;
 		}
@@ -711,11 +552,9 @@ public class GestorLuz {
 
 			final Graphics2D gLight = this.lightmap.createGraphics();
 			try {
-				// 1. Vaciado total de VRAM
 				gLight.setComposite(COMPOSITE_LIMPIEZA);
 				gLight.fillRect(0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
 
-				// 2. Estampar la oscuridad ambiental con Dirty-Flag (Zero-GC)
 				if (alphaSombra > 0) {
 					if ((rBase != this.lastBaseR) || (gBase != this.lastBaseG) || (bBase != this.lastBaseB)
 							|| (alphaSombra != this.lastBaseA)) {
@@ -730,15 +569,13 @@ public class GestorLuz {
 					gLight.fillRect(0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
 				}
 
-				// 3. Renderizado de Luces
 				if (this.cantidadActivas > 0) {
 					this.pintarLuces(gLight, alphaSombra);
 				}
 
-				// 4. Relámpago Blanco
 				if (this.flashGlobalActivo && this.flashGlobalRelampago && (factorFlash > 0.5)) {
-					final float aRel = (float) Math.min(0.80, (factorFlash - 0.5) / 0.5);
-					gLight.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, aRel));
+					final int idxRel = Math.max(0, Math.min(10, (int) Math.round(((factorFlash - 0.5) / 0.5) * 10.0)));
+					gLight.setComposite(COMPOSITES_RELAMPAGO[idxRel]);
 					gLight.setColor(Color.WHITE);
 					gLight.fillRect(0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
 				}
@@ -747,28 +584,11 @@ public class GestorLuz {
 				gLight.dispose();
 			}
 
-			// Estampar el Lightmap resultante en espacio de pantalla 1:1
-			DibujoDebug.dibujarImagen(g, this.lightmap, 0, 0);
+			Render2D.dibujarImagen(g, this.lightmap, 0, 0);
 
 		} while (this.lightmap.contentsLost());
 	}
 
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN DIDÁCTICA: PROYECCIÓN ALINEADA CON EL CENTRO FOCAL DE CÁMARA
-	 * ------------------------------------------------------------------------- En
-	 * este motor, 'camX' es la esquina superior izquierda de la entidad enfocada.
-	 * Para que el punto de luz coincida exactamente con el sprite dibujado en
-	 * pantalla:
-	 *
-	 * Calculamos el centro focal en mundo sumando medio ancho y alto del personaje:
-	 * centroMundoCamX = camX + (enteAncho / 2)
-	 *
-	 * Al restar 'luz.posX - centroMundoCamX', el desplazamiento relativo 'dx' vale
-	 * 0 cuando la luz está en el pecho del jugador, proyectándose exactamente en
-	 * CENTROX (320).
-	 * =========================================================================
-	 */
 	private void pintarLuces(final Graphics2D gLight, final int alphaSombra) {
 		final double z = (Globales.CAMARA != null) ? Globales.CAMARA.getZoomFinal() : 1.0;
 		final double shakeX = (Globales.CAMARA != null) ? Globales.CAMARA.getGestorEfectos().getOffsetX() : 0.0;
@@ -778,7 +598,6 @@ public class GestorLuz {
 		final int camX = (Globales.CAMARA != null) ? Globales.CAMARA.getPosicionXInt() : 0;
 		final int camY = (Globales.CAMARA != null) ? Globales.CAMARA.getPosicionYInt() : 0;
 
-		// Dimensiones de la entidad enfocada para alinear el punto cero focal
 		final int enteAncho = ((Globales.CAMARA != null) && (Globales.CAMARA.getEntidadEnfocada() != null))
 				? Globales.CAMARA.getEntidadEnfocada().getAncho()
 				: 0;
@@ -793,9 +612,8 @@ public class GestorLuz {
 		final double sin = Math.sin(rotCam);
 
 		// =====================================================================
-		// PASE A: PERFORACIÓN DE PENUMBRA (DST_OUT)
+		// PASE A: PERFORACIÓN DE PENUMBRA (DST_OUT) + OCLUSIÓN DE SOMBRAS 2D
 		// =====================================================================
-		gLight.setComposite(COMPOSITE_PERFORAR);
 		for (int i = 0; i < this.cantidadActivas; i++) {
 			final FuenteLuz luz = this.activas[i];
 			final int radioPantalla = (int) Math.round(luz.getRadioActual() * z);
@@ -809,32 +627,41 @@ public class GestorLuz {
 			final int screenX = (int) Math.round(Constantes.CENTROX + shakeX + rx) - radioPantalla;
 			final int screenY = (int) Math.round(Constantes.CENTROY + shakeY + ry) - radioPantalla;
 
-			// Frustum Culling en Pantalla
 			if (((screenX + diametro) < 0) || (screenX > Constantes.ANCHO_JUEGO) || ((screenY + diametro) < 0)
 					|| (screenY > Constantes.ALTO_JUEGO)) {
 				continue;
 			}
 
+			gLight.setComposite(COMPOSITE_PERFORAR);
 			if (luz.getTipo().isEsCono()) {
 				final double rotTotal = luz.getAnguloRotacion() + rotCam;
 				final int cx = screenX + radioPantalla;
 				final int cy = screenY + radioPantalla;
 				gLight.rotate(rotTotal, cx, cy);
-				gLight.drawImage(this.texturaMascaraConoHD, screenX, screenY, diametro, diametro, null);
+				gLight.drawImage(this.texturasMascaraConoHD[luz.getTipo().ordinal()], screenX, screenY, diametro,
+						diametro, null);
 				gLight.rotate(-rotTotal, cx, cy);
+			} else if (luz.getTipo() == TipoLuz.AURA_JUGADOR) {
+				// Aura del Jugador: Perforación suave de penumbra tenue (sin agujero blanco)
+				gLight.drawImage(this.texturaMascaraAuraHD, screenX, screenY, diametro, diametro, null);
 			} else {
+				// Antorchas, fogatas y fuego: Perforación plena
 				gLight.drawImage(this.texturaMascaraAlphaHD, screenX, screenY, diametro, diametro, null);
+			}
+
+			// Oclusión de sombras detrás de muros (solo para fuentes de luz reales)
+			if (luz.getTipo() != TipoLuz.AURA_JUGADOR) {
+				this.oclusorSombras.proyectarSombrasPaseA(gLight, luz, centroMundoCamX, centroMundoCamY, z, shakeX,
+						shakeY, this.colorAmbienteCalculado);
 			}
 		}
 
 		// =====================================================================
-		// PASE B: TINTE DE COLOR CON ATENUACIÓN DIURNA (ZERO-GC)
-		// =========================================================================
+		// PASE B: TINTE CROMÁTICO TÉRMICO
+		// =====================================================================
 		final int indiceCompositeTinte = Math.max(0, Math.min(10, (int) Math.round((alphaSombra / 200.0) * 10.0)));
 
 		if (indiceCompositeTinte > 0) {
-			gLight.setComposite(COMPOSITES_TINTE_ATENUADO[indiceCompositeTinte]);
-
 			for (int i = 0; i < this.cantidadActivas; i++) {
 				final FuenteLuz luz = this.activas[i];
 				final int radioPantalla = (int) Math.round(luz.getRadioActual() * z);
@@ -853,17 +680,26 @@ public class GestorLuz {
 					continue;
 				}
 
+				final int nivelTermico = luz.getVarianteTermica();
+				final int ordinalTipo = luz.getTipo().ordinal();
+
+				gLight.setComposite(COMPOSITES_TINTE_ATENUADO[indiceCompositeTinte]);
 				if (luz.getTipo().isEsCono()) {
 					final double rotTotal = luz.getAnguloRotacion() + rotCam;
 					final int cx = screenX + radioPantalla;
 					final int cy = screenY + radioPantalla;
 					gLight.rotate(rotTotal, cx, cy);
-					gLight.drawImage(this.texturasHaloColorCono[luz.getTipo().ordinal()], screenX, screenY, diametro,
+					gLight.drawImage(this.texturasHaloColorCono[ordinalTipo][nivelTermico], screenX, screenY, diametro,
 							diametro, null);
 					gLight.rotate(-rotTotal, cx, cy);
 				} else {
-					gLight.drawImage(this.texturasHaloColor[luz.getTipo().ordinal()], screenX, screenY, diametro,
+					gLight.drawImage(this.texturasHaloColor[ordinalTipo][nivelTermico], screenX, screenY, diametro,
 							diametro, null);
+				}
+
+				if (luz.getTipo() != TipoLuz.AURA_JUGADOR) {
+					this.oclusorSombras.proyectarSombrasPaseB(gLight, luz, centroMundoCamX, centroMundoCamY, z, shakeX,
+							shakeY);
 				}
 			}
 		}
@@ -875,6 +711,10 @@ public class GestorLuz {
 
 	public CicloDiaNoche getCiclo() {
 		return this.ciclo;
+	}
+
+	public GestorRayosSol getRayosSol() {
+		return this.rayosSol;
 	}
 
 	public int getCantidadActivas() {

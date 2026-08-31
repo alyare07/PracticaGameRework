@@ -6,7 +6,7 @@ import java.awt.Rectangle;
 
 import principal.controles.Raton;
 import principal.entes.objetos.items.Item;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 /**
  * Representación visual y punto de acceso rápido (HUD / Hotbar) en la parte
@@ -118,7 +118,7 @@ public class SlotIGU {
 		this.slot.pintar(g, this.areaIGU);
 
 		// 2. Dibujar el marco exterior para resaltar el HUD inferior
-		DibujoDebug.dibujarRectanguloContorno(g, this.areaIGU.x - MARGEN_BORDE_HUD, this.areaIGU.y - MARGEN_BORDE_HUD,
+		Render2D.dibujarRectanguloContorno(g, this.areaIGU.x - MARGEN_BORDE_HUD, this.areaIGU.y - MARGEN_BORDE_HUD,
 				this.areaIGU.width + EXPANSION_BORDE_HUD, this.areaIGU.height + EXPANSION_BORDE_HUD, COLOR_BORDE);
 	}
 

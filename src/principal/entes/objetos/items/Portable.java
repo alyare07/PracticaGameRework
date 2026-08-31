@@ -6,7 +6,7 @@ import java.awt.image.BufferedImage;
 import org.json.simple.JSONObject;
 
 import principal.entes.modelos.item.ListaModelosItem;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 public abstract class Portable extends Item {
 	private static final long serialVersionUID = 4861089138825196600L;
@@ -39,7 +39,7 @@ public abstract class Portable extends Item {
 
 	@Override
 	public void pintarInventario(final Graphics2D g, final int x, final int y) {
-		DibujoDebug.dibujarImagen(g, this.getTexturaInventario(), x, y);
+		Render2D.dibujarImagen(g, this.getTexturaInventario(), x, y);
 	}
 
 	@Override

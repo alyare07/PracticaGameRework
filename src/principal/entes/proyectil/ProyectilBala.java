@@ -6,7 +6,7 @@ import java.awt.Graphics2D;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.mapa.Mundo;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 public class ProyectilBala extends ProyectilGeneral{
 
@@ -25,7 +25,7 @@ public class ProyectilBala extends ProyectilGeneral{
 
     @Override
     public void pintar(final Graphics2D g) {
-	DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getPosicionXInt(), this.getPosicionYInt(), this.ancho, this.alto, Color.blue);
+	Render2D.dibujarRectanguloRellenoRefCamara(g, this.getPosicionXInt(), this.getPosicionYInt(), this.ancho, this.alto, Color.blue);
 	super.pintar(g);
     }
 

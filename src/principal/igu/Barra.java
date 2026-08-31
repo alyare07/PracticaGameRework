@@ -7,7 +7,7 @@ import java.awt.Rectangle;
 import java.text.DecimalFormat;
 
 import principal.entes.Ente;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 /**
@@ -109,23 +109,23 @@ public abstract class Barra extends Ente {
 	@Override
 	public void pintar(final Graphics2D g) {
 		// 1. Fondo base de la barra
-		DibujoDebug.dibujarRectanguloRelleno(g, this.AREA.x, this.AREA.y, this.AREA.width, this.AREA.height,
+		Render2D.dibujarRectanguloRelleno(g, this.AREA.x, this.AREA.y, this.AREA.width, this.AREA.height,
 				this.COLOR_FONDO);
 
 		// 2. Barra fantasma de daño (Amarilla / Lag)
 		if (this.anchoLag > this.anchoActual) {
-			DibujoDebug.dibujarRectanguloRelleno(g, this.AREA.x, this.AREA.y, this.anchoLag, this.AREA.height,
+			Render2D.dibujarRectanguloRelleno(g, this.AREA.x, this.AREA.y, this.anchoLag, this.AREA.height,
 					this.COLOR_LAG);
 		}
 
 		// 3. Barra principal frontal de valor actual (Roja / Relleno)
 		if (this.anchoActual > 0) {
-			DibujoDebug.dibujarRectanguloRelleno(g, this.AREA.x, this.AREA.y, this.anchoActual, this.AREA.height,
+			Render2D.dibujarRectanguloRelleno(g, this.AREA.x, this.AREA.y, this.anchoActual, this.AREA.height,
 					this.COLOR_RELLENO);
 		}
 
 		// 4. Borde exterior delimitador
-		DibujoDebug.dibujarRectanguloContorno(g, this.AREA, this.COLOR_BORDES);
+		Render2D.dibujarRectanguloContorno(g, this.AREA, this.COLOR_BORDES);
 
 		// 5. Texto numérico centrado con métricas
 		this.pintarInfo(g);
@@ -147,7 +147,7 @@ public abstract class Barra extends Ente {
 		final int x = this.AREA.x + ((this.AREA.width - anchoTexto) / 2);
 		final int y = (this.AREA.y + this.AREA.height) - ((this.AREA.height - altoTexto) / 2) - 2;
 
-		DibujoDebug.dibujarString(g, info, x, y, this.COLOR_TEXTO);
+		Render2D.dibujarString(g, info, x, y, this.COLOR_TEXTO);
 
 		g.setFont(fontPrevia);
 	}

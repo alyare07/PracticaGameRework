@@ -10,7 +10,7 @@ import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.entes.objetos.items.armas.distancia.fuego.municiones.Municion;
 import principal.mapa.Mundo;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 /**
@@ -49,7 +49,7 @@ public class BandidoPistolero extends Bandido {
 		super.pintar(g);
 
 		if (Globales.TECLADO.TECLA_DEBUG.presionado()) {
-			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getRectanguloInterseccionPistola2(this.rangoDisparo),
+			Render2D.dibujarRectanguloRellenoRefCamara(g, this.getRectanguloInterseccionPistola2(this.rangoDisparo),
 					Color.red);
 		}
 	}

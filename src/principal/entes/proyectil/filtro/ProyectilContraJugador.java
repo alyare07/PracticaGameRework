@@ -11,7 +11,7 @@ import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.proyectil.Proyectil;
 import principal.mapa.Mundo;
 import principal.mapa.Tile;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 public class ProyectilContraJugador extends Proyectil implements Serializable {
@@ -40,7 +40,7 @@ public class ProyectilContraJugador extends Proyectil implements Serializable {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getPosicionXInt(), this.getPosicionYInt(), this.ancho,
+		Render2D.dibujarRectanguloRellenoRefCamara(g, this.getPosicionXInt(), this.getPosicionYInt(), this.ancho,
 				this.alto, Color.red);
 	}
 

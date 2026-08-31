@@ -7,9 +7,28 @@ import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Almacén maestro y catálogo unificado de texturas cargadas en VRAM.
+ * <p>
+ * <b>Arquitectura de Rendimiento:</b>
+ * <ul>
+ * <li><b>Acceso Directo por Arreglo Primitivo O(1):</b> Elimina el
+ * boxing/unboxing de {@code Integer} en el renderizado continuo de tiles
+ * mediante un arreglo plano con desplazamiento de índices negativos.</li>
+ * <li><b>Auto-Expansión Segura:</b> Si se registra un ID superior a la
+ * capacidad base durante el arranque, el catálogo se expande automáticamente
+ * sin fragmentación.</li>
+ * </ul>
+ * </p>
+ * 
+ * @version 3.0
+ */
 public final class Textura {
 
-	// Identificadores de rangos
+	// =========================================================================
+	// === 1. IDENTIFICADORES DE RANGOS BASE
+	// =========================================================================
+
 	private static final int INICIO_TERRENO = 1;
 	private static final int INICIO_SUB_TERRENO = 500;
 	private static final int INICIO_OBJETOS = 1000;
@@ -54,20 +73,24 @@ public final class Textura {
 		return idSiguienteEstructura++;
 	}
 
-	// En Textura.java:
 	private static int getSiguienteRangoTerreno(final int cantidad) {
 		final int inicio = idSiguienteTerreno;
 		idSiguienteTerreno += cantidad;
 		return inicio;
 	}
 
-	// IDs Específicos
+	// =========================================================================
+	// === 2. CONSTANTES DE TEXTURAS Y PRESETS
+	// =========================================================================
+
+	// IDs Especiales
 	public static final int TEXTURA_ERROR = -2;
 	public static final int TEXTURA_TRANSPARENTE = -1;
 	public static final int TEXTURA_x32_VACIO = 0;
 	public static final int idTexturaContornoTile = -3;
 	public static final int idTexturaContornoGroupTile = -4;
 
+	// Autotiles Terreno
 	public static final int INICIO_AUTOTILE_CESPED = getSiguienteRangoTerreno(20);
 	public static final int INICIO_AUTOTILE_TIERRA = getSiguienteRangoTerreno(20);
 	public static final int INICIO_AUTOTILE_TIERRA_2 = getSiguienteRangoTerreno(20);
@@ -146,11 +169,31 @@ public final class Textura {
 	// Estructuras
 	public static final int TEXTURA_X64_CASA1 = getSiguienteIdEstructura();
 
-	// Almacenamiento Unificado
+	// =========================================================================
+	// === 3. ESTRUCTURAS DE ALMACENAMIENTO DE ALTO RENDIMIENTO (ZERO-GC)
+	// =========================================================================
+
+	/** Offset para mapear IDs negativos (-4 .. -1) dentro del arreglo continuo. */
+	private static final int OFFSET_INDICE = 16;
+
+	/** Capacidad base del arreglo directo de texturas. */
+	private static final int CAPACIDAD_BASE = 250000;
+
+	/** Arreglo contiguo de punteros a texturas indexado directamente por ID. */
+	private static BufferedImage[] catalogoTexturas = new BufferedImage[CAPACIDAD_BASE];
+
+	/** Referencia directa a la textura de fallback. */
+	private static BufferedImage texturaError;
+
+	/** Mapa de compatibilidad para herramientas externas o inspectores. */
 	public static final Map<Integer, BufferedImage> TEXTURAS = new HashMap<>();
+
 	public static HojaSprite HOJA_AGUA;
 
-	// --- BLOQUE ÚNICO DE INICIALIZACIÓN ---
+	// =========================================================================
+	// === 4. INICIALIZACIÓN Y CARGA
+	// =========================================================================
+
 	static {
 		cargarTodasLasTexturas();
 	}
@@ -160,15 +203,17 @@ public final class Textura {
 
 	private static void cargarTodasLasTexturas() {
 
-		// 1. Texturas Vacías / Transparentes / Debug
+		// 1. Texturas Especiales y Debug
 		final BufferedImage vacio = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(32, 32, Transparency.OPAQUE);
 		final Graphics2D gVacio = vacio.createGraphics();
 		gVacio.setColor(Color.DARK_GRAY);
 		gVacio.fillRect(0, 0, 32, 32);
 		gVacio.dispose();
-		guardar(TEXTURA_x32_VACIO, vacio);
-		guardar(TEXTURA_ERROR, Globales.FUNCIONES.TEXTURAS_TOOLS.crearTexturaError(32));
 
+		texturaError = Globales.FUNCIONES.TEXTURAS_TOOLS.crearTexturaError(32);
+
+		guardar(TEXTURA_x32_VACIO, vacio);
+		guardar(TEXTURA_ERROR, texturaError);
 		guardar(TEXTURA_TRANSPARENTE,
 				Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(1, 1, Transparency.TRANSLUCENT));
 		guardar(idTexturaContornoTile,
@@ -176,7 +221,7 @@ public final class Textura {
 		guardar(idTexturaContornoGroupTile, Globales.FUNCIONES.TEXTURAS_TOOLS
 				.crearImagenRectanguloContornoEnVRAM(Constantes.LADO_TILE * 2, Color.BLUE));
 
-		// 4. Objetos y Árboles
+		// 2. Objetos y Árboles
 		final HojaSprite hojaArboles = new HojaSprite("/imagenes/texturas/trees.png", 32, false);
 		guardar(TEXTURA_x32_ARBOL_1, hojaArboles.getSprite(0));
 		guardar(TEXTURA_x32_ARBOL_2, hojaArboles.getSprite(1));
@@ -189,7 +234,7 @@ public final class Textura {
 		guardar(TEXTURA_x32_ARBOL_3_NEVADO, hojaArbolesNevados.getSprite(2));
 		guardar(TEXTURA_x32_ARBOL_0_NEVADO, hojaArbolesNevados.getSprite(3));
 
-		// 5. Items y Granadas
+		// 3. Items y Granadas
 		final HojaSprite hojaItems16 = new HojaSprite("/imagenes/objetos/items.png", 16, false);
 		guardar(TEXTURA_x16_ANILLO_PLATA, hojaItems16.getSprite(0));
 		guardar(TEXTURA_x16_ANILLO_ORO, hojaItems16.getSprite(13));
@@ -213,7 +258,7 @@ public final class Textura {
 
 		cargarGranadas("/imagenes/objetos/granadas.png", 10, TEXTURA_X10_GRANADA_1);
 
-		// 6. Partículas, Efectos y Estructuras
+		// 4. Partículas, Efectos y Estructuras
 		final HojaSprite hojaParticulas = new HojaSprite("/imagenes/objetos/sangrex8.png", 8, false);
 		guardar(TEXTURA_X8_PARTICULA_SANGRE, hojaParticulas.getSprite(0));
 
@@ -225,8 +270,7 @@ public final class Textura {
 				.cargarImagenCompatibleTranslucida("/imagenes/texturas/house/1.png");
 		guardar(TEXTURA_X64_CASA1, Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(auxCasa, 64, 64));
 
-		// Reemplaza o añade la carga de terrenos dentro de cargarTodasLasTexturas() en
-		// Textura.java:
+		// 5. Terrenos y Autotiles
 		final HojaSprite hojaTerrenos = new HojaSprite("/imagenes/texturas/terrenos16.png", 16, false);
 
 		cargarSetTerreno(hojaTerrenos, 0, INICIO_AUTOTILE_CESPED);
@@ -235,42 +279,76 @@ public final class Textura {
 		cargarSetTerreno(hojaTerrenos, 3, INICIO_AUTOTILE_ARENA);
 		cargarSetTerreno(hojaTerrenos, 4, INICIO_AUTOTILE_ASFALTO);
 		cargarSetTerreno(hojaTerrenos, 5, INICIO_AUTOTILE_PIEDRA);
-		// 3 FILAS DE AGUA (Frames 0, 1, 2)
+
+		// 3 Filas de Agua
 		cargarSetTerreno(hojaTerrenos, 6, INICIO_AUTOTILE_AGUA);
 		cargarSetTerreno(hojaTerrenos, 7, INICIO_AUTOTILE_AGUA + 20);
 		cargarSetTerreno(hojaTerrenos, 8, INICIO_AUTOTILE_AGUA + 40);
-		// RESTO DE TERRENOS
+
+		// Terrenos restantes
 		cargarSetTerreno(hojaTerrenos, 9, INICIO_AUTOTILE_CESPED_2);
 		cargarSetTerreno(hojaTerrenos, 10, INICIO_AUTOTILE_CESPED_3);
 		cargarSetTerreno(hojaTerrenos, 11, INICIO_AUTOTILE_CESPED_3_NEVADO);
 		cargarSetTerreno(hojaTerrenos, 12, INICIO_AUTOTILE_VACIO);
 	}
 
-	/**
-	 * Carga los 20 sprites correspondientes a una fila de terreno (16 autotiles + 4
-	 * variaciones) y los almacena en el mapa unificado de VRAM.
-	 */
 	private static void cargarSetTerreno(final HojaSprite hoja, final int fila, final int idBase) {
-		final int inicioSprite = fila * 20; // 20 columnas por fila
+		final int inicioSprite = fila * 20;
 		for (int i = 0; i < 20; i++) {
 			guardar(idBase + i, hoja.getSprite(inicioSprite + i));
 		}
 	}
 
-	// --- MÉTODOS AUXILIARES Y DE SEGURIDAD ---
+	// =========================================================================
+	// === 5. ALMACENAMIENTO Y CONSULTAS EN TIEMPO CONSTANTE O(1)
+	// =========================================================================
 
 	private static void guardar(final int id, final BufferedImage img) {
 		if (img == null) {
 			System.err.println(
 					"Advertencia: No se pudo cargar la imagen para el ID " + id + ". Usando textura de error.");
-			TEXTURAS.put(id, TEXTURAS.get(TEXTURA_ERROR));
+			registrarEnCatalogo(id, texturaError);
+			TEXTURAS.put(id, texturaError);
 			return;
 		}
-		TEXTURAS.put(id, Globales.FUNCIONES.TEXTURAS_TOOLS.convertirAVRAM(img));
+
+		final BufferedImage vram = Globales.FUNCIONES.TEXTURAS_TOOLS.convertirAVRAM(img);
+		registrarEnCatalogo(id, vram);
+		TEXTURAS.put(id, vram);
 	}
 
+	private static void registrarEnCatalogo(final int id, final BufferedImage img) {
+		final int indice = id + OFFSET_INDICE;
+		if (indice < 0) {
+			return;
+		}
+
+		if (indice >= catalogoTexturas.length) {
+			final int nuevoTam = Math.max(indice + 1, catalogoTexturas.length * 2);
+			final BufferedImage[] nuevoArr = new BufferedImage[nuevoTam];
+			System.arraycopy(catalogoTexturas, 0, nuevoArr, 0, catalogoTexturas.length);
+			catalogoTexturas = nuevoArr;
+		}
+
+		catalogoTexturas[indice] = img;
+	}
+
+	/**
+	 * Obtiene la textura correspondiente al identificador en tiempo constante
+	 * $O(1)$ sin generar objetos en el Heap (Zero-GC / Zero-Autoboxing).
+	 *
+	 * @param codTextura Identificador de la textura solicitada.
+	 * @return Instancia de {@link BufferedImage} lista en VRAM.
+	 */
 	public static BufferedImage getTextura(final int codTextura) {
-		return TEXTURAS.getOrDefault(codTextura, TEXTURAS.get(TEXTURA_ERROR));
+		final int indice = codTextura + OFFSET_INDICE;
+		if ((indice >= 0) && (indice < catalogoTexturas.length)) {
+			final BufferedImage img = catalogoTexturas[indice];
+			if (img != null) {
+				return img;
+			}
+		}
+		return texturaError;
 	}
 
 	private static void cargarGranadas(final String ruta, final int tamano, final int idBase) {
@@ -281,5 +359,4 @@ public final class Textura {
 			guardar(idBase + i, hoja.getSprite(i));
 		}
 	}
-
 }

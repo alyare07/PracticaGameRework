@@ -3,41 +3,23 @@ package principal.iluminacion;
 import java.awt.Color;
 
 /**
- * Gestor del ciclo solar de 24 horas, transiciones de color ambiental y fases
- * del día.
- * <p>
- * <b>Pilares de Rendimiento (Zero-GC):</b>
- * <ul>
- * <li><b>Dirty-Flag de Color:</b> No crea instancias de {@link Color} en el
- * bucle principal a menos que cambie un canal entero RGBA.</li>
- * <li><b>Caché de Reloj:</b> El texto {@code "HH:MM"} solo se reconstruye
- * cuando el minuto del juego avanza.</li>
- * <li><b>Enum Seguro:</b> {@link FaseDia} usa un arreglo pre-cacheado para
- * evitar el clonado de {@code values()}.</li>
- * </ul>
- * </p>
+ * Gestor del ciclo solar de 24 horas, calendario de días y control de velocidad
+ * temporal (Zero-GC / O(1)).
  * 
- * @version 5.0
+ * @version 8.0
  */
 public class CicloDiaNoche {
 
 	// =========================================================================
-	// === 1. ENUM DE FASES HORARIAS DEL DÍA
+	// === 1. FASES DEL DÍA
 	// =========================================================================
 
-	/**
-	 * Representa las fases y momentos del día en el ciclo solar de 24 horas.
-	 * Encapsula la hora decimal de inicio y el nombre visible para la interfaz.
-	 */
 	public enum FaseDia {
+		MEDIANOCHE(0.0, "Medianoche"), MADRUGADA(4.5, "Madrugada"), AMANECER(6.5, "Amanecer"), MANANA(8.0, "Mañana"),
+		MEDIODIA(12.0, "Mediodía"), TARDE(15.0, "Tarde"), ATARDECER(17.0, "Atardecer"), CREPUSCULO(19.0, "Crepúsculo"),
+		ANOCHECER(20.5, "Anochecer"), NOCHE(21.5, "Noche");
 
-		MEDIANOCHE(0.0, "Medianoche"), MADRUGADA(4.5, "Madrugada"), AMANECER(6.5, "Amanecer"), MANANA(8.5, "Mañana"),
-		MEDIODIA(12.0, "Mediodía"), TARDE(15.0, "Tarde"), ATARDECER(17.5, "Atardecer"), ANOCHECER(19.5, "Anochecer"),
-		NOCHE(21.5, "Noche");
-
-		// Arreglo pre-cacheado para evitar asignaciones en bucles
 		private static final FaseDia[] VALORES = FaseDia.values();
-
 		private final double horaInicio;
 		private final String nombre;
 
@@ -46,13 +28,6 @@ public class CicloDiaNoche {
 			this.nombre = nombre;
 		}
 
-		/**
-		 * Obtiene la fase del día correspondiente a una hora decimal continua (0.0 a
-		 * 24.0).
-		 *
-		 * @param hora Hora actual in-game.
-		 * @return Instancia de {@link FaseDia} activa ($O(1)$ Zero-GC).
-		 */
 		public static FaseDia obtenerPorHora(final double hora) {
 			for (int i = VALORES.length - 1; i >= 0; i--) {
 				if (hora >= VALORES[i].horaInicio) {
@@ -72,106 +47,115 @@ public class CicloDiaNoche {
 	}
 
 	// =========================================================================
-	// === 2. PALETAS DE COLOR BASE
+	// === 2. PALETA ESPECTRAL CONTINUA (ALTO CONTRASTE)
 	// =========================================================================
-	private static final Color NOCHE_ATMOSFERICA = new Color(8, 14, 32, 235);
+
+	private static final Color NOCHE_ATMOSFERICA = new Color(3, 6, 15, 248);
 	private static final Color NOCHE_BLACKOUT = new Color(0, 0, 0, 255);
-	private static final Color MADRUGADA = new Color(35, 18, 55, 160);
+	private static final Color MADRUGADA = new Color(25, 12, 45, 185);
 	private static final Color AMANECER = new Color(255, 140, 40, 60);
-	private static final Color PLENO_DIA = new Color(0, 0, 0, 0); // 100% Transparente
+	private static final Color PLENO_DIA = new Color(0, 0, 0, 0);
 	private static final Color ATARDECER = new Color(245, 95, 20, 80);
+	private static final Color CREPUSCULO = new Color(35, 15, 55, 180);
 
 	// =========================================================================
-	// === 3. ESTADO Y RENDIMIENTO ZERO-GC
+	// === 3. ESTADO DEL TIEMPO Y CALENDARIO
 	// =========================================================================
-	private double duracionDiaSegundos = 480.0; // 8 minutos por día completo in-game
+
+	/** Duración de un día completo in-game a velocidad 1x (por defecto 8 min). */
+	private double duracionDiaSegundos = 480.0;
+
+	/** Hora decimal actual (0.00 a 23.99). */
 	private double horaActual = FaseDia.MEDIODIA.getHoraInicio();
+
+	/** Contador de días transcurridos in-game (inicia en Día 1). */
+	private int diaActual = 1;
+
+	/** Multiplicador escalar de velocidad (1.0 = normal, 5.0 = 5x rápido). */
+	private double multiplicadorTiempo = 1.0;
+
 	private boolean tiempoPausado = false;
 	private boolean modoOscuridadTotal = false;
 
-	// Cache de color por Dirty-Flag (Zero-GC)
+	// Dirty-Flags de Color (Zero-GC)
 	private int lastR = -1;
 	private int lastG = -1;
 	private int lastB = -1;
 	private int lastA = -1;
 	private Color colorAmbienteActual = PLENO_DIA;
 
-	// Cache de reloj formateado en String (Solo se recrea cuando el minuto cambia)
+	// Caché de texto formateado (Zero-GC)
 	private int lastHoraInt = -1;
 	private int lastMinutoInt = -1;
 	private String cachedHora24h = "12:00";
+
+	private int lastDiaInt = -1;
+	private String cachedTextoDia = "Día 1";
 
 	// =========================================================================
 	// === CICLO LÓGICO DE ACTUALIZACIÓN (60 APS)
 	// =========================================================================
 
 	/**
-	 * Avanza el reloj solar en función del delta de tiempo del Game Loop.
+	 * Avanza el reloj y el calendario en función del delta time y el multiplicador
+	 * de velocidad activo.
 	 *
-	 * @param dt Delta de tiempo en segundos (1.0 / 60.0).
+	 * @param dt Delta de tiempo en segundos (1/60 s).
 	 */
 	public void actualizar(final double dt) {
-		if (this.tiempoPausado) {
+		if (this.tiempoPausado || (this.multiplicadorTiempo <= 0.0)) {
 			return;
 		}
 
-		final double horasPorSegundo = 24.0 / this.duracionDiaSegundos;
+		final double horasPorSegundo = (24.0 / this.duracionDiaSegundos) * this.multiplicadorTiempo;
 		this.horaActual += dt * horasPorSegundo;
 
-		if (this.horaActual >= 24.0) {
+		// Paso a un nuevo día al cruzar la medianoche (24:00 -> 00:00)
+		while (this.horaActual >= 24.0) {
 			this.horaActual -= 24.0;
+			this.diaActual++;
 		}
 
 		this.calcularColorAmbiente();
 	}
 
 	/**
-	 * Interpola el color y la opacidad ambiental según las fases horarias.
+	 * Interpola de forma continua la atmósfera lumínica según la hora del día.
 	 */
 	public void calcularColorAmbiente() {
 		final double h = this.horaActual;
 		final Color colorNoche = this.modoOscuridadTotal ? NOCHE_BLACKOUT : NOCHE_ATMOSFERICA;
 
-		final double hMadrugada = FaseDia.MADRUGADA.getHoraInicio();
-		final double hAmanecer = FaseDia.AMANECER.getHoraInicio();
-		final double hManana = FaseDia.MANANA.getHoraInicio();
-		final double hAtardecer = FaseDia.ATARDECER.getHoraInicio();
-		final double hAnochecer = FaseDia.ANOCHECER.getHoraInicio();
-		final double hNoche = FaseDia.NOCHE.getHoraInicio();
-
-		if ((h >= hNoche) || (h < hMadrugada)) {
-			// Noche Profunda
+		if ((h >= 21.5) || (h < 4.5)) {
 			this.aplicarColorDirty(colorNoche.getRed(), colorNoche.getGreen(), colorNoche.getBlue(),
 					colorNoche.getAlpha());
 
-		} else if ((h >= hMadrugada) && (h < hAmanecer)) {
-			// Madrugada (Noche -> Púrpura)
-			final double f = (h - hMadrugada) / (hAmanecer - hMadrugada);
+		} else if ((h >= 4.5) && (h < 6.5)) {
+			final double f = (h - 4.5) / (6.5 - 4.5);
 			this.interpolar(colorNoche, MADRUGADA, f);
 
-		} else if ((h >= hAmanecer) && (h < hManana)) {
-			// Amanecer (Púrpura -> Dorado cálido)
-			final double f = (h - hAmanecer) / (hManana - hAmanecer);
+		} else if ((h >= 6.5) && (h < 8.0)) {
+			final double f = (h - 6.5) / (8.0 - 6.5);
 			this.interpolar(MADRUGADA, AMANECER, f);
 
-		} else if ((h >= hManana) && (h < 9.5)) {
-			// Mañana temprana (El tinte desaparece abriendo visión 100%)
-			final double f = (h - hManana) / (9.5 - hManana);
+		} else if ((h >= 8.0) && (h < 9.0)) {
+			final double f = (h - 8.0) / (9.0 - 8.0);
 			this.interpolar(AMANECER, PLENO_DIA, f);
 
-		} else if ((h >= 9.5) && (h < hAtardecer)) {
-			// Pleno Día (Visión despejada sin sombras)
+		} else if ((h >= 9.0) && (h < 17.0)) {
 			this.aplicarColorDirty(0, 0, 0, 0);
 
-		} else if ((h >= hAtardecer) && (h < hAnochecer)) {
-			// Atardecer cálido
-			final double f = (h - hAtardecer) / (hAnochecer - hAtardecer);
+		} else if ((h >= 17.0) && (h < 19.0)) {
+			final double f = (h - 17.0) / (19.0 - 17.0);
 			this.interpolar(PLENO_DIA, ATARDECER, f);
 
+		} else if ((h >= 19.0) && (h < 20.5)) {
+			final double f = (h - 19.0) / (20.5 - 19.0);
+			this.interpolar(ATARDECER, CREPUSCULO, f);
+
 		} else {
-			// Anochecer (El campo de visión se va cerrando hacia la noche)
-			final double f = (h - hAnochecer) / (hNoche - hAnochecer);
-			this.interpolar(ATARDECER, colorNoche, f);
+			final double f = (h - 20.5) / (21.5 - 20.5);
+			this.interpolar(CREPUSCULO, colorNoche, f);
 		}
 	}
 
@@ -185,18 +169,6 @@ public class CicloDiaNoche {
 		this.aplicarColorDirty(r, g, b, a);
 	}
 
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN DIDÁCTICA: PATRÓN DIRTY-FLAG QUANTIZADO (ZERO-GC)
-	 * ------------------------------------------------------------------------- En
-	 * lugar de hacer 'return new Color(r, g, b, a)' 60 veces por segundo:
-	 * Comparamos los 4 valores enteros (R, G, B, A). Si ninguno cambió respecto al
-	 * fotograma anterior, NO HACEMOS NADA y reutilizamos la misma instancia en
-	 * memoria.
-	 *
-	 * Esto reduce las asignaciones de memoria a prácticamente 0.
-	 * =========================================================================
-	 */
 	private void aplicarColorDirty(final int r, final int g, final int b, final int a) {
 		if ((r != this.lastR) || (g != this.lastG) || (b != this.lastB) || (a != this.lastA)) {
 			this.lastR = r;
@@ -208,34 +180,87 @@ public class CicloDiaNoche {
 	}
 
 	// =========================================================================
-	// === MÉTODOS DE CONSULTA Y ESTADO (API PÚBLICA)
+	// === MÉTODOS DE DÍAS Y CALENDARIO (API PÚBLICA)
 	// =========================================================================
 
 	/**
-	 * Retorna la fase del día actual como enum fuertemente tipado.
-	 *
-	 * @return Instancia de {@link FaseDia}.
+	 * Retorna el número de día actual in-game (1, 2, 3...).
 	 */
+	public int getDiaActual() {
+		return this.diaActual;
+	}
+
+	/**
+	 * Establece manualmente el día actual del calendario.
+	 *
+	 * @param dia Número de día deseado (mínimo 1).
+	 */
+	public void setDiaActual(final int dia) {
+		this.diaActual = Math.max(1, dia);
+	}
+
+	/**
+	 * Avanza el calendario en 1 día.
+	 */
+	public void avanzarDia() {
+		this.diaActual++;
+	}
+
+	/**
+	 * Retorna una representación en texto del día formateada sin crear basura en el
+	 * Heap (ej: {@code "Día 1"}, {@code "Día 14"}).
+	 */
+	public String getTextoDia() {
+		if (this.diaActual != this.lastDiaInt) {
+			this.lastDiaInt = this.diaActual;
+			this.cachedTextoDia = "Día " + this.diaActual;
+		}
+		return this.cachedTextoDia;
+	}
+
+	// =========================================================================
+	// === CONTROL DE VELOCIDAD DEL TIEMPO (TIME WARP)
+	// =========================================================================
+
+	/**
+	 * Acelera o ralentiza el transcurso del tiempo por un factor multiplicador.
+	 *
+	 * @param factor Escala de velocidad (ej: 2.0 = 2x rápido, 10.0 = 10x rápido).
+	 */
+	public void acelerarTiempo(final double factor) {
+		this.multiplicadorTiempo = Math.max(0.0, factor);
+	}
+
+	/**
+	 * Establece directamente el multiplicador de velocidad del tiempo.
+	 */
+	public void setMultiplicadorTiempo(final double factor) {
+		this.multiplicadorTiempo = Math.max(0.0, factor);
+	}
+
+	/**
+	 * Restablece la velocidad del tiempo a la progresión normal (1.0x).
+	 */
+	public void restablecerVelocidadTiempo() {
+		this.multiplicadorTiempo = 1.0;
+	}
+
+	public double getMultiplicadorTiempo() {
+		return this.multiplicadorTiempo;
+	}
+
+	// =========================================================================
+	// === CONSULTAS DE HORA Y FORMATO 24H (ZERO-GC)
+	// =========================================================================
+
 	public FaseDia getFaseActual() {
 		return FaseDia.obtenerPorHora(this.horaActual);
 	}
 
-	/**
-	 * Retorna el nombre descriptivo de la fase del día actual para el HUD o
-	 * diálogos.
-	 *
-	 * @return Nombre legible (ej: "Amanecer", "Mediodía", "Noche").
-	 */
 	public String getNombreMomentoDelDia() {
 		return this.getFaseActual().getNombre();
 	}
 
-	/**
-	 * Retorna la hora actual formateada como reloj digital 24h (ej:
-	 * {@code "07:05"}, {@code "14:30"}).
-	 *
-	 * @return Cadena inmutable con formato {@code "HH:MM"}.
-	 */
 	public String getHoraFormato24h() {
 		final int horas = (int) this.horaActual;
 		final int minutos = (int) Math.round((this.horaActual - horas) * 60.0);
@@ -250,10 +275,6 @@ public class CicloDiaNoche {
 		}
 		return this.cachedHora24h;
 	}
-
-	// =========================================================================
-	// === CONFIGURACIÓN Y ATAJOS DE HORA
-	// =========================================================================
 
 	public void setHora(final double hora) {
 		this.horaActual = Math.max(0.0, Math.min(23.99, hora));

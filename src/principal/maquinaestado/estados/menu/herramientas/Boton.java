@@ -5,7 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 public class Boton extends Componente {
@@ -32,19 +32,19 @@ public class Boton extends Componente {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarImagen(g, this.fondo, this.AREA.x, this.AREA.y);
+		Render2D.dibujarImagen(g, this.fondo, this.AREA.x, this.AREA.y);
 		this.pintarTexto(g);
 		if (this.apuntado) {
-			DibujoDebug.dibujarRectanguloContorno(g, this.AREA, this.colorBordes);
+			Render2D.dibujarRectanguloContorno(g, this.AREA, this.colorBordes);
 		}
 	}
 
 	@Override
 	public void pintar(final Graphics2D g, final int desplazamientoY) {
-		DibujoDebug.dibujarImagen(g, this.fondo, this.AREA.x, this.AREA.y);
+		Render2D.dibujarImagen(g, this.fondo, this.AREA.x, this.AREA.y);
 		this.pintarTexto(g);
 		if (this.apuntado) {
-			DibujoDebug.dibujarRectanguloContorno(g, this.AREA, this.colorBordes);
+			Render2D.dibujarRectanguloContorno(g, this.AREA, this.colorBordes);
 		}
 	}
 
@@ -55,7 +55,7 @@ public class Boton extends Componente {
 		final int alto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, this.texto);
 		final int puntoX = (this.AREA.x + (this.AREA.width / 2)) - (ancho / 2);
 		final int puntoY = this.AREA.y + (this.AREA.height / 2) + (alto / 2);
-		DibujoDebug.dibujarString(g, this.texto, puntoX, puntoY);
+		Render2D.dibujarString(g, this.texto, puntoX, puntoY);
 	}
 
 	@Override

@@ -16,7 +16,7 @@ import principal.inventario.slot.Slot;
 import principal.inventario.slot.SlotArrojadizo;
 import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.inventario.ItemPuntero;
@@ -195,11 +195,11 @@ public class Inventario {
 	 */
 	private void pintarInventario(final Graphics2D g) {
 		// 1. Fondos de secciones
-		DibujoDebug.dibujarRectanguloRelleno(g, this.ZONA_INFO_JUGADOR, GRIS_TRANSPARENTE);
-		DibujoDebug.dibujarRectanguloRelleno(g, this.ZONA_SLOTS_ALMACEN, GRIS_TRANSPARENTE);
-		DibujoDebug.dibujarRectanguloRelleno(g, this.ZONA_SLOTS_PRINCIPALES, NEGRO_TRANSPARENTE);
-		DibujoDebug.dibujarRectanguloRelleno(g, this.AREA_PERSONAJE, BLANCO_TRANSPARENTE);
-		DibujoDebug.dibujarRectanguloContorno(g, this.X, this.Y, this.ANCHO, this.ALTO, COLOR_BORDE);
+		Render2D.dibujarRectanguloRelleno(g, this.ZONA_INFO_JUGADOR, GRIS_TRANSPARENTE);
+		Render2D.dibujarRectanguloRelleno(g, this.ZONA_SLOTS_ALMACEN, GRIS_TRANSPARENTE);
+		Render2D.dibujarRectanguloRelleno(g, this.ZONA_SLOTS_PRINCIPALES, NEGRO_TRANSPARENTE);
+		Render2D.dibujarRectanguloRelleno(g, this.AREA_PERSONAJE, BLANCO_TRANSPARENTE);
+		Render2D.dibujarRectanguloContorno(g, this.X, this.Y, this.ANCHO, this.ALTO, COLOR_BORDE);
 
 		// 2. Grilla de slots
 		this.SLOT_MANAGER.pintar(g);

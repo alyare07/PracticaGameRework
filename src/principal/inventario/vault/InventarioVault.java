@@ -20,7 +20,7 @@ import principal.inventario.equipamiento.SlotManager;
 import principal.inventario.slot.Slot;
 import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.inventario.ItemPuntero;
@@ -259,8 +259,8 @@ public class InventarioVault {
 	 * @param g Contexto gráfico 2D activo.
 	 */
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarRectanguloRelleno(g, this.area, Inventario.GRIS_TRANSPARENTE);
-		DibujoDebug.dibujarRectanguloContorno(g, this.area, COLOR_BORDE);
+		Render2D.dibujarRectanguloRelleno(g, this.area, Inventario.GRIS_TRANSPARENTE);
+		Render2D.dibujarRectanguloContorno(g, this.area, COLOR_BORDE);
 
 		this.pintarPortada(g);
 		this.pintarSlots(g);
@@ -278,7 +278,7 @@ public class InventarioVault {
 		final int xNombre = (this.areaPortada.x + (this.areaPortada.width / 2)) - (anchoNombre / 2);
 		final int yNombre = this.areaPortada.y + (this.areaPortada.height / 2) + (altoNombre / 2);
 
-		DibujoDebug.dibujarString(g, this.nombre, xNombre, yNombre, COLOR_TEXTO_TITULO);
+		Render2D.dibujarString(g, this.nombre, xNombre, yNombre, COLOR_TEXTO_TITULO);
 
 		g.setFont(fuenteOriginal);
 	}

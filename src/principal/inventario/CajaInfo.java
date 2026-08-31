@@ -6,7 +6,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.HashMap;
 
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 /**
@@ -133,7 +133,7 @@ public class CajaInfo {
 			}
 
 			// 1. Dibujar etiqueta (Nombre de la estadística)
-			DibujoDebug.dibujarString(g, info.getTexto(), x, y, this.colorLabels);
+			Render2D.dibujarString(g, info.getTexto(), x, y, this.colorLabels);
 
 			final int auxAnchoLabel = this.calcularAnchoPixeles(g, info, true);
 			final int auxAnchoValores = this.calcularAnchoPixeles(g, info, false);
@@ -145,7 +145,7 @@ public class CajaInfo {
 			}
 
 			// 2. Dibujar valor correspondiente al lado de la etiqueta
-			DibujoDebug.dibujarString(g, info.getValor(), x + auxAnchoLabel + this.margenLabelValor, y,
+			Render2D.dibujarString(g, info.getValor(), x + auxAnchoLabel + this.margenLabelValor, y,
 					this.colorValores);
 
 			y += ESPACIADO_INTERLINEADO;

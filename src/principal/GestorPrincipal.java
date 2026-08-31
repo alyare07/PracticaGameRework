@@ -3,12 +3,16 @@ package principal;
 import java.util.concurrent.locks.LockSupport;
 
 import principal.comandos.ComandoAmbiente;
+import principal.comandos.ComandoCamara;
 import principal.comandos.ComandoClima;
 import principal.comandos.ComandoCurar;
 import principal.comandos.ComandoHora;
+import principal.comandos.ComandoInfo;
+import principal.comandos.ComandoJugador;
 import principal.comandos.ComandoKillAll;
 import principal.comandos.ComandoLuz;
 import principal.comandos.ComandoLuzMundo;
+import principal.comandos.ComandoParticulas;
 import principal.comandos.ComandoSigilo;
 import principal.comandos.ComandoTeleport;
 import principal.comandos.ComandoVelocidad;
@@ -245,5 +249,9 @@ public class GestorPrincipal {
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoSigilo());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoKillAll());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoVelocidad());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoCamara());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoParticulas());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoInfo());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoJugador());
 	}
 }

@@ -3,20 +3,27 @@ package principal.iluminacion;
 import java.awt.Color;
 
 /**
- * Catálogo central de presets ópticos con soporte para halos radiales (360°) y
- * conos direccionales de visión.
+ * Catálogo central de presets ópticos con soporte para halos radiales y conos
+ * direccionales.
  * 
- * @version 5.0
+ * @version 6.0
  */
 public enum TipoLuz {
 
 	// =========================================================================
 	// === 1. HALOS RADIALES CIRCULARES (360°)
 	// =========================================================================
-	ANTORCHA(75, new Color(255, 160, 40), 0.85f, true, 4.0, false, 360.0),
-	FOGATA(135, new Color(255, 120, 20), 0.90f, true, 7.0, false, 360.0),
+
+	ANTORCHA(80, new Color(255, 160, 40), 0.85f, true, 4.0, false, 360.0),
+	FOGATA(140, new Color(255, 120, 20), 0.90f, true, 7.0, false, 360.0),
 	VELA_TENUE(45, new Color(255, 200, 100), 0.70f, true, 2.5, false, 360.0),
-	AURA_JUGADOR(65, new Color(0, 0, 0), 0.1f, false, 0.0, false, 360.0),
+
+	/**
+	 * Aura biológica del jugador: penumbra nocturna tenue azulada/oscura (sin luz
+	 * blanca).
+	 */
+	AURA_JUGADOR(55, new Color(25, 45, 85), 0.35f, false, 0.0, false, 360.0),
+
 	BOLA_FUEGO(90, new Color(255, 100, 10), 0.95f, true, 5.5, false, 360.0),
 	MAGIA_ARCANO(70, new Color(70, 210, 255), 0.90f, true, 3.0, false, 360.0),
 	DESTELLO_EXPLOSION(160, new Color(255, 235, 170), 1.0f, false, 0.0, false, 360.0),
@@ -24,10 +31,8 @@ public enum TipoLuz {
 	// =========================================================================
 	// === 2. CONOS DE VISIÓN DIRECCIONALES
 	// =========================================================================
-	/** Linterna frontal cónica: Cono cerrado de 85° con largo alcance (140 px). */
-	LINTERNA_CONICA(140, new Color(255, 245, 215), 0.90f, false, 0.0, true, 85.0),
 
-	/** Luz amplia de reflector / Faro: Cono abierto de 120° (175 px). */
+	LINTERNA_CONICA(140, new Color(255, 245, 215), 0.90f, false, 0.0, true, 85.0),
 	REFLECTOR(175, new Color(255, 255, 230), 0.95f, false, 0.0, true, 120.0);
 
 	private final int radioBase;

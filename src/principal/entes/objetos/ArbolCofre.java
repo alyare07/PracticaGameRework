@@ -7,7 +7,7 @@ import java.awt.image.BufferedImage;
 import principal.entes.Ente;
 import principal.inventario.Contenedor;
 import principal.inventario.vault.InventarioVault;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 import principal.utilidades.Textura;
 
@@ -28,10 +28,10 @@ public class ArbolCofre extends Objeto implements Contenedor {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt() - 14,
+		Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt() - 14,
 				this.getPosicionYInt() - 18);
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
 		}
 	}
 

@@ -39,7 +39,7 @@ import principal.mapa.mapas.Spawn;
 import principal.mapa.renderEntidades.ZoneBox;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 /**
@@ -905,7 +905,7 @@ public class Mundo {
 							: Double.MAX_VALUE;
 					final String textoDistancia = (distanciaReal == Double.MAX_VALUE) ? "XX"
 							: String.valueOf((long) (distanciaReal * 10) / 10.0);
-					DibujoDebug.dibujarStringRefCamara(g, textoDistancia, x, y + 10, color);
+					Render2D.dibujarStringRefCamara(g, textoDistancia, x, y + 10, color);
 				}
 			}
 		}

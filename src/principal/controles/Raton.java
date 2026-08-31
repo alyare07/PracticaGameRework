@@ -12,9 +12,9 @@ import javax.swing.SwingUtilities;
 
 import principal.graficos.SuperficieDibujo;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
 /**
  * Gestor centralizado de entrada del ratón (Mouse Input Manager).
@@ -191,9 +191,9 @@ public class Raton extends MouseAdapter {
 	 * @param g Contexto gráfico.
 	 */
 	public void dibujar(final Graphics2D g) {
-		DibujoDebug.dibujarString(g, "RX: " + this.posicion.x, 20, 200, Color.RED);
-		DibujoDebug.dibujarString(g, "RY: " + this.posicion.y, 20, 210, Color.RED);
-		DibujoDebug.dibujarRectanguloContorno(g, this.getRectanguloPosicionEscalado(), Color.BLUE);
+		Render2D.dibujarString(g, "RX: " + this.posicion.x, 20, 200, Color.RED);
+		Render2D.dibujarString(g, "RY: " + this.posicion.y, 20, 210, Color.RED);
+		Render2D.dibujarRectanguloContorno(g, this.getRectanguloPosicionEscalado(), Color.BLUE);
 	}
 
 	// =========================================================================
@@ -284,6 +284,26 @@ public class Raton extends MouseAdapter {
 		this.puntoPosicionEscalado.setLocation((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X),
 				(int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y));
 		return this.puntoPosicionEscalado;
+	}
+
+	/**
+	 * Retorna la coordenada X del cursor proyectadas al espacio de pantalla interna
+	 * lógica (640x360). CERO asignaciones en memoria.
+	 *
+	 * @return Instancia interna reutilizable de {@link Point}.
+	 */
+	public int getPosicionXEscalada() {
+		return (int) (this.posicion.x / Globales.FACTOR_ESCALADO_X);
+	}
+
+	/**
+	 * Retorna la coordenada Y del cursor proyectadas al espacio de pantalla interna
+	 * lógica (640x360). CERO asignaciones en memoria.
+	 *
+	 * @return Instancia interna reutilizable de {@link Point}.
+	 */
+	public int getPosicionYEscalada() {
+		return (int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y);
 	}
 
 	/**

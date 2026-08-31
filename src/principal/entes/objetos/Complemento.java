@@ -11,7 +11,7 @@ import org.json.simple.JSONObject;
 import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.modelos.complemento.ModeloComplementoT1;
 import principal.entes.modelos.complemento.ModeloComplementoT2;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 /**
@@ -43,7 +43,7 @@ public class Complemento extends Objeto {
 
 	public void pintarAreaInterseccion(final Graphics2D g) {
 		if (ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO) instanceof ModeloComplementoT1) {
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionEnBaseMargen(
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionEnBaseMargen(
 					((ModeloComplementoT1) ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO))
 							.getMargenesInterseccion()),
 					Color.ORANGE);
@@ -51,7 +51,7 @@ public class Complemento extends Objeto {
 				.getModeloComplemento(this.COD_MODELO_COMPLEMENTO) instanceof ModeloComplementoT2) {
 			for (final Rectangle margen : ((ModeloComplementoT2) ListaModeloComplemento
 					.getModeloComplemento(this.COD_MODELO_COMPLEMENTO)).getMargenesInterseccion()) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionEnBaseMargen(margen),
+				Render2D.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionEnBaseMargen(margen),
 						Color.ORANGE);
 			}
 		}
@@ -77,14 +77,14 @@ public class Complemento extends Objeto {
 				ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).getAnimacion().pintar(g,
 						this.getPosicionXInt(), this.getPosicionYInt());
 			} else {
-				DibujoDebug.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(),
+				Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(),
 						this.getPosicionYInt());
 			}
 		}
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
 			this.pintarAreaInterseccion(g);
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
 		}
 	}
 

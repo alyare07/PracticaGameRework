@@ -6,7 +6,7 @@ import java.awt.Point;
 import java.awt.image.BufferedImage;
 
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 public class Label extends Componente {
@@ -28,14 +28,14 @@ public class Label extends Componente {
 	@Override
 	public void pintar(final Graphics2D g) {
 		g.setFont(g.getFont().deriveFont(this.tamano));
-		DibujoDebug.dibujarString(g, this.texto, this.PUNTO, this.color);
+		Render2D.dibujarString(g, this.texto, this.PUNTO, this.color);
 		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 	}
 
 	@Override
 	public void pintar(final Graphics2D g, final int desplazamientoY) {
 		g.setFont(g.getFont().deriveFont(this.tamano));
-		DibujoDebug.dibujarString(g, this.texto, this.PUNTO.x, this.PUNTO.y - desplazamientoY, this.color);
+		Render2D.dibujarString(g, this.texto, this.PUNTO.x, this.PUNTO.y - desplazamientoY, this.color);
 		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 	}
 

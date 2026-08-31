@@ -8,7 +8,7 @@ import java.awt.image.BufferedImage;
 
 import principal.maquinaestado.estados.EstadoJuego;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 /**
@@ -57,7 +57,7 @@ public class PantallaCarga implements EstadoJuego {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		DibujoDebug.dibujarImagen(g, this.FONDO, 0, 0);
+		Render2D.dibujarImagen(g, this.FONDO, 0, 0);
 		this.pintarMarcos(g);
 		this.pintarTextoCarga(g);
 	}
@@ -81,15 +81,15 @@ public class PantallaCarga implements EstadoJuego {
 		final int y = (int) (this.DIMENSION.height * 0.85) + altoTexto;
 
 		// Sombra de texto
-		DibujoDebug.dibujarString(g, texto, x + 1, y + 1, Color.BLACK);
+		Render2D.dibujarString(g, texto, x + 1, y + 1, Color.BLACK);
 		// Texto principal en verde claro
-		DibujoDebug.dibujarString(g, texto, x, y, new Color(100, 240, 120));
+		Render2D.dibujarString(g, texto, x, y, new Color(100, 240, 120));
 	}
 
 	private void pintarMarcos(final Graphics2D g) {
-		DibujoDebug.dibujarRectanguloRelleno(g, this.MARCO_SUPERIOR, Color.BLACK);
-		DibujoDebug.dibujarRectanguloRelleno(g, this.MARCO_INFERIOR, Color.BLACK);
-		DibujoDebug.dibujarRectanguloRelleno(g, this.MARCO_IZQUIERDA, Color.BLACK);
-		DibujoDebug.dibujarRectanguloRelleno(g, this.MARCO_DERECHA, Color.BLACK);
+		Render2D.dibujarRectanguloRelleno(g, this.MARCO_SUPERIOR, Color.BLACK);
+		Render2D.dibujarRectanguloRelleno(g, this.MARCO_INFERIOR, Color.BLACK);
+		Render2D.dibujarRectanguloRelleno(g, this.MARCO_IZQUIERDA, Color.BLACK);
+		Render2D.dibujarRectanguloRelleno(g, this.MARCO_DERECHA, Color.BLACK);
 	}
 }

@@ -33,9 +33,9 @@ import principal.mapa.Terreno;
 import principal.mapa.Tile;
 import principal.mapa.renderEntidades.ZoneBox;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
 /**
  * Representa al personaje principal controlado por el usuario.
@@ -48,7 +48,6 @@ public class Jugador extends Criatura {
 	protected double desplazamientoX;
 	protected double desplazamientoY;
 	protected Tile tilePisado;
-
 	private double damage;
 	private final GestorTiempo GT_ULTIMO_ATAQUE;
 	private final GestorTiempo GT_RECUPERACION_ESTAMINA;
@@ -569,34 +568,56 @@ public class Jugador extends Criatura {
 		}
 	}
 
+	/**
+	 * Consume estamina proporcionalmente al framerate durante el sprint.
+	 * 
+	 * @return {@code true} si aún queda energía para correr; {@code false} si se
+	 *         agotó.
+	 */
 	private boolean gastarEstamina() {
-		if ((this.estamina - this.PTS_CONSUMIR_ESTAMINA) > 0) {
-			if (this.estamina < (this.puntoGastarEstaminaXseg / 60.0)) {
-				this.estamina = 0;
-				return false;
-			}
+		if (this.modoDios) {
+			return true;
+		}
+		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
+		final double gastoPorTick = this.puntoGastarEstaminaXseg * dt; // 5 pts/seg -> ~0.083 pts/tick
+
+		if (this.estamina >= gastoPorTick) {
+			this.estamina -= gastoPorTick; // <-- Resta efectiva de energía
 			this.GT_RECUPERACION_ESTAMINA.establecerReferenciaTiempoActual();
 			return true;
 		}
-		return false;
+		this.estamina = 0.0;
+		return false; // Energía agotada: vuelve a caminar
 	}
 
+	/**
+	 * Regenera estamina progresivamente tras pasar el tiempo de espera en reposo.
+	 */
 	private void recuperarEstamina() {
 		if (!this.estaEstadoCorriendo()
 				&& this.GT_RECUPERACION_ESTAMINA.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_REGEN_ESTAMINA)) {
 
-			if ((this.estamina < this.maxEstamina)
-					&& ((this.estamina + this.puntoRecuperarEstaminaXseg) <= this.maxEstamina)) {
-				if (this.estaEstadoCaminando()) {
-					this.estamina += (this.puntoRecuperarEstaminaXseg / 60.0) / 2.0;
-				} else if (this.estamina >= (this.maxEstamina / 2.0)) {
-					this.estamina += (this.puntoRecuperarEstaminaXseg / 60.0) * 1.5;
-				} else {
-					this.estamina += (this.puntoRecuperarEstaminaXseg / 60.0);
-				}
-			} else {
-				this.estamina = this.maxEstamina;
+			final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
+			double recuperacionPorTick = this.puntoRecuperarEstaminaXseg * dt;
+
+			// Si está caminando recupera a mitad de velocidad; si está quieto recupera
+			// pleno
+			if (this.estaEstadoCaminando()) {
+				recuperacionPorTick *= 0.5;
+			} else if (this.estamina >= (this.maxEstamina / 2.0)) {
+				recuperacionPorTick *= 1.5;
 			}
+
+			this.estamina = Math.min(this.maxEstamina, this.estamina + recuperacionPorTick);
+		}
+	}
+
+	@Override
+	public void setModoDios(final boolean modoDios) {
+		this.modoDios = modoDios;
+		if (this.modoDios) {
+			this.sanar();
+			this.estamina = this.maxEstamina;
 		}
 	}
 
@@ -612,15 +633,15 @@ public class Jugador extends Criatura {
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
 			g.setColor(Color.BLUE);
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionMovimiento().getBounds());
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.getPosicionXIntDibujado(),
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionMovimiento().getBounds());
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getPosicionXIntDibujado(),
 					this.getPosicionYIntDibujado(), 32, 32, Color.RED);
 		}
 
 		if (Globales.TECLADO.TECLA_DEBUG.presionado() && Globales.estadoJuego) {
 			this.pintarAreaRecoleccion(g);
-			DibujoDebug.dibujarRectanguloContornoRefCamara(g, Globales.JUGADOR.getAreaInteraccionCofre(),
+			Render2D.dibujarRectanguloContornoRefCamara(g, Globales.JUGADOR.getAreaInteraccionCofre(),
 					Color.LIGHT_GRAY);
 		}
 
@@ -636,9 +657,9 @@ public class Jugador extends Criatura {
 			int pos = 1;
 			for (final NodoD n : this.recorridoD) {
 				final String txt = String.valueOf(pos++);
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, n.getXMundo(), n.getYMundo(), n.getAncho(),
-						n.getAlto(), Color.RED);
-				DibujoDebug.dibujarStringRefCamara(g, txt,
+				Render2D.dibujarRectanguloContornoRefCamara(g, n.getXMundo(), n.getYMundo(), n.getAncho(), n.getAlto(),
+						Color.RED);
+				Render2D.dibujarStringRefCamara(g, txt,
 						(n.getXMundo() + (n.getAncho() / 2))
 								- (Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
 						n.getYMundo() + (n.getAlto() / 2)
@@ -646,7 +667,7 @@ public class Jugador extends Criatura {
 						Color.BLACK);
 			}
 			if (this.nodoDDestino != null) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoDDestino.getXMundo(),
+				Render2D.dibujarRectanguloContornoRefCamara(g, this.nodoDDestino.getXMundo(),
 						this.nodoDDestino.getYMundo(), this.nodoDDestino.getAncho(), this.nodoDDestino.getAlto(),
 						Color.YELLOW);
 			}
@@ -662,8 +683,8 @@ public class Jugador extends Criatura {
 				xNodoAux = n.getXNodo() * wNodoAux;
 				yNodoAux = n.getYNodo() * hNodoAux;
 				final String txt = String.valueOf(pos++);
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, xNodoAux, yNodoAux, wNodoAux, hNodoAux, Color.BLUE);
-				DibujoDebug.dibujarStringRefCamara(g, txt,
+				Render2D.dibujarRectanguloContornoRefCamara(g, xNodoAux, yNodoAux, wNodoAux, hNodoAux, Color.BLUE);
+				Render2D.dibujarStringRefCamara(g, txt,
 						(xNodoAux + (wNodoAux / 2)) - (Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2),
 						yNodoAux + (hNodoAux / 2) + (Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, txt) / 2),
 						Color.BLACK);
@@ -671,7 +692,7 @@ public class Jugador extends Criatura {
 			if (this.nodoADestino != null) {
 				final int w = this.getMundo().getAEstrellaX12X20().getDimensionNodoA().width;
 				final int h = this.getMundo().getAEstrellaX12X20().getDimensionNodoA().height;
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.nodoADestino.getXNodo() * w,
+				Render2D.dibujarRectanguloContornoRefCamara(g, this.nodoADestino.getXNodo() * w,
 						this.nodoADestino.getYNodo() * h, w, h, Color.YELLOW);
 			}
 		}
@@ -689,18 +710,18 @@ public class Jugador extends Criatura {
 		final ArrayList<ZoneBox> zonasIntersectadas = this.mundo.getZonasIntersectadas(areaDeteccionJugador);
 		for (final ZoneBox zb : zonasIntersectadas) {
 			if (this.CHECK_LIST_DEBUG.add(zb)) {
-				DibujoDebug.dibujarRectanguloContornoRefCamara(g, zb.getArea(), Color.YELLOW);
+				Render2D.dibujarRectanguloContornoRefCamara(g, zb.getArea(), Color.YELLOW);
 			}
 
 			for (final Item item : zb.getItems()) {
 				if (this.CHECK_LIST_DEBUG.add(item) && areaDeteccionJugador.intersects(item.getArea())) {
-					DibujoDebug.dibujarRectanguloContornoRefCamara(g, item.getArea(), Color.MAGENTA);
+					Render2D.dibujarRectanguloContornoRefCamara(g, item.getArea(), Color.MAGENTA);
 				}
 			}
 
 			for (final Objeto objeto : zb.getObjetos()) {
 				if (this.CHECK_LIST_DEBUG.add(objeto) && areaInteraccionCofre.intersects(objeto.getArea())) {
-					DibujoDebug.dibujarRectanguloContornoRefCamara(g, objeto.getArea(), Color.CYAN);
+					Render2D.dibujarRectanguloContornoRefCamara(g, objeto.getArea(), Color.CYAN);
 				}
 			}
 		}
@@ -711,7 +732,7 @@ public class Jugador extends Criatura {
 		this.RECTANGLE_AUXILIAR.setBounds((this.getPosicionXInt() - (this.recoleccionLado / 2)) + (this.ANCHO / 2),
 				(this.getPosicionYInt() - (this.recoleccionLado / 2)) + (this.ALTO / 2), this.recoleccionLado,
 				this.recoleccionLado);
-		DibujoDebug.dibujarFiguraEllipseRefCamara(g, this.RECTANGLE_AUXILIAR, Color.CYAN);
+		Render2D.dibujarFiguraEllipseRefCamara(g, this.RECTANGLE_AUXILIAR, Color.CYAN);
 	}
 
 	private void pintarAreaArrojar(final Graphics2D g) {
@@ -723,7 +744,7 @@ public class Jugador extends Criatura {
 
 			this.RECTANGLE_AUXILIAR.setBounds(posRaton.x - (diametro / 2), posRaton.y - (diametro / 2), diametro,
 					diametro);
-			DibujoDebug.dibujarFiguraEllipseRefCamara(g, this.RECTANGLE_AUXILIAR, Color.BLUE);
+			Render2D.dibujarFiguraEllipseRefCamara(g, this.RECTANGLE_AUXILIAR, Color.BLUE);
 		}
 	}
 
@@ -735,11 +756,11 @@ public class Jugador extends Criatura {
 		final int porcentajeVida = (int) ((this.vida * 100) / this.vidaMaxima);
 		final int porcentajeBarraActual = (porcentajeVida * this.ANCHO) / 100;
 
-		DibujoDebug.dibujarRectanguloRelleno(g, posX - 1, posY - 5, this.ANCHO + 2, 4, Color.BLACK);
-		DibujoDebug.dibujarRectanguloRelleno(g, posX, posY - 4, porcentajeBarraActual, 2, Color.RED);
+		Render2D.dibujarRectanguloRelleno(g, posX - 1, posY - 5, this.ANCHO + 2, 4, Color.BLACK);
+		Render2D.dibujarRectanguloRelleno(g, posX, posY - 4, porcentajeBarraActual, 2, Color.RED);
 
 		g.setFont(g.getFont().deriveFont(4f));
-		DibujoDebug.dibujarString(g, (int) this.vida + "/" + (int) this.vidaMaxima, posX, posY - 6, Color.WHITE);
+		Render2D.dibujarString(g, (int) this.vida + "/" + (int) this.vidaMaxima, posX, posY - 6, Color.WHITE);
 		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 	}
 
@@ -838,6 +859,19 @@ public class Jugador extends Criatura {
 		this.desplazamientoY += desplazamientoY;
 	}
 
+	public void setDamage(final double damage) {
+		this.damage = Math.max(0, damage);
+	}
+
+	public void setEstamina(final double estamina) {
+		this.estamina = Math.max(0, Math.min(this.maxEstamina, estamina));
+	}
+
+	public void setMaxEstamina(final double maxEstamina) {
+		this.maxEstamina = Math.max(1, maxEstamina);
+		this.estamina = Math.min(this.estamina, this.maxEstamina);
+	}
+
 	@Override
 	public void setPosicion(final double x, final double y) {
 		this.setPosicionXSinVerificarZonebox(x);
@@ -903,7 +937,7 @@ public class Jugador extends Criatura {
 		return this.PUNTO_AUXILIAR;
 	}
 
-	public String getVelocidad() {
+	public String getStringVelocidad() {
 		return String.format("%.2f", this.velocidad);
 	}
 

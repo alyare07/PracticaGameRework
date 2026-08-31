@@ -10,7 +10,7 @@ import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.mapa.Mundo;
 import principal.mapa.Tile;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 public class BolaFuego extends ProyectilExplosivo {
@@ -49,7 +49,7 @@ public class BolaFuego extends ProyectilExplosivo {
 	public void pintar(final Graphics2D g) {
 		this.ANIMACION.pintar(g, this.getPosicionXInt(), this.getPosicionYInt(), this);
 		if (this.impactoRealizado && Globales.TECLADO.TECLA_DEBUG.presionado()) {
-			DibujoDebug.dibujarFiguraEllipseRefCamara(g, this.getAreaExplosion().getBounds(), Color.red);
+			Render2D.dibujarFiguraEllipseRefCamara(g, this.getAreaExplosion().getBounds(), Color.red);
 		}
 		super.pintar(g);
 	}

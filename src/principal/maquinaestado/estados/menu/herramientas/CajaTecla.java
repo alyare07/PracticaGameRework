@@ -7,7 +7,7 @@ import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 
 import principal.controles.Tecla;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 
@@ -62,19 +62,19 @@ public class CajaTecla extends Componente {
 	@Override
 	public void pintar(final Graphics2D g) {
 		g.setFont(g.getFont().deriveFont(this.tamanoLetra));
-		DibujoDebug.dibujarImagen(g, this.FONDO, this.AREA.x, this.AREA.y);
+		Render2D.dibujarImagen(g, this.FONDO, this.AREA.x, this.AREA.y);
 		this.pintarTexto(g, 0);
 		if (this.seleccionado) {
-			DibujoDebug.dibujarRectanguloContorno(g, this.AREA, Color.orange);
+			Render2D.dibujarRectanguloContorno(g, this.AREA, Color.orange);
 		}
 	}
 
 	@Override
 	public void pintar(final Graphics2D g, final int desplazamientoY) {
-		DibujoDebug.dibujarImagen(g, this.FONDO, this.AREA.x, this.AREA.y - desplazamientoY);
+		Render2D.dibujarImagen(g, this.FONDO, this.AREA.x, this.AREA.y - desplazamientoY);
 		this.pintarTexto(g, desplazamientoY);
 		if (this.seleccionado) {
-			DibujoDebug.dibujarRectanguloContorno(g, this.AREA.x, this.AREA.y - desplazamientoY, this.AREA.width,
+			Render2D.dibujarRectanguloContorno(g, this.AREA.x, this.AREA.y - desplazamientoY, this.AREA.width,
 					this.AREA.height, Color.orange);
 		}
 	}
@@ -87,14 +87,14 @@ public class CajaTecla extends Componente {
 		int desplazamientoIzquierdo = 0;
 		if (ancho > this.imgTexto.getWidth()) {
 			desplazamientoIzquierdo = (this.imgTexto.getWidth() - ancho);
-			DibujoDebug.dibujarString(imgG, this.texto, desplazamientoIzquierdo, this.imgTexto.getHeight() - 2,
+			Render2D.dibujarString(imgG, this.texto, desplazamientoIzquierdo, this.imgTexto.getHeight() - 2,
 					this.COLOR_TEXTO);
 		} else {
-			DibujoDebug.dibujarString(imgG, this.texto, desplazamientoIzquierdo, this.imgTexto.getHeight() - 2,
+			Render2D.dibujarString(imgG, this.texto, desplazamientoIzquierdo, this.imgTexto.getHeight() - 2,
 					this.COLOR_TEXTO);
 		}
 		imgG.dispose();
-		DibujoDebug.dibujarImagen(g, this.imgTexto, this.AREA.x + 2, this.AREA.y - desplazamientoY);
+		Render2D.dibujarImagen(g, this.imgTexto, this.AREA.x + 2, this.AREA.y - desplazamientoY);
 
 	}
 

@@ -7,7 +7,7 @@ import java.awt.Rectangle;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.mapa.Mundo;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
@@ -30,7 +30,7 @@ public class GolpeMeleContraJugador extends ProyectilContraJugador {
 	@Override
 	public void pintar(final Graphics2D g) {
 		if (Globales.TECLADO.TECLA_DEBUG.presionado()) {
-			DibujoDebug.dibujarRectanguloRellenoRefCamara(g, this.getPosicionXInt(), this.getPosicionYInt(), this.ancho,
+			Render2D.dibujarRectanguloRellenoRefCamara(g, this.getPosicionXInt(), this.getPosicionYInt(), this.ancho,
 					this.alto, Color.red);
 		}
 	}

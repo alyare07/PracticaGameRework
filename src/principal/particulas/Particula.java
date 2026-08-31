@@ -3,32 +3,25 @@ package principal.particulas;
 import java.awt.Color;
 import java.awt.Graphics2D;
 
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 /**
  * Representa una partícula física individual reutilizable en memoria (Zero-GC).
  * <p>
- * <b>Cinemática y Comportamiento Visual:</b>
+ * <b>Cinemática y Optimización:</b>
  * <ul>
- * <li><b>Integración de Euler Clásica:</b> Actualiza su posición y velocidad en
- * cada tick aplicando gravedad y desaceleración por fricción del aire.</li>
- * <li><b>Fricción Independiente del Framerate:</b> Utiliza
- * {@code Math.pow(friccion, dt * 60.0)} para que el frenado del aire sea
- * idéntico tanto a 60 FPS como a tasas de refresco desbloqueadas (144 Hz / 240
- * Hz).</li>
+ * <li><b>Integración de Euler Liviana:</b> Actualiza posición y velocidad
+ * recibiendo la fricción pre-calculada desde el gestor, eliminando por completo
+ * llamadas costosas a {@code Math.pow} por frame.</li>
  * <li><b>Encogimiento Progresivo (Pixel-Art Shrink):</b> Interpola su tamaño
- * desde {@link TipoParticula#getTamanoInicial()} hasta
- * {@link TipoParticula#getTamanoFinal()} a medida que expira su tiempo de
- * vida.</li>
- * <li><b>Sombra Dura de Alto Contraste:</b> Dibuja un micro-rectángulo negro
- * desplazado (+1, +1 px) debajo del color principal para que la partícula
- * resalte con nitidez sobre cualquier textura del mapa (pasto, agua, nieve o
- * roca).</li>
+ * entre {@link TipoParticula#getTamanoInicial()} y
+ * {@link TipoParticula#getTamanoFinal()} en función de la vida restante.</li>
+ * <li><b>Render Directo sin Overhead:</b> Dibuja sombra y cuerpo frontal con
+ * cálculo de cámara local para maximizar el fill-rate en VRAM.</li>
  * </ul>
  * </p>
  * 
- * @author Copiloto Técnico
- * @version 2.0
+ * @version 3.0
  */
 public class Particula {
 
@@ -102,7 +95,7 @@ public class Particula {
 		this.velY = velY;
 		this.tipo = tipo;
 
-		this.duracionSegundos = Math.max(0.1, tipo.getDuracionBaseSeg() * factorVida);
+		this.duracionSegundos = Math.max(0.05, tipo.getDuracionBaseSeg() * factorVida);
 		this.vidaRestante = this.duracionSegundos;
 		this.activa = true;
 	}
@@ -112,88 +105,54 @@ public class Particula {
 	// =========================================================================
 
 	/**
-	 * Avanza la trayectoria balística de la partícula aplicando gravedad y
-	 * fricción.
+	 * Avanza la trayectoria balística aplicando gravedad y fricción precalculada.
 	 *
-	 * @param dt Delta de tiempo en segundos transcurrido desde el último frame
-	 *           (1/60 s).
+	 * @param dt             Delta de tiempo en segundos (1/60 s).
+	 * @param factorFriccion Coeficiente de frenado pre-ajustado al framerate
+	 *                       (Zero-Math.pow).
 	 */
-	public void actualizar(final double dt) {
+	public void actualizar(final double dt, final double factorFriccion) {
 		if (!this.activa) {
 			return;
 		}
 
 		this.vidaRestante -= dt;
 
-		// Si el tiempo expiró, se desactiva y queda lista para reciclarse
 		if (this.vidaRestante <= 0.0) {
 			this.activa = false;
 			return;
 		}
 
-		/*
-		 * =====================================================================
-		 * EXPLICACIÓN DIDÁCTICA: INTEGRACIÓN DE EULER Y FRICCIÓN
-		 * --------------------------------------------------------------------- 1.
-		 * TRASLACIÓN DE POSICIÓN: Posición += Velocidad * dt
-		 * 
-		 * 2. ACELERACIÓN DE GRAVEDAD: VelocidadY += Gravedad * dt - Si gravedad > 0
-		 * (ej. sangre): la partícula cae más rápido hacia el suelo (+Y). - Si gravedad
-		 * < 0 (ej. humo o fuego): la partícula flota hacia arriba (-Y).
-		 * 
-		 * 3. FRICCIÓN DEL AIRE (Math.pow(friccion, dt * 60.0)): En lugar de multiplicar
-		 * fijamente por 0.9, elevar la fricción a (dt * 60) garantiza que la partícula
-		 * frene exactamente a la misma distancia si el juego corre a 60 FPS, 144 FPS o
-		 * si sufre una caída temporal de rendimiento.
-		 * =====================================================================
-		 */
-		// 1. Integración de posición espacial
+		// 1. Integración de posición
 		this.posX += this.velX * dt;
 		this.posY += this.velY * dt;
 
-		// 2. Aplicación de gravedad vertical
+		// 2. Aplicación de gravedad
 		this.velY += this.tipo.getGravedad() * dt;
 
-		// 3. Resistencia del aire
-		final double factorFriccion = Math.pow(this.tipo.getFriccion(), dt * 60.0);
+		// 3. Resistencia del aire de bajo costo computacional
 		this.velX *= factorFriccion;
 		this.velY *= factorFriccion;
 	}
 
 	// =========================================================================
-	// === RENDERIZADO PIXEL-ART (ZERO-GC)
+	// === RENDERIZADO PIXEL-ART (ZERO-GC / ALTO RENDIMIENTO)
 	// =========================================================================
 
 	/**
-	 * Dibuja la partícula proyectada en el mundo con escala, sombra y color
-	 * dinámico.
+	 * Dibuja la partícula proyectada en el contexto gráfico utilizando offsets de
+	 * cámara pre-calculados.
 	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
+	 * @param g          Contexto gráfico {@link Graphics2D}.
+	 * @param camOffsetX Desplazamiento X consolidado de la cámara.
+	 * @param camOffsetY Desplazamiento Y consolidado de la cámara.
 	 */
-	public void pintar(final Graphics2D g) {
+	public void pintar(final Graphics2D g, final int camOffsetX, final int camOffsetY) {
 		if (!this.activa) {
 			return;
 		}
 
-		/*
-		 * =====================================================================
-		 * EXPLICACIÓN DIDÁCTICA: PROGRESO Y ENCOGIMIENTO PIXEL-ART
-		 * --------------------------------------------------------------------- 1.
-		 * PROGRESO NORMALIZADO (1.0 a 0.0): - Recién nacida (vidaRestante = duracion):
-		 * progresoRestante = 1.0 - A mitad de vida: progresoRestante = 0.5 - Muriendo
-		 * (vidaRestante = 0): progresoRestante = 0.0
-		 * 
-		 * 2. INTERPOLACIÓN LINEAL DE TAMAÑO (Lerp): tamano = (tamanoInicial * progreso)
-		 * + (tamanoFinal * (1.0 - progreso)) Hace que una chispa nazca grande (7 px) y
-		 * se encoja suavemente a 1 px antes de desaparecer, creando una animación
-		 * fluida sin sprites pesados.
-		 * 
-		 * 3. SOMBRA DE CONTRASTE: Dibujar primero un cuadrito negro desplazado (+1, +1)
-		 * crea una sombra dura que hace que el color brillante frontal resalte sobre
-		 * cualquier tile.
-		 * =====================================================================
-		 */
-		// 1. Cálculo de vida normalizada
+		// 1. Progreso normalizado de vida (1.0 = nacimiento, 0.0 = muerte)
 		final double progresoRestante = this.vidaRestante / this.duracionSegundos;
 
 		// 2. Tamaño interpolado
@@ -201,23 +160,27 @@ public class Particula {
 				+ (this.tipo.getTamanoFinal() * (1.0 - progresoRestante)));
 		final int lado = Math.max(2, Math.round(tamano));
 
-		// 3. Transición de color sólido sin instanciar 'new Color()'
+		// 3. Alternancia de color pre-instanciada (Zero-GC)
 		final Color colorActual = (progresoRestante > 0.5) ? this.tipo.getColorInicio() : this.tipo.getColorFin();
 
-		// 4. Coordenadas centradas en el punto medio de la partícula
-		final int renderX = (int) Math.round(this.posX) - (lado / 2);
-		final int renderY = (int) Math.round(this.posY) - (lado / 2);
+		// 4. Coordenadas de pantalla relativas a cámara
+		final int screenX = (int) Math.round(this.posX) - camOffsetX - (lado / 2);
+		final int screenY = (int) Math.round(this.posY) - camOffsetY - (lado / 2);
 
 		// 5.1 Sombra negra de contraste pixel-art (+1, +1 px)
-		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, renderX + 1, renderY + 1, lado, lado, Color.BLACK);
+		Render2D.dibujarRectanguloRelleno(g, screenX + 1, screenY + 1, lado, lado, Color.BLACK);
 
-		// 5.2 Relleno frontal sólido brillante
-		DibujoDebug.dibujarRectanguloRellenoRefCamara(g, renderX, renderY, lado, lado, colorActual);
+		// 5.2 Relleno frontal sólido
+		Render2D.dibujarRectanguloRelleno(g, screenX, screenY, lado, lado, colorActual);
 	}
 
 	// =========================================================================
-	// === GETTERS
+	// === GETTERS Y SETTERS
 	// =========================================================================
+
+	public void desactivar() {
+		this.activa = false;
+	}
 
 	public boolean isActiva() {
 		return this.activa;

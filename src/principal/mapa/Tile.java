@@ -17,7 +17,7 @@ import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.maquinaestado.estados.editor.PaletaComplento;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 import principal.utilidades.Textura;
 
@@ -124,7 +124,7 @@ public class Tile implements Serializable {
 			final ModeloTile modeloFondo = ListaModeloTile.getModelo(this.codigoModeloFondo);
 			if (modeloFondo != null) {
 				final int texFondo = modeloFondo.getCodTextura(this.mascaraBit, this.variacionPropia);
-				DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(texFondo), this.X, this.Y);
+				Render2D.dibujarImagenRefCamara(g, Textura.getTextura(texFondo), this.X, this.Y);
 			}
 		}
 
@@ -132,7 +132,7 @@ public class Tile implements Serializable {
 		final ModeloTile modelo = ListaModeloTile.getModelo(this.CODIGO_MODELO_TILE);
 		if (modelo != null) {
 			final int texturaFinal = modelo.getCodTextura(this.mascaraBit, this.variacionPropia);
-			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(texturaFinal), this.X, this.Y);
+			Render2D.dibujarImagenRefCamara(g, Textura.getTextura(texturaFinal), this.X, this.Y);
 		}
 	}
 
@@ -150,7 +150,7 @@ public class Tile implements Serializable {
 
 		// Dibuja la cuadrícula de depuración si la tecla de debug está activa
 		if (Globales.TECLADO.TECLA_DEBUG_TILE.presionado() && Globales.estadoJuego) {
-			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
+			Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
 		}
 	}
 
@@ -162,7 +162,7 @@ public class Tile implements Serializable {
 	public void pintarEditor(final Graphics2D g) {
 		this.pintarCapas(g);
 		if (Globales.TECLADO.TECLA_DEBUG_TILE.presionado()) {
-			DibujoDebug.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
+			Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
 		}
 	}
 
@@ -173,8 +173,8 @@ public class Tile implements Serializable {
 	 * @param g Contexto gráfico.
 	 */
 	public void pintarPaleta(final Graphics2D g) {
-		DibujoDebug.dibujarImagen(g, this.getTexturaImagen(), this.X, this.Y);
-		DibujoDebug.dibujarImagen(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
+		Render2D.dibujarImagen(g, this.getTexturaImagen(), this.X, this.Y);
+		Render2D.dibujarImagen(g, Textura.getTextura(Textura.idTexturaContornoTile), this.X, this.Y);
 	}
 
 	/**
@@ -185,7 +185,7 @@ public class Tile implements Serializable {
 	 * @param color Color del contorno.
 	 */
 	public void pintarContorno(final Graphics2D g, final Color color) {
-		DibujoDebug.dibujarRectanguloContornoRefCamara(g, this.X, this.Y, this.LADO, this.LADO, color);
+		Render2D.dibujarRectanguloContornoRefCamara(g, this.X, this.Y, this.LADO, this.LADO, color);
 	}
 
 	// =========================================================================

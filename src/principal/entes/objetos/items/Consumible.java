@@ -8,7 +8,7 @@ import org.json.simple.JSONObject;
 import principal.entes.criaturas.Criatura;
 import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.items.pociones.PocionVidaMenor;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 public abstract class Consumible extends Item {
 	private static final long serialVersionUID = 504856170135227071L;
@@ -73,7 +73,7 @@ public abstract class Consumible extends Item {
 
 	@Override
 	public void pintarInventario(final Graphics2D g, final int x, final int y) {
-		DibujoDebug.dibujarImagen(g, this.getTexturaInventario(), x, y);
+		Render2D.dibujarImagen(g, this.getTexturaInventario(), x, y);
 	}
 
 	public String getCodigoModelo() {

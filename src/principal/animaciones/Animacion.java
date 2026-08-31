@@ -3,7 +3,7 @@ package principal.animaciones;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.GestorTIempoActualizacion;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
@@ -77,9 +77,9 @@ public class Animacion {
 				: this.hojasprite.getSprite(this.spritePosicion);
 
 		if (refJugador) {
-			DibujoDebug.dibujarImagenRefCamara(g, spriteActual, (int) x, (int) y);
+			Render2D.dibujarImagenRefCamara(g, spriteActual, (int) x, (int) y);
 		} else {
-			DibujoDebug.dibujarImagen(g, spriteActual, (int) x, (int) y);
+			Render2D.dibujarImagen(g, spriteActual, (int) x, (int) y);
 		}
 
 		if (Globales.pausa) {
@@ -129,9 +129,9 @@ public class Animacion {
 				: this.hojasprite.getSprite(this.spritePosicion);
 
 		if (refJugador) {
-			DibujoDebug.dibujarImagenConTransparenciaRefCamara(g, spriteActual, (int) x, (int) y, alpha);
+			Render2D.dibujarImagenConTransparenciaRefCamara(g, spriteActual, (int) x, (int) y, alpha);
 		} else {
-			DibujoDebug.dibujarImagenConTransparencia(g, spriteActual, (int) x, (int) y, alpha);
+			Render2D.dibujarImagenConTransparencia(g, spriteActual, (int) x, (int) y, alpha);
 		}
 
 		if (Globales.pausa) {

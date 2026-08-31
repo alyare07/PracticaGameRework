@@ -12,7 +12,7 @@ import principal.entes.objetos.items.armas.Arma;
 import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.inventario.CajaInfo;
 import principal.inventario.Info;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 import principal.utilidades.Textura;
 
@@ -202,11 +202,11 @@ public class SlotArma extends SlotEquipamiento {
 							cantidadBalas);
 					final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, cantidadBalas);
 
-					DibujoDebug.dibujarRectanguloRelleno(g, area.x, (area.y + area.height) - altoTexto - 1, 11, 6,
+					Render2D.dibujarRectanguloRelleno(g, area.x, (area.y + area.height) - altoTexto - 1, 11, 6,
 							Color.LIGHT_GRAY);
-					DibujoDebug.dibujarString(g, cantidadBalas, area.x, (area.y + area.height) - (altoTexto / 2),
+					Render2D.dibujarString(g, cantidadBalas, area.x, (area.y + area.height) - (altoTexto / 2),
 							Color.BLACK);
-					DibujoDebug.dibujarImagen(g, Textura.getTextura(Textura.TEXTURA_x4_BALA), area.x + anchoTexto,
+					Render2D.dibujarImagen(g, Textura.getTextura(Textura.TEXTURA_x4_BALA), area.x + anchoTexto,
 							(area.y + area.height) - altoTexto);
 
 					g.setFont(fuenteOriginal);
@@ -214,7 +214,7 @@ public class SlotArma extends SlotEquipamiento {
 			}
 		} else if (this.logo != null) {
 			// Si no hay arma equipada, dibujar la silueta/logo del slot
-			DibujoDebug.dibujarImagen(g, this.logo, area.x + 1, area.y + 5);
+			Render2D.dibujarImagen(g, this.logo, area.x + 1, area.y + 5);
 		}
 	}
 

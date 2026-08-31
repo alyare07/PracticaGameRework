@@ -12,7 +12,7 @@ import java.awt.image.BufferStrategy;
 import principal.controles.Raton;
 import principal.maquinaestado.GestorEstados;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 
 /**
@@ -80,7 +80,7 @@ public class SuperficieDibujo extends Canvas {
 			return;
 		}
 
-		DibujoDebug.reiniciarContadorObjetos();
+		Render2D.reiniciarContadorObjetos();
 		final Graphics2D g = (Graphics2D) buffer.getDrawGraphics();
 
 		try {
@@ -100,7 +100,7 @@ public class SuperficieDibujo extends Canvas {
 			// --- INICIO DEL DIBUJADO ---
 
 			// 1. Limpieza de fondo (Vaciado de pantalla)
-			DibujoDebug.dibujarRectanguloRelleno(g, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO, Color.BLACK);
+			Render2D.dibujarRectanguloRelleno(g, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO, Color.BLACK);
 
 			// 2. Renderizado del estado actual del juego
 			if (ge != null) {
@@ -109,9 +109,9 @@ public class SuperficieDibujo extends Canvas {
 
 			// 3. Renderizado de información Debug (APS, FPS, Objetos dibujados)
 			g.setColor(Color.GREEN);
-			DibujoDebug.dibujarString(g, "APS: " + Globales.aps, 20, 35);
-			DibujoDebug.dibujarString(g, "FPS: " + Globales.fps, 20, 50);
-			DibujoDebug.dibujarString(g, "OPF: " + (DibujoDebug.getContadorObjetos() + 1), 20, 65);
+			Render2D.dibujarString(g, "APS: " + Globales.aps, 20, 35);
+			Render2D.dibujarString(g, "FPS: " + Globales.fps, 20, 50);
+			Render2D.dibujarString(g, "OPF: " + (Render2D.getContadorObjetos() + 1), 20, 65);
 
 			// --- FIN DEL DIBUJADO ---
 

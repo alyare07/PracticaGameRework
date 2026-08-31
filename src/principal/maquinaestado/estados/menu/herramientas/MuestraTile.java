@@ -3,7 +3,7 @@ package principal.maquinaestado.estados.menu.herramientas;
 import java.awt.Graphics2D;
 
 import principal.entes.modelos.tile.ListaModeloTile;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 public class MuestraTile extends Componente {
 	protected int idTile;
@@ -18,7 +18,7 @@ public class MuestraTile extends Componente {
 	@Override
 	public void pintar(Graphics2D g) {
 		
-		DibujoDebug.dibujarImagen(g, ListaModeloTile.getModelo(idTile).getTextura(), x , y);
+		Render2D.dibujarImagen(g, ListaModeloTile.getModelo(idTile).getTextura(), x , y);
 	}
 
 	@Override

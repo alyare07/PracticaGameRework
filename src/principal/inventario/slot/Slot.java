@@ -13,7 +13,7 @@ import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.entes.objetos.items.arrojadizos.Arrojadizo;
 import principal.inventario.Inventario;
 import principal.inventario.equipamiento.SlotManager;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 import principal.utilidades.Textura;
 
@@ -253,9 +253,9 @@ public class Slot {
 	 * @param area Rectángulo donde se dibujará la base.
 	 */
 	protected void pintarArea(final Graphics2D g, final Rectangle area) {
-		DibujoDebug.dibujarRectanguloRelleno(g, area, Inventario.BLANCO_TRANSPARENTE);
+		Render2D.dibujarRectanguloRelleno(g, area, Inventario.BLANCO_TRANSPARENTE);
 		if (this.apuntado) {
-			DibujoDebug.dibujarRectanguloContorno(g, area, Color.YELLOW);
+			Render2D.dibujarRectanguloContorno(g, area, Color.YELLOW);
 		}
 	}
 
@@ -279,8 +279,8 @@ public class Slot {
 			final Font fuenteOriginal = g.getFont();
 			g.setFont(FUENTE_CANTIDAD);
 
-			DibujoDebug.dibujarRectanguloRelleno(g, area.x, area.y, 6, 6, Color.LIGHT_GRAY);
-			DibujoDebug.dibujarString(g, String.valueOf(((Consumible) this.item).getCantidad()), area.x, area.y + 6,
+			Render2D.dibujarRectanguloRelleno(g, area.x, area.y, 6, 6, Color.LIGHT_GRAY);
+			Render2D.dibujarString(g, String.valueOf(((Consumible) this.item).getCantidad()), area.x, area.y + 6,
 					Color.BLACK);
 
 			g.setFont(fuenteOriginal);
@@ -295,10 +295,10 @@ public class Slot {
 			final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, cantidadBalas);
 			final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, cantidadBalas);
 
-			DibujoDebug.dibujarRectanguloRelleno(g, area.x, (area.y + area.height) - altoTexto - 1, 11, 6,
+			Render2D.dibujarRectanguloRelleno(g, area.x, (area.y + area.height) - altoTexto - 1, 11, 6,
 					Color.LIGHT_GRAY);
-			DibujoDebug.dibujarString(g, cantidadBalas, area.x, (area.y + area.height) - (altoTexto / 2), Color.BLACK);
-			DibujoDebug.dibujarImagen(g, Textura.getTextura(Textura.TEXTURA_x4_BALA), area.x + anchoTexto,
+			Render2D.dibujarString(g, cantidadBalas, area.x, (area.y + area.height) - (altoTexto / 2), Color.BLACK);
+			Render2D.dibujarImagen(g, Textura.getTextura(Textura.TEXTURA_x4_BALA), area.x + anchoTexto,
 					(area.y + area.height) - altoTexto);
 
 			g.setFont(fuenteOriginal);

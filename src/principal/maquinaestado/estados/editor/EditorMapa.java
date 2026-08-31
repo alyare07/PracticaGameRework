@@ -24,7 +24,7 @@ import principal.mapa.escenario.EscenarioLoader;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.EstadoJuego;
 import principal.utilidades.Constantes;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 
@@ -462,7 +462,7 @@ public class EditorMapa implements EstadoJuego {
 	 */
 	private void pintarTileSelectedTerreno(final Graphics2D g) {
 		if (this.tileApuntadoValido && (this.PALETAS.getPaletaActual() instanceof PaletaTile)) {
-			DibujoDebug.dibujarRectanguloContorno(g,
+			Render2D.dibujarRectanguloContorno(g,
 					(this.areaTileSelected.x - Globales.CAMARA.getPosicionXInt()) + Globales.CAMARA.getMargenX(),
 					(this.areaTileSelected.y - Globales.CAMARA.getPosicionYInt()) + Globales.CAMARA.getMargenY(),
 					this.areaTileSelected.width, this.areaTileSelected.height, Color.MAGENTA);
@@ -474,7 +474,7 @@ public class EditorMapa implements EstadoJuego {
 				final int posX = rr.x - (p.getComplementoSeleccionado().getTextura().getWidth() / 2);
 				final int posY = rr.y - (p.getComplementoSeleccionado().getTextura().getHeight() / 2);
 
-				DibujoDebug.dibujarImagen(g, p.getComplementoSeleccionado().getTextura(), posX, posY);
+				Render2D.dibujarImagen(g, p.getComplementoSeleccionado().getTextura(), posX, posY);
 
 				// Previsualización de cajas de colisión para complementos
 				if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
@@ -484,11 +484,11 @@ public class EditorMapa implements EstadoJuego {
 					if (modelo instanceof ModeloComplementoT1) {
 						final Rectangle colision = ((ModeloComplementoT1) modelo)
 								.getMargenesInterseccionEnBasePosicion(posX, posY);
-						DibujoDebug.dibujarRectanguloContorno(g, colision, Color.YELLOW);
+						Render2D.dibujarRectanguloContorno(g, colision, Color.YELLOW);
 					} else if (modelo instanceof ModeloComplementoT2) {
 						for (final Rectangle colision : ((ModeloComplementoT2) modelo)
 								.getMargenesInterseccionEnBasePosicion(posX, posY)) {
-							DibujoDebug.dibujarRectanguloContorno(g, colision, Color.YELLOW);
+							Render2D.dibujarRectanguloContorno(g, colision, Color.YELLOW);
 						}
 					}
 				}
@@ -504,22 +504,22 @@ public class EditorMapa implements EstadoJuego {
 	 */
 	private void pintarCoordenadas(final Graphics2D g) {
 		if (this.PALETAS.getPaletaActual() instanceof PaletaTile) {
-			DibujoDebug.dibujarString(g,
+			Render2D.dibujarString(g,
 					"Area Apuntada: " + (this.tileApuntadoValido
 							? ("(X: " + this.areaTileSelected.x + " , Y: " + this.areaTileSelected.y + " , W: "
 									+ this.areaTileSelected.width + " , H: " + this.areaTileSelected.height + ")")
 							: "none"),
 					20, 170, Color.WHITE);
 		} else {
-			DibujoDebug.dibujarString(g,
+			Render2D.dibujarString(g,
 					"Area Mouse Apuntado: " + ("(X: " + this.AREA_MOUSE_APUNTADO.x + " , Y: "
 							+ this.AREA_MOUSE_APUNTADO.y + " , W: " + this.AREA_MOUSE_APUNTADO.width + " , H: "
 							+ this.AREA_MOUSE_APUNTADO.height + ")"),
 					20, 170, Color.WHITE);
-			DibujoDebug.dibujarRectanguloContorno(g, this.RATON.getRectanguloPosicionEscalado(), Color.BLUE);
+			Render2D.dibujarRectanguloContorno(g, this.RATON.getRectanguloPosicionEscalado(), Color.BLUE);
 		}
-		DibujoDebug.dibujarString(g, "X Centro: " + this.x, 20, 180, Color.GREEN);
-		DibujoDebug.dibujarString(g, "Y Centro: " + this.y, 20, 190, Color.GREEN);
+		Render2D.dibujarString(g, "X Centro: " + this.x, 20, 180, Color.GREEN);
+		Render2D.dibujarString(g, "Y Centro: " + this.y, 20, 190, Color.GREEN);
 	}
 
 	// =========================================================================

@@ -15,7 +15,7 @@ import principal.ia.dijkstra.DijkstraRework;
 import principal.ia.dijkstra.NodoD;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
@@ -422,12 +422,12 @@ public abstract class Enemigo extends Criatura {
 	public void pintar(final Graphics2D g) {
 		super.pintar(g);
 		if (Globales.TECLADO.TECLA_DEBUG.presionado() && Globales.estadoJuego) {
-			DibujoDebug.dibujarFiguraEllipseRefCamara(g,
+			Render2D.dibujarFiguraEllipseRefCamara(g,
 					new Rectangle((int) ((this.getPosicionX() - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0)),
 							(int) ((this.getPosicionY() - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0)),
 							(int) this.areaDeteccionAncho, (int) this.areaDeteccionAlto),
 					Color.RED);
-			DibujoDebug.dibujarFiguraEllipseRefCamara(g,
+			Render2D.dibujarFiguraEllipseRefCamara(g,
 					new Rectangle((int) ((this.getPosicionX() - (this.areaDeteccionAncho / 8.0)) + (this.ANCHO / 2.0)),
 							(int) ((this.getPosicionY() - (this.areaDeteccionAlto / 8.0)) + (this.ALTO / 2.0)),
 							(int) (this.areaDeteccionAncho / 4.0), (int) (this.areaDeteccionAlto / 4.0)),

@@ -9,7 +9,7 @@ import java.util.HashMap;
 import principal.controles.Raton;
 import principal.entes.objetos.Complemento;
 import principal.mapa.Tile;
-import principal.utilidades.DibujoDebug;
+import principal.utilidades.Render2D;
 
 public class PaletaComplento extends Paleta {
 	public static final int POSICIONAMIENTO_CENTRO = 0;
@@ -113,11 +113,11 @@ public class PaletaComplento extends Paleta {
 		for (Complemento c : COMPLEMENTOS.values()) {
 			c.pintarFijo(g);
 		}
-		DibujoDebug.dibujarRectanguloContorno(g, this.X, this.Y, this.ANCHO, this.ALTO, Color.yellow);
+		Render2D.dibujarRectanguloContorno(g, this.X, this.Y, this.ANCHO, this.ALTO, Color.yellow);
 		if (this.complementoSeleccionado != null) {
 			final Rectangle area = this.complementoSeleccionado.getArea();
-			DibujoDebug.dibujarRectanguloContorno(g, area, Color.WHITE);
-			DibujoDebug.dibujarRectanguloContorno(g, area.x - 1, area.y - 1, area.width + 2, area.height + 2, Color.BLACK);
+			Render2D.dibujarRectanguloContorno(g, area, Color.WHITE);
+			Render2D.dibujarRectanguloContorno(g, area.x - 1, area.y - 1, area.width + 2, area.height + 2, Color.BLACK);
 		}
 	}
 

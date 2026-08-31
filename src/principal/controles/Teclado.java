@@ -19,52 +19,16 @@ import org.json.simple.parser.JSONParser;
 import principal.utilidades.Globales;
 
 /**
- * Gestor centralizado de entrada de teclado para el motor del juego.
- * <p>
- * <b>¿Cómo funciona este sistema?</b><br>
- * Los sistemas operativos envían eventos de teclado de forma asíncrona a través
- * del hilo de interfaz gráfica de Java (Event Dispatch Thread o EDT). Sin
- * embargo, nuestro motor de videojuegos actualiza la lógica a un ritmo fijo y
- * constante (60 ticks por segundo o APS) en su propio hilo principal.
- * </p>
- * <p>
- * Para sincronizar ambos mundos sin perder pulsaciones ni generar bloqueos:
- * <ul>
- * <li><b>Arreglo de Estado Físico (512 teclas):</b> El EDT actualiza al
- * instante si una tecla está o no bajada (en tiempo real $O(1)$).</li>
- * <li><b>Doble Búfer de Estado Lógico:</b> En cada tick del juego, comparamos
- * el estado actual con el del tick anterior para detectar el "flanco de subida"
- * (cuando una tecla recién se presiona).</li>
- * <li><b>Zero Allocation:</b> No creamos ningún objeto en memoria (`new`)
- * durante la ejecución de los métodos de actualización para mantener al Garbage
- * Collector completamente inactivo.</li>
- * </ul>
- * </p>
+ * Gestor centralizado de entrada de teclado para el motor del juego. Gestiona
+ * el mapeo de acciones físicas, detección de pulsaciones de flanco y recarga de
+ * armas.
  * 
- * @version 2.1 (Java 8 Pure)
+ * @version 2.5 (Java 8 Pure - Zero-GC Architecture)
  */
 public class Teclado implements KeyListener {
 
-	// =========================================================================
-	// === ARCHIVOS Y CONTENEDORES DE TECLAS
-	// =========================================================================
-
-	/**
-	 * Archivo físico donde se persiste la configuración de controles en formato
-	 * JSON.
-	 */
 	public final File ARCHIVO_CONFIG = new File("Config.dat");
-
-	/**
-	 * Lista general con todas las teclas registradas en el juego para su ciclo de
-	 * actualización.
-	 */
 	public final ArrayList<Tecla> TECLAS = new ArrayList<Tecla>();
-
-	/**
-	 * Mapa de teclas cuyos códigos pueden ser remapeados o configurados por el
-	 * usuario.
-	 */
 	public final HashMap<String, Tecla> TECLAS_MODIFICABLES = new HashMap<String, Tecla>();
 
 	// =========================================================================
@@ -78,9 +42,10 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_RECOGIENDO;
 	public final Tecla TECLA_CORRIENDO;
 	public final Tecla TECLA_ATACANDO;
+	public final Tecla TECLA_RECARGAR;
 
 	// =========================================================================
-	// === DECLARACIÓN DE TECLAS DE DEPURACIÓN / DEBUG (MODO TOGGLE/INTERRUPTOR)
+	// === DECLARACIÓN DE TECLAS DE DEPURACIÓN / DEBUG
 	// =========================================================================
 
 	public final Tecla TECLA_DEBUG;
@@ -122,46 +87,13 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_NUM_9;
 
 	// =========================================================================
-	// === BÚFERES PRIMITIVOS DE ESTADO (TRIPLE BÚFER DETERMINISTA)
+	// === BÚFERES PRIMITIVOS DE ESTADO (ZERO-GC)
 	// =========================================================================
 
-	/**
-	 * Búfer físico activo (Hardware State).
-	 * <p>
-	 * Este arreglo almacena directamente si una tecla física está presionada o no.
-	 * Se indexa por el código virtual de la tecla (ej: {@link KeyEvent#VK_W}). Es
-	 * modificado asíncronamente por el EDT a través de los eventos de AWT.
-	 * </p>
-	 */
 	public final boolean[] teclas = new boolean[512];
-
-	/**
-	 * Búfer histórico del tick lógico anterior.
-	 * <p>
-	 * Nos permite saber cómo estaba el teclado exactamente en el fotograma anterior
-	 * para comparar y detectar cambios de estado.
-	 * </p>
-	 */
 	private final boolean[] teclasPresionadasAnterior = new boolean[512];
-
-	/**
-	 * Búfer de pulsación única (Flanco de Subida / Just Pressed).
-	 * <p>
-	 * Es `true` <b>únicamente en el primer tick</b> en el que la tecla pasa de
-	 * estar suelta a estar presionada. Si el jugador mantiene la tecla presionada,
-	 * en los ticks siguientes volverá a ser `false`.
-	 * </p>
-	 */
 	private final boolean[] teclasPulsadasUnaVez = new boolean[512];
 
-	// =========================================================================
-	// === CONSTRUCTOR
-	// =========================================================================
-
-	/**
-	 * Inicializa todas las asignaciones por defecto, configura los disparadores
-	 * condicionados y carga la configuración persistente desde el disco.
-	 */
 	public Teclado() {
 		// Asignación de Controles Básicos
 		this.TECLA_ARRIBA = new Tecla(KeyEvent.VK_UP, "Mover Arriba");
@@ -171,9 +103,9 @@ public class Teclado implements KeyListener {
 		this.TECLA_RECOGIENDO = new Tecla(KeyEvent.VK_E, "Recoger");
 		this.TECLA_CORRIENDO = new Tecla(KeyEvent.VK_SHIFT, "Correr");
 		this.TECLA_ATACANDO = new Tecla(KeyEvent.VK_SPACE, "Atacar");
+		this.TECLA_RECARGAR = new Tecla(KeyEvent.VK_R, "Recargar");
 
-		// Asignación de Teclas de Depuración (El segundo parámetro 'true' indica modo
-		// Toggle/Interruptor)
+		// Teclas de Depuración
 		this.TECLA_DEBUG = new Tecla(KeyEvent.VK_F1, true, "Debug");
 		this.TECLA_FPS_LIMITE = new Tecla(KeyEvent.VK_F11, true, "FPS Limite");
 		this.TECLA_VER_COLISIONES = new Tecla(KeyEvent.VK_F7, true, "Ver Colisiones");
@@ -205,7 +137,7 @@ public class Teclado implements KeyListener {
 		this.TECLA_NUM_8 = new Tecla(KeyEvent.VK_8, "Num_8");
 		this.TECLA_NUM_9 = new Tecla(KeyEvent.VK_9, "Num_9");
 
-		// Tecla de Inventario: Solo se abre/cierra si el juego no se encuentra pausado
+		// Tecla de Inventario
 		this.TECLA_INVENTARIO = new TeclaAccionCondicionada(KeyEvent.VK_I, "Inventario") {
 			@Override
 			public boolean condicion() {
@@ -222,7 +154,7 @@ public class Teclado implements KeyListener {
 			}
 		};
 
-		// Tecla de Pausa: Siempre ejecutable
+		// Tecla de Pausa
 		this.TECLA_PAUSA = new TeclaAccionCondicionada(KeyEvent.VK_P, "Pausa") {
 			@Override
 			public boolean condicion() {
@@ -235,15 +167,11 @@ public class Teclado implements KeyListener {
 			}
 		};
 
-		// Registro y carga de configuración
 		this.cargarTeclasALista();
 		this.cargarTeclasAListaModificables();
 		this.cargarConfig();
 	}
 
-	/**
-	 * Agrega todas las teclas a la lista maestra de actualización.
-	 */
 	private void cargarTeclasALista() {
 		this.TECLAS.add(this.TECLA_INVENTARIO);
 		this.TECLAS.add(this.TECLA_ESCAPE);
@@ -254,6 +182,7 @@ public class Teclado implements KeyListener {
 		this.TECLAS.add(this.TECLA_RECOGIENDO);
 		this.TECLAS.add(this.TECLA_CORRIENDO);
 		this.TECLAS.add(this.TECLA_ATACANDO);
+		this.TECLAS.add(this.TECLA_RECARGAR);
 		this.TECLAS.add(this.TECLA_DEBUG);
 		this.TECLAS.add(this.TECLA_FPS_LIMITE);
 		this.TECLAS.add(this.TECLA_VER_COLISIONES);
@@ -276,6 +205,7 @@ public class Teclado implements KeyListener {
 		this.TECLAS.add(this.TECLA_NUM_1);
 		this.TECLAS.add(this.TECLA_NUM_2);
 		this.TECLAS.add(this.TECLA_NUM_3);
+		this.TECLAS.add(this.TECLAS.get(3));
 		this.TECLAS.add(this.TECLA_NUM_4);
 		this.TECLAS.add(this.TECLA_NUM_5);
 		this.TECLAS.add(this.TECLA_NUM_6);
@@ -284,10 +214,6 @@ public class Teclado implements KeyListener {
 		this.TECLAS.add(this.TECLA_NUM_9);
 	}
 
-	/**
-	 * Mapea las teclas que el usuario tiene permitido reconfigurar desde menús u
-	 * opciones.
-	 */
 	private void cargarTeclasAListaModificables() {
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ARRIBA.nombre, this.TECLA_ARRIBA);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ABAJO.nombre, this.TECLA_ABAJO);
@@ -296,6 +222,7 @@ public class Teclado implements KeyListener {
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ATACANDO.nombre, this.TECLA_ATACANDO);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_RECOGIENDO.nombre, this.TECLA_RECOGIENDO);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_CORRIENDO.nombre, this.TECLA_CORRIENDO);
+		this.TECLAS_MODIFICABLES.put(this.TECLA_RECARGAR.nombre, this.TECLA_RECARGAR);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_INVENTARIO.nombre, this.TECLA_INVENTARIO);
 
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_IN.nombre, this.TECLA_ZOOM_IN);
@@ -303,49 +230,18 @@ public class Teclado implements KeyListener {
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_REINICIAR.nombre, this.TECLA_ZOOM_REINICIAR);
 	}
 
-	// =========================================================================
-	// === ACTUALIZACIÓN DETERMINISTA (GAME LOOP)
-	// =========================================================================
-
-	/**
-	 * Actualiza los estados lógicos de todas las teclas al inicio del ciclo de
-	 * juego.
-	 * <p>
-	 * <b>Principio de Optimización (Zero Garbage Collector):</b><br>
-	 * Este método se invoca 60 veces por segundo. Para evitar que el recolector de
-	 * basura pause el juego con micro-tirones (stuttering), no usamos foreach (que
-	 * crea un objeto `Iterator` invisible), sino un bucle `for` tradicional con
-	 * acceso por índice `size()`.
-	 * </p>
-	 */
 	public void actualizar() {
-		// ---------------------------------------------------------------------
-		// 1. Detección de Flancos (Edge Detection)
-		// ---------------------------------------------------------------------
-		// Una tecla se considera "pulsada una sola vez" si actualmente está presionada
-		// Y en el tick anterior NO lo estaba.
 		for (int i = 0; i < this.teclas.length; i++) {
 			this.teclasPulsadasUnaVez[i] = this.teclas[i] && !this.teclasPresionadasAnterior[i];
 			this.teclasPresionadasAnterior[i] = this.teclas[i];
 		}
 
-		// ---------------------------------------------------------------------
-		// 2. Actualización de Objetos Tecla
-		// ---------------------------------------------------------------------
 		final int total = this.TECLAS.size();
 		for (int i = 0; i < total; i++) {
 			this.TECLAS.get(i).actualizar();
 		}
 	}
 
-	/**
-	 * Verifica si un código de tecla de hardware fue presionado exactamente en este
-	 * fotograma.
-	 *
-	 * @param codigoTecla Código de la tecla (ej. {@link KeyEvent#VK_SPACE}).
-	 * @return {@code true} si la tecla se acaba de presionar en este tick;
-	 *         {@code false} en caso contrario.
-	 */
 	public boolean isTeclaPresionadaUnaVez(final int codigoTecla) {
 		if ((codigoTecla >= 0) && (codigoTecla < this.teclasPulsadasUnaVez.length)) {
 			return this.teclasPulsadasUnaVez[codigoTecla];
@@ -353,14 +249,6 @@ public class Teclado implements KeyListener {
 		return false;
 	}
 
-	/**
-	 * Verifica si un objeto {@link Tecla} específico fue presionado exactamente en
-	 * este fotograma.
-	 *
-	 * @param tecla Instancia de la tecla a comprobar.
-	 * @return {@code true} si se accionó en este frame; {@code false} si es nula o
-	 *         se mantiene presionada.
-	 */
 	public boolean isTeclaPresionadaUnaVez(final Tecla tecla) {
 		if (tecla == null) {
 			return false;
@@ -368,14 +256,6 @@ public class Teclado implements KeyListener {
 		return tecla.presionadoUnicaActualizacion();
 	}
 
-	/**
-	 * Comprueba si una tecla física está siendo mantenida presionada de forma
-	 * continua.
-	 *
-	 * @param codigo Código virtual de la tecla.
-	 * @return {@code true} si la tecla está abajo/activa; {@code false} en caso
-	 *         contrario.
-	 */
 	public boolean presionaTeclaEnLista(final int codigo) {
 		if ((codigo >= 0) && (codigo < this.teclas.length)) {
 			return this.teclas[codigo];
@@ -383,29 +263,18 @@ public class Teclado implements KeyListener {
 		return false;
 	}
 
-	// =========================================================================
-	// === EVENTOS NATIVOS AWT KEYLISTENER (EJECUTADOS POR EL HILO EDT)
-	// =========================================================================
-
 	@Override
 	public void keyTyped(final KeyEvent e) {
-		// No se utiliza para la lógica de entrada directa del motor (se usa para
-		// captura de texto/chat).
 	}
 
-	/**
-	 * Invocado por el hilo de eventos de AWT cuando una tecla física desciende.
-	 */
 	@Override
 	public void keyPressed(final KeyEvent e) {
 		final int code = e.getKeyCode();
 
-		// Actualizamos el arreglo físico directo en tiempo constante O(1)
 		if ((code >= 0) && (code < this.teclas.length)) {
 			this.teclas[code] = true;
 		}
 
-		// Notificamos a las instancias Tecla registradas
 		final int total = this.TECLAS.size();
 		for (int i = 0; i < total; i++) {
 			final Tecla t = this.TECLAS.get(i);
@@ -415,19 +284,14 @@ public class Teclado implements KeyListener {
 		}
 	}
 
-	/**
-	 * Invocado por el hilo de eventos de AWT cuando una tecla física se libera.
-	 */
 	@Override
 	public void keyReleased(final KeyEvent e) {
 		final int code = e.getKeyCode();
 
-		// Actualizamos el arreglo físico directo en tiempo constante O(1)
 		if ((code >= 0) && (code < this.teclas.length)) {
 			this.teclas[code] = false;
 		}
 
-		// Notificamos a las instancias Tecla registradas
 		final int total = this.TECLAS.size();
 		for (int i = 0; i < total; i++) {
 			final Tecla t = this.TECLAS.get(i);
@@ -437,16 +301,6 @@ public class Teclado implements KeyListener {
 		}
 	}
 
-	// =========================================================================
-	// === PERSISTENCIA JSON (CONFIGURACIÓN DE CONTROLES)
-	// =========================================================================
-
-	/**
-	 * Genera un objeto JSON estructurado con los nombres y códigos de las teclas
-	 * modificables.
-	 *
-	 * @return {@link JSONObject} listo para serializar a disco.
-	 */
 	@SuppressWarnings("unchecked")
 	protected JSONObject getConfigJson() {
 		final JSONObject jo = new JSONObject();
@@ -456,11 +310,6 @@ public class Teclado implements KeyListener {
 		return jo;
 	}
 
-	/**
-	 * Aplica la configuración cargada desde un objeto JSON a las teclas del juego.
-	 *
-	 * @param jo Objeto JSON con el mapeo de teclas cargado.
-	 */
 	protected void establecerConfig(final JSONObject jo) {
 		if (jo == null) {
 			return;
@@ -476,19 +325,11 @@ public class Teclado implements KeyListener {
 		}
 	}
 
-	/**
-	 * Carga la configuración de controles desde el archivo local en formato UTF-8.
-	 *
-	 * @return {@code true} si se cargó exitosamente; {@code false} si el archivo no
-	 *         existe o hubo un error.
-	 */
 	protected boolean cargarConfig() {
 		if (!this.ARCHIVO_CONFIG.exists()) {
 			return false;
 		}
 
-		// Usamos Try-with-resources para garantizar el cierre seguro de los flujos de
-		// lectura
 		try (final BufferedReader reader = new BufferedReader(
 				new InputStreamReader(new FileInputStream(this.ARCHIVO_CONFIG), StandardCharsets.UTF_8))) {
 
@@ -507,16 +348,11 @@ public class Teclado implements KeyListener {
 		}
 	}
 
-	/**
-	 * Guarda en disco de forma legible la configuración actual de los controles
-	 * modificables.
-	 */
 	public void guardarConfig() {
 		final JSONObject jo = this.getConfigJson();
 		try (final BufferedWriter writer = new BufferedWriter(
 				new OutputStreamWriter(new FileOutputStream(this.ARCHIVO_CONFIG), StandardCharsets.UTF_8))) {
 
-			// Formateamos visualmente agregando saltos de línea tras cada propiedad JSON
 			writer.write(jo.toJSONString().replaceAll(",", ",\n"));
 		} catch (final Exception e) {
 			e.printStackTrace();

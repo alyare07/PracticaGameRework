@@ -16,7 +16,6 @@ import principal.entes.objetos.items.arrojadizos.Arrojadizo;
 import principal.inventario.CajaInfo;
 import principal.inventario.Inventario;
 import principal.inventario.slot.Slot;
-import principal.inventario.slot.SlotArrojadizo;
 import principal.inventario.slot.SlotIGU;
 import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
@@ -25,66 +24,19 @@ import principal.utilidades.Globales;
 import principal.utilidades.inventario.ItemPuntero;
 
 /**
- * Administrador y orquestador central de la cuadrícula de casillas (slots) del
- * inventario del jugador y de su proyección en el HUD inferior (IGU).
+ * Administrador central de casillas del inventario y del HUD inferior. Gestiona
+ * el equipamiento de armas, apilado de consumibles y extracción de municiones.
  * 
- * <p>
- * <b>Topología de Listas en Memoria (Zero-Duplication):</b>
- * </p>
- * <p>
- * Maneja múltiples listas especializadas para categorizar las casillas según su
- * zona visual y funcional, pero <b>todas comparten las mismas referencias de
- * objetos {@link Slot}</b> creadas una única vez en el constructor:
- * </p>
- * <ul>
- * <li><b>{@link #LISTA_SLOTS_ALMACEN}:</b> 30 casillas de almacenamiento
- * general (3 filas x 10 columnas).</li>
- * <li><b>{@link #LISTA_SLOTS_PRINCIPALES}:</b> 10 casillas de la barra de
- * acceso rápido (Hotbar).</li>
- * <li><b>{@link #LISTA_SLOTS_EQUIPAMIENTO}:</b> Casillas dedicadas a equipo
- * activo (ej: {@link SlotArma}).</li>
- * <li><b>{@link #LISTA_SLOTS_GENERAL}:</b> Colección agregada para iteraciones
- * masivas de actualización y render.</li>
- * <li><b>{@link #LISTA_SLOTS_IGU}:</b> Vistas proyectadas (Proxies) para el HUD
- * inferior en pantalla.</li>
- * </ul>
- * 
- * <p>
- * <b>Flujo de Entrada y Acciones:</b>
- * </p>
- * <ul>
- * <li><b>Clic Izquierdo:</b> Delega atómicamente el agarre, depósito e
- * intercambio de ítems a {@link ItemPuntero}.</li>
- * <li><b>Clic Derecho (Acción Rápida):</b> Consume consumibles, ceba
- * arrojadizos en {@link principal.inventario.slot.SlotArrojadizo} o
- * equipa/desequipa armas directamente con un solo clic.</li>
- * </ul>
- * 
- * @author Copiloto Técnico / Arquitectura del Motor
- * @version 1.0 (Vanilla Java 8)
- * @see Slot
- * @see SlotIGU
- * @see SlotArma
- * @see ItemPuntero
+ * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
  */
 public class SlotManager {
 
-	/***/
-	/* ========================================================================= */
-	/* 1. CONSTANTES DE DIMENSIÓN Y RECURSOS GRÁFICOS (GC FRIENDLY) */
-	/* ========================================================================= */
-	/***/
 	private static final int LADO_SLOTS = 18;
 	private static final Font FUENTE_SLOTS = new Font(Font.SANS_SERIF, Font.PLAIN, 6);
 
 	private static final int CANTIDAD_SLOTS_FILA = 10;
 	private static final int FILAS_ALMACEN = 3;
 
-	/***/
-	/* ========================================================================= */
-	/* 2. REFERENCIAS ESTRUCTURALES Y COLECCIONES DE SLOTS */
-	/* ========================================================================= */
-	/***/
 	private final Inventario INVENTARIO;
 	private final ArrayList<Slot> LISTA_SLOTS;
 	private final ArrayList<SlotIGU> LISTA_SLOTS_IGU;
@@ -103,16 +55,6 @@ public class SlotManager {
 	private Slot slotApuntado;
 	private SlotIGU slotIguApuntado;
 
-	/**
-	 * Construye el administrador de casillas, inicializa los límites espaciales y
-	 * genera la cuadrícula completa del inventario y del HUD.
-	 * 
-	 * @param inventario           Instancia del inventario del jugador propietario.
-	 * @param margenGeneral        Espaciado en píxeles entre bordes y casillas.
-	 * @param zonaSlotAlmacen      Área destinada a los slots de almacenamiento.
-	 * @param zonaSlotPrincipales  Área destinada a la barra de acceso rápido.
-	 * @param zonaSlotEquipamiento Área destinada a las ranuras de equipo.
-	 */
 	public SlotManager(final Inventario inventario, final int margenGeneral, final Rectangle zonaSlotAlmacen,
 			final Rectangle zonaSlotPrincipales, final Rectangle zonaSlotEquipamiento) {
 		this.INVENTARIO = inventario;
@@ -128,35 +70,15 @@ public class SlotManager {
 		this.LISTA_SLOTS_PRINCIPALES = new ArrayList<Slot>();
 		this.LISTA_SLOTS_EQUIPAMIENTO = new ArrayList<Slot>();
 
-		// Inicialización de la caja de información del arma equipada
 		this.infoArma = new CajaInfo(new Rectangle(this.ZONA_SLOTS_EQUIPAMIENTOS.x + LADO_SLOTS + this.MARGEN_GENERAL,
 				this.ZONA_SLOTS_EQUIPAMIENTOS.y, LADO_SLOTS, LADO_SLOTS));
 
-		// Generación de cuadrículas en memoria
 		this.llenarSlotsPrincipales();
 		this.llenarSlotsEquipamientos();
 		this.llenarSlotsAlmacenamiento();
 		this.llenarSlotsIGU();
 	}
 
-	/***/
-	/* ========================================================================= */
-	/* 3. ACTUALIZACIÓN LÓGICA (60 APS) */
-	/* ========================================================================= */
-	/***/
-
-	/**
-	 * Actualiza el estado lógico de todos los slots cuando la ventana del
-	 * inventario está abierta.
-	 * 
-	 * @param raton                 Instancia del controlador del ratón.
-	 * @param gtRatonPresiono       Gestor de tiempo para control de debounce de
-	 *                              clics.
-	 * @param tiempoMsRatonPresiono Intervalo mínimo de milisegundos entre
-	 *                              pulsaciones.
-	 * @param itemPuntero           Controlador del ítem sostenido en el cursor.
-	 * @param mundo                 Referencia al mundo activo.
-	 */
 	public void actualizar(final Raton raton, final GestorTiempo gtRatonPresiono, final int tiempoMsRatonPresiono,
 			final ItemPuntero itemPuntero, final Mundo mundo) {
 		this.actualizarSlots(raton);
@@ -164,27 +86,11 @@ public class SlotManager {
 		this.actualizarActivarItem(raton);
 	}
 
-	/**
-	 * Actualiza el estado lógico de las casillas del HUD inferior cuando el
-	 * inventario está cerrado.
-	 * 
-	 * @param raton Instancia del controlador del ratón.
-	 */
 	public void actualizarIGU(final Raton raton) {
 		this.actualizarSlotsIGU(raton);
 		this.actualizarActivarItemIGU(raton);
 	}
 
-	/***/
-	/* ========================================================================= */
-	/* 4. GESTIÓN DE ACCIONES DE RATÓN (CLIC IZQUIERDO Y DERECHO) */
-	/* ========================================================================= */
-	/***/
-
-	/**
-	 * Procesa la transferencia de ítems mediante clic izquierdo delegando
-	 * directamente en {@link ItemPuntero}.
-	 */
 	private void actualizarClickIzquierdo(final Raton raton, final GestorTiempo gtRaton, final int tiempoMs,
 			final ItemPuntero itemPuntero) {
 		if (raton.presionadoClickIzq() && gtRaton.transcurrioMiliSegundos(tiempoMs)) {
@@ -203,17 +109,6 @@ public class SlotManager {
 		}
 	}
 
-	/**
-	 * Procesa acciones rápidas con clic derecho dentro de la ventana del
-	 * inventario:
-	 * <ul>
-	 * <li><b>Arrojadizos:</b> Pasan al {@link SlotArrojadizo} y cierran la ventana
-	 * para apuntar.</li>
-	 * <li><b>Armas:</b> Se equipan en {@link #slotArma} o se desequipan al
-	 * inventario si ya estaban equipadas.</li>
-	 * <li><b>Consumibles:</b> Se aplican inmediatamente sobre el jugador.</li>
-	 * </ul>
-	 */
 	private void actualizarActivarItem(final Raton raton) {
 		if (raton.presionadoClickDerUnicaAct() && this.INVENTARIO.getActivarItemDisponible()) {
 			for (final Slot slot : this.LISTA_SLOTS_GENERAL) {
@@ -221,14 +116,12 @@ public class SlotManager {
 					if (slot.contieneItem()) {
 						final Item i = slot.getItem();
 
-						// 1. Caso Arrojadizo
 						if (i instanceof Arrojadizo) {
 							this.INVENTARIO.getSlotArrojadizo().establecerObjeto(i);
 							Globales.GESTOR_INVENTARIO.getInventarioJugador().invertirVisibilidad();
 							return;
 						}
 
-						// 2. Caso Arma
 						if (i instanceof Arma) {
 							if (slot == this.slotArma) {
 								this.desequiparArma();
@@ -240,7 +133,6 @@ public class SlotManager {
 							break;
 						}
 
-						// 3. Caso Consumible
 						if (i instanceof Consumible) {
 							final Consumible c = (Consumible) i;
 							c.consumir(Globales.JUGADOR);
@@ -256,9 +148,6 @@ public class SlotManager {
 		}
 	}
 
-	/**
-	 * Procesa acciones rápidas con clic derecho desde el HUD inferior (Hotbar).
-	 */
 	private void actualizarActivarItemIGU(final Raton raton) {
 		if (raton.presionadoClickDerUnicaAct() && this.INVENTARIO.getActivarItemDisponible()) {
 			for (final SlotIGU slotIGU : this.LISTA_SLOTS_IGU) {
@@ -292,22 +181,86 @@ public class SlotManager {
 		}
 	}
 
-	/***/
-	/* ========================================================================= */
-	/* 5. GESTIÓN DE EQUIPAMIENTO DE ARMAS */
-	/* ========================================================================= */
-	/***/
+	// =========================================================================
+	// === MÉTODOS DE EXTRACCIÓN Y CONTEO DE MUNICIÓN (ZERO-GC)
+	// =========================================================================
 
 	/**
-	 * Desequipa el arma activa y busca la primera casilla vacía disponible
-	 * (priorizando la barra principal y luego el almacén).
+	 * Cuenta la cantidad total de balas de reserva de un tipo específico en todo el
+	 * inventario.
+	 *
+	 * @param codModeloMunicion Código del modelo de la caja de munición.
+	 * @return Cantidad acumulada de proyectiles disponibles.
 	 */
+	public int contarMunicionTotal(final String codModeloMunicion) {
+		if (codModeloMunicion == null) {
+			return 0;
+		}
+
+		int total = 0;
+		final int cantSlots = this.LISTA_SLOTS.size();
+
+		for (int i = 0; i < cantSlots; i++) {
+			final Slot slot = this.LISTA_SLOTS.get(i);
+			if (slot.contieneItem() && (slot.getItem().getTipoItem() == Item.COD_ITEM_CONSUMIBLE)) {
+				final Consumible cons = (Consumible) slot.getItem();
+				if (codModeloMunicion.equals(cons.getCodigoModelo())) {
+					total += cons.getCantidad();
+				}
+			}
+		}
+
+		return total;
+	}
+
+	/**
+	 * Extrae y descuenta del inventario la cantidad de munición solicitada para
+	 * recargar el arma. Si un stack se agota a 0, la casilla se vacía de forma
+	 * segura.
+	 *
+	 * @param codModeloMunicion Código de la caja de munición requerida.
+	 * @param cantidadRequerida Balas que faltan para llenar el cargador.
+	 * @return Cantidad real de balas extraídas.
+	 */
+	public int extraerMunicion(final String codModeloMunicion, final int cantidadRequerida) {
+		if ((codModeloMunicion == null) || (cantidadRequerida <= 0)) {
+			return 0;
+		}
+
+		int faltan = cantidadRequerida;
+		final int cantSlots = this.LISTA_SLOTS.size();
+
+		for (int i = 0; i < cantSlots; i++) {
+			final Slot slot = this.LISTA_SLOTS.get(i);
+			if (slot.contieneItem() && (slot.getItem().getTipoItem() == Item.COD_ITEM_CONSUMIBLE)) {
+				final Consumible cons = (Consumible) slot.getItem();
+				if (codModeloMunicion.equals(cons.getCodigoModelo())) {
+					final int disponible = cons.getCantidad();
+
+					if (disponible > faltan) {
+						cons.establecerCantidad(disponible - faltan);
+						faltan = 0;
+						break;
+					}
+					faltan -= disponible;
+					cons.establecerCantidad(0);
+					slot.eliminarObjeto();
+				}
+			}
+		}
+
+		return cantidadRequerida - faltan;
+	}
+
+	// =========================================================================
+	// === GESTIÓN DE EQUIPAMIENTO
+	// =========================================================================
+
 	private void desequiparArma() {
 		if ((this.slotArma == null) || !this.slotArma.contieneItem()) {
 			return;
 		}
 
-		// 1. Intentar depositar en barra principal
 		for (final Slot slot : this.LISTA_SLOTS_PRINCIPALES) {
 			if (!slot.contieneItem()) {
 				slot.establecerObjeto(this.slotArma.getItem());
@@ -316,7 +269,6 @@ public class SlotManager {
 			}
 		}
 
-		// 2. Intentar depositar en almacén general
 		for (final Slot slot : this.LISTA_SLOTS_ALMACEN) {
 			if (!slot.contieneItem()) {
 				slot.establecerObjeto(this.slotArma.getItem());
@@ -326,11 +278,6 @@ public class SlotManager {
 		}
 	}
 
-	/**
-	 * Obtiene el arma equipada actualmente o una instancia de {@link Desarmado}.
-	 * 
-	 * @return El ítem arma activo o {@link Desarmado}.
-	 */
 	public Item getArmaEquipada() {
 		if ((this.slotArma != null) && (this.slotArma.getItem() != null)) {
 			return this.slotArma.getItem();
@@ -338,14 +285,6 @@ public class SlotManager {
 		return new Desarmado();
 	}
 
-	/**
-	 * Equipa un arma directamente en la ranura de arma y devuelve la que estaba
-	 * equipada.
-	 * 
-	 * @param arma Nueva arma a equipar.
-	 * @return El arma previamente equipada, o {@link Desarmado} si la casilla
-	 *         estaba vacía.
-	 */
 	public Arma equiparArma(final Arma arma) {
 		final Arma aux = ((this.slotArma != null) && (this.slotArma.getItem() != null)) ? (Arma) this.slotArma.getItem()
 				: new Desarmado();
@@ -356,19 +295,6 @@ public class SlotManager {
 		return aux;
 	}
 
-	/***/
-	/* ========================================================================= */
-	/* 6. INSERCIÓN INTELIGENTE Y APILADO DE ÍTEMS */
-	/* ========================================================================= */
-	/***/
-
-	/**
-	 * Inserta un ítem portable en la primera casilla vacía disponible.
-	 * 
-	 * @param item Ítem portable a guardar.
-	 * @return {@code true} si se encontró espacio; {@code false} si el inventario
-	 *         está lleno.
-	 */
 	public boolean agregarPortable(final Portable item) {
 		for (final Slot slot : this.LISTA_SLOTS) {
 			if (!slot.contieneItem()) {
@@ -379,20 +305,10 @@ public class SlotManager {
 		return false;
 	}
 
-	/**
-	 * Inserta un ítem consumible buscando pilas existentes del mismo tipo para
-	 * acumularlas, o lo deposita en la primera casilla vacía disponible si sobra
-	 * cantidad.
-	 * 
-	 * @param item Consumible a ingresar.
-	 * @return {@code true} si se logró guardar total o parcialmente; {@code false}
-	 *         si no hubo espacio.
-	 */
 	public boolean agregarConsumible(final Consumible item) {
 		Slot slotVacio = null;
 		Consumible cons = null;
 
-		// 1. Intentar apilar en casillas con el mismo consumible
 		for (final Slot slot : this.LISTA_SLOTS) {
 			if (slot.contieneItem()) {
 				if (slot.getItem().getTipoItem() == Item.COD_ITEM_CONSUMIBLE) {
@@ -409,7 +325,6 @@ public class SlotManager {
 			}
 		}
 
-		// 2. Depositar el excedente en la primera casilla vacía
 		if (slotVacio != null) {
 			slotVacio.establecerObjeto((Consumible) item.copiar());
 			item.establecerCantidad(0);
@@ -419,24 +334,12 @@ public class SlotManager {
 		return false;
 	}
 
-	/**
-	 * Vacía por completo todas las casillas del inventario.
-	 */
 	public void vaciar() {
 		for (final Slot slot : this.LISTA_SLOTS_GENERAL) {
 			slot.establecerObjeto(null);
 		}
 	}
 
-	/***/
-	/* ========================================================================= */
-	/* 7. PASADAS DE RENDERIZADO (GRAPHICS2D) */
-	/* ========================================================================= */
-	/***/
-
-	/**
-	 * Dibuja la cuadrícula de casillas del inventario (Capa 1).
-	 */
 	public void pintar(final Graphics2D g) {
 		final Font fuenteOriginal = g.getFont();
 		g.setFont(FUENTE_SLOTS);
@@ -452,19 +355,12 @@ public class SlotManager {
 		g.setFont(fuenteOriginal);
 	}
 
-	/**
-	 * Dibuja el tooltip informativo del slot apuntado en el inventario (Capa 2).
-	 */
 	public void pintarTooltip(final Graphics2D g) {
 		if ((this.slotApuntado != null) && this.slotApuntado.contieneItem()) {
 			this.slotApuntado.pintarTooltip(g);
 		}
 	}
 
-	/**
-	 * Dibuja las casillas del HUD inferior cuando el inventario está cerrado (Capa
-	 * 1).
-	 */
 	public void pintarSlotsIGU(final Graphics2D g) {
 		this.slotIguApuntado = null;
 		for (final SlotIGU slotIGU : this.LISTA_SLOTS_IGU) {
@@ -475,20 +371,11 @@ public class SlotManager {
 		}
 	}
 
-	/**
-	 * Dibuja el tooltip informativo del HUD inferior (Capa 2).
-	 */
 	public void pintarTooltipIGU(final Graphics2D g) {
 		if ((this.slotIguApuntado != null) && this.slotIguApuntado.contieneItem()) {
 			this.slotIguApuntado.pintarTooltip(g);
 		}
 	}
-
-	/***/
-	/* ========================================================================= */
-	/* 8. GENERACIÓN DE CUADRÍCULAS Y SLOTS EN MEMORIA */
-	/* ========================================================================= */
-	/***/
 
 	private void actualizarSlots(final Raton raton) {
 		for (final Slot slot : this.LISTA_SLOTS_GENERAL) {
@@ -502,12 +389,6 @@ public class SlotManager {
 		}
 	}
 
-	/**
-	 * Busca y obtiene el slot que intersecta con una coordenada de pantalla.
-	 * 
-	 * @param posicion Punto (X, Y) a evaluar.
-	 * @return El {@link Slot} correspondiente, o {@code null} si ninguno coincide.
-	 */
 	public Slot getSlot(final Point posicion) {
 		if (posicion == null) {
 			return null;

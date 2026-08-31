@@ -5,27 +5,52 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.geom.Ellipse2D;
+import java.util.ArrayList;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Jugador;
-import principal.entes.proyectil.filtro.GolpeMeleContraJugador;
+import principal.entes.facciones.GestorFacciones;
 import principal.ia.aEstrella.NodoA;
 import principal.ia.dijkstra.DijkstraRework;
 import principal.ia.dijkstra.NodoD;
+import principal.iluminacion.CalculadorSigilo;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
-import principal.utilidades.Render2D;
+import principal.mapa.renderEntidades.ZoneBox;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Base abstracta para todos los enemigos del juego. Implementa la IA agresiva y
- * pasiva basada en máquina de estados y navegación Dijkstra/A*.
+ * Base abstracta para todos los enemigos del juego.
+ * <p>
+ * <b>CARACTERÍSTICAS DEL MOTOR DE IA (v3.6):</b>
+ * <ul>
+ * <li><b>Control de Estados Robusto:</b> Previene el desenganche y la
+ * congelación del enemigo en combate.</li>
+ * <li><b>Targeting Multiobjetivo:</b> Selecciona dinámicamente cualquier
+ * {@link Criatura} hostil o al jugador.</li>
+ * <li><b>Sensorium Fotorreactivo:</b> Integración con {@link CalculadorSigilo}
+ * para detección por luz y distancias.</li>
+ * <li><b>Navegación Híbrida:</b> Conmuta automáticamente entre el flujo masivo
+ * {@link DijkstraRework} y cálculo táctico individual con
+ * {@link principal.ia.aEstrella.AEstrella}.</li>
+ * <li><b>Zero-GC Sensory Geometry:</b> Reutilización de primitivas para
+ * comprobaciones espaciales en caliente.</li>
+ * </ul>
+ * </p>
+ * 
+ * @version 3.6 (Java 8 Compatible - Zero-GC Architecture)
  */
 public abstract class Enemigo extends Criatura {
+
+	/**
+	 * Objetivo vivo actual hacia el que se orientan la persecución y los ataques.
+	 */
+	protected Criatura objetivoActual;
 
 	protected boolean pendienteADijkstra;
 	protected NodoD ant;
@@ -34,6 +59,7 @@ public abstract class Enemigo extends Criatura {
 	protected final GestorTiempo GT_ATAQUE_INICIAL_COOLDOWN;
 	protected final GestorTiempo GT_CARGA_ATAQUE;
 	protected final GestorTiempo GT_RETOMAR_ATAQUE;
+	protected final GestorTiempo GT_ACTUALIZACION_A_ESTRELLA;
 
 	protected double areaDeteccionAncho;
 	protected double areaDeteccionAlto;
@@ -46,6 +72,9 @@ public abstract class Enemigo extends Criatura {
 	protected boolean enAccion;
 	protected int accion;
 	protected int tiempoAccionEsperaMs;
+
+	// Búferes geométricos pre-asignados para Zero-GC
+	private final Ellipse2D.Double AREA_DETECCION_AUXILIAR = new Ellipse2D.Double();
 	protected final Rectangle AREA_RANGO_ATAQUE_MELE_AUXILIAR_NORTE = new Rectangle();
 	protected final Rectangle AREA_RANGO_ATAQUE_MELE_AUXILIAR_SUR = new Rectangle();
 	protected final Rectangle AREA_RANGO_ATAQUE_MELE_AUXILIAR_ESTE = new Rectangle();
@@ -55,6 +84,9 @@ public abstract class Enemigo extends Criatura {
 	public Enemigo(final double x, final double y, final int ancho, final int alto, final double vida,
 			final double vidaMaxima, final Mundo mundo) {
 		super(x, y, ancho, alto, vida, vidaMaxima);
+
+		this.setFaccion(GestorFacciones.FACCION_MONSTRUOS);
+
 		this.areaDeteccionAlto = 150;
 		this.areaDeteccionAncho = 150;
 
@@ -62,6 +94,7 @@ public abstract class Enemigo extends Criatura {
 		this.GT_ATAQUE_INICIAL_COOLDOWN = new GestorTiempo();
 		this.GT_CARGA_ATAQUE = new GestorTiempo();
 		this.GT_RETOMAR_ATAQUE = new GestorTiempo();
+		this.GT_ACTUALIZACION_A_ESTRELLA = new GestorTiempo();
 
 		this.velocidad = 0.25;
 		this.setEstadoUnico(Estado.ESTANDAR);
@@ -75,32 +108,18 @@ public abstract class Enemigo extends Criatura {
 	public void actualizar() {
 		super.actualizar();
 		this.curar();
-		if (Globales.TECLADO.TECLA_DIJKSTRA.presionado()) {
 
-			// 1. Evaluación de detección del jugador o reacción a ataques recibidos
-			final boolean jugadorDetectado = this.getAreaDeteccionLogica().intersects(Globales.JUGADOR.getRectangulo());
-			final boolean bajoAtaque = this.recibiendoAtaque();
+		// 1. Pipeline Sensorial y Adquisición de Blancos
+		this.actualizarPercepcionYObjetivo();
 
-			if (jugadorDetectado || bajoAtaque) {
-				if (!this.tieneEstado(Estado.PERSIGUIENDO) && !this.tieneEstado(Estado.ATACANDO)) {
-					this.meterEstado(Estado.PERSIGUIENDO);
-					this.removerEstado(Estado.ESTANDAR);
-					this.enAccion = false; // Cancela patrulla pasiva
-					this.recorridoA.clear();
-				}
-				this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
-			}
-		}
-
-		// 2. Transición de decisiones: Combate/Persecución vs Patrulla Pasiva
-		if (Globales.TECLADO.TECLA_DIJKSTRA.presionado()
-				&& (this.tieneEstado(Estado.PERSIGUIENDO) || this.tieneEstado(Estado.ATACANDO))) {
+		// 2. Transición de Decisiones: Combate/Persecución vs Patrulla Pasiva
+		if (this.objetivoActual != null) {
 			this.actualizarAtaque();
 		} else {
 			this.tomarAccion();
 		}
 
-		// Curación/Daño en modo prueba mediante click derecho
+		// Curación o daño en modo prueba mediante clic secundario
 		if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())
 				&& Globales.RATON.presionadoClickDerUnicaAct()) {
 			this.curar(Globales.JUGADOR.getDamage());
@@ -110,11 +129,102 @@ public abstract class Enemigo extends Criatura {
 				&& this.mundo.colisionaConObjetoSolidoPeroEnZonaNoSolida(this.getArea());
 	}
 
-	/**
-	 * Gestiona las fases de ataque cuerpo a cuerpo, persecución por Dijkstra y
-	 * abandono del combate según la máquina de estados.
-	 */
+	// =========================================================================
+	// === SENSORIUM Y SELECCIÓN DE OBJETIVOS (ZERO-GC / O(1))
+	// =========================================================================
+
+	protected void actualizarPercepcionYObjetivo() {
+		// Validar si el objetivo actual sigue con vida
+		if (this.objetivoActual != null) {
+			if (this.objetivoActual.estaEliminado()) {
+				this.desactivarModoAgresivo();
+				return;
+			}
+
+			final double rangoVision = this.areaDeteccionAncho / 2.0;
+			final boolean detectable = CalculadorSigilo.puedeDetectar(this, this.objetivoActual, rangoVision);
+			final boolean bajoAtaque = this.recibiendoAtaque();
+
+			if (detectable || bajoAtaque) {
+				this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
+			}
+
+			// Garantizar que si no está atacando, siempre permanezca en persecución
+			if (!this.tieneEstado(Estado.ATACANDO) && !this.tieneEstado(Estado.PERSIGUIENDO)) {
+				this.meterEstado(Estado.PERSIGUIENDO);
+				this.removerEstado(Estado.ESTANDAR);
+			}
+			return;
+		}
+
+		// Escanear al Jugador prioritariamente si es hostil
+		if (this.esHostilHacia(Globales.JUGADOR) && !Globales.JUGADOR.estaEliminado()) {
+			final double rangoVision = this.areaDeteccionAncho / 2.0;
+			if (CalculadorSigilo.puedeDetectar(this, Globales.JUGADOR, rangoVision) || this.recibiendoAtaque()) {
+				this.fijarObjetivo(Globales.JUGADOR);
+				return;
+			}
+		}
+
+		// Escaneo en celdas espaciales locales para detectar otras criaturas enemigas
+		if (!this.zonasOcupadas.isEmpty()) {
+			Criatura blancoMasCercano = null;
+			double menorDistSq = Double.MAX_VALUE;
+			final double rangoVision = this.areaDeteccionAncho / 2.0;
+
+			final int cantZonas = this.zonasOcupadas.size();
+			for (int z = 0; z < cantZonas; z++) {
+				final ZoneBox zb = this.zonasOcupadas.get(z);
+				final ArrayList<Criatura> lista = zb.getCriaturas();
+				final int totalCriat = lista.size();
+
+				for (int i = 0; i < totalCriat; i++) {
+					final Criatura candidata = lista.get(i);
+					if ((candidata == this) || candidata.estaEliminado() || !this.esHostilHacia(candidata)) {
+						continue;
+					}
+
+					if (CalculadorSigilo.puedeDetectar(this, candidata, rangoVision)) {
+						final double dx = this.getCentroX() - candidata.getCentroX();
+						final double dy = this.getCentroY() - candidata.getCentroY();
+						final double distSq = (dx * dx) + (dy * dy);
+
+						if (distSq < menorDistSq) {
+							menorDistSq = distSq;
+							blancoMasCercano = candidata;
+						}
+					}
+				}
+			}
+
+			if (blancoMasCercano != null) {
+				this.fijarObjetivo(blancoMasCercano);
+			}
+		}
+	}
+
+	public void fijarObjetivo(final Criatura objetivo) {
+		if (objetivo == null) {
+			return;
+		}
+		this.objetivoActual = objetivo;
+		this.meterEstado(Estado.PERSIGUIENDO);
+		this.removerEstado(Estado.ESTANDAR);
+		this.enAccion = false;
+		this.recorridoA.clear();
+		this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
+	}
+
+	// =========================================================================
+	// === MÁQUINA DE COMBATE Y APROXIMACIÓN
+	// =========================================================================
+
 	protected void actualizarAtaque() {
+		if (this.objetivoActual == null) {
+			this.desactivarModoAgresivo();
+			return;
+		}
+
 		// --- FASE 1: Ejecución y recuperación del golpe cargado ---
 		if (this.realizandoAtaque) {
 			if (this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
@@ -124,13 +234,15 @@ public abstract class Enemigo extends Criatura {
 				this.rangoAtaqueMele = null;
 
 				if ((rangoMele != null) && (this.mundo != null)) {
-					this.mundo.crearProyectil(new GolpeMeleContraJugador(this.ataque, false, this.mundo, rangoMele.x,
-							rangoMele.y, rangoMele.width, rangoMele.height, this.direccion, this));
+					if (rangoMele.intersects(this.objetivoActual.getArea())) {
+						this.objetivoActual.recibirAtaque(this.ataque, this);
+					}
 				}
 
 				this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
 				this.realizandoAtaque = false;
 				this.removerEstado(Estado.ATACANDO);
+				this.meterEstado(Estado.PERSIGUIENDO); // Reenganche de persecución
 			}
 			return;
 		}
@@ -139,18 +251,20 @@ public abstract class Enemigo extends Criatura {
 			return;
 		}
 
-		// --- FASE 2: Evaluación de rangos y movimiento ---
-		final boolean jugadorEnRangoVision = this.getAreaDeteccionLogica().intersects(Globales.JUGADOR.getRectangulo());
+		// --- FASE 2: Evaluación de rangos y movimiento hacia el objetivo ---
+		final double rangoVision = this.areaDeteccionAncho / 2.0;
+		final boolean objetivoVisible = CalculadorSigilo.puedeDetectar(this, this.objetivoActual, rangoVision);
 		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
 				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
-		if (jugadorEnRangoVision || dentroTiempoBusqueda) {
-			// Comprobar si el jugador está dentro de algún rango Melee de ataque
+		if (objetivoVisible || dentroTiempoBusqueda) {
 			this.rangoAtaqueMele = this.obtenerRangoAtaqueMeleValido();
 
 			if (this.rangoAtaqueMele != null) {
-				// En rango Melee -> Iniciar secuencia de ataque
+				// En rango Melee -> Iniciar secuencia de golpe
 				this.meterEstado(Estado.ATACANDO);
+				this.removerEstado(Estado.CAMINANDO);
+				this.removerEstado(Estado.PERSIGUIENDO);
 
 				if (this.GT_ATAQUE_INICIAL_COOLDOWN.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
 					this.realizandoAtaque = true;
@@ -162,21 +276,26 @@ public abstract class Enemigo extends Criatura {
 					}
 				}
 			} else {
-				// Fuera de rango Melee -> Mover hacia el jugador con Dijkstra
+				// Fuera de rango Melee -> Aproximación táctica híbrida
 				this.removerEstado(Estado.ATACANDO);
 				this.meterEstado(Estado.PERSIGUIENDO);
-				this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
+
+				if (this.objetivoActual instanceof Jugador) {
+					this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
+				} else {
+					if (this.GT_ACTUALIZACION_A_ESTRELLA.transcurrioMiliSegundos(500)
+							|| ((this.nodoADestino == null) && this.recorridoA.isEmpty())) {
+						this.calcularRutaAEstrella(this.objetivoActual.getCentroX(), this.objetivoActual.getCentroY());
+						this.GT_ACTUALIZACION_A_ESTRELLA.establecerReferenciaTiempoActual();
+					}
+					this.moverANodoADestino();
+				}
 			}
 		} else {
-			// El jugador escapó y expiró el tiempo de búsqueda -> Retornar a estado pasivo
 			this.desactivarModoAgresivo();
 		}
 	}
 
-	/**
-	 * Desplaza la criatura de forma orgánica con inercia, anticipación de curvas y
-	 * distribución espacial de manada (0 allocations en Game Loop).
-	 */
 	protected NodoD moverEnAtaque(final DijkstraRework d, final Terreno terreno) {
 		if (d == null) {
 			return null;
@@ -187,18 +306,15 @@ public abstract class Enemigo extends Criatura {
 			d.aumentarEntidadesPendientes();
 		}
 
-		// 1. Centro actual de la criatura
 		final double centroX = this.getPosicionX() + (this.ANCHO / 2.0);
 		final double centroY = this.getPosicionY() + (this.ALTO / 2.0);
 
-		// 2. Consultar el nodo Dijkstra correspondiente al centro
 		final NodoD n = d.getNodoCercano((int) centroX, (int) centroY);
 
 		if (this.ant != n) {
 			this.ant = n;
 		}
 		if (n == null) {
-			// Frenar progresivamente si pierde el rastro
 			this.velActualX *= 0.8;
 			this.velActualY *= 0.8;
 			return null;
@@ -206,18 +322,12 @@ public abstract class Enemigo extends Criatura {
 
 		final int readBuf = d.getBufferLecturaIndex();
 
-		// 3. Pequeño desfase lateral único por criatura para evitar el efecto 'fila
-		// india'
-		// (Usa el hashCode para dispersar entre -4.0 y +4.0 px sin crear objetos)
 		final double offsetManadaX = ((this.hashCode() % 9) - 4.0);
 		final double offsetManadaY = (((this.hashCode() / 9) % 9) - 4.0);
 
-		// Centro base del nodo objetivo
 		double targetX = n.getXMundo() + (n.getAncho() / 2.0) + offsetManadaX;
 		double targetY = n.getYMundo() + (n.getAlto() / 2.0) + offsetManadaY;
 
-		// 4. ANTICIPACIÓN DE ESQUINAS (Corner Smoothing):
-		// Si estamos cerca del nodo actual, miramos al siguiente nodo en la ruta
 		final double distAlNodoActual = Math.hypot(targetX - centroX, targetY - centroY);
 		final NodoD siguienteNodo = n.getNodoProcedente(readBuf);
 
@@ -225,16 +335,11 @@ public abstract class Enemigo extends Criatura {
 			final double sigX = siguienteNodo.getXMundo() + (siguienteNodo.getAncho() / 2.0) + offsetManadaX;
 			final double sigY = siguienteNodo.getYMundo() + (siguienteNodo.getAlto() / 2.0) + offsetManadaY;
 
-			// Factor de interpolación (0.0 en el borde del radio -> 1.0 en el centro
-			// exacto)
 			final double t = 1.0 - (distAlNodoActual / Criatura.RADIO_ANTICIPACION_ESQUINA);
-
-			// Curvamos el punto objetivo hacia el siguiente nodo
 			targetX = targetX + ((sigX - targetX) * t);
 			targetY = targetY + ((sigY - targetY) * t);
 		}
 
-		// 5. Vector de dirección deseada normalizado
 		final double diffX = targetX - centroX;
 		final double diffY = targetY - centroY;
 		final double distanciaTotal = Math.hypot(diffX, diffY);
@@ -243,12 +348,9 @@ public abstract class Enemigo extends Criatura {
 			final double dirDeseadaX = (diffX / distanciaTotal) * this.velocidad;
 			final double dirDeseadaY = (diffY / distanciaTotal) * this.velocidad;
 
-			// 6. INERCIA VECTORIAL (Steering): Acelera y gira suavemente hacia la dirección
-			// deseada
 			this.velActualX += (dirDeseadaX - this.velActualX) * this.agilidadGiro;
 			this.velActualY += (dirDeseadaY - this.velActualY) * this.agilidadGiro;
 
-			// 7. Aplicar desplazamiento real en sub-píxeles
 			if (Math.abs(this.velActualX) > 0.001) {
 				this.modificarPosicionX(this.velActualX);
 			}
@@ -256,7 +358,6 @@ public abstract class Enemigo extends Criatura {
 				this.modificarPosicionY(this.velActualY);
 			}
 
-			// 8. Determinar orientación visual según el vector de movimiento real
 			if (Math.abs(this.velActualX) > Math.abs(this.velActualY)) {
 				this.direccion = (this.velActualX > 0) ? Direccion.ESTE : Direccion.OESTE;
 			} else if (Math.abs(this.velActualY) > 0.01) {
@@ -265,7 +366,6 @@ public abstract class Enemigo extends Criatura {
 
 			this.setEstadoCaminando();
 		} else {
-			// En el destino exacto: desacelerar
 			this.velActualX *= 0.5;
 			this.velActualY *= 0.5;
 		}
@@ -273,11 +373,8 @@ public abstract class Enemigo extends Criatura {
 		return n;
 	}
 
-	/**
-	 * Limpia los estados de agresividad y libera la referencia pendiente en
-	 * Dijkstra.
-	 */
 	protected void desactivarModoAgresivo() {
+		this.objetivoActual = null;
 		this.removerEstado(Estado.ATACANDO);
 		this.removerEstado(Estado.PERSIGUIENDO);
 		this.setEstadoEstandar();
@@ -288,18 +385,21 @@ public abstract class Enemigo extends Criatura {
 		}
 	}
 
-	/**
-	 * Evalúa los 4 rangos de ataque Melee y retorna el primero que colisione con el
-	 * jugador.
-	 */
 	protected Rectangle obtenerRangoAtaqueMeleValido() {
+		if (this.objetivoActual == null) {
+			return null;
+		}
 		for (final Rectangle r : this.rangosAtaqueMele()) {
-			if ((r != null) && r.intersects(Globales.JUGADOR.getArea())) {
+			if ((r != null) && r.intersects(this.objetivoActual.getArea())) {
 				return r;
 			}
 		}
 		return null;
 	}
+
+	// =========================================================================
+	// === PATRULLA PASIVA
+	// =========================================================================
 
 	protected void tomarAccion() {
 		if (this.enAccion) {
@@ -340,10 +440,6 @@ public abstract class Enemigo extends Criatura {
 		this.GT_ESPERA.establecerReferenciaTiempoActual();
 	}
 
-	/**
-	 * Selecciona un destino aleatorio para la patrulla utilizando A*. Reutiliza el
-	 * mismo Rectangle para evitar asignaciones continuas en la memoria Heap.
-	 */
 	protected void cambiarDestinoAlAzar() {
 		if ((this.mundo == null) || (this.getMundo().getAEstrellaX12X20() == null)) {
 			return;
@@ -451,9 +547,11 @@ public abstract class Enemigo extends Criatura {
 	}
 
 	public Ellipse2D getAreaDeteccionLogica() {
-		return new Ellipse2D.Double((this.getPosicionX() - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0),
+		this.AREA_DETECCION_AUXILIAR.setFrame(
+				(this.getPosicionX() - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0),
 				(this.getPosicionY() - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0), this.areaDeteccionAncho,
 				this.areaDeteccionAlto);
+		return this.AREA_DETECCION_AUXILIAR;
 	}
 
 	protected Rectangle[] rangosAtaqueMele() {
@@ -523,12 +621,15 @@ public abstract class Enemigo extends Criatura {
 
 	@Override
 	public void recibirAtaque(final double damage, final Ente causante) {
-		if (causante instanceof Jugador) {
+		if (causante instanceof Criatura) {
 			this.GT_ATACADO.establecerReferenciaTiempoActual();
-			this.meterEstado(Estado.PERSIGUIENDO);
-			this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
+			this.fijarObjetivo((Criatura) causante);
 		}
 		super.recibirAtaque(damage, causante);
+	}
+
+	public Criatura getObjetivoActual() {
+		return this.objetivoActual;
 	}
 
 	protected abstract int getTiempoMsEsperaRegenVida();
@@ -545,6 +646,7 @@ public abstract class Enemigo extends Criatura {
 	public void eliminar() {
 		GestorSonido.reproducir(IDSonido.CRIATURA_MUERTA);
 		this.desactivarModoAgresivo();
-		this.eliminado = true;
+		super.eliminar();
 	}
+
 }

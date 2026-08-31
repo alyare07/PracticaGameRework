@@ -7,11 +7,21 @@ import org.json.simple.JSONObject;
 
 import principal.entes.criaturas.Criatura;
 import principal.entes.modelos.item.ListaModelosItem;
+import principal.entes.objetos.items.municiones.CajaMunicion;
 import principal.entes.objetos.items.pociones.PocionVidaMenor;
 import principal.utilidades.Render2D;
 
+/**
+ * Clase base abstracta para todos los ítems consumibles y acumulables
+ * (Stackable Items). Gestiona cantidades apilables, límites de inventario y
+ * deserialización polimórfica.
+ * 
+ * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
+ */
 public abstract class Consumible extends Item {
+
 	private static final long serialVersionUID = 504856170135227071L;
+
 	private final String CODIGO_MODELO;
 	private int cantidad;
 
@@ -36,7 +46,7 @@ public abstract class Consumible extends Item {
 			} else {
 				this.cantidad = cantidad;
 			}
-			if (cantidad == 0) {
+			if (this.cantidad == 0) {
 				this.eliminar();
 			}
 		}
@@ -128,14 +138,27 @@ public abstract class Consumible extends Item {
 		return "Consumible";
 	}
 
+	/**
+	 * Fábrica polimórfica para reconstruir cualquier consumible o caja de munición
+	 * desde JSON.
+	 */
 	public static Consumible crearConsumible(final JSONObject json) {
+		if (json == null) {
+			return null;
+		}
+
 		Consumible c = null;
-		final String codModelo = json.get("codModelo").toString();
-		if (codModelo == ListaModelosItem.COD_CONSUMIBLE_POCION_VIDA_MENOR) {
+		final String codModelo = (json.get("codModelo") != null) ? json.get("codModelo").toString() : "";
+
+		if (codModelo.equals(ListaModelosItem.COD_CONSUMIBLE_POCION_VIDA_MENOR)) {
 			c = PocionVidaMenor.crearDesdeJson(json);
+		} else if (codModelo.equals(ListaModelosItem.COD_CONSUMIBLE_MUNICION_PISTOLA)
+				|| codModelo.equals(ListaModelosItem.COD_CONSUMIBLE_MUNICION_ESCOPETA)
+				|| codModelo.equals(ListaModelosItem.COD_CONSUMIBLE_MUNICION_FUSIL)
+				|| codModelo.equals(ListaModelosItem.COD_CONSUMIBLE_MUNICION_PESADA)) {
+			c = CajaMunicion.crearDesdeJson(json);
 		}
 
 		return c;
 	}
-
 }

@@ -12,6 +12,13 @@ import principal.entes.criaturas.enemigos.bandido.BandidoGarrote;
 import principal.entes.criaturas.enemigos.bandido.BandidoGranadero;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
 import principal.entes.objetos.ArbolCofre;
+import principal.entes.objetos.items.armas.distancia.fuego.automaticas.AmetralladoraPesada;
+import principal.entes.objetos.items.armas.distancia.fuego.automaticas.RifleAsalto;
+import principal.entes.objetos.items.armas.distancia.fuego.automaticas.SubfusilLigero;
+import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaAutomatica;
+import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaRecortada;
+import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaTactica;
+import principal.entes.objetos.items.municiones.CajaMunicion;
 import principal.eventos.EventoJugadorZonaTP;
 import principal.mapa.Mundo;
 import principal.mapa.escenario.tps.PuertaArea;
@@ -71,7 +78,18 @@ public class Mapa1 extends Mapa {
 		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 50, 50, this.mundoActual));
 //		this.generarEnemigosParaPrueba(100);
-		this.mundoActual.meterEntidad(new ArbolCofre(767, 424));
+		final ArbolCofre arbolcofre1 = new ArbolCofre(767, 424);
+		arbolcofre1.getInventario().agregarItem(new EscopetaAutomatica());
+		arbolcofre1.getInventario().agregarItem(new EscopetaRecortada());
+		arbolcofre1.getInventario().agregarItem(new EscopetaTactica());
+		arbolcofre1.getInventario().agregarItem(new SubfusilLigero());
+		arbolcofre1.getInventario().agregarItem(new RifleAsalto());
+		arbolcofre1.getInventario().agregarItem(new AmetralladoraPesada());
+
+		arbolcofre1.getInventario().agregarItem(CajaMunicion.crear762mm(0, 0, 100));
+		arbolcofre1.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 100));
+		arbolcofre1.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 100));
+		this.mundoActual.meterEntidad(arbolcofre1);
 	}
 
 	/***

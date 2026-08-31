@@ -34,7 +34,7 @@ public class Camara {
 	private static final double ZOOM_BASE = 1.0;
 	private double zoom = 1.0;
 
-	private boolean lookAheadHabilitado = true;
+	private boolean lookAheadHabilitado = false;
 	private final double lookAheadMaxDistancia = 35.0;
 	private double lookAheadX = 0.0;
 	private double lookAheadY = 0.0;

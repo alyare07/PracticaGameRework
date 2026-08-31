@@ -3,7 +3,8 @@ package principal.entes.proyectil;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.io.Serializable;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.HashSet;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
@@ -12,8 +13,27 @@ import principal.mapa.Mundo;
 import principal.mapa.Tile;
 import principal.utilidades.Globales;
 
+/**
+ * Implementación base para proyectiles físicos con detección de impacto,
+ * perforación y colisión contra la arquitectura del terreno.
+ * 
+ * @version 2.5 (Java 8 Compatible - Zero-GC Architecture)
+ */
 public class ProyectilGeneral extends Proyectil implements Serializable {
+
+	private static final long serialVersionUID = -3596461015684122157L;
+
 	protected final boolean SOLO_CONTRA_JUGADOR;
+
+	/**
+	 * Registro de criaturas ya impactadas para evitar daño múltiple por proyectiles
+	 * penetrantes.
+	 */
+	protected final HashSet<Criatura> perforados = new HashSet<Criatura>(4);
+
+	// =========================================================================
+	// === CONSTRUCTORES CARDINALES (COMPATIBILIDAD)
+	// =========================================================================
 
 	public ProyectilGeneral(final double damage, final double velocidad, final boolean penetrante, final double alcance,
 			final Mundo mundo, final double x, final double y, final int ancho, final int alto,
@@ -29,12 +49,28 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 		this.SOLO_CONTRA_JUGADOR = soloContraJugador;
 	}
 
-	private static final long serialVersionUID = -3596461015684122157L;
-	protected final HashMap<Criatura, Criatura> perforados = new HashMap<Criatura, Criatura>();
+	// =========================================================================
+	// === CONSTRUCTORES VECTORIALES EN 360°
+	// =========================================================================
+
+	public ProyectilGeneral(final double damage, final double velocidad, final boolean penetrante, final double alcance,
+			final Mundo mundo, final double xOrigen, final double yOrigen, final double xDestino, final double yDestino,
+			final int ancho, final int alto, final Ente causante) {
+		super(damage, velocidad, penetrante, alcance, mundo, xOrigen, yOrigen, xDestino, yDestino, ancho, alto,
+				causante);
+		this.SOLO_CONTRA_JUGADOR = false;
+	}
+
+	public ProyectilGeneral(final double damage, final double velocidad, final boolean penetrante, final double alcance,
+			final Mundo mundo, final double xOrigen, final double yOrigen, final double xDestino, final double yDestino,
+			final int ancho, final int alto, final Ente causante, final boolean soloContraJugador) {
+		super(damage, velocidad, penetrante, alcance, mundo, xOrigen, yOrigen, xDestino, yDestino, ancho, alto,
+				causante);
+		this.SOLO_CONTRA_JUGADOR = soloContraJugador;
+	}
 
 	@Override
 	public void actualizar() {
-//		System.out.println("Proyectil : "+ this.area);
 		if (!this.eliminado) {
 			if (this.distanciaRecorrida >= this.ALCANCE) {
 				this.eliminar();
@@ -42,9 +78,7 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 			}
 			this.mover();
 			this.verificarImpacto();
-
 		}
-
 	}
 
 	@Override
@@ -52,11 +86,15 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 		super.pintar(g);
 	}
 
+	/**
+	 * Evalúa el impacto contra entidades vivas y obstáculos físicos del mapa.
+	 */
 	protected void verificarImpacto() {
 		final Rectangle area = this.getArea();
-		if (Globales.JUGADOR != this.CAUSANTE) {
-			if (area.intersects(Globales.JUGADOR.getRectangulo())) {
 
+		// 1. Verificación de impacto contra el Jugador
+		if (Globales.JUGADOR != this.CAUSANTE) {
+			if (area.intersects(Globales.JUGADOR.getArea())) {
 				this.impactar(Globales.JUGADOR);
 				if (!this.PENETRANTE) {
 					this.eliminar();
@@ -65,35 +103,40 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 			}
 		}
 
-		if (!this.SOLO_CONTRA_JUGADOR) {
+		// 2. Verificación de impacto contra otras criaturas en el mapa
+		if (!this.SOLO_CONTRA_JUGADOR && (this.mundo != null)) {
+			final ArrayList<Criatura> criaturasCercanas = this.mundo.getCriaturasIntersectadasConEnte(this);
+			final int total = criaturasCercanas.size();
 
-			for (final Criatura c : this.mundo.getCriaturasIntersectadasConEnte(this)) {
-				if (area.intersects(c.getRectangulo())) {
-					if (c == this.CAUSANTE) {
-						continue;
-					}
+			for (int i = 0; i < total; i++) {
+				final Criatura c = criaturasCercanas.get(i);
+				if (c == this.CAUSANTE) {
+					continue;
+				}
+
+				if (area.intersects(c.getArea())) {
 					this.impactar(c);
 					if (!this.PENETRANTE) {
 						this.eliminar();
-						break;
+						return;
 					}
 				}
 			}
 		}
+
 		if (this.eliminado) {
 			return;
 		}
 
-		final Tile tilePosicionado = this.mundo.getTerreno().getTileReferenciado(area.x, area.y);
-		if (tilePosicionado == null) { // se encuentra fuera del terreno
-			System.out.println("eliminado por tile null!: " + "ProyectilGeneral L90");
-			this.eliminar();
-			return;
-		}
-		if (!this.PENETRANTE) {
-			if (this.mundo.getTerreno().intersectaAlgoSolido(area)) {
-				System.out.println("eliminado por impacto con Algo solido! " + tilePosicionado.getArea()
-						+ "ProyectilGeneral L100");
+		// 3. Verificación de colisión contra el terreno y objetos sólidos
+		if (this.mundo != null) {
+			final Tile tilePosicionado = this.mundo.getTerreno().getTileReferenciado(area.x, area.y);
+			if (tilePosicionado == null) {
+				this.eliminar();
+				return;
+			}
+
+			if (!this.PENETRANTE && this.mundo.getTerreno().intersectaAlgoSolido(area)) {
 				this.eliminar();
 			}
 		}
@@ -101,10 +144,10 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 
 	@Override
 	protected void impactar(final Criatura c) {
-		if (this.perforados.containsKey(c)) {
+		if ((c == null) || this.perforados.contains(c)) {
 			return;
 		}
-		this.perforados.put(c, c);
+		this.perforados.add(c);
 		c.recibirAtaque(this.DAMAGE, this.CAUSANTE);
 	}
 
@@ -120,7 +163,6 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 
 	@Override
 	public int getPosicionYInt() {
-
 		return (int) this.y;
 	}
 
@@ -136,12 +178,12 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 
 	@Override
 	public void modificarPosicionX(final double desplazamientoX) {
-
+		this.x += desplazamientoX;
 	}
 
 	@Override
 	public void modificarPosicionY(final double desplazamientoY) {
-
+		this.y += desplazamientoY;
 	}
 
 	@Override
@@ -151,8 +193,5 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 
 	@Override
 	public void pintarAnimacionImpacto(final Graphics2D g) {
-		// TODO Auto-generated method stub
-
 	}
-
 }

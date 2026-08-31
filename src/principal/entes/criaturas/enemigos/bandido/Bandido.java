@@ -4,11 +4,17 @@ import org.json.simple.JSONObject;
 
 import principal.animaciones.criaturas.AnimacionesBandido;
 import principal.entes.criaturas.enemigos.Enemigo;
+import principal.entes.facciones.GestorFacciones;
 import principal.mapa.Mundo;
 
 /**
- * Representa la base genérica de enemigos tipo Bandido. Define constantes de
- * tiempos de ataque, regeneración y márgenes del sprite.
+ * Representa la base genérica de enemigos tipo Bandido.
+ * <p>
+ * Configura la identidad de facción {@link GestorFacciones#FACCION_BANDIDOS},
+ * márgenes de recorte de sprite y constantes temporales de IA y regeneración.
+ * </p>
+ * 
+ * @version 2.5 (Java 8 Compatible - Zero-GC Architecture)
  */
 public abstract class Bandido extends Enemigo {
 
@@ -16,6 +22,10 @@ public abstract class Bandido extends Enemigo {
 
 	public Bandido(final double x, final double y, final double vida, final double vidaMaxima, final Mundo mundo) {
 		super(x, y, 12, 20, vida, vidaMaxima, mundo);
+
+		// Asignación de facción oficial de Bandidos
+		this.setFaccion(GestorFacciones.FACCION_BANDIDOS);
+
 		this.ANIMACION = new AnimacionesBandido();
 	}
 

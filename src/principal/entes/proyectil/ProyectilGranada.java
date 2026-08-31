@@ -15,13 +15,19 @@ import principal.entes.modelos.item.ModeloGranada;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.arrojadizos.granadas.Granada;
 import principal.mapa.Mundo;
-import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
+import principal.utilidades.Render2D;
 import principal.utilidades.Textura;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
+/**
+ * Proyectil balístico parabólico de área (Bézier). Gestiona el arco de
+ * elevación, daño radial por área y animación de explosión.
+ * 
+ * @version 2.5 (Java 8 Compatible - Zero-GC Architecture)
+ */
 public class ProyectilGranada extends ProyectilGeneral {
 
 	private static final long serialVersionUID = 9083899449947637545L;
@@ -37,8 +43,8 @@ public class ProyectilGranada extends ProyectilGeneral {
 
 	public ProyectilGranada(final int xDestino, final int yDestino, final Mundo mundo, final Ente causante,
 			final Granada granada, final boolean soloContraJugador) {
-		super(granada.getDamage(), 1.5, false, 0, mundo, causante.getPosicionXInt() + (causante.getArea().width / 2),
-				causante.getPosicionYInt() + (causante.getArea().height / 2), 10, 10, null, causante,
+		super(granada.getDamage(), 1.5, false, 0, mundo, (causante != null) ? causante.getCentroX() : xDestino,
+				(causante != null) ? causante.getCentroY() : yDestino, xDestino, yDestino, 10, 10, causante,
 				soloContraJugador);
 
 		this.GRANADA = granada;
@@ -56,7 +62,8 @@ public class ProyectilGranada extends ProyectilGeneral {
 
 	public ProyectilGranada(final double damage, final Ellipse2D.Double areaDestino, final Mundo mundo,
 			final int xOrigen, final int yOrigen, final String codModelo, final boolean soloContraJugador) {
-		super(damage, 1, false, 0, mundo, xOrigen, yOrigen, 10, 10, null, null, soloContraJugador);
+		super(damage, 1.0, false, 0, mundo, xOrigen, yOrigen, (int) areaDestino.getCenterX(),
+				(int) areaDestino.getCenterY(), 10, 10, null, soloContraJugador);
 
 		this.GRANADA = new Granada(1, (int) areaDestino.width, damage, codModelo) {
 			private static final long serialVersionUID = -6508234289982231948L;
@@ -120,7 +127,7 @@ public class ProyectilGranada extends ProyectilGeneral {
 
 	@Override
 	protected void verificarImpacto() {
-		// El impacto se gatilla cuando la trayectoria llega a su último índice
+		// El impacto se produce al completarse el recorrido parabólico
 		if (!this.realizoImpacto && (this.trayectoria != null) && (this.posTrayectoria >= this.trayectoria[0].length)) {
 			if (!this.SOLO_CONTRA_JUGADOR) {
 				for (final Criatura c : this.mundo.getCriaturasIntersectadas(this.AREA_DESTINO,
@@ -128,7 +135,7 @@ public class ProyectilGranada extends ProyectilGeneral {
 					this.impactar(c);
 				}
 			} else if (Globales.JUGADOR != this.CAUSANTE) {
-				if (this.AREA_DESTINO.intersects(Globales.JUGADOR.getRectangulo())) {
+				if (this.AREA_DESTINO.intersects(Globales.JUGADOR.getArea())) {
 					this.impactar(Globales.JUGADOR);
 					if (!this.PENETRANTE) {
 						this.eliminar();
@@ -137,9 +144,11 @@ public class ProyectilGranada extends ProyectilGeneral {
 				}
 			}
 
-			GestorSonido.reproducirEnPosicion(IDSonido.EXPLOSION_1, this.AREA_DESTINO.getCenterX(),
-					this.AREA_DESTINO.getCenterY(), Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
-					Globales.CAMARA.getPosicionY());
+			if ((Globales.CAMARA != null) && (Globales.CAMARA.getEntidadEnfocada() != null)) {
+				GestorSonido.reproducirEnPosicion(IDSonido.EXPLOSION_1, this.AREA_DESTINO.getCenterX(),
+						this.AREA_DESTINO.getCenterY(), Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
+						Globales.CAMARA.getEntidadEnfocada().getPosicionY());
+			}
 
 			this.realizoImpacto = true;
 		}
@@ -151,10 +160,10 @@ public class ProyectilGranada extends ProyectilGeneral {
 
 	@Override
 	protected void impactar(final Criatura c) {
-		if ((c == null) || this.perforados.containsKey(c)) {
+		if ((c == null) || this.perforados.contains(c)) {
 			return;
 		}
-		this.perforados.put(c, c);
+		this.perforados.add(c);
 		c.recibirAtaque(this.DAMAGE, this.CAUSANTE);
 	}
 
@@ -164,8 +173,8 @@ public class ProyectilGranada extends ProyectilGeneral {
 		final int destinoX = (int) Math.round(this.AREA_DESTINO.getCenterX());
 		final int destinoY = (int) Math.round(this.AREA_DESTINO.getCenterY());
 
-		this.trayectoria = Globales.FUNCIONES.GENERADOR_TRAYECTORIAS.getTrayectoiaBezier(origenX, origenY,
-				destinoX, destinoY, this.GRANADA.getTiempoMsCaidaEnAnchoPantalla());
+		this.trayectoria = Globales.FUNCIONES.GENERADOR_TRAYECTORIAS.getTrayectoiaBezier(origenX, origenY, destinoX,
+				destinoY, this.GRANADA.getTiempoMsCaidaEnAnchoPantalla());
 		this.posTrayectoria = 0;
 	}
 }

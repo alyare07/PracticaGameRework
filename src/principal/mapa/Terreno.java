@@ -30,7 +30,7 @@ import principal.utilidades.Globales;
  * a 60 FPS continuos.
  * </p>
  * 
- * @version 2.0 (Java 8 Compatible)
+ * @version 2.1 (Java 8 Compatible - DDA Raycasting Integrado)
  */
 public class Terreno implements Serializable {
 
@@ -121,7 +121,6 @@ public class Terreno implements Serializable {
 			for (final Object o : (JSONArray) tilesObj) {
 				if (o instanceof JSONObject) {
 					final Tile t = Tile.crearDesdeJson((JSONObject) o);
-					// Usamos Math.floorDiv para indexación segura de coordenadas
 					final int tx = Math.floorDiv(t.getPosicionX(), this.LADO_TILE);
 					final int ty = Math.floorDiv(t.getPosicionY(), this.LADO_TILE);
 					if ((tx >= 0) && (tx < this.CANTIDAD_TILES_X) && (ty >= 0) && (ty < this.CANTIDAD_TILES_Y)) {
@@ -211,20 +210,11 @@ public class Terreno implements Serializable {
 	/**
 	 * Genera una variación estética (0, 1, 2 o 3) de manera completamente
 	 * matemática y determinista.
-	 * <p>
-	 * <b>EXPLICACIÓN PARA EL DESARROLLADOR:</b> En vez de guardar un número
-	 * aleatorio en el archivo para cada flor o piedra en el suelo, usamos una
-	 * función Hash con números primos grandes (fórmula tipo MurmurHash / PCG). La
-	 * coordenada {@code (gridX, gridY)} y el modelo de tile siempre producirán
-	 * exactamente el mismo número. Ahorra cientos de kilobytes en el archivo de
-	 * guardado y no gasta CPU.
-	 * </p>
 	 *
 	 * @param gridX    Columna del tile en la grilla.
 	 * @param gridY    Fila del tile en la grilla.
 	 * @param idModelo Identificador del tipo de tile.
-	 * @return Índice de variación cosmética (0 = Común 90%, 1 = Rara 5%, 2 = Muy
-	 *         Rara 4%, 3 = Especial 1%).
+	 * @return Índice de variación cosmética.
 	 */
 	private byte calcularVariacionDeterminista(final int gridX, final int gridY, final int idModelo) {
 		int h = (gridX * 374761393) ^ (gridY * 668265263) ^ (idModelo * 3571);
@@ -232,34 +222,20 @@ public class Terreno implements Serializable {
 		final int roll = (h & 0x7FFFFFFF) % 100;
 
 		if (roll < 90) {
-			return 0; // 90% de probabilidad: Textura estándar base
+			return 0;
 		}
 		if (roll < 95) {
-			return 1; // 5% de probabilidad: Variación leve
+			return 1;
 		}
 		if (roll < 99) {
-			return 2; // 4% de probabilidad: Variación media
+			return 2;
 		}
-		return 3; // 1% de probabilidad: Variación única/rara
+		return 3;
 	}
 
 	/**
 	 * Recalcula la máscara de bits (Autotiling) y las variaciones de todos los
 	 * tiles del mapa.
-	 * <p>
-	 * <b>CÓMO FUNCIONA EL AUTOTILING POR BITS (4 BITS = 16 DIRECCIONES):</b>
-	 * Evaluamos los 4 vecinos cardinales. Si el vecino tiene el mismo modelo,
-	 * sumamos su potencia de 2:
-	 * <ul>
-	 * <li><b>Norte</b>: +1 (Binario: 0001)</li>
-	 * <li><b>Este</b>: +2 (Binario: 0010)</li>
-	 * <li><b>Sur</b>: +4 (Binario: 0100)</li>
-	 * <li><b>Oeste</b>: +8 (Binario: 1000)</li>
-	 * </ul>
-	 * Si un tile está rodeado por el Norte y Este, su máscara es 1 + 2 = 3 (0011
-	 * binario). Esto permite seleccionar la textura de borde exacta de forma
-	 * instantánea.
-	 * </p>
 	 */
 	public void calcularAutotiles() {
 		for (int ty = 0; ty < this.CANTIDAD_TILES_Y; ty++) {
@@ -297,12 +273,6 @@ public class Terreno implements Serializable {
 		}
 	}
 
-	/**
-	 * Actualiza el autotiling de un único tile situado en una coordenada del mundo.
-	 *
-	 * @param worldX Coordenada X absoluta en píxeles.
-	 * @param worldY Coordenada Y absoluta en píxeles.
-	 */
 	public void actualizarAutotile(final int worldX, final int worldY) {
 		final int tx = Math.floorDiv(worldX, this.LADO_TILE);
 		final int ty = Math.floorDiv(worldY, this.LADO_TILE);
@@ -342,14 +312,6 @@ public class Terreno implements Serializable {
 		tileActual.setVariacionPropia(this.calcularVariacionDeterminista(tx, ty, modelo));
 	}
 
-	/**
-	 * Actualiza el autotiling del tile seleccionado y de sus 4 tiles adyacentes (N,
-	 * S, E, O). Utilizado durante la edición de mapas cuando el usuario coloca o
-	 * borra un bloque.
-	 *
-	 * @param worldX Coordenada X en píxeles.
-	 * @param worldY Coordenada Y en píxeles.
-	 */
 	public void actualizarAutotileLocal(final int worldX, final int worldY) {
 		this.actualizarAutotile(worldX, worldY);
 		this.actualizarAutotile(worldX, worldY - this.LADO_TILE);
@@ -362,14 +324,6 @@ public class Terreno implements Serializable {
 	// === ACCESO ESPACIAL O(1) DIRECTO
 	// =========================================================================
 
-	/**
-	 * Obtiene el tile ubicado en la coordenada de la matriz (columna, fila).
-	 *
-	 * @param tx Índice horizontal (columna).
-	 * @param ty Índice vertical (fila).
-	 * @return Instancia del {@link Tile} o {@code null} si está fuera de los
-	 *         límites.
-	 */
 	public Tile getTileGrid(final int tx, final int ty) {
 		if ((tx < 0) || (tx >= this.CANTIDAD_TILES_X) || (ty < 0) || (ty >= this.CANTIDAD_TILES_Y)) {
 			return null;
@@ -377,35 +331,14 @@ public class Terreno implements Serializable {
 		return this.TILES[(ty * this.CANTIDAD_TILES_X) + tx];
 	}
 
-	/**
-	 * Obtiene el tile que se encuentra debajo de una coordenada absoluta del mundo
-	 * (en píxeles).
-	 *
-	 * @param x Coordenada X absoluta en píxeles.
-	 * @param y Coordenada Y absoluta en píxeles.
-	 * @return El {@link Tile} intersectado o {@code null} si está fuera de los
-	 *         límites.
-	 */
 	public Tile getTileReferenciado(final int x, final int y) {
 		return this.getTileGrid(Math.floorDiv(x, this.LADO_TILE), Math.floorDiv(y, this.LADO_TILE));
 	}
 
-	/**
-	 * Obtiene el tile que se encuentra debajo de un punto en píxeles.
-	 *
-	 * @param p Punto en coordenadas del mundo.
-	 * @return El {@link Tile} o {@code null}.
-	 */
 	public Tile getTileReferenciado(final Point p) {
 		return (p != null) ? this.getTileReferenciado(p.x, p.y) : null;
 	}
 
-	/**
-	 * Llena la totalidad del terreno con nuevas instancias de tiles del modelo
-	 * especificado.
-	 *
-	 * @param idModeloTile ID del modelo a asignar.
-	 */
 	public void llenarVacioTerreno(final int idModeloTile) {
 		for (int ty = 0; ty < this.CANTIDAD_TILES_Y; ty++) {
 			final int fila = ty * this.CANTIDAD_TILES_X;
@@ -416,14 +349,6 @@ public class Terreno implements Serializable {
 		}
 	}
 
-	/**
-	 * Reemplaza el tile en una coordenada de píxeles específica por un nuevo modelo
-	 * y actualiza sus vecinos.
-	 *
-	 * @param x    Posición X en píxeles.
-	 * @param y    Posición Y en píxeles.
-	 * @param tile Tile de referencia con el modelo deseado.
-	 */
 	public void establecerTileReferenciado(final int x, final int y, final Tile tile) {
 		if (tile == null) {
 			return;
@@ -437,29 +362,16 @@ public class Terreno implements Serializable {
 		}
 	}
 
-	/**
-	 * Reemplaza el tile ubicado en el {@link Point} indicado.
-	 *
-	 * @param punto Coordenadas del mundo en píxeles.
-	 * @param tile  Tile con el modelo a colocar.
-	 */
 	public void establecerTileReferenciado(final Point punto, final Tile tile) {
 		if (punto != null) {
 			this.establecerTileReferenciado(punto.x, punto.y, tile);
 		}
 	}
 
-	/**
-	 * @return {@code true} si el punto en píxeles se encuentra dentro de los
-	 *         límites del mapa.
-	 */
 	public boolean contienePuntoTileReferenciado(final int x, final int y) {
 		return this.getTileReferenciado(x, y) != null;
 	}
 
-	/**
-	 * @return {@code true} si el punto se encuentra dentro de los límites del mapa.
-	 */
 	public boolean contienePuntoTileReferenciado(final Point p) {
 		return (p != null) && this.contienePuntoTileReferenciado(p.x, p.y);
 	}
@@ -468,24 +380,6 @@ public class Terreno implements Serializable {
 	// === RENDERIZADO Y FRUSTUM CULLING DINÁMICO
 	// =========================================================================
 
-	/**
-	 * Dibuja únicamente los tiles visibles dentro del área de la cámara (Frustum
-	 * Culling).
-	 * <p>
-	 * <b>EXPLICACIÓN MATEMÁTICA DEL CULLING DINÁMICO:</b> Si la cámara tiene
-	 * efectos como <i>Zoom out</i> (alejamiento), rotación o <i>Camera Shake</i>
-	 * (temblor), la pantalla muestra más tiles de lo normal o se inclina en
-	 * diagonal. <br>
-	 * Para calcular exactamente el rango de tiles visibles sin pintar todo el mapa:
-	 * 1. Proyectamos el rectángulo de pantalla rotado usando trigonometría básica:
-	 * {@code (CENTROX * cos + CENTROY * sin) / zoom}. 2. Sumamos los
-	 * desplazamientos de temblor (shake) y un margen de seguridad de 1 tile. 3.
-	 * Solo iteramos desde {@code startTile} hasta {@code endTile}, logrando 0% de
-	 * desperdicio de GPU/CPU.
-	 * </p>
-	 *
-	 * @param g Contexto gráfico de Java2D.
-	 */
 	public void pintar(final Graphics2D g) {
 		final double zoomActivo = Math.max(0.2, Globales.CAMARA.getZoomFinal());
 		final double rotAbs = Math.abs(Globales.CAMARA.getGestorEfectos().getAnguloRotacion());
@@ -495,8 +389,6 @@ public class Terreno implements Serializable {
 		final double cos = Math.cos(rotAbs);
 		final double sin = Math.sin(rotAbs);
 
-		// Cálculo del radio visible en píxeles considerando rotación, zoom y vibración
-		// de cámara
 		final int radioVisibleX = (int) Math
 				.ceil(((Constantes.CENTROX * cos) + (Constantes.CENTROY * sin)) / zoomActivo) + (int) shakeX
 				+ this.LADO_TILE;
@@ -507,14 +399,11 @@ public class Terreno implements Serializable {
 		final int camX = Globales.CAMARA.getPosicionXInt();
 		final int camY = Globales.CAMARA.getPosicionYInt();
 
-		// Convertir límites en píxeles a índices de columnas y filas con límites
-		// acotados (Clamping)
 		final int startTileX = Math.max(0, Math.floorDiv(camX - radioVisibleX, this.LADO_TILE));
 		final int endTileX = Math.min(this.CANTIDAD_TILES_X - 1, Math.floorDiv(camX + radioVisibleX, this.LADO_TILE));
 		final int startTileY = Math.max(0, Math.floorDiv(camY - radioVisibleY, this.LADO_TILE));
 		final int endTileY = Math.min(this.CANTIDAD_TILES_Y - 1, Math.floorDiv(camY + radioVisibleY, this.LADO_TILE));
 
-		// Bucle de dibujado acotado al frustum visible
 		for (int ty = startTileY; ty <= endTileY; ty++) {
 			final int fila = ty * this.CANTIDAD_TILES_X;
 			for (int tx = startTileX; tx <= endTileX; tx++) {
@@ -527,23 +416,91 @@ public class Terreno implements Serializable {
 	}
 
 	// =========================================================================
-	// === GESTIÓN DE COLISIONES ESPACIALES (ALGORITMO DE LÍMITES INCLUSIVOS)
+	// === GESTIÓN DE COLISIONES Y RAYCASTING DDA 360° (ZERO-GC)
 	// =========================================================================
 
 	/**
-	 * Obtiene la lista de tiles que intersectan con una figura geométrica
-	 * arbitraria.
+	 * Comprueba mediante el algoritmo DDA (Digital Differential Analyzer) si existe
+	 * una línea recta de visión o disparo 100% libre de obstáculos sólidos entre
+	 * dos puntos del mundo en 360 grados.
 	 * <p>
-	 * <b>POR QUÉ USAR {@code ((x + width) - 1)}:</b> Si un objeto mide 16 píxeles
-	 * de ancho y empieza en la posición X = 0, ocupa físicamente los píxeles del 0
-	 * al 15 (dentro del tile 0). Si hiciéramos {@code (0 + 16) / 16}, daría 1,
-	 * haciendo que el motor crea incorrectamente que el objeto está tocando el tile
-	 * adyacente. Restar 1 asegura evaluar el último píxel físico real ocupado.
+	 * <b>RENDIMIENTO (Zero-GC / O(K)):</b> Recorre matemáticamente solo las celdas
+	 * de la grilla que el rayo atraviesa en su trayectoria sin generar objetos en
+	 * el Heap ni calcular raíces cuadradas complejas.
 	 * </p>
 	 *
-	 * @param s Forma geométrica a comprobar.
-	 * @return Lista de tiles intersectados.
+	 * @param x0 Coordenada X de origen en píxeles.
+	 * @param y0 Coordenada Y de origen en píxeles.
+	 * @param x1 Coordenada X de destino en píxeles.
+	 * @param y1 Coordenada Y de destino en píxeles.
+	 * @return {@code true} si la línea está completamente despejada; {@code false}
+	 *         si choca con una pared u obstáculo.
 	 */
+	public boolean hayLineaDeVisionLimpia(final double x0, final double y0, final double x1, final double y1) {
+		int tx = Math.floorDiv((int) x0, this.LADO_TILE);
+		int ty = Math.floorDiv((int) y0, this.LADO_TILE);
+		final int targetTX = Math.floorDiv((int) x1, this.LADO_TILE);
+		final int targetTY = Math.floorDiv((int) y1, this.LADO_TILE);
+
+		if ((tx == targetTX) && (ty == targetTY)) {
+			return true; // Origen y destino en la misma celda
+		}
+
+		final double dx = x1 - x0;
+		final double dy = y1 - y0;
+
+		final int stepX = (dx > 0) ? 1 : ((dx < 0) ? -1 : 0);
+		final int stepY = (dy > 0) ? 1 : ((dy < 0) ? -1 : 0);
+
+		final double tDeltaX = (stepX != 0) ? Math.abs(this.LADO_TILE / dx) : Double.MAX_VALUE;
+		final double tDeltaY = (stepY != 0) ? Math.abs(this.LADO_TILE / dy) : Double.MAX_VALUE;
+
+		double tMaxX;
+		if (stepX > 0) {
+			tMaxX = (((tx + 1) * this.LADO_TILE) - x0) / dx;
+		} else if (stepX < 0) {
+			tMaxX = ((tx * this.LADO_TILE) - x0) / dx;
+		} else {
+			tMaxX = Double.MAX_VALUE;
+		}
+
+		double tMaxY;
+		if (stepY > 0) {
+			tMaxY = (((ty + 1) * this.LADO_TILE) - y0) / dy;
+		} else if (stepY < 0) {
+			tMaxY = ((ty * this.LADO_TILE) - y0) / dy;
+		} else {
+			tMaxY = Double.MAX_VALUE;
+		}
+
+		// Límite de seguridad para evitar bucles en coordenadas corruptas
+		final int maxPasos = this.CANTIDAD_TILES_X + this.CANTIDAD_TILES_Y;
+		int pasos = 0;
+
+		while (((tx != targetTX) || (ty != targetTY)) && (pasos++ < maxPasos)) {
+			if (tMaxX < tMaxY) {
+				tx += stepX;
+				tMaxX += tDeltaX;
+			} else {
+				ty += stepY;
+				tMaxY += tDeltaY;
+			}
+
+			// Si alcanzamos la celda objetivo final, la línea está despejada
+			if ((tx == targetTX) && (ty == targetTY)) {
+				break;
+			}
+
+			// Si se sale del mapa o intersecta un tile sólido, la visión está obstruida
+			final Tile tile = this.getTileGrid(tx, ty);
+			if ((tile == null) || tile.esSolidoDijkstra()) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	public ArrayList<Tile> getTilesIntersectados(final Shape s) {
 		final ArrayList<Tile> lista = new ArrayList<>();
 		if (s == null) {
@@ -568,12 +525,6 @@ public class Terreno implements Serializable {
 		return lista;
 	}
 
-	/**
-	 * Determina si un rectángulo se solapa con algún tile existente en el mapa.
-	 *
-	 * @param r Rectángulo de comprobación.
-	 * @return {@code true} si al menos una celda válida cae dentro del rectángulo.
-	 */
 	public boolean intersecta(final Rectangle r) {
 		if ((r == null) || r.isEmpty()) {
 			return false;
@@ -595,14 +546,6 @@ public class Terreno implements Serializable {
 		return false;
 	}
 
-	/**
-	 * Determina si el área solapa con un tile considerado sólido por los algoritmos
-	 * de Pathfinding (incluye obstáculos de mapa y objetos/árboles/cofres sólidos).
-	 *
-	 * @param area Forma geométrica a evaluar.
-	 * @return {@code true} si hay un obstáculo que bloquee el paso para
-	 *         Dijkstra/A*.
-	 */
 	public boolean intersectaSolidoDijkstra(final Shape area) {
 		if (area == null) {
 			return false;
@@ -626,13 +569,6 @@ public class Terreno implements Serializable {
 		return false;
 	}
 
-	/**
-	 * Comprueba colisión física precisa con la base del terreno o cualquier objeto
-	 * sólido que resida en él.
-	 *
-	 * @param area Forma geométrica (hitbox).
-	 * @return {@code true} si hay colisión.
-	 */
 	public boolean intersectaAlgoSolido(final Shape area) {
 		if (area == null) {
 			return false;
@@ -656,14 +592,6 @@ public class Terreno implements Serializable {
 		return false;
 	}
 
-	/**
-	 * Comprueba colisión exclusivamente contra la naturaleza base del tile (ignora
-	 * objetos colocados encima).
-	 *
-	 * @param area Forma a evaluar.
-	 * @return {@code true} si colisiona con un tile base sólido (ej: pared de roca
-	 *         o agua profunda).
-	 */
 	public boolean intersectaTileSolido(final Shape area) {
 		if (area == null) {
 			return false;
@@ -687,14 +615,6 @@ public class Terreno implements Serializable {
 		return false;
 	}
 
-	/**
-	 * Verifica si un rectángulo se encuentra completamente contenido dentro de los
-	 * bordes del mapa.
-	 *
-	 * @param r Rectángulo a evaluar.
-	 * @return {@code true} si todo el rectángulo está dentro de los límites del
-	 *         terreno.
-	 */
 	public boolean areaDentroDelTerreno(final Rectangle r) {
 		if (r == null) {
 			return false;
@@ -702,20 +622,10 @@ public class Terreno implements Serializable {
 		return !((r.x < 0) || (r.y < 0) || ((r.x + r.width) > this.ANCHO) || ((r.y + r.height) > this.ALTO));
 	}
 
-	/**
-	 * Alias de compatibilidad para {@link #areaDentroDelTerreno(Rectangle)}.
-	 */
 	public boolean AreaDentroDelTerreno(final Rectangle r) {
 		return this.areaDentroDelTerreno(r);
 	}
 
-	/**
-	 * Verifica si un área rectangular está dentro del terreno y sobre una posición
-	 * transitable (no sólida).
-	 *
-	 * @param r Rectángulo a evaluar.
-	 * @return {@code true} si es un sector seguro y libre de obstáculos.
-	 */
 	public boolean areaEnSectorNoSolido(final Rectangle r) {
 		if (!this.areaDentroDelTerreno(r)) {
 			return false;
@@ -728,13 +638,6 @@ public class Terreno implements Serializable {
 	// === ACCESORES Y MÉTODOS DE COMPATIBILIDAD
 	// =========================================================================
 
-	/**
-	 * Retorna una lista con todos los tiles no nulos del terreno. <i>Nota: Úsalo
-	 * solo para operaciones puntuales (ej: guardado o inicialización), no dentro
-	 * del tick de 60 FPS.</i>
-	 *
-	 * @return Lista de todos los tiles activos.
-	 */
 	public ArrayList<Tile> getTILES() {
 		final ArrayList<Tile> lista = new ArrayList<>((int) this.CANT_TILES);
 		for (int i = 0; i < this.TILES.length; i++) {

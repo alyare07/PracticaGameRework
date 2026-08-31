@@ -1,22 +1,35 @@
 package principal.entes.criaturas.enemigos.bandido;
 
 import java.awt.Graphics2D;
-import java.awt.geom.Ellipse2D;
 
 import principal.animaciones.criaturas.AnimacionesBandido;
+import principal.entes.criaturas.Jugador;
 import principal.entes.objetos.items.arrojadizos.granadas.Granada;
 import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
+import principal.iluminacion.CalculadorSigilo;
 import principal.mapa.Mundo;
-import principal.utilidades.Globales;
 
 /**
- * Variación del enemigo Bandido enfocado en ataques a distancia utilizando
- * granadas.
+ * Variación del enemigo Bandido enfocado en ataques de área a distancia
+ * utilizando granadas.
+ * <p>
+ * <b>CARACTERÍSTICAS TÉCNICAS (v2.6):</b>
+ * <ul>
+ * <li><b>Cadencia y Lanzamiento Sincronizados:</b> Control fásico de
+ * preparación, lanzamiento y cooldown.</li>
+ * <li><b>Reenganche Continuo de Persecución:</b> Mantiene el movimiento activo
+ * si el objetivo se desplaza fuera del radio de tiro durante el tiempo de
+ * recarga.</li>
+ * <li><b>Soporte Multiobjetivo Dinámico:</b> Compatible con cualquier facción
+ * enemiga.</li>
+ * </ul>
+ * </p>
+ * 
+ * @version 2.6 (Java 8 Compatible - Zero-GC Architecture)
  */
 public class BandidoGranadero extends Bandido {
 
 	private final Granada granada;
-	private final Ellipse2D.Double areaDeteccionLogica = new Ellipse2D.Double();
 
 	public BandidoGranadero(final double x, final double y, final double vida, final double vidaMaxima,
 			final Mundo mundo) {
@@ -29,7 +42,6 @@ public class BandidoGranadero extends Bandido {
 	@Override
 	public void actualizar() {
 		super.actualizar();
-		// Recarga automática para mantener munición infinita en el enemigo
 		if (this.granada.getCantidad() <= 1) {
 			this.granada.establecerCantidad(100);
 		}
@@ -42,96 +54,108 @@ public class BandidoGranadero extends Bandido {
 	}
 
 	private void pintarSprite(final Graphics2D g) {
+		final boolean flash = this.estaEnFlashDanio();
+
 		if (!this.estaEstadoCaminando()) {
 			this.ANIMACION.pintar(g, this.getPosicionXIntDibujado(), this.getPosicionYIntDibujado(), this.direccion,
-					AnimacionesBandido.ESTANDAR, this.atrasDeComplemento, true);
+					AnimacionesBandido.ESTANDAR, this.atrasDeComplemento, true, flash);
 		} else {
 			this.ANIMACION.pintar(g, this.getPosicionXIntDibujado(), this.getPosicionYIntDibujado(), this.direccion,
-					AnimacionesBandido.CAMINANDO, this.atrasDeComplemento, true);
+					AnimacionesBandido.CAMINANDO, this.atrasDeComplemento, true, flash);
 		}
 	}
 
 	/**
-	 * Implementación específica de ataque a distancia. Orienta al enemigo hacia el
-	 * jugador y lanza la granada al finalizar la carga.
+	 * Lógica de combate y lanzamiento balístico de granadas.
 	 */
 	@Override
 	protected void actualizarAtaque() {
-		// --- FASE 1: Lanzamiento y recuperación del disparo ---
+		if (this.objetivoActual == null) {
+			this.desactivarModoAgresivo();
+			return;
+		}
+
+		// --- FASE 1: Lanzamiento efectivo tras culminar el tiempo de carga/apuntado
+		// ---
 		if (this.realizandoAtaque) {
-			if (this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
+			if (this.GT_CARGA_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
 				this.enAccion = false;
 
-				// Arrojar granada apuntando al centro de la caja de colisión del jugador
-				final int targetX = Globales.JUGADOR.getPosicionXInt() + (Globales.JUGADOR.getAncho() / 2);
-				final int targetY = Globales.JUGADOR.getPosicionYInt() + (Globales.JUGADOR.getAlto() / 2);
+				final int targetX = this.objetivoActual.getCentroX();
+				final int targetY = this.objetivoActual.getCentroY();
+				final boolean soloJugador = (this.objetivoActual instanceof Jugador);
 
-				this.granada.arrojar(targetX, targetY, this.direccion, this.mundo, this, false);
+				this.setDireccionMirandoCriatura(this.objetivoActual);
+				this.granada.arrojar(targetX, targetY, this.direccion, this.mundo, this, soloJugador);
 
 				this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
+				this.GT_ATAQUE_INICIAL_COOLDOWN.establecerReferenciaTiempoActual();
 				this.realizandoAtaque = false;
 				this.removerEstado(Estado.ATACANDO);
 				this.removerEstado(Estado.ARROJANDO);
+				this.meterEstado(Estado.PERSIGUIENDO); // Reenganche de persecución
 			}
 			return;
 		}
 
+		// Si aún está en tiempo de enfriamiento (cooldown) tras un lanzamiento
 		if (!this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
+			final double rangoVision = this.areaDeteccionAncho / 2.0;
+			if (!CalculadorSigilo.puedeDetectar(this, this.objetivoActual, rangoVision)) {
+				this.reposicionarseHaciaObjetivo();
+			}
 			return;
 		}
 
-		// --- FASE 2: Evaluación de visión y toma de decisiones ---
-		final boolean jugadorEnVisión = this.getAreaDeteccionLogica().intersects(Globales.JUGADOR.getRectangulo());
+		// --- FASE 2: Detección, inicio de carga o reposicionamiento táctico ---
+		final double rangoVision = this.areaDeteccionAncho / 2.0;
+		final boolean objetivoEnVision = CalculadorSigilo.puedeDetectar(this, this.objetivoActual, rangoVision);
 		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
 				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
-		if (jugadorEnVisión || dentroTiempoBusqueda) {
-			if (jugadorEnVisión) {
-				// El jugador está en rango de tiro (300px) -> Detenerse, apuntar y cargar
-				// ataque
-				this.meterEstado(Estado.ATACANDO);
-				this.meterEstado(Estado.ARROJANDO);
-				this.removerEstado(Estado.CAMINANDO);
-				this.removerEstado(Estado.PERSIGUIENDO);
+		if (objetivoEnVision) {
+			// En rango de tiro -> Detenerse, apuntar e iniciar carga
+			this.meterEstado(Estado.ATACANDO);
+			this.meterEstado(Estado.ARROJANDO);
+			this.removerEstado(Estado.CAMINANDO);
+			this.removerEstado(Estado.PERSIGUIENDO);
 
-				// Orientación visual hacia la posición del jugador
-				this.direccion = Globales.FUNCIONES.getDireccionMirando(this.getPosicionXInt(), this.getPosicionYInt(),
-						Globales.JUGADOR.getPosicionXInt(), Globales.JUGADOR.getPosicionYInt(), true);
+			this.setDireccionMirandoCriatura(this.objetivoActual);
 
-				if (this.GT_ATAQUE_INICIAL_COOLDOWN.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
-					if (!this.realizandoAtaque) {
-						this.realizandoAtaque = true;
-						this.GT_CARGA_ATAQUE.establecerReferenciaTiempoActual();
-					}
+			if (this.GT_ATAQUE_INICIAL_COOLDOWN.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
+				if (!this.realizandoAtaque) {
+					this.realizandoAtaque = true;
+					this.GT_CARGA_ATAQUE.establecerReferenciaTiempoActual();
 				}
-			} else {
-				// Perdió línea de visión directa pero sigue en persecución -> Acercarse con
-				// Dijkstra
-				this.removerEstado(Estado.ATACANDO);
-				this.removerEstado(Estado.ARROJANDO);
-				this.meterEstado(Estado.PERSIGUIENDO);
-
-				this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
 			}
+			this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
+
+		} else if (dentroTiempoBusqueda) {
+			this.reposicionarseHaciaObjetivo();
 		} else {
-			// El jugador escapó y terminó el tiempo de gracia -> Volver a estado pasivo
 			this.desactivarModoAgresivo();
 		}
 	}
 
-	/**
-	 * Retorna el área de detección reutilizando una única instancia de Ellipse2D
-	 * para prevenir la creación continua de objetos en la memoria Heap.
-	 */
-	@Override
-	public Ellipse2D getAreaDeteccionLogica() {
-		this.areaDeteccionLogica.setFrame((this.getPosicionX() - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0),
-				(this.getPosicionY() - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0), this.areaDeteccionAncho,
-				this.areaDeteccionAlto);
-		return this.areaDeteccionLogica;
+	private void reposicionarseHaciaObjetivo() {
+		this.removerEstado(Estado.ATACANDO);
+		this.removerEstado(Estado.ARROJANDO);
+		this.meterEstado(Estado.PERSIGUIENDO);
+
+		if (this.objetivoActual instanceof Jugador) {
+			this.moverEnAtaque(this.mundo.getDijkstra(), this.mundo.getTerreno());
+		} else {
+			if (this.GT_ACTUALIZACION_A_ESTRELLA.transcurrioMiliSegundos(500)
+					|| ((this.nodoADestino == null) && this.recorridoA.isEmpty())) {
+				this.calcularRutaAEstrella(this.objetivoActual.getCentroX(), this.objetivoActual.getCentroY());
+				this.GT_ACTUALIZACION_A_ESTRELLA.establecerReferenciaTiempoActual();
+			}
+			this.moverANodoADestino();
+		}
+		this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
 	}
 
-	// --- Métodos de Contrato Melee (No utilizados por atacantes a distancia) ---
+	// --- Métodos de Contrato Melee (No utilizados por arrojadizos) ---
 
 	@Override
 	protected double getXRangoAtaqueMele() {
@@ -153,15 +177,13 @@ public class BandidoGranadero extends Bandido {
 		return 0;
 	}
 
-	// --- Tiempos de Recarga y Animación ---
-
 	@Override
 	protected int getTiempoMsEsperaAtaqueInicial() {
-		return this.getTiempoMsEsperaRetomarAtaque();
+		return 800; // 800 ms de preparación antes de arrojar la granada
 	}
 
 	@Override
 	protected int getTiempoMsEsperaRetomarAtaque() {
-		return 1350;
+		return 1800; // 1800 ms de cooldown entre lanzamientos
 	}
 }

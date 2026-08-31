@@ -6,6 +6,7 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.Random;
 import java.util.Set;
@@ -13,8 +14,10 @@ import java.util.Set;
 import org.json.simple.JSONObject;
 
 import principal.entes.Ente;
+import principal.entes.facciones.GestorFacciones;
 import principal.ia.aEstrella.NodoA;
 import principal.mapa.Mundo;
+import principal.mapa.renderEntidades.ZoneBox;
 import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -24,19 +27,19 @@ import principal.utilidades.Render2D;
  * Clase abstracta base para todas las entidades vivas (Jugador, Enemigos,
  * NPCs).
  * <p>
- * <b>Nuevas Características de Combate:</b>
+ * <b>Nuevas Características Arquitectónicas (v3.5):</b>
  * <ul>
- * <li><b>Barra Fantasma de Daño (Ease-Out HP):</b> Gestiona un valor trailing
- * {@link #vidaLag} que amortigua visualmente el daño recibido con una barra
- * amarilla.</li>
- * <li><b>Hit-Flash Blanco (65 ms):</b> Destello sólido de impacto.</li>
- * <li><b>Y-Sorting de Profundidad:</b> Anclaje al suelo por
- * {@link #getPosicionYBase()}.</li>
+ * <li><b>Matriz de Hostilidad Bitmask O(1):</b> Identidad de facción y máscara
+ * de relaciones diplomáticas.</li>
+ * <li><b>Repulsión Elástica de Manada (Soft Push):</b> Desatasco y separación
+ * orgánica entre criaturas adyacentes.</li>
+ * <li><b>Barra Fantasma de Daño (Ease-Out HP):</b> Amortiguación visual suave
+ * tras impactos.</li>
+ * <li><b>Hit-Flash Blanco (65 ms):</b> Destello sólido reactivo de daño.</li>
  * </ul>
  * </p>
  * 
- * @author Copiloto Técnico
- * @version 3.0
+ * @version 3.5 (Java 8 Compatible - Zero-GC Architecture)
  */
 public abstract class Criatura extends Ente {
 
@@ -75,10 +78,23 @@ public abstract class Criatura extends Ente {
 	// === COLORES CONSTANTES DE BARRA DE VIDA (ZERO-GC)
 	// =========================================================================
 	private static final Color COLOR_FONDO_BARRA = Color.BLACK;
-	private static final Color COLOR_BARRA_LAG = new Color(255, 205, 40); // Amarillo dorado de impacto
-	private static final Color COLOR_BARRA_VIDA = new Color(235, 30, 30); // Rojo puro de vida actual
+	private static final Color COLOR_BARRA_LAG = new Color(255, 205, 40);
+	private static final Color COLOR_BARRA_VIDA = new Color(235, 30, 30);
 
-	/** Velocidades acumuladas continuas para inercia y giros suaves */
+	// =========================================================================
+	// === FACCIONES Y RELACIONES DIPLOMÁTICAS (BITMASKS O(1))
+	// =========================================================================
+
+	/** Bit identificador de la facción a la que pertenece esta criatura. */
+	protected int faccionBit = GestorFacciones.FACCION_NEUTRAL;
+
+	/** Máscara de bits que define qué facciones son consideradas enemigas. */
+	protected int mascaraHostilidad = 0;
+
+	// =========================================================================
+	// === CINEMÁTICA, INERCIA Y WAYPOINTS
+	// =========================================================================
+
 	protected double velActualX = 0.0;
 	protected double velActualY = 0.0;
 
@@ -93,17 +109,13 @@ public abstract class Criatura extends Ente {
 	private double x;
 	private double y;
 	protected boolean modoDios = false;
+
 	// =========================================================================
-	// === GESTIÓN DE VIDA Y BARRA FANTASMA (VIDA-LAG)
+	// === GESTIÓN DE VIDA Y HIT-FLASH
 	// =========================================================================
+
 	protected double vida;
-
-	/**
-	 * Valor de vida visual retrasado. Desciende suavemente hacia {@link #vida} tras
-	 * recibir un golpe, generando la barra amarilla de impacto.
-	 */
 	protected double vidaLag;
-
 	protected double vidaMaxima;
 	protected double velocidadEstandar = 0.5;
 
@@ -111,7 +123,6 @@ public abstract class Criatura extends Ente {
 	protected final GestorTiempo GT_ATACADO;
 	protected final GestorTiempo GT_CURACION;
 
-	/** Duración exacta del destello blanco de impacto (65 ms). */
 	protected static final int TIEMPO_MS_FLASH_DANIO = 65;
 	protected final GestorTiempo GT_FLASH_DANIO;
 
@@ -125,7 +136,6 @@ public abstract class Criatura extends Ente {
 	protected int margenYFinalSprite;
 
 	protected final ArrayDeque<NodoA> recorridoA;
-
 	protected NodoA nodoADestino;
 	protected int destinoX;
 	protected int destinoY;
@@ -157,7 +167,7 @@ public abstract class Criatura extends Ente {
 
 		this.vidaMaxima = vidaMaxima;
 		this.vida = Math.min(vida, vidaMaxima);
-		this.vidaLag = this.vida; // Inicialmente sincronizada
+		this.vidaLag = this.vida;
 
 		this.GT_ESPERA = new GestorTiempo();
 		this.GT_ATACADO = new GestorTiempo();
@@ -167,41 +177,32 @@ public abstract class Criatura extends Ente {
 		this.vidaRegen = 1.0;
 		this.direccion = Direccion.ESTE;
 		this.recorridoA = new ArrayDeque<NodoA>();
+
+		// Inicialización por defecto en facción neutral
+		this.faccionBit = GestorFacciones.FACCION_NEUTRAL;
+		this.mascaraHostilidad = GestorFacciones.getMascaraHostilidadPorDefecto(this.faccionBit);
 	}
 
 	// =========================================================================
-	// === ACTUALIZACIÓN LÓGICA DE LA BARRA FANTASMA
+	// === ACTUALIZACIÓN LÓGICA Y REPULSIÓN DE MANADA (SOFT PUSH)
 	// =========================================================================
 
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN DIDÁCTICA: INTERPOLACIÓN EXPONENCIAL (EASE-OUT LERP)
-	 * ------------------------------------------------------------------------- 1.
-	 * SI LA VIDA CAE: 'vida' baja instantáneamente a 40, pero 'vidaLag' sigue en
-	 * 100. En cada tick, 'vidaLag' se acerca a 'vida' a una velocidad proporcional
-	 * a la distancia que le falta recorrer: paso = (vidaLag - vida) * 4.5 * dt
-	 * 
-	 * 2. EFECTO VISUAL: Comienza bajando rápido y frena suavemente al final
-	 * (Ease-Out), tardando exactamente unos 350 ms en completarse.
-	 * 
-	 * 3. SI HAY CURACIÓN: Si la vida sube (ej: poción), 'vidaLag' se actualiza de
-	 * inmediato para no mostrar una barra amarilla inexistente.
-	 * =========================================================================
-	 */
+	@Override
+	public void actualizar() {
+		this.verificarZoneBox();
+		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
+		this.actualizarBarraFantasma(dt);
+		this.aplicarFuerzaSeparacion();
+	}
+
 	/**
-	 * Drena la barra fantasma amarilla de forma rápida y suave en ~350 ms.
+	 * Drena la barra fantasma amarilla de forma suave tras recibir daño.
 	 *
-	 * @param dt Delta de tiempo en segundos (1.0 / 60.0).
+	 * @param dt Delta de tiempo en segundos.
 	 */
 	public void actualizarBarraFantasma(final double dt) {
 		if (this.vidaLag > this.vida) {
 			final double diferencia = this.vidaLag - this.vida;
-			// =========================================================================
-			// FÓRMULA CALIBRADA PARA 1 SEGUNDO DE DURACIÓN:
-			// - 'diferencia * 3.0': Reduce la velocidad exponencial para tardar 1 segundo.
-			// - 'this.vidaMaxima * 0.6': Garantiza que golpes pequeños no se queden
-			// colgados.
-			// =========================================================================
 			final double velocidadDrenado = Math.max(this.vidaMaxima * 0.6, diferencia * 3.0);
 			this.vidaLag -= velocidadDrenado * dt;
 
@@ -213,15 +214,92 @@ public abstract class Criatura extends Ente {
 		}
 	}
 
-	@Override
-	public void actualizar() {
-		this.verificarZoneBox();
-		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
-		this.actualizarBarraFantasma(dt);
+	/**
+	 * Aplica una fuerza elástica de separación (Soft Push) respecto a otras
+	 * criaturas cercanas en las mismas celdas ZoneBox para prevenir el apilamiento
+	 * de sprites (Zero-GC).
+	 */
+	protected void aplicarFuerzaSeparacion() {
+		if (this.zonasOcupadas.isEmpty()) {
+			return;
+		}
+
+		final double miCentroX = this.x + (this.ANCHO / 2.0);
+		final double miCentroY = this.y + (this.ALTO / 2.0);
+		final double miRadio = (this.ANCHO + this.ALTO) / 4.0;
+
+		final int cantZonas = this.zonasOcupadas.size();
+		for (int z = 0; z < cantZonas; z++) {
+			final ZoneBox zb = this.zonasOcupadas.get(z);
+			final ArrayList<Criatura> lista = zb.getCriaturas();
+			final int totalCriat = lista.size();
+
+			for (int i = 0; i < totalCriat; i++) {
+				final Criatura otra = lista.get(i);
+				if ((otra == this) || otra.estaEliminado()) {
+					continue;
+				}
+
+				final double otroCentroX = otra.x + (otra.ANCHO / 2.0);
+				final double otroCentroY = otra.y + (otra.ALTO / 2.0);
+				final double otroRadio = (otra.ANCHO + otra.ALTO) / 4.0;
+
+				final double dx = miCentroX - otroCentroX;
+				final double dy = miCentroY - otroCentroY;
+				final double distSq = (dx * dx) + (dy * dy);
+				final double radioMin = miRadio + otroRadio;
+
+				if ((distSq < (radioMin * radioMin)) && (distSq > 0.0001)) {
+					final double dist = Math.sqrt(distSq);
+					final double penetracion = radioMin - dist;
+					final double factorEmpuje = (penetracion / radioMin) * 0.25;
+
+					final double empujeX = (dx / dist) * factorEmpuje;
+					final double empujeY = (dy / dist) * factorEmpuje;
+
+					this.modificarPosicionX(empujeX);
+					this.modificarPosicionY(empujeY);
+				}
+			}
+		}
 	}
 
 	// =========================================================================
-	// === MÉTODOS DE HIT-FLASH Y COMBATE
+	// === MÉTODOS DE FACCIONES Y RELACIONES DIPLOMÁTICAS
+	// =========================================================================
+
+	public int getFaccionBit() {
+		return this.faccionBit;
+	}
+
+	public void setFaccion(final int faccionBit) {
+		this.faccionBit = faccionBit;
+		this.mascaraHostilidad = GestorFacciones.getMascaraHostilidadPorDefecto(faccionBit);
+	}
+
+	public int getMascaraHostilidad() {
+		return this.mascaraHostilidad;
+	}
+
+	public void setMascaraHostilidad(final int mascaraHostilidad) {
+		this.mascaraHostilidad = mascaraHostilidad;
+	}
+
+	/**
+	 * Evalúa en O(1) si esta criatura considera hostil a otra entidad viva.
+	 *
+	 * @param otra Criatura a evaluar.
+	 * @return {@code true} si debe atacarla.
+	 */
+	public boolean esHostilHacia(final Criatura otra) {
+		if ((otra == null) || otra.estaEliminado() || (otra == this)) {
+			return false;
+		}
+		return GestorFacciones.esHostil(otra.getFaccionBit(), this.mascaraHostilidad);
+	}
+
+	// =========================================================================
+	// === HIT-FLASH Y COMBATE
 	// =========================================================================
 
 	public boolean estaEnFlashDanio() {
@@ -232,24 +310,13 @@ public abstract class Criatura extends Ente {
 		this.GT_FLASH_DANIO.establecerReferenciaTiempoActual();
 	}
 
-	/**
-	 * Procesa la recepción de daño, reducción de vida, hit-flash blanco, partículas
-	 * de sangre y textos flotantes.
-	 *
-	 * @param damage   Puntos de daño a restar.
-	 * @param causante Entidad que originó el ataque.
-	 */
 	public void recibirAtaque(final double damage, final Ente causante) {
 		if (this.modoDios) {
-			return; // Inmune a ataques y destello de daño
+			return;
 		}
-		// 1. Reducir la vida real (activa muerte si llega a 0)
 		this.reducirVida(damage);
-
-		// 2. Activar destello blanco de impacto (Hit-Flash de 65 ms)
 		this.activarFlashDanio();
 
-		// 3. Emisión de sangre y números de combate flotantes
 		if (this.mundo != null) {
 			final double dirX = (causante != null) ? Math.signum(this.x - causante.getPosicionX()) : 0.0;
 			final double dirY = (causante != null) ? Math.signum(this.y - causante.getPosicionY()) : 0.0;
@@ -264,7 +331,7 @@ public abstract class Criatura extends Ente {
 	// =========================================================================
 
 	public Rectangle getRectangulo() {
-		return new Rectangle((int) this.x, (int) this.y, this.ANCHO, this.ALTO);
+		return this.getArea();
 	}
 
 	@Override
@@ -328,37 +395,26 @@ public abstract class Criatura extends Ente {
 		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 	}
 
-	/**
-	 * Dibuja la barra de vida en 3 capas: 1. Fondo negro delimitador. 2. Barra
-	 * amarilla de daño (vidaLag) que desciende suavemente. 3. Barra roja frontal
-	 * (vida actual) que cae instantáneamente.
-	 */
 	private void pintarRectanguloBarraVida(final Graphics2D g) {
 		final int posX = this.getPosicionXInt();
 		final int posY = this.getPosicionYInt();
 
-		// Ancho de la barra roja actual
 		final int anchoRojo = (int) Math.round((this.vida * this.ANCHO) / this.vidaMaxima);
-
-		// Ancho de la barra amarilla de daño (Lag)
 		final int anchoAmarillo = (int) Math.round((this.vidaLag * this.ANCHO) / this.vidaMaxima);
 
-		// 1. Marco negro de base
 		Render2D.dibujarRectanguloRellenoRefCamara(g, posX - 1, posY - 5, this.ANCHO + 2, 4, COLOR_FONDO_BARRA);
 
-		// 2. Barra amarilla fantasma (muestra el trozo de daño recibido)
 		if (anchoAmarillo > 0) {
 			Render2D.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoAmarillo, 2, COLOR_BARRA_LAG);
 		}
 
-		// 3. Barra roja de vida real frontal
 		if (anchoRojo > 0) {
 			Render2D.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoRojo, 2, COLOR_BARRA_VIDA);
 		}
 	}
 
 	// =========================================================================
-	// === NAVEGACIÓN Y PATHFINDING A*
+	// === NAVEGACIÓN Y WAYPOINTS A*
 	// =========================================================================
 
 	protected void moverANodoADestino() {
@@ -478,7 +534,7 @@ public abstract class Criatura extends Ente {
 
 	public void reducirVida(final double puntos) {
 		if (this.modoDios) {
-			return; // Inmune a reducción de vida
+			return;
 		}
 		this.vida = Math.max(0, this.vida - puntos);
 		if (this.vida <= 0) {
@@ -506,7 +562,7 @@ public abstract class Criatura extends Ente {
 
 	public void curar(final double puntos) {
 		this.vida = Math.min(this.vidaMaxima, this.vida + puntos);
-		this.vidaLag = this.vida; // En curación, la barra amarilla no genera lag
+		this.vidaLag = this.vida;
 		Globales.GESTOR_TEXTOS.agregarCuracion((int) puntos, this.getPosicionX(), this.getPosicionY());
 	}
 
@@ -531,7 +587,6 @@ public abstract class Criatura extends Ente {
 		this.modoDios = modoDios;
 		if (this.modoDios) {
 			this.sanar();
-
 		}
 	}
 
@@ -660,9 +715,6 @@ public abstract class Criatura extends Ente {
 		this.marcarPosicionModificada();
 	}
 
-	/*
-	 * ----SOLO CRIATURAS QUE SE NO REQUIERAN ZONEBOX----
-	 **/
 	protected void setPosicionYSinVerificarZonebox(final double y) {
 		this.y = y;
 	}
@@ -670,11 +722,6 @@ public abstract class Criatura extends Ente {
 	protected void setPosicionXSinVerificarZonebox(final double x) {
 		this.x = x;
 	}
-
-	/*
-	 * -----------------
-	 * 
-	 **/
 
 	protected int getPosicionXIntDibujado() {
 		return (int) this.x - this.margenXInicialSprite;
@@ -757,8 +804,10 @@ public abstract class Criatura extends Ente {
 	}
 
 	protected void setDireccionMirandoCriatura(final Criatura c) {
-		this.direccion = Globales.FUNCIONES.getDireccionMirando(this.getPosicionXInt(), this.getPosicionYInt(),
-				c.getPosicionXInt(), c.getPosicionYInt());
+		if (c != null) {
+			this.direccion = Globales.FUNCIONES.getDireccionMirando(this.getPosicionXInt(), this.getPosicionYInt(),
+					c.getPosicionXInt(), c.getPosicionYInt());
+		}
 	}
 
 	@SuppressWarnings("unchecked")

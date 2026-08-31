@@ -15,13 +15,12 @@ import org.json.simple.JSONObject;
 
 import principal.animaciones.Animaciones;
 import principal.entes.Ente;
+import principal.entes.facciones.GestorFacciones;
 import principal.entes.modelos.tile.ListaModeloTile;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Consumible;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.armas.Arma;
-import principal.entes.objetos.items.armas.Desarmado;
-import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.entes.objetos.items.arrojadizos.Arrojadizo;
 import principal.entes.proyectil.GolpeMele;
 import principal.ia.Lista;
@@ -39,7 +38,13 @@ import principal.utilidades.Render2D;
 
 /**
  * Representa al personaje principal controlado por el usuario.
+ * <p>
+ * Integra el perfil de facción {@link GestorFacciones#FACCION_JUGADOR}, sistema
+ * de estamina, recolección, <b>balística vectorial en 360 grados</b> y
+ * <b>gestión de recarga manual (Tecla R)</b>.
+ * </p>
  * 
+ * @version 3.9 (Java 8 Compatible - Zero-GC Architecture)
  */
 public class Jugador extends Criatura {
 
@@ -52,8 +57,7 @@ public class Jugador extends Criatura {
 	private final GestorTiempo GT_ULTIMO_ATAQUE;
 	private final GestorTiempo GT_RECUPERACION_ESTAMINA;
 
-	private static final int TIEMPO_MS_ESPERA_POR_ATAQUE = 600;
-	private static final int TIEMPO_MS_ESPERA_DIBUJADO_POR_ATAQUE = TIEMPO_MS_ESPERA_POR_ATAQUE / 2;
+	private static final int TIEMPO_MS_ESPERA_POR_ATAQUE_BASE = 500;
 	private static final int TIEMPO_MS_ESPERA_REGEN_VIDA = 5000;
 	private static final int TIEMPO_MS_ESPERA_REGEN_ESTAMINA = 2500;
 
@@ -86,6 +90,8 @@ public class Jugador extends Criatura {
 
 	public Jugador(final int x, final int y) {
 		super(x, y, 12, 20, 50, 50);
+
+		this.setFaccion(GestorFacciones.FACCION_JUGADOR);
 
 		final int anchoSprite = 32;
 		final int altoSprite = 32;
@@ -140,7 +146,27 @@ public class Jugador extends Criatura {
 		this.actualizarMovimientos();
 		this.actualizarRecogidaItems();
 		this.actualizarArrojar();
+		this.actualizarRecarga();
 		this.actualizarAtaque();
+	}
+
+	/**
+	 * Actualiza el temporizador de recarga activa y procesa la tecla 'R' de recarga
+	 * manual.
+	 */
+	private void actualizarRecarga() {
+		final Arma armaEquipada = this.getArmaEquipada();
+		if ((armaEquipada == null) || !armaEquipada.esArmaDistancia()) {
+			return;
+		}
+
+		// Actualiza el avance del tiempo de recarga
+		armaEquipada.actualizarCicloRecarga(this);
+
+		// Disparo de recarga manual con la tecla 'R'
+		if (Globales.TECLADO.TECLA_RECARGAR.presionadoUnicaActualizacion()) {
+			armaEquipada.iniciarRecarga(this);
+		}
 	}
 
 	private void actualizarMovimientoMouseDijkstra() {
@@ -449,39 +475,55 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarAtaque() {
-		if (!Globales.TECLADO.TECLA_ATACANDO.presionado() && this.estaEstadoAtacando()
-				&& this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_POR_ATAQUE)) {
+		final Arma armaEquipada = this.getArmaEquipada();
+		final int tiempoEsperaAtaque = (armaEquipada != null) ? armaEquipada.getCadenciaMs()
+				: TIEMPO_MS_ESPERA_POR_ATAQUE_BASE;
+		final int tiempoEsperaDibujado = Math.max(50, tiempoEsperaAtaque / 2);
+
+		final boolean clickDisparo = ((armaEquipada != null) && armaEquipada.esArmaDistancia())
+				&& Globales.RATON.presionadoClickIzqUnicaAct()
+				&& !Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()
+				&& !Globales.viendoContenedor;
+
+		final boolean intentandoAtacar = Globales.TECLADO.TECLA_ATACANDO.presionado() || clickDisparo;
+
+		if (!intentandoAtacar && this.estaEstadoAtacando()
+				&& this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(tiempoEsperaAtaque)) {
 			this.removerEstado(Estado.ATACANDO);
 		}
 
-		if (!Globales.TECLADO.TECLA_ATACANDO.presionado() || this.tieneEstado(Estado.ARROJANDO)) {
-			if (this.dibujarAtaque
-					&& this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_DIBUJADO_POR_ATAQUE)) {
+		if (!intentandoAtacar || this.tieneEstado(Estado.ARROJANDO)) {
+			if (this.dibujarAtaque && this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(tiempoEsperaDibujado)) {
 				this.dibujarAtaque = false;
 			}
 			return;
 		}
 
-		if (this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_POR_ATAQUE)) {
+		if (this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(tiempoEsperaAtaque)) {
 			this.GT_ULTIMO_ATAQUE.establecerReferenciaTiempoActual();
 			this.dibujarAtaque = true;
 			this.meterEstado(Estado.ATACANDO);
 			this.realizarAtaque(this.mundo);
-		} else if (this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_DIBUJADO_POR_ATAQUE)) {
+		} else if (this.GT_ULTIMO_ATAQUE.transcurrioMiliSegundos(tiempoEsperaDibujado)) {
 			this.dibujarAtaque = false;
 		}
 	}
 
 	private void realizarAtaque(final Mundo mundo) {
 		final Arma armaEquipada = this.getArmaEquipada();
+		if ((armaEquipada == null) || (mundo == null)) {
+			return;
+		}
 
-		if (armaEquipada instanceof Pistola) {
-			final Pistola pistola = (Pistola) armaEquipada;
-			final int offsetX = (this.direccion == Direccion.OESTE) ? -8 : 8;
-			final int offsetY = (this.direccion == Direccion.NORTE) ? -8 : 8;
-			pistola.disparar(this.getPosicionXInt() + offsetX, this.getPosicionYInt() + offsetY, this.direccion, mundo,
-					this, false);
-		} else if (armaEquipada instanceof Desarmado) {
+		if (armaEquipada.esArmaDistancia()) {
+			final Point pRaton = Globales.RATON.getPuntoPosicionEscaladoConDesplazamientoCamara();
+			final int xOrigen = this.getCentroX();
+			final int yOrigen = this.getCentroY();
+
+			this.direccion = Globales.FUNCIONES.getDireccionMirando(xOrigen, yOrigen, pRaton.x, pRaton.y);
+			armaEquipada.disparar(xOrigen, yOrigen, pRaton.x, pRaton.y, mundo, this, false);
+
+		} else {
 			this.ataqueMele((int) this.getPosicionX() + 8, (int) this.getPosicionY() + 8, this.direccion, mundo);
 		}
 	}
@@ -568,31 +610,22 @@ public class Jugador extends Criatura {
 		}
 	}
 
-	/**
-	 * Consume estamina proporcionalmente al framerate durante el sprint.
-	 * 
-	 * @return {@code true} si aún queda energía para correr; {@code false} si se
-	 *         agotó.
-	 */
 	private boolean gastarEstamina() {
 		if (this.modoDios) {
 			return true;
 		}
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
-		final double gastoPorTick = this.puntoGastarEstaminaXseg * dt; // 5 pts/seg -> ~0.083 pts/tick
+		final double gastoPorTick = this.puntoGastarEstaminaXseg * dt;
 
 		if (this.estamina >= gastoPorTick) {
-			this.estamina -= gastoPorTick; // <-- Resta efectiva de energía
+			this.estamina -= gastoPorTick;
 			this.GT_RECUPERACION_ESTAMINA.establecerReferenciaTiempoActual();
 			return true;
 		}
 		this.estamina = 0.0;
-		return false; // Energía agotada: vuelve a caminar
+		return false;
 	}
 
-	/**
-	 * Regenera estamina progresivamente tras pasar el tiempo de espera en reposo.
-	 */
 	private void recuperarEstamina() {
 		if (!this.estaEstadoCorriendo()
 				&& this.GT_RECUPERACION_ESTAMINA.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_REGEN_ESTAMINA)) {
@@ -600,8 +633,6 @@ public class Jugador extends Criatura {
 			final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
 			double recuperacionPorTick = this.puntoRecuperarEstaminaXseg * dt;
 
-			// Si está caminando recupera a mitad de velocidad; si está quieto recupera
-			// pleno
 			if (this.estaEstadoCaminando()) {
 				recuperacionPorTick *= 0.5;
 			} else if (this.estamina >= (this.maxEstamina / 2.0)) {
@@ -621,13 +652,8 @@ public class Jugador extends Criatura {
 		}
 	}
 
-	// =========================================================================
-	// === RENDERIZADO CON HIT-FLASH
-	// =========================================================================
-
 	@Override
 	public void pintar(final Graphics2D g) {
-		// Pasamos la señal de Hit-Flash automática
 		Animaciones.JUGADOR.pintar(g, Globales.getXDesplazamientoCamara(this.getPosicionXIntDibujado()),
 				Globales.getYDesplazamientoCamara(this.getPosicionYIntDibujado()));
 
@@ -812,9 +838,13 @@ public class Jugador extends Criatura {
 		}
 	}
 
+	public boolean tieneArmaDistanciaEquipada() {
+		final Arma arma = this.getArmaEquipada();
+		return (arma != null) && arma.esArmaDistancia();
+	}
+
 	public boolean pistolaEquipada() {
-		return (Globales.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada() instanceof Arma)
-				&& !(Globales.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada() instanceof Desarmado);
+		return this.tieneArmaDistanciaEquipada();
 	}
 
 	public Arma getArmaEquipada() {
@@ -961,6 +991,7 @@ public class Jugador extends Criatura {
 		this.establecerVidaMaxima(this.PTS_VIDAMAX_BASE);
 		this.sanar();
 		this.damage = this.PTS_DAMAGE_BASE;
+		this.setFaccion(GestorFacciones.FACCION_JUGADOR);
 		this.setMundo(mundo);
 		Globales.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
 		if (this.mundo != null) {

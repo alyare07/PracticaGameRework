@@ -17,10 +17,9 @@ import principal.utilidades.Render2D;
 
 /**
  * Gestor maestro del subsistema de iluminación dinámica 2D, sombreado acelerado
- * en VRAM, ciclo solar de 24 horas, rayos volumétricos (God Rays) y aura
- * nocturna de penumbra suave.
+ * en VRAM, ciclo solar de 24 horas y oclusión exclusiva para interiores.
  * 
- * @version 15.0
+ * @version 17.0
  */
 public class GestorLuz {
 
@@ -68,7 +67,7 @@ public class GestorLuz {
 	private VolatileImage lightmap;
 
 	private final BufferedImage texturaMascaraAlphaHD;
-	private final BufferedImage texturaMascaraAuraHD; // Máscara tenue para Aura Jugador
+	private final BufferedImage texturaMascaraAuraHD;
 	private final BufferedImage[] texturasMascaraConoHD;
 	private final BufferedImage[][] texturasHaloColor;
 	private final BufferedImage[][] texturasHaloColorCono;
@@ -118,9 +117,8 @@ public class GestorLuz {
 		this.rayosSol = new GestorRayosSol();
 		this.oclusorSombras = new OclusorSombras2D();
 
-		// 1. Horneado de máscaras alfa en HD
 		this.texturaMascaraAlphaHD = this.hornearTexturaMascaraHD(255);
-		this.texturaMascaraAuraHD = this.hornearTexturaMascaraHD(105); // Solo 40% de perforación para penumbra oscura
+		this.texturaMascaraAuraHD = this.hornearTexturaMascaraHD(105);
 
 		final int totalTipos = TipoLuz.values().length;
 		this.texturasMascaraConoHD = new BufferedImage[totalTipos];
@@ -611,8 +609,11 @@ public class GestorLuz {
 		final double cos = Math.cos(rotCam);
 		final double sin = Math.sin(rotCam);
 
+		final boolean enInterior = this.modoAmbienteFijo
+				|| ((Globales.GESTOR_ZONAS_AMBIENTE != null) && Globales.GESTOR_ZONAS_AMBIENTE.isEnZonaInterior());
+
 		// =====================================================================
-		// PASE A: PERFORACIÓN DE PENUMBRA (DST_OUT) + OCLUSIÓN DE SOMBRAS 2D
+		// PASE A: PERFORACIÓN DE PENUMBRA (DST_OUT) + OCLUSIÓN EN INTERIORES
 		// =====================================================================
 		for (int i = 0; i < this.cantidadActivas; i++) {
 			final FuenteLuz luz = this.activas[i];
@@ -642,22 +643,20 @@ public class GestorLuz {
 						diametro, null);
 				gLight.rotate(-rotTotal, cx, cy);
 			} else if (luz.getTipo() == TipoLuz.AURA_JUGADOR) {
-				// Aura del Jugador: Perforación suave de penumbra tenue (sin agujero blanco)
 				gLight.drawImage(this.texturaMascaraAuraHD, screenX, screenY, diametro, diametro, null);
 			} else {
-				// Antorchas, fogatas y fuego: Perforación plena
 				gLight.drawImage(this.texturaMascaraAlphaHD, screenX, screenY, diametro, diametro, null);
 			}
 
-			// Oclusión de sombras detrás de muros (solo para fuentes de luz reales)
-			if (luz.getTipo() != TipoLuz.AURA_JUGADOR) {
+			// Oclusión de sombras: ACTIVA EXCLUSIVAMENTE EN INTERIORES
+			if (enInterior && (luz.getTipo() != TipoLuz.AURA_JUGADOR)) {
 				this.oclusorSombras.proyectarSombrasPaseA(gLight, luz, centroMundoCamX, centroMundoCamY, z, shakeX,
 						shakeY, this.colorAmbienteCalculado);
 			}
 		}
 
 		// =====================================================================
-		// PASE B: TINTE CROMÁTICO TÉRMICO
+		// PASE B: TINTE CROMÁTICO TÉRMICO + SELLADO EN INTERIORES
 		// =====================================================================
 		final int indiceCompositeTinte = Math.max(0, Math.min(10, (int) Math.round((alphaSombra / 200.0) * 10.0)));
 
@@ -697,9 +696,9 @@ public class GestorLuz {
 							diametro, null);
 				}
 
-				if (luz.getTipo() != TipoLuz.AURA_JUGADOR) {
+				if (enInterior && (luz.getTipo() != TipoLuz.AURA_JUGADOR)) {
 					this.oclusorSombras.proyectarSombrasPaseB(gLight, luz, centroMundoCamX, centroMundoCamY, z, shakeX,
-							shakeY);
+							shakeY, this.colorAmbienteCalculado);
 				}
 			}
 		}

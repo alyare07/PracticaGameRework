@@ -142,7 +142,6 @@ public class TexturaTools {
 		final BufferedImage imgNueva = this.crearImagenVRAM(anchoNuevo, altoNuevo, img.getTransparency());
 		final Graphics2D g = imgNueva.createGraphics();
 		g.drawImage(img, 0, 0, anchoNuevo, altoNuevo, null);
-		g.dispose();
 		return imgNueva;
 	}
 

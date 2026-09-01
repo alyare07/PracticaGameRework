@@ -136,7 +136,10 @@ public final class Textura {
 	public static final int TEXTURA_x16_POCION_ROJA = getSiguienteIdItem();
 	public static final int TEXTURA_x16_POCION_AZUL = getSiguienteIdItem();
 	public static final int TEXTURA_x16_BOTAS_CUERO_MARRON = getSiguienteIdItem();
+
+	// -----ARMAS-----
 	public static final int TEXTURA_x16_PISTOLA = getSiguienteIdItem();
+	public static final int TEXTURA_x4_BALA = getSiguienteIdItem();
 
 	public static final int TEXTURA_X16_GRANADA_1 = getSiguienteIdItem();
 	public static final int TEXTURA_X16_GRANADA_2 = getSiguienteIdItem();
@@ -147,11 +150,10 @@ public final class Textura {
 	public static final int TEXTURA_X16_GRANADA_7 = getSiguienteIdItem();
 	public static final int TEXTURA_X16_GRANADA_8 = getSiguienteIdItem();
 
+	// ---
 	public static final int TEXTURA_x10_POCION_AZUL = getSiguienteIdItem();
 	public static final int TEXTURA_x10_POCION_ROJA = getSiguienteIdItem();
 	public static final int TEXTURA_x10_BOTAS_CUERO_MARRON = getSiguienteIdItem();
-	public static final int TEXTURA_x8_PISTOLA = getSiguienteIdItem();
-	public static final int TEXTURA_x4_BALA = getSiguienteIdItem();
 
 	public static final int TEXTURA_X10_GRANADA_1 = getSiguienteIdItem();
 	public static final int TEXTURA_X10_GRANADA_2 = getSiguienteIdItem();
@@ -169,6 +171,22 @@ public final class Textura {
 	// Estructuras
 	public static final int TEXTURA_X64_CASA1 = getSiguienteIdEstructura();
 
+	public static final int TEXTURA_x16_ESCOPETA_RECORTADA = getSiguienteIdItem();
+	public static final int TEXTURA_x16_ESCOPETA_TACTICA = getSiguienteIdItem();
+	public static final int TEXTURA_x16_ESCOPETA_AUTOMATICA = getSiguienteIdItem();
+	public static final int TEXTURA_x16_SUBFUSIL_LIGERO = getSiguienteIdItem();
+	public static final int TEXTURA_x16_RIFLE_DE_ASALTO = getSiguienteIdItem();
+	public static final int TEXTURA_x16_AMETRALLADORA_PESADA = getSiguienteIdItem();
+	public static final int TEXTURA_x16_CAJA_MUNICION = getSiguienteIdItem();
+
+	public static final int TEXTURA_x8_PISTOLA = getSiguienteIdItem();
+	public static final int TEXTURA_x8_ESCOPETA_RECORTADA = getSiguienteIdItem();
+	public static final int TEXTURA_x8_ESCOPETA_TACTICA = getSiguienteIdItem();
+	public static final int TEXTURA_x8_ESCOPETA_AUTOMATICA = getSiguienteIdItem();
+	public static final int TEXTURA_x8_SUBFUSIL_LIGERO = getSiguienteIdItem();
+	public static final int TEXTURA_x8_RIFLE_DE_ASALTO = getSiguienteIdItem();
+	public static final int TEXTURA_x8_AMETRALLADORA_PESADA = getSiguienteIdItem();
+	public static final int TEXTURA_x8_CAJA_MUNICION = getSiguienteIdItem();
 	// =========================================================================
 	// === 3. ESTRUCTURAS DE ALMACENAMIENTO DE ALTO RENDIMIENTO (ZERO-GC)
 	// =========================================================================
@@ -242,8 +260,6 @@ public final class Textura {
 		guardar(TEXTURA_x16_POCION_ROJA, hojaItems16.getSprite(50));
 		guardar(TEXTURA_x16_POCION_AZUL, hojaItems16.getSprite(48));
 		guardar(TEXTURA_x16_BOTAS_CUERO_MARRON, hojaItems16.getSprite(122));
-		guardar(TEXTURA_x16_PISTOLA, Globales.FUNCIONES.CARGADOR_RECURSOS
-				.cargarImagenCompatibleTranslucida("/imagenes/objetos/gun16x16.png"));
 
 		cargarGranadas("/imagenes/objetos/granadas.png", 16, TEXTURA_X16_GRANADA_1);
 
@@ -251,12 +267,39 @@ public final class Textura {
 		guardar(TEXTURA_x10_POCION_ROJA, hojaItems10.getSprite(50));
 		guardar(TEXTURA_x10_POCION_AZUL, hojaItems10.getSprite(48));
 		guardar(TEXTURA_x10_BOTAS_CUERO_MARRON, hojaItems10.getSprite(122));
+
+		cargarGranadas("/imagenes/objetos/granadas.png", 10, TEXTURA_X10_GRANADA_1);
+
+		guardar(TEXTURA_x16_PISTOLA, Globales.FUNCIONES.CARGADOR_RECURSOS
+				.cargarImagenCompatibleTranslucida("/imagenes/objetos/gun16x16.png"));
 		guardar(TEXTURA_x8_PISTOLA,
 				Globales.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida("/imagenes/objetos/gun8x8.png"));
 		guardar(TEXTURA_x4_BALA,
 				Globales.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida("/imagenes/objetos/bala.png"));
 
-		cargarGranadas("/imagenes/objetos/granadas.png", 10, TEXTURA_X10_GRANADA_1);
+		final HojaSprite hojaArmasX16 = new HojaSprite("/imagenes/objetos/pack.png", 16, false);
+		guardar(TEXTURA_x16_ESCOPETA_RECORTADA, hojaArmasX16.getSprite(11));
+		guardar(TEXTURA_x16_ESCOPETA_TACTICA, hojaArmasX16.getSprite(9));
+		guardar(TEXTURA_x16_ESCOPETA_AUTOMATICA, hojaArmasX16.getSprite(1));
+		guardar(TEXTURA_x16_SUBFUSIL_LIGERO, hojaArmasX16.getSprite(24));
+		guardar(TEXTURA_x16_RIFLE_DE_ASALTO, hojaArmasX16.getSprite(2));
+		guardar(TEXTURA_x16_AMETRALLADORA_PESADA, hojaArmasX16.getSprite(19));
+
+		final HojaSprite hojaArmasX8 = new HojaSprite(Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(
+				Globales.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida("/imagenes/objetos/pack.png"),
+				4 * 8, 7 * 8), 8, false);
+		guardar(TEXTURA_x8_ESCOPETA_RECORTADA, hojaArmasX8.getSprite(11));
+		guardar(TEXTURA_x8_ESCOPETA_TACTICA, hojaArmasX8.getSprite(9));
+		guardar(TEXTURA_x8_ESCOPETA_AUTOMATICA, hojaArmasX8.getSprite(1));
+		guardar(TEXTURA_x8_SUBFUSIL_LIGERO, hojaArmasX8.getSprite(24));
+		guardar(TEXTURA_x8_RIFLE_DE_ASALTO, hojaArmasX8.getSprite(2));
+		guardar(TEXTURA_x8_AMETRALLADORA_PESADA, hojaArmasX8.getSprite(19));
+
+		guardar(TEXTURA_x16_CAJA_MUNICION, Globales.FUNCIONES.CARGADOR_RECURSOS
+				.cargarImagenCompatibleTranslucida("/imagenes/objetos/boxbullet.png"));
+		guardar(TEXTURA_x8_CAJA_MUNICION,
+				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(Globales.FUNCIONES.CARGADOR_RECURSOS
+						.cargarImagenCompatibleTranslucida("/imagenes/objetos/boxbullet.png"), 8, 8));
 
 		// 4. Partículas, Efectos y Estructuras
 		final HojaSprite hojaParticulas = new HojaSprite("/imagenes/objetos/sangrex8.png", 8, false);

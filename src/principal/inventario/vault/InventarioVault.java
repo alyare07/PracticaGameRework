@@ -20,9 +20,9 @@ import principal.inventario.equipamiento.SlotManager;
 import principal.inventario.slot.Slot;
 import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
-import principal.utilidades.Render2D;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 import principal.utilidades.inventario.ItemPuntero;
 
 /**
@@ -438,6 +438,10 @@ public class InventarioVault {
 			return true;
 		}
 		return false;
+	}
+
+	public boolean ratonEnAreaInventario() {
+		return Globales.RATON.getRectanguloPosicionEscalado().intersects(this.area);
 	}
 
 	public void vaciar() {

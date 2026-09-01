@@ -163,6 +163,9 @@ public class Inventario {
 		return this.SLOT_MANAGER.extraerMunicion(codModeloMunicion, cantidadRequerida);
 	}
 
+	public boolean ratonEnAreaInventario() {
+		return Globales.RATON.getRectanguloPosicionEscalado().intersects(this.AREA_TOTAL);
+	}
 	// =========================================================================
 	// === ACCIONES DE INVENTARIO Y EQUIPO
 	// =========================================================================

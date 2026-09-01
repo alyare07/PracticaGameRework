@@ -65,7 +65,7 @@ public class Jugador extends Criatura {
 
 	protected final Shape areaRecoleccion = new Ellipse2D.Double();
 	protected final int recoleccionLado = 50;
-	protected final double PTS_VIDAMAX_BASE = 100;
+	protected final double PTS_VIDAMAX_BASE = 20;
 	protected final double PTS_DAMAGE_BASE = 5;
 
 	protected double estamina;
@@ -92,7 +92,6 @@ public class Jugador extends Criatura {
 		super(x, y, 12, 20, 50, 50);
 
 		this.setFaccion(GestorFacciones.FACCION_JUGADOR);
-
 		final int anchoSprite = 32;
 		final int altoSprite = 32;
 		this.MARGENX = Constantes.CENTROX - (anchoSprite / 2);

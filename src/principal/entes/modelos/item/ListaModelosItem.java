@@ -46,17 +46,17 @@ public class ListaModelosItem {
 		// Cajas de Munición con textura asignada TEXTURA_x4_BALA
 		LISTA_MODELOS_CONSUMIBLES.put(COD_CONSUMIBLE_MUNICION_PISTOLA,
 				new ModeloConsumible("Munición 9mm (Pistola/SMG)", 8, 150, false, new Rectangle(),
-						Textura.TEXTURA_x4_BALA, Textura.TEXTURA_x4_BALA));
+						Textura.TEXTURA_x16_CAJA_MUNICION, Textura.TEXTURA_x8_CAJA_MUNICION));
 
 		LISTA_MODELOS_CONSUMIBLES.put(COD_CONSUMIBLE_MUNICION_ESCOPETA, new ModeloConsumible("Cartuchos Calibre 12", 8,
-				64, false, new Rectangle(), Textura.TEXTURA_x4_BALA, Textura.TEXTURA_x4_BALA));
+				64, false, new Rectangle(), Textura.TEXTURA_x16_CAJA_MUNICION, Textura.TEXTURA_x8_CAJA_MUNICION));
 
 		LISTA_MODELOS_CONSUMIBLES.put(COD_CONSUMIBLE_MUNICION_FUSIL, new ModeloConsumible("Munición 7.62mm (Rifle)", 8,
-				180, false, new Rectangle(), Textura.TEXTURA_x4_BALA, Textura.TEXTURA_x4_BALA));
+				180, false, new Rectangle(), Textura.TEXTURA_x16_CAJA_MUNICION, Textura.TEXTURA_x8_CAJA_MUNICION));
 
 		LISTA_MODELOS_CONSUMIBLES.put(COD_CONSUMIBLE_MUNICION_PESADA,
 				new ModeloConsumible("Cinta Munición Pesada (LMG)", 8, 300, false, new Rectangle(),
-						Textura.TEXTURA_x4_BALA, Textura.TEXTURA_x4_BALA));
+						Textura.TEXTURA_x16_CAJA_MUNICION, Textura.TEXTURA_x8_CAJA_MUNICION));
 	}
 
 	public static ModeloConsumible getModeloConsumible(final String codModelo) {
@@ -88,22 +88,22 @@ public class ListaModelosItem {
 				Textura.TEXTURA_x16_PISTOLA, Textura.TEXTURA_x8_PISTOLA));
 
 		LISTA_MODELOS_PORTABLE.put(COD_ARMA_ESCOPETA_RECORTADA, new ModeloPortable("Escopeta Recortada", 10, false,
-				new Rectangle(), Textura.TEXTURA_x16_PISTOLA, Textura.TEXTURA_x8_PISTOLA));
+				new Rectangle(), Textura.TEXTURA_x16_ESCOPETA_RECORTADA, Textura.TEXTURA_x8_ESCOPETA_RECORTADA));
 
 		LISTA_MODELOS_PORTABLE.put(COD_ARMA_ESCOPETA_TACTICA, new ModeloPortable("Escopeta Táctica", 10, false,
-				new Rectangle(), Textura.TEXTURA_x16_PISTOLA, Textura.TEXTURA_x8_PISTOLA));
+				new Rectangle(), Textura.TEXTURA_x16_ESCOPETA_TACTICA, Textura.TEXTURA_x8_ESCOPETA_TACTICA));
 
 		LISTA_MODELOS_PORTABLE.put(COD_ARMA_ESCOPETA_AUTOMATICA, new ModeloPortable("Escopeta Automática", 10, false,
-				new Rectangle(), Textura.TEXTURA_x16_PISTOLA, Textura.TEXTURA_x8_PISTOLA));
+				new Rectangle(), Textura.TEXTURA_x16_ESCOPETA_AUTOMATICA, Textura.TEXTURA_x8_ESCOPETA_AUTOMATICA));
 
 		LISTA_MODELOS_PORTABLE.put(COD_ARMA_SUBFUSIL_LIGERO, new ModeloPortable("Subfusil Ligero", 10, false,
-				new Rectangle(), Textura.TEXTURA_x16_PISTOLA, Textura.TEXTURA_x8_PISTOLA));
+				new Rectangle(), Textura.TEXTURA_x16_SUBFUSIL_LIGERO, Textura.TEXTURA_x8_SUBFUSIL_LIGERO));
 
 		LISTA_MODELOS_PORTABLE.put(COD_ARMA_RIFLE_ASALTO, new ModeloPortable("Rifle de Asalto", 10, false,
-				new Rectangle(), Textura.TEXTURA_x16_PISTOLA, Textura.TEXTURA_x8_PISTOLA));
+				new Rectangle(), Textura.TEXTURA_x16_RIFLE_DE_ASALTO, Textura.TEXTURA_x8_RIFLE_DE_ASALTO));
 
 		LISTA_MODELOS_PORTABLE.put(COD_ARMA_AMETRALLADORA_PESADA, new ModeloPortable("Ametralladora Pesada", 10, false,
-				new Rectangle(), Textura.TEXTURA_x16_PISTOLA, Textura.TEXTURA_x8_PISTOLA));
+				new Rectangle(), Textura.TEXTURA_x16_AMETRALLADORA_PESADA, Textura.TEXTURA_x8_AMETRALLADORA_PESADA));
 	}
 
 	public static ModeloPortable getModeloPortable(final String codModelo) {

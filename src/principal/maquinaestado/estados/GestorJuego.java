@@ -16,6 +16,7 @@ import principal.clima.TipoClima;
 import principal.controles.Raton;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura.Direccion;
+import principal.entes.facciones.GestorFacciones;
 import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
@@ -123,6 +124,14 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			Globales.GESTOR_INVENTARIO.actualizar(this.RATON, this.mapa.getMundoActual());
 			this.mapa.actualizar();
 			this.actualizarEventos();
+		}
+
+		if (Globales.TECLADO.TECLA_DIJKSTRA.presionadoUnicaActualizacion()) {
+			if (Globales.JUGADOR.getFaccionBit() == GestorFacciones.FACCION_JUGADOR) {
+				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
+			} else {
+				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_JUGADOR);
+			}
 		}
 
 		this.verificarPantallaMuerte();

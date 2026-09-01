@@ -27,6 +27,7 @@ import principal.mapa.escenario.tps.ZonaTP;
 import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
+import principal.utilidades.Globales;
 
 public class Mapa1 extends Mapa {
 	public static final String NOMBRE_MAPA = "Mapa1";
@@ -77,7 +78,7 @@ public class Mapa1 extends Mapa {
 		this.mundoActual.meterEntidad(new BandidoGarrote(876, 220, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 50, 50, this.mundoActual));
-//		this.generarEnemigosParaPrueba(100);
+		this.generarEnemigosParaPrueba(3000);
 		final ArbolCofre arbolcofre1 = new ArbolCofre(767, 424);
 		arbolcofre1.getInventario().agregarItem(new EscopetaAutomatica());
 		arbolcofre1.getInventario().agregarItem(new EscopetaRecortada());
@@ -90,6 +91,7 @@ public class Mapa1 extends Mapa {
 		arbolcofre1.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 100));
 		arbolcofre1.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 100));
 		this.mundoActual.meterEntidad(arbolcofre1);
+		Globales.JUGADOR.setModoDios(true);
 	}
 
 	/***
@@ -141,7 +143,7 @@ public class Mapa1 extends Mapa {
 			// Si la zona está libre de colisiones
 			if (!colisionaTerreno && !colisionaObjeto) {
 				// Instanciamos y agregamos la entidad
-				final Bandido enemigo = new BandidoGarrote(posX, posY, anchoBandido, altoBandido, this.mundoActual);
+				final Bandido enemigo = new BandidoPistolero(posX, posY, anchoBandido, altoBandido, this.mundoActual);
 				this.mundoActual.meterEntidad(enemigo);
 				generados++;
 			}

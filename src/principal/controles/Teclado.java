@@ -43,6 +43,7 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_CORRIENDO;
 	public final Tecla TECLA_ATACANDO;
 	public final Tecla TECLA_RECARGAR;
+	public final Tecla TECLA_ALT_LEFT;
 
 	// =========================================================================
 	// === DECLARACIÓN DE TECLAS DE DEPURACIÓN / DEBUG
@@ -104,6 +105,7 @@ public class Teclado implements KeyListener {
 		this.TECLA_CORRIENDO = new Tecla(KeyEvent.VK_SHIFT, "Correr");
 		this.TECLA_ATACANDO = new Tecla(KeyEvent.VK_SPACE, "Atacar");
 		this.TECLA_RECARGAR = new Tecla(KeyEvent.VK_R, "Recargar");
+		this.TECLA_ALT_LEFT = new Tecla(KeyEvent.VK_R, "Recargar");
 
 		// Teclas de Depuración
 		this.TECLA_DEBUG = new Tecla(KeyEvent.VK_F1, true, "Debug");
@@ -197,6 +199,7 @@ public class Teclado implements KeyListener {
 		this.TECLAS.add(this.TECLA_VER_ALCANCE_ATAQUE);
 		this.TECLAS.add(this.TECLA_PUNTO);
 		this.TECLAS.add(this.TECLA_PAUSA);
+		this.TECLAS.add(this.TECLA_ALT_LEFT);
 
 		this.TECLAS.add(this.TECLA_ZOOM_IN);
 		this.TECLAS.add(this.TECLA_ZOOM_OUT);

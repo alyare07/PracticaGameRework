@@ -9,46 +9,22 @@ import principal.mapa.Mundo;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
-/**
- * Variación del enemigo Bandido especializado en combate cuerpo a cuerpo con
- * garrote.
- * <p>
- * <b>CARACTERÍSTICAS TÉCNICAS (v2.5):</b>
- * <ul>
- * <li><b>Hit-Frame Driven Combat:</b> El cálculo de impacto se sincroniza con
- * el fotograma exacto del sprite (Frame 2), eliminando la latencia y los
- * proyectiles temporales.</li>
- * <li><b>Orientación Reactiva:</b> Ajusta la dirección de ataque hacia el
- * objetivo fijado.</li>
- * <li><b>Zero-GC:</b> Reutilización de cajas de colisión y llamadas directas de
- * daño.</li>
- * </ul>
- * </p>
- * 
- * @version 2.5 (Java 8 Compatible - Zero-GC Architecture)
- */
 public class BandidoGarrote extends Bandido {
 
 	private boolean pintarAtaque;
 	private boolean impactoRealizadoEnCiclo;
-
-	/**
-	 * Fotograma de la animación en el que se produce el contacto físico del
-	 * garrote.
-	 */
 	private static final int FOTOGRAMA_IMPACTO = 2;
 
 	public BandidoGarrote(final double x, final double y, final double vida, final double vidaMaxima,
 			final Mundo mundo) {
 		super(x, y, vida, vidaMaxima, mundo);
-		this.ataque = 15.0; // Daño base cuerpo a cuerpo calibrado
+		this.ataque = 15.0;
 	}
 
 	@Override
 	public void actualizar() {
 		super.actualizar();
 
-		// Inicio de la secuencia de golpe cargado
 		if (this.realizandoAtaque && !this.pintarAtaque) {
 			this.pintarAtaque = true;
 			this.impactoRealizadoEnCiclo = false;
@@ -63,11 +39,11 @@ public class BandidoGarrote extends Bandido {
 			}
 		}
 
-		// Sincronización del fotograma de impacto y fin de la animación
 		if (this.pintarAtaque) {
 			final Animacion anim = this.ANIMACION.getAnimacion(AnimacionesBandido.GARROTE_ATACANDO, this.direccion);
 			if (anim != null) {
-				// DISPARO DE IMPACTO EN EL FRAME EXACTO DEL SPRITE
+				anim.actualizar();
+
 				if (!this.impactoRealizadoEnCiclo && (anim.getSpritePosicion() >= FOTOGRAMA_IMPACTO)) {
 					this.impactoRealizadoEnCiclo = true;
 					this.ejecutarGolpeFisico();
@@ -81,10 +57,6 @@ public class BandidoGarrote extends Bandido {
 		}
 	}
 
-	/**
-	 * Evalúa el área frontal de contacto y aplica el daño directamente sobre el
-	 * objetivo fijado.
-	 */
 	private void ejecutarGolpeFisico() {
 		final Rectangle rangoMele = this.obtenerRangoAtaqueMeleValido();
 
@@ -121,6 +93,19 @@ public class BandidoGarrote extends Bandido {
 	}
 
 	@Override
+	public String exportarSubtipoBandido() {
+		return "Garrote";
+	}
+
+	@Override
+	protected String obtenerClaveAnimacionActiva() {
+		if (this.pintarAtaque) {
+			return AnimacionesBandido.GARROTE_ATACANDO;
+		}
+		return this.estaEstadoCaminando() ? AnimacionesBandido.GARROTE_CAMINANDO : AnimacionesBandido.GARROTE_ESTANDAR;
+	}
+
+	@Override
 	protected double getXRangoAtaqueMele() {
 		return this.getPosicionX() + (this.ANCHO / 2.0);
 	}
@@ -132,11 +117,11 @@ public class BandidoGarrote extends Bandido {
 
 	@Override
 	protected double getAlcanceRangoAtaqueMele() {
-		return 12;
+		return 12.0;
 	}
 
 	@Override
 	protected double getGrosorRangoAtaqueMele() {
-		return 6;
+		return 6.0;
 	}
 }

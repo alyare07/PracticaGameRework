@@ -14,16 +14,6 @@ import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
-/**
- * Clase base para escopetas de posta y combate.
- * <p>
- * <b>SISTEMA DE CARGADOR Y CONO BALÍSTICO (Zero-GC):</b> Controla la capacidad
- * de cartuchos en recámara, cadencia entre disparos, tiempo de recarga y la
- * proyección cónica de perdigones en 360 grados.
- * </p>
- * 
- * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
- */
 public abstract class Escopeta extends Arma {
 
 	private static final long serialVersionUID = 581920391203912L;
@@ -54,13 +44,9 @@ public abstract class Escopeta extends Arma {
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
-	/**
-	 * Dispara una ráfaga cónica de perdigones en 360 grados consumiendo un cartucho
-	 * del cargador.
-	 */
 	@Override
 	public void disparar(final int xOrigen, final int yOrigen, final int xDestino, final int yDestino,
-			final Mundo escenario, final Criatura causante, final boolean soloContraJugador) {
+			final Mundo escenario, final Criatura causante) {
 
 		if (this.consumirDisparo(causante)) {
 			if (escenario != null) {
@@ -76,22 +62,21 @@ public abstract class Escopeta extends Arma {
 					final double targetY = yOrigen + (Math.sin(anguloActual) * 1000.0);
 
 					escenario.crearProyectil(new ProyectilPerdigon(this.damage, this.velocidadPerdigon, this.penetrante,
-							this.alcance, escenario, xOrigen, yOrigen, targetX, targetY, causante, soloContraJugador));
+							this.alcance, escenario, xOrigen, yOrigen, targetX, targetY, causante));
 				}
 			}
 
-			GestorSonido.reproducirEnPosicion(IDSonido.DISPARO_PISTOLA, xOrigen, yOrigen,
-					Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
-					Globales.CAMARA.getEntidadEnfocada().getPosicionY());
+			if ((Globales.CAMARA != null) && (Globales.CAMARA.getEntidadEnfocada() != null)) {
+				GestorSonido.reproducirEnPosicion(IDSonido.DISPARO_PISTOLA, xOrigen, yOrigen,
+						Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
+						Globales.CAMARA.getEntidadEnfocada().getPosicionY());
+			}
 		}
 	}
 
-	/**
-	 * Disparo cardinal con apertura de cono adaptada a la dirección.
-	 */
 	@Override
 	public void disparar(final int xOrigen, final int yOrigen, final Direccion direccion, final Mundo escenario,
-			final Criatura causante, final boolean soloContraJugador) {
+			final Criatura causante) {
 
 		double anguloBase = 0.0;
 		if (direccion == Direccion.ESTE) {
@@ -107,7 +92,7 @@ public abstract class Escopeta extends Arma {
 		final int xDest = xOrigen + (int) Math.round(Math.cos(anguloBase) * 500.0);
 		final int yDest = yOrigen + (int) Math.round(Math.sin(anguloBase) * 500.0);
 
-		this.disparar(xOrigen, yOrigen, xDest, yDest, escenario, causante, soloContraJugador);
+		this.disparar(xOrigen, yOrigen, xDest, yDest, escenario, causante);
 	}
 
 	public int getCantidadPerdigones() {

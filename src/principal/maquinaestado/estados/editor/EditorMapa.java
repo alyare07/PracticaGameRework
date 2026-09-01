@@ -1,18 +1,21 @@
 package principal.maquinaestado.estados.editor;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.Transparency;
+import java.awt.image.VolatileImage;
 import java.io.File;
 import java.time.LocalDateTime;
 
 import org.json.simple.JSONObject;
 
 import principal.controles.Raton;
+import principal.entes.AsistenteCamara;
 import principal.entes.criaturas.Criatura;
-import principal.entes.modelos.complemento.ListaModeloComplemento;
-import principal.entes.modelos.complemento.ModeloComplementoT1;
-import principal.entes.modelos.complemento.ModeloComplementoT2;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
@@ -24,139 +27,48 @@ import principal.mapa.escenario.EscenarioLoader;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.EstadoJuego;
 import principal.utilidades.Constantes;
-import principal.utilidades.Render2D;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
-/**
- * Estado interactivo del motor que implementa el Editor de Mapas en tiempo
- * real.
- * <p>
- * <b>Funcionalidades y Arquitectura:</b>
- * <ul>
- * <li><b>Pincel Inteligente de Terrenos:</b> Modifica tiles individuales o
- * bloques {@link GroupTile} (2x2), recalculando automáticamente los autotiles y
- * variaciones en tiempo constante $O(1)$.</li>
- * <li><b>Colocación de Entidades y Complementos:</b> Permite posicionar objetos
- * interactivos, items y elementos decorativos con previsualización física de
- * cajas de colisión (T1/T2).</li>
- * <li><b>Proyección de Coordenadas de Ratón:</b> Transforma las coordenadas de
- * pantalla escaladas del cursor a coordenadas continuas y discretas del mundo
- * teniendo en cuenta el desplazamiento de la cámara.</li>
- * <li><b>Frustum Culling Adaptado a la UI:</b> Renderiza únicamente los tiles
- * visibles en el viewport libre, excluyendo de forma estricta el área reservada
- * para la paleta lateral de herramientas.</li>
- * </ul>
- * </p>
- * 
- * @author Copiloto Técnico
- * @version 2.0
- */
 public class EditorMapa implements EstadoJuego {
 
-	/** Gestor principal de la máquina de estados del juego. */
 	private final GestorEstados GE;
-
-	/** Tamaño en píxeles de un tile individual (ej: 16 px). */
 	private final int LADO_TILE;
-
-	/**
-	 * Tamaño en píxeles de un bloque de tiles (habitualmente
-	 * {@code LADO_TILE * 2}).
-	 */
-	private final int LADO_GRUPO_TILE;
-
-	/** Ancho total del terreno editable en píxeles. */
 	private final int ANCHO;
-
-	/** Alto total del terreno editable en píxeles. */
 	private final int ALTO;
-
-	/** Instancia del terreno que se está editando en tiempo real. */
 	private final Terreno TERRENO;
 
-	/** Posición X de la cámara libre del editor en el mundo. */
 	private int x;
-
-	/** Posición Y de la cámara libre del editor en el mundo. */
 	private int y;
+	private final AsistenteCamara asistenteCamara;
 
-	/** Referencia al gestor de entrada del ratón. */
 	private final Raton RATON = SuperficieDibujo.obetenerSuperficieDibujo().RATON;
-
-	/**
-	 * Delimitador espacial reutilizable del tile actualmente apuntado por el
-	 * cursor.
-	 */
 	private final Rectangle areaTileSelected = new Rectangle();
-
-	/**
-	 * Bandera que indica si el cursor está apuntando a un tile válido dentro del
-	 * lienzo.
-	 */
 	private boolean tileApuntadoValido = false;
-
-	/**
-	 * Registro del último tile alterado para evitar re-escrituras redundantes al
-	 * mantener el clic.
-	 */
 	private final Rectangle ultimaAreaTileAlterado = new Rectangle();
 
-	/**
-	 * Delimitador del área de visualización del mapa (excluyendo la paleta
-	 * lateral).
-	 */
 	private final Rectangle PALETA_MAPA;
-
-	/**
-	 * Gestor y contenedor de las paletas de herramientas (Tiles, Complementos,
-	 * Entidades).
-	 */
 	private final GrupoPaleta PALETAS;
 
-	/** Temporizador para regular el guardado de mapas por teclado. */
+	// Sistema de Pinceles
+	private int tamanoPincel = 1; // 1 = 1x1, 2 = 2x2, 3 = 3x3, 4 = 4x4
+	private boolean pincelCircular = false;
+
 	private final GestorTiempo GT = new GestorTiempo();
-
-	/**
-	 * Temporizador para regular la cadencia de colocación de complementos y
-	 * entidades.
-	 */
 	private final GestorTiempo GT_COLOCACION = new GestorTiempo();
+	private static final int TIEMPO_ESPERA_MS_COLOCACION = 180;
 
-	/**
-	 * Tiempo mínimo de espera en milisegundos entre colocaciones sucesivas de
-	 * complementos.
-	 */
-	private final int TIEMPO_ESPERA_MS_COLOCACION = 300;
-
-	/** Contenedor de entidades activas en el entorno del editor. */
 	private final MundoEditor MUNDO_EDITOR;
-
-	/**
-	 * Rectángulo auxiliar reutilizable para proyectar la punta del cursor en
-	 * coordenadas de mundo.
-	 */
 	private final Rectangle AREA_MOUSE_APUNTADO = new Rectangle(-1, -1, 1, 1);
 
-	// =========================================================================
-	// === CONSTRUCTORES
-	// =========================================================================
+	private static final Font FUENTE_INFO = new Font(Font.SANS_SERIF, Font.PLAIN, 6);
+	private VolatileImage bufferEditor;
 
-	/**
-	 * Crea un nuevo mapa en blanco con las dimensiones especificadas y un modelo de
-	 * terreno inicial.
-	 *
-	 * @param ladoTile     Dimensión en píxeles de cada tile.
-	 * @param anchoTiles   Cantidad de tiles a lo ancho.
-	 * @param altoTiles    Cantidad de tiles a lo alto.
-	 * @param idModeloTile ID del modelo de terreno base inicial.
-	 * @param ge           Gestor de estados del motor.
-	 */
 	public EditorMapa(final int ladoTile, final int anchoTiles, final int altoTiles, final int idModeloTile,
 			final GestorEstados ge) {
 		this.GE = ge;
 		this.LADO_TILE = ladoTile;
-		this.LADO_GRUPO_TILE = ladoTile * 2;
 		this.ANCHO = anchoTiles * ladoTile;
 		this.ALTO = altoTiles * ladoTile;
 		this.TERRENO = new Terreno(anchoTiles, altoTiles, this.LADO_TILE, idModeloTile);
@@ -166,100 +78,68 @@ public class EditorMapa implements EstadoJuego {
 		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
 				this.PALETA_MAPA.height);
 		this.MUNDO_EDITOR = new MundoEditor(this.TERRENO);
+		this.asistenteCamara = new AsistenteCamara(0, 0, 16, 16);
 
 		this.inicializarCamara();
 	}
 
-	/**
-	 * Inicializa el editor a partir de una instancia de {@link Terreno} existente
-	 * en memoria.
-	 *
-	 * @param terreno Instancia del terreno a editar.
-	 * @param ge      Gestor de estados.
-	 */
 	public EditorMapa(final Terreno terreno, final GestorEstados ge) {
 		this.GE = ge;
 		this.TERRENO = terreno;
 		this.ANCHO = this.TERRENO.getAncho();
 		this.ALTO = this.TERRENO.getAlto();
 		this.LADO_TILE = this.TERRENO.ladoTile();
-		this.LADO_GRUPO_TILE = this.LADO_TILE * 2;
 
 		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
 				Constantes.ALTO_JUEGO);
 		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
 				this.PALETA_MAPA.height);
 		this.MUNDO_EDITOR = new MundoEditor(this.TERRENO);
+		this.asistenteCamara = new AsistenteCamara(0, 0, 16, 16);
 
 		this.inicializarCamara();
 	}
 
-	/**
-	 * Carga un mapa existente desde un archivo serializado en disco para su
-	 * edición.
-	 *
-	 * @param rutaMapa Ruta relativa o absoluta del archivo de mapa (.mp).
-	 * @param ge       Gestor de estados.
-	 */
 	public EditorMapa(final String rutaMapa, final GestorEstados ge) {
 		this.GE = ge;
 		this.TERRENO = EscenarioLoader.importarEscenario(new File(rutaMapa)).getTerreno();
 		this.ANCHO = this.TERRENO.getAncho();
 		this.ALTO = this.TERRENO.getAlto();
 		this.LADO_TILE = this.TERRENO.ladoTile();
-		this.LADO_GRUPO_TILE = this.LADO_TILE * 2;
 
 		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
 				Constantes.ALTO_JUEGO);
 		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
 				this.PALETA_MAPA.height);
 		this.MUNDO_EDITOR = new MundoEditor(this.TERRENO);
+		this.asistenteCamara = new AsistenteCamara(0, 0, 16, 16);
 
 		this.inicializarCamara();
 	}
 
-	/**
-	 * Configura el enfoque inicial de la cámara libre en la posición del jugador
-	 * auxiliar.
-	 */
 	private void inicializarCamara() {
-		Globales.CAMARA.setEntidadEnfocada(Globales.JUGADOR);
-		Globales.JUGADOR.setPosicion(Globales.JUGADOR.getMargenX(), Globales.JUGADOR.getMargenY());
-		this.x = Globales.JUGADOR.getMargenX();
-		this.y = Globales.JUGADOR.getMargenY();
-		Globales.JUGADOR.setPosicion(this.x, this.y);
+		this.x = this.ANCHO / 2;
+		this.y = this.ALTO / 2;
+		this.asistenteCamara.setPosicion(this.x, this.y);
+		Globales.CAMARA.setEntidadEnfocada(this.asistenteCamara);
+		Globales.CAMARA.deshabilitarGestorLimite();
+		Globales.CAMARA.reiniciarZoom();
 	}
 
-	// =========================================================================
-	// === BUCLE DE ACTUALIZACIÓN LÓGICA (TICK)
-	// =========================================================================
-
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN TÉCNICA: PROYECCIÓN DE COORDENADAS (PANTALLA A MUNDO)
-	 * ------------------------------------------------------------------------- 1.
-	 * El ratón entrega coordenadas escaladas en el espacio de pantalla (rr.x,
-	 * rr.y). 2. Se le suma la posición de la cámara
-	 * (Globales.CAMARA.getPosicionXInt()) y se resta el margen de centrado
-	 * (getMargenX()) para obtener la coordenada exacta del cursor en píxeles
-	 * continuos dentro del mundo (AREA_MOUSE_APUNTADO).
-	 * =========================================================================
-	 */
 	@Override
 	public void actualizar() {
 		this.RATON.actualizar(SuperficieDibujo.obetenerSuperficieDibujo());
-		final Rectangle rr = this.RATON.getRectanguloPosicionEscalado();
 
-		this.AREA_MOUSE_APUNTADO.x = (rr.x + Globales.CAMARA.getPosicionXInt()) - Globales.CAMARA.getMargenX();
-		this.AREA_MOUSE_APUNTADO.y = (rr.y + Globales.CAMARA.getPosicionYInt()) - Globales.CAMARA.getMargenY();
-
+		this.actualizarZoom();
 		this.mover();
+		this.actualizarProyeccionRaton();
+		this.actualizarAtajosPinceles();
 		this.actualizarTileApuntado();
 		this.PALETAS.actualizar(this.RATON);
-		this.alterarTileSeleccionado();
+		this.alterarElementoSeleccionado();
+		this.borrarElemento();
 		this.MUNDO_EDITOR.actualizar();
 
-		// Atajo de teclado: Guardar Mapa (con limitador de 1 segundo)
 		if (Globales.TECLADO.TECLA_GUARDAR_MAPA.presionado()) {
 			if (this.GT.transcurrioSegundos(1)) {
 				this.GT.establecerReferenciaTiempoActual();
@@ -269,269 +149,347 @@ public class EditorMapa implements EstadoJuego {
 			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
 			this.GE.disposeEditor();
 		}
+	}
 
-		// Atajo de teclado: Alternar modo de selección Grupo (2x2) vs Tile individual
-		// (1x1)
-		if (Globales.TECLADO.TECLA_DEBUG_GROUP_TILE.presionado()) {
-			if (!Globales.editorSelectGroupTile) {
-				Globales.editorSelectGroupTile = true;
-			}
-		} else if (Globales.editorSelectGroupTile) {
-			Globales.editorSelectGroupTile = false;
+	private void actualizarZoom() {
+		final int rueda = this.RATON.getRotacionRueda();
+		if (rueda < 0) {
+			Globales.CAMARA.aumentarZoom();
+		} else if (rueda > 0) {
+			Globales.CAMARA.reducirZoom();
+		}
+
+		if (Globales.TECLADO.TECLA_ZOOM_IN.presionadoUnicaActualizacion()) {
+			Globales.CAMARA.aumentarZoom();
+		} else if (Globales.TECLADO.TECLA_ZOOM_OUT.presionadoUnicaActualizacion()) {
+			Globales.CAMARA.reducirZoom();
+		}
+		if (Globales.TECLADO.TECLA_ZOOM_REINICIAR.presionadoUnicaActualizacion()) {
+			Globales.CAMARA.reiniciarZoom();
 		}
 	}
 
-	/**
-	 * Determina el tile o bloque del terreno sobre el que se encuentra el cursor
-	 * del ratón. Optimizado para CERO asignaciones en el bucle mediante
-	 * reutilización de {@link #areaTileSelected}.
-	 */
-	private void actualizarTileApuntado() {
-		if (this.AREA_MOUSE_APUNTADO.x > (this.x + this.PALETA_MAPA.width)) {
-			this.tileApuntadoValido = false;
-			return;
-		}
+	private void actualizarProyeccionRaton() {
+		final int viewW = this.PALETA_MAPA.width;
+		final int centroVX = viewW / 2;
+		final int centroVY = Constantes.ALTO_JUEGO / 2;
 
-		final Tile t = this.TERRENO.getTileReferenciado(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y);
-		if (t == null) {
-			this.tileApuntadoValido = false;
-			return;
-		}
+		final double z = Math.max(0.2, Globales.CAMARA.getZoom());
+		final int mouseX = this.RATON.getPosicionXEscalada();
+		final int mouseY = this.RATON.getPosicionYEscalada();
 
-		// Si está activo el modo 2x2, el recuadro es de 32x32 px alineado a la grilla
-		// de 32
-		if (Globales.editorSelectGroupTile) {
-			final int x32 = (t.getPosicionX() >> 5) << 5; // floor a múltiplo de 32
-			final int y32 = (t.getPosicionY() >> 5) << 5;
-			this.areaTileSelected.setBounds(x32, y32, this.LADO_TILE * 2, this.LADO_TILE * 2);
+		// Proyección matemática exacta que compensa el centro del viewport del editor y
+		// el zoom
+		if (mouseX < viewW) {
+			final double dx = (mouseX - centroVX) / z;
+			final double dy = (mouseY - centroVY) / z;
+
+			this.AREA_MOUSE_APUNTADO.x = (int) Math.round(this.x + dx);
+			this.AREA_MOUSE_APUNTADO.y = (int) Math.round(this.y + dy);
+			this.tileApuntadoValido = true;
 		} else {
-			this.areaTileSelected.setBounds(t.getPosicionX(), t.getPosicionY(), this.LADO_TILE, this.LADO_TILE);
+			this.tileApuntadoValido = false;
 		}
-		this.tileApuntadoValido = true;
 	}
 
-	/*
-	 * =========================================================================
-	 * EXPLICACIÓN TÉCNICA: PINCEL INTELIGENTE Y ACTUALIZACIÓN EN TIEMPO REAL O(1)
-	 * ------------------------------------------------------------------------- Al
-	 * mantener presionado el clic izquierdo: 1. Si la herramienta activa es
-	 * 'PaletaTile': - Verifica que el tile no tenga ya el mismo modelo asignado. -
-	 * Si es modo 'GroupTile', actualiza los 4 tiles (2x2) en lote sin instanciar
-	 * 'Point'. - Si es modo individual, llama a 'MAPA.establecerTileReferenciado(x,
-	 * y, tile)'. - 'Terreno' actualiza de forma inmediata los autotiles del tile y
-	 * sus 4 vecinos cardinales. 2. Si la herramienta activa es 'PaletaComplento': -
-	 * Posiciona el complemento centrado en el cursor con cadencia controlada por
-	 * temporizador.
-	 * =========================================================================
-	 */
-	private void alterarTileSeleccionado() {
+	private void actualizarAtajosPinceles() {
+		if (Globales.TECLADO.TECLA_NUM_1.presionadoUnicaActualizacion()) {
+			this.tamanoPincel = 1;
+		} else if (Globales.TECLADO.TECLA_NUM_2.presionadoUnicaActualizacion()) {
+			this.tamanoPincel = 2;
+		} else if (Globales.TECLADO.TECLA_NUM_3.presionadoUnicaActualizacion()) {
+			this.tamanoPincel = 3;
+		} else if (Globales.TECLADO.TECLA_NUM_4.presionadoUnicaActualizacion()) {
+			this.tamanoPincel = 4;
+		}
 
+		if (Globales.TECLADO.TECLA_DEBUG_TILE.presionadoUnicaActualizacion()) {
+			this.pincelCircular = !this.pincelCircular;
+		}
+	}
+
+	private void actualizarTileApuntado() {
+		if (!this.tileApuntadoValido) {
+			return;
+		}
+
+		final int baseTX = Math.floorDiv(this.AREA_MOUSE_APUNTADO.x, this.LADO_TILE);
+		final int baseTY = Math.floorDiv(this.AREA_MOUSE_APUNTADO.y, this.LADO_TILE);
+
+		// Alineación limpia de inicio de cuadrícula
+		final int offset = (this.tamanoPincel - 1) / 2;
+		final int startTX = baseTX - offset;
+		final int startTY = baseTY - offset;
+		final int anchoPx = this.tamanoPincel * this.LADO_TILE;
+		final int altoPx = this.tamanoPincel * this.LADO_TILE;
+
+		this.areaTileSelected.setBounds(startTX * this.LADO_TILE, startTY * this.LADO_TILE, anchoPx, altoPx);
+	}
+
+	private void alterarElementoSeleccionado() {
 		if (this.RATON.presionadoClickIzq() && this.PALETA_MAPA.intersects(this.RATON.getPuntoPresionado())) {
 			final Paleta paleta = this.PALETAS.getPaletaActual();
-			if (!this.tileApuntadoValido) {
+			if (!this.tileApuntadoValido || (paleta == null)) {
 				return;
 			}
 
-			final Tile tileTerrenoSeleccionado = this.TERRENO.getTileReferenciado(this.areaTileSelected.x,
-					this.areaTileSelected.y);
-
+			// 1. Pincel de Suelos (1x1=1 tile, 2x2=4 tiles, 3x3=9 tiles, 4x4=16 tiles)
 			if (paleta instanceof PaletaTile) {
-				final PaletaTile paletaTile = ((PaletaTile) paleta);
-				final Tile tilePaletaSeleccionado = paletaTile.getTileSeleccionado();
-				if (tilePaletaSeleccionado == null) {
+				final PaletaTile paletaTile = (PaletaTile) paleta;
+				final Tile tilePaleta = paletaTile.getTileSeleccionado();
+				if (tilePaleta == null) {
 					return;
 				}
-				if ((tileTerrenoSeleccionado != null)
-						&& paletaTile.valoresYaEstalecidosPreviamente(tileTerrenoSeleccionado)) {
-					return;
-				}
+
 				if (this.areaTileSelected.equals(this.ultimaAreaTileAlterado)) {
 					return;
 				}
 				this.ultimaAreaTileAlterado.setBounds(this.areaTileSelected);
 
-				// Si el modo pincel 2x2 está activo, pinta las 4 celdas
-				if (Globales.editorSelectGroupTile) {
-					final int x = this.areaTileSelected.x;
-					final int y = this.areaTileSelected.y;
-					this.TERRENO.establecerTileReferenciado(x, y, tilePaletaSeleccionado);
-					this.TERRENO.establecerTileReferenciado(x + this.LADO_TILE, y, tilePaletaSeleccionado);
-					this.TERRENO.establecerTileReferenciado(x, y + this.LADO_TILE, tilePaletaSeleccionado);
-					this.TERRENO.establecerTileReferenciado(x + this.LADO_TILE, y + this.LADO_TILE,
-							tilePaletaSeleccionado);
-				} else {
-					this.TERRENO.establecerTileReferenciado(this.areaTileSelected.x, this.areaTileSelected.y,
-							tilePaletaSeleccionado);
+				final int startTX = this.areaTileSelected.x / this.LADO_TILE;
+				final int startTY = this.areaTileSelected.y / this.LADO_TILE;
+
+				for (int dy = 0; dy < this.tamanoPincel; dy++) {
+					for (int dx = 0; dx < this.tamanoPincel; dx++) {
+						final int curTX = startTX + dx;
+						final int curTY = startTY + dy;
+
+						if (this.pincelCircular && (this.tamanoPincel > 2)) {
+							final double centroRel = (this.tamanoPincel - 1) / 2.0;
+							final double distSq = Math.pow(dx - centroRel, 2) + Math.pow(dy - centroRel, 2);
+							final double maxRadioSq = Math.pow(this.tamanoPincel / 2.0, 2);
+							if (distSq > maxRadioSq) {
+								continue;
+							}
+						}
+
+						this.TERRENO.establecerTileReferenciado(curTX * this.LADO_TILE, curTY * this.LADO_TILE,
+								tilePaleta);
+					}
 				}
-			} else if (paleta instanceof PaletaComplento) {
-				final PaletaComplento paletaComplemento = ((PaletaComplento) paleta);
-				if (paletaComplemento.getComplementoSeleccionado() != null) {
-					if (paletaComplemento.valoresYaEstalecidosPreviamente(tileTerrenoSeleccionado)) {
-						return;
+			}
+			// 2. Colocación de Recursos y Objetos
+			else if (paleta instanceof PaletaComplento) {
+				final PaletaComplento paletaObj = (PaletaComplento) paleta;
+				if (!this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
+					return;
+				}
+				this.GT_COLOCACION.establecerReferenciaTiempoActual();
+
+				final PaletaComplento.EntradaPaleta entrada = paletaObj.getEntradaSeleccionada();
+				if ((entrada != null) && (entrada.icono != null)) {
+					final int posX = this.AREA_MOUSE_APUNTADO.x - (entrada.icono.getWidth() / 2);
+					final int posY = this.AREA_MOUSE_APUNTADO.y - (entrada.icono.getHeight() / 2);
+
+					final Objeto nuevoObj = paletaObj.crearInstanciaSeleccionada(posX, posY);
+					if (nuevoObj != null) {
+						this.MUNDO_EDITOR.meterEntidad(nuevoObj);
 					}
-					if (!this.GT_COLOCACION.transcurrioMiliSegundos(this.TIEMPO_ESPERA_MS_COLOCACION)) {
-						return;
-					}
-					this.GT_COLOCACION.establecerReferenciaTiempoActual();
+				}
+			}
+			// 3. Colocación de Criaturas
+			else if (paleta instanceof PaletaCriaturas) {
+				final PaletaCriaturas paletaCriat = (PaletaCriaturas) paleta;
+				if (!this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
+					return;
+				}
+				this.GT_COLOCACION.establecerReferenciaTiempoActual();
 
-					final int pos = paletaComplemento.getPosicionamientoActual();
-					final Complemento c = paletaComplemento.getComplementoSeleccionado();
-					final Rectangle rr = this.RATON.getRectanguloPosicionEscalado();
+				final PaletaCriaturas.EntradaCriatura entrada = paletaCriat.getEntradaSeleccionada();
+				if ((entrada != null) && (entrada.icono != null)) {
+					final int posX = this.AREA_MOUSE_APUNTADO.x - (entrada.icono.getWidth() / 2);
+					final int posY = this.AREA_MOUSE_APUNTADO.y - (entrada.icono.getHeight() / 2);
 
-					final int posX = (rr.x + Globales.CAMARA.getPosicionXInt()) - Globales.CAMARA.getMargenX()
-							- (c.getTextura().getWidth() / 2);
-					final int posY = (rr.y + Globales.CAMARA.getPosicionYInt()) - Globales.CAMARA.getMargenY()
-							- (c.getTextura().getHeight() / 2);
-
-					switch (pos) {
-					case PaletaComplento.POSICIONAMIENTO_CENTRO:
-						this.MUNDO_EDITOR.meterEntidad(new Complemento(posX, posY, c.getCodigoModelo()));
-						break;
-					default:
-						break;
+					final Criatura nuevaCriat = paletaCriat.crearCriaturaSeleccionada(posX, posY);
+					if (nuevaCriat != null) {
+						this.MUNDO_EDITOR.meterEntidad(nuevaCriat);
 					}
 				}
 			}
 		}
 	}
 
-	/**
-	 * Controla el desplazamiento libre de la cámara en el editor mediante el
-	 * teclado, aplicando velocidad aumentada al mantener pulsada la tecla de
-	 * correr.
-	 */
-	private void mover() {
-		int velocidad = 1;
-		if (Globales.TECLADO.TECLA_CORRIENDO.presionado()) {
-			velocidad = 8;
+	private void borrarElemento() {
+		if (this.RATON.presionadoClickDerUnicaAct() && this.PALETA_MAPA.intersects(this.RATON.getPuntoPresionado())) {
+			final Rectangle areaCursor = new Rectangle(this.AREA_MOUSE_APUNTADO.x - 6, this.AREA_MOUSE_APUNTADO.y - 6,
+					12, 12);
+
+			this.MUNDO_EDITOR.paraCadaEnteEn(areaCursor, false, ente -> {
+				this.MUNDO_EDITOR.eliminarEntidad(ente);
+			});
 		}
+	}
+
+	private void mover() {
+		int velocidad = 4;
+		if (Globales.TECLADO.TECLA_CORRIENDO.presionado()) {
+			velocidad = 14;
+		}
+
 		if (Globales.TECLADO.TECLA_ARRIBA.presionado()) {
-			if ((this.y - velocidad) >= 0) {
-				this.y -= velocidad;
-				Globales.JUGADOR.setPosicion(this.x, this.y);
-			}
+			this.y -= velocidad;
 		}
 		if (Globales.TECLADO.TECLA_ABAJO.presionado()) {
-			if ((this.y + velocidad) <= (this.ALTO - (Constantes.ALTO_JUEGO / 2))) {
-				this.y += velocidad;
-				Globales.JUGADOR.setPosicion(this.x, this.y);
-			}
+			this.y += velocidad;
 		}
 		if (Globales.TECLADO.TECLA_IZQUIERDA.presionado()) {
-			if ((this.x - velocidad) >= 0) {
-				this.x -= velocidad;
-				Globales.JUGADOR.setPosicion(this.x, this.y);
-			}
+			this.x -= velocidad;
 		}
 		if (Globales.TECLADO.TECLA_DERECHA.presionado()) {
-			if ((this.x + velocidad) <= (this.ANCHO - this.PALETAS.AREA.width)) {
-				this.x += velocidad;
-				Globales.JUGADOR.setPosicion(this.x, this.y);
-			}
+			this.x += velocidad;
 		}
+
+		this.asistenteCamara.setPosicion(this.x, this.y);
 	}
 
-	// =========================================================================
-	// === BUCLE DE RENDERIZADO (FRAME)
-	// =========================================================================
+	private void verificarBuffer(final Graphics2D g) {
+		final int w = Constantes.ANCHO_JUEGO;
+		final int h = Constantes.ALTO_JUEGO;
+
+		if ((this.bufferEditor == null) || (this.bufferEditor.getWidth() != w) || (this.bufferEditor.getHeight() != h)
+				|| (this.bufferEditor.validate(g.getDeviceConfiguration()) == VolatileImage.IMAGE_INCOMPATIBLE)) {
+
+			if (this.bufferEditor != null) {
+				this.bufferEditor.flush();
+			}
+			this.bufferEditor = g.getDeviceConfiguration().createCompatibleVolatileImage(w, h, Transparency.OPAQUE);
+		}
+	}
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		this.pintarTerreno(g);
-		this.MUNDO_EDITOR.pintar(g);
+		this.verificarBuffer(g);
+
+		final int viewW = this.PALETA_MAPA.width;
+		final int centroVX = viewW / 2;
+		final int centroVY = Constantes.ALTO_JUEGO / 2;
+		final double z = Math.max(0.2, Globales.CAMARA.getZoom());
+
+		// =====================================================================
+		// 1. RENDERIZADO DEL MUNDO A ESCALA 1:1 EN BUFFER COMPLETO
+		// =====================================================================
+		final Graphics2D gBuf = this.bufferEditor.createGraphics();
+		try {
+			gBuf.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+			gBuf.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+					RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+
+			Render2D.dibujarRectanguloRelleno(gBuf, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO, Color.BLACK);
+
+			this.TERRENO.pintar(gBuf);
+			this.MUNDO_EDITOR.pintar(gBuf);
+			this.pintarPreviewColocacion(gBuf);
+
+		} finally {
+			gBuf.dispose();
+		}
+
+		// =====================================================================
+		// 2. PROYECCIÓN CON ZOOM EN EL LIENZO DEL EDITOR (SIN DESFASES)
+		// =====================================================================
+		final Graphics2D gView = (Graphics2D) g.create();
+		try {
+			gView.setClip(this.PALETA_MAPA);
+			gView.translate(centroVX, centroVY);
+			gView.scale(z, z);
+			gView.drawImage(this.bufferEditor, -Constantes.CENTROX, -Constantes.CENTROY, null);
+		} finally {
+			gView.dispose();
+		}
+
+		// =====================================================================
+		// 3. CAPAS DE INTERFAZ 1:1 (PALETA, COORDENADAS, TOOLTIPS)
+		// =====================================================================
 		this.pintarCoordenadas(g);
-		this.pintarTileSelectedTerreno(g);
 		this.PALETAS.pintar(g);
+		this.pintarTooltipPaleta(g);
 	}
 
-	/**
-	 * Renderiza el terreno aplicando Frustum Culling alineado a la grilla y
-	 * excluyendo el área lateral de la paleta.
-	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
-	 */
-	private void pintarTerreno(final Graphics2D g) {
-		this.TERRENO.pintar(g); // Delega directamente al render optimizado de Terreno
+	private void pintarPreviewColocacion(final Graphics2D g) {
+		if (!this.tileApuntadoValido) {
+			return;
+		}
+
+		final Paleta paleta = this.PALETAS.getPaletaActual();
+
+		if (paleta instanceof PaletaTile) {
+			if (this.pincelCircular && (this.tamanoPincel > 2)) {
+				Render2D.dibujarFiguraEllipseRefCamara(g, this.areaTileSelected, Color.MAGENTA);
+			} else {
+				Render2D.dibujarRectanguloContornoRefCamara(g, this.areaTileSelected, Color.MAGENTA);
+			}
+
+		} else if (paleta instanceof PaletaComplento) {
+			final PaletaComplento p = (PaletaComplento) paleta;
+			final PaletaComplento.EntradaPaleta entrada = p.getEntradaSeleccionada();
+
+			if ((entrada != null) && (entrada.icono != null)) {
+				final int posX = this.AREA_MOUSE_APUNTADO.x - (entrada.icono.getWidth() / 2);
+				final int posY = this.AREA_MOUSE_APUNTADO.y - (entrada.icono.getHeight() / 2);
+
+				Render2D.dibujarImagenConTransparenciaRefCamara(g, entrada.icono, posX, posY, 0.65f);
+				final Color color = entrada.esCosechable ? Color.GREEN : Color.CYAN;
+				Render2D.dibujarRectanguloContornoRefCamara(g, posX, posY, entrada.icono.getWidth(),
+						entrada.icono.getHeight(), color);
+			}
+
+		} else if (paleta instanceof PaletaCriaturas) {
+			final PaletaCriaturas p = (PaletaCriaturas) paleta;
+			final PaletaCriaturas.EntradaCriatura entrada = p.getEntradaSeleccionada();
+
+			if ((entrada != null) && (entrada.icono != null)) {
+				final int posX = this.AREA_MOUSE_APUNTADO.x - (entrada.icono.getWidth() / 2);
+				final int posY = this.AREA_MOUSE_APUNTADO.y - (entrada.icono.getHeight() / 2);
+
+				Render2D.dibujarImagenConTransparenciaRefCamara(g, entrada.icono, posX, posY, 0.65f);
+				Render2D.dibujarRectanguloContornoRefCamara(g, posX, posY, entrada.icono.getWidth(),
+						entrada.icono.getHeight(), Color.RED);
+			}
+		}
 	}
 
-	/**
-	 * Muestra en pantalla la previsualización del cursor de selección y la silueta
-	 * del complemento a colocar.
-	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
-	 */
-	private void pintarTileSelectedTerreno(final Graphics2D g) {
-		if (this.tileApuntadoValido && (this.PALETAS.getPaletaActual() instanceof PaletaTile)) {
-			Render2D.dibujarRectanguloContorno(g,
-					(this.areaTileSelected.x - Globales.CAMARA.getPosicionXInt()) + Globales.CAMARA.getMargenX(),
-					(this.areaTileSelected.y - Globales.CAMARA.getPosicionYInt()) + Globales.CAMARA.getMargenY(),
-					this.areaTileSelected.width, this.areaTileSelected.height, Color.MAGENTA);
-		} else if (this.tileApuntadoValido && (this.PALETAS.getPaletaActual() instanceof PaletaComplento)) {
-			final PaletaComplento p = (PaletaComplento) this.PALETAS.getPaletaActual();
-			if (p.getComplementoSeleccionado() != null) {
-				final Rectangle rr = this.RATON.getRectanguloPosicionEscalado();
+	private void pintarTooltipPaleta(final Graphics2D g) {
+		final Point pMouse = this.RATON.getPuntoPosicionEscalado();
+		final Paleta paleta = this.PALETAS.getPaletaActual();
 
-				final int posX = rr.x - (p.getComplementoSeleccionado().getTextura().getWidth() / 2);
-				final int posY = rr.y - (p.getComplementoSeleccionado().getTextura().getHeight() / 2);
+		if ((paleta != null) && paleta.AREA.contains(pMouse)) {
+			final int relX = pMouse.x - (paleta.AREA.x + paleta.MARGEN);
+			final int relY = pMouse.y - (paleta.AREA.y + paleta.MARGEN);
+			final int paso = paleta.LADO_SLOT + paleta.MARGEN;
+			final int col = relX / paso;
+			final int fila = relY / paso;
 
-				Render2D.dibujarImagen(g, p.getComplementoSeleccionado().getTextura(), posX, posY);
-
-				// Previsualización de cajas de colisión para complementos
-				if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
-					final int codModelo = p.getComplementoSeleccionado().getCodigoModelo();
-					final Object modelo = ListaModeloComplemento.getModeloComplemento(codModelo);
-
-					if (modelo instanceof ModeloComplementoT1) {
-						final Rectangle colision = ((ModeloComplementoT1) modelo)
-								.getMargenesInterseccionEnBasePosicion(posX, posY);
-						Render2D.dibujarRectanguloContorno(g, colision, Color.YELLOW);
-					} else if (modelo instanceof ModeloComplementoT2) {
-						for (final Rectangle colision : ((ModeloComplementoT2) modelo)
-								.getMargenesInterseccionEnBasePosicion(posX, posY)) {
-							Render2D.dibujarRectanguloContorno(g, colision, Color.YELLOW);
-						}
-					}
+			if ((col >= 0) && (col < paleta.COLUMNAS) && (fila >= 0) && (fila < paleta.FILAS)) {
+				final int index = (paleta.paginaActual * paleta.ELEMENTOS_POR_PAGINA) + (fila * paleta.COLUMNAS) + col;
+				if (index < paleta.getCantidadTotalElementos()) {
+					final String nombre = paleta.getNombreElemento(index);
+					Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltip(g, nombre, Color.WHITE,
+							new Color(20, 20, 25, 230));
 				}
 			}
 		}
 	}
 
-	/**
-	 * Renderiza el HUD de información de coordenadas del cursor y de la cámara en
-	 * pantalla.
-	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
-	 */
 	private void pintarCoordenadas(final Graphics2D g) {
-		if (this.PALETAS.getPaletaActual() instanceof PaletaTile) {
-			Render2D.dibujarString(g,
-					"Area Apuntada: " + (this.tileApuntadoValido
-							? ("(X: " + this.areaTileSelected.x + " , Y: " + this.areaTileSelected.y + " , W: "
-									+ this.areaTileSelected.width + " , H: " + this.areaTileSelected.height + ")")
-							: "none"),
-					20, 170, Color.WHITE);
-		} else {
-			Render2D.dibujarString(g,
-					"Area Mouse Apuntado: " + ("(X: " + this.AREA_MOUSE_APUNTADO.x + " , Y: "
-							+ this.AREA_MOUSE_APUNTADO.y + " , W: " + this.AREA_MOUSE_APUNTADO.width + " , H: "
-							+ this.AREA_MOUSE_APUNTADO.height + ")"),
-					20, 170, Color.WHITE);
-			Render2D.dibujarRectanguloContorno(g, this.RATON.getRectanguloPosicionEscalado(), Color.BLUE);
-		}
-		Render2D.dibujarString(g, "X Centro: " + this.x, 20, 180, Color.GREEN);
-		Render2D.dibujarString(g, "Y Centro: " + this.y, 20, 190, Color.GREEN);
+		final Font fontPrevia = g.getFont();
+		g.setFont(FUENTE_INFO);
+
+		Render2D.dibujarString(g,
+				"Pincel: " + this.tamanoPincel + "x" + this.tamanoPincel + " ("
+						+ (this.pincelCircular ? "Circulo" : "Cuadrado") + ") | Zoom: "
+						+ String.format("%.2f", Globales.CAMARA.getZoom()) + "x",
+				20, 165, Color.CYAN);
+		Render2D.dibujarString(g,
+				"Posicion Cursor: (X: " + this.AREA_MOUSE_APUNTADO.x + ", Y: " + this.AREA_MOUSE_APUNTADO.y + ")", 20,
+				175, Color.WHITE);
+		Render2D.dibujarString(g, "Camara Fantasma: (X: " + this.x + ", Y: " + this.y + ")", 20, 185, Color.GREEN);
+		Render2D.dibujarString(g,
+				"Teclas: [1..4] Pincel | [F3] Forma | [Shift] Sprint | [Rueda] Zoom | [Enter] Guardar | [Click Der] Borrar",
+				20, 195, Color.YELLOW);
+
+		g.setFont(fontPrevia);
 	}
 
-	// =========================================================================
-	// === PERSISTENCIA Y GUARDADO
-	// =========================================================================
-
-	/**
-	 * Empaqueta el terreno y todas las entidades activas del editor en un
-	 * {@link Escenario} y lo exporta a disco en formato estructurado.
-	 *
-	 * @param nombre Nombre del archivo de destino (ej: "Mapa_2026.mp").
-	 */
 	public void guardarMapa(final String nombre) {
 		final JSONObject jsonEntes = this.MUNDO_EDITOR.getEntesInJson();
 		final String criaturas = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class);
@@ -545,6 +503,6 @@ public class EditorMapa implements EstadoJuego {
 
 		final File carpetaDestino = new File("mundos" + File.separator + nombre);
 		EscenarioLoader.exportarEscenario(esc, carpetaDestino);
-		System.out.println("Mapa guardado exitosamente en: " + carpetaDestino.getAbsolutePath());
+		System.out.println("Mapa exportado exitosamente en: " + carpetaDestino.getAbsolutePath());
 	}
 }

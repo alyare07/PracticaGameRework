@@ -13,17 +13,6 @@ import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
-/**
- * Clase base para armas de fuego automáticas y de repetición rápida (SMG,
- * Rifles, LMG).
- * <p>
- * <b>SISTEMA DE CARGADOR Y RETROCESO EN 360° (Zero-GC):</b> Controla la
- * capacidad de munición en cargador, cadencia automática de ráfagas, tiempo de
- * recarga y dispersión angular balística.
- * </p>
- * 
- * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
- */
 public abstract class ArmaAutomatica extends Arma {
 
 	private static final long serialVersionUID = 781920391209381L;
@@ -52,13 +41,9 @@ public abstract class ArmaAutomatica extends Arma {
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
-	/**
-	 * Dispara una bala individual aplicando dispersión balística en 360 grados
-	 * consumiendo munición del cargador.
-	 */
 	@Override
 	public void disparar(final int xOrigen, final int yOrigen, final int xDestino, final int yDestino,
-			final Mundo escenario, final Criatura causante, final boolean soloContraJugador) {
+			final Mundo escenario, final Criatura causante) {
 
 		if (this.consumirDisparo(causante)) {
 			if (escenario != null) {
@@ -66,30 +51,28 @@ public abstract class ArmaAutomatica extends Arma {
 				final double dy = yDestino - yOrigen;
 				final double anguloCentral = Math.atan2(dy, dx);
 
-				// Cálculo de desviación aleatoria dentro del cono de dispersión
 				final double desviacion = (Math.random() - 0.5) * 2.0 * this.dispersionRad;
 				final double anguloFinal = anguloCentral + desviacion;
 
 				final double targetX = xOrigen + (Math.cos(anguloFinal) * 1000.0);
 				final double targetY = yOrigen + (Math.sin(anguloFinal) * 1000.0);
 
-				escenario.crearProyectil(new ProyectilBala(this.damage, this.velocidadBala, this.penetrante,
-						this.alcance, escenario, xOrigen, yOrigen, targetX, targetY, this.tamanoBala, this.tamanoBala,
-						causante, soloContraJugador));
+				escenario.crearProyectil(
+						new ProyectilBala(this.damage, this.velocidadBala, this.penetrante, this.alcance, escenario,
+								xOrigen, yOrigen, targetX, targetY, this.tamanoBala, this.tamanoBala, causante));
 			}
 
-			GestorSonido.reproducirEnPosicion(IDSonido.DISPARO_PISTOLA, xOrigen, yOrigen,
-					Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
-					Globales.CAMARA.getEntidadEnfocada().getPosicionY());
+			if ((Globales.CAMARA != null) && (Globales.CAMARA.getEntidadEnfocada() != null)) {
+				GestorSonido.reproducirEnPosicion(IDSonido.DISPARO_PISTOLA, xOrigen, yOrigen,
+						Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
+						Globales.CAMARA.getEntidadEnfocada().getPosicionY());
+			}
 		}
 	}
 
-	/**
-	 * Disparo cardinal con dispersión adaptada a la dirección.
-	 */
 	@Override
 	public void disparar(final int xOrigen, final int yOrigen, final Direccion direccion, final Mundo escenario,
-			final Criatura causante, final boolean soloContraJugador) {
+			final Criatura causante) {
 
 		double anguloBase = 0.0;
 		if (direccion == Direccion.ESTE) {
@@ -105,7 +88,7 @@ public abstract class ArmaAutomatica extends Arma {
 		final int xDest = xOrigen + (int) Math.round(Math.cos(anguloBase) * 500.0);
 		final int yDest = yOrigen + (int) Math.round(Math.sin(anguloBase) * 500.0);
 
-		this.disparar(xOrigen, yOrigen, xDest, yDest, escenario, causante, soloContraJugador);
+		this.disparar(xOrigen, yOrigen, xDest, yDest, escenario, causante);
 	}
 
 	public double getDispersionGrados() {

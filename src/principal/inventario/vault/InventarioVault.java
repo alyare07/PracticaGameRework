@@ -12,8 +12,6 @@ import principal.entes.Ente;
 import principal.entes.objetos.items.Consumible;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.Portable;
-import principal.entes.objetos.items.armas.Arma;
-import principal.entes.objetos.items.armas.Desarmado;
 import principal.inventario.Contenedor;
 import principal.inventario.Inventario;
 import principal.inventario.equipamiento.SlotManager;
@@ -23,48 +21,12 @@ import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
+import principal.utilidades.audio.sonido.GestorSonido;
+import principal.utilidades.audio.sonido.IDSonido;
 import principal.utilidades.inventario.ItemPuntero;
 
-/**
- * Gestor de interfaz y almacenamiento para contenedores externos (cofres,
- * baúles, cadáveres saqueables o entidades con inventario propio).
- * 
- * <p>
- * <b>Características Arquitectónicas:</b>
- * </p>
- * <ul>
- * <li><b>Generación Dinámica de Cuadrícula:</b> Calcula el tamaño de la ventana
- * y distribuye las casillas en base al número total de slots y el límite
- * horizontal máximo (columnas).</li>
- * <li><b>Máquina de Estados de Interacción (FSM):</b> Gestiona la apertura y
- * cierre mediante {@link EstadoInventario}, evaluando la distancia del jugador
- * y teclas de interacción.</li>
- * <li><b>Resolución Espacial Desacoplada:</b> Obtiene el {@link Mundo} y el
- * {@link Ente} propietario a través de la interfaz {@link Contenedor},
- * asegurando que el cierre o destrucción del cofre arroje los ítems retenidos
- * en su posición espacial exacta.</li>
- * <li><b>Integración Zero-GC:</b> Reutiliza estructuras geométricas fijas
- * ({@link #area}, {@link #areaPortada}) y fuentes estáticas para no presionar
- * al Garbage Collector durante el renderizado.</li>
- * </ul>
- * 
- * @author Copiloto Técnico / Arquitectura del Motor
- * @version 1.0 (Vanilla Java 8)
- * @see Contenedor
- * @see Slot
- * @see ItemPuntero
- */
 public class InventarioVault {
 
-	/***/
-	/* ========================================================================= */
-	/* 1. MÁQUINA DE ESTADOS DEL CONTENEDOR (FSM) */
-	/* ========================================================================= */
-	/***/
-
-	/**
-	 * Representa el estado actual de interacción de la ventana del cofre.
-	 */
 	public enum EstadoInventario {
 		ABIERTO("Abierto"), CERRADO("Cerrado");
 
@@ -80,11 +42,6 @@ public class InventarioVault {
 		}
 	}
 
-	/***/
-	/* ========================================================================= */
-	/* 2. CONSTANTES DE DISEÑO Y RECURSOS GRÁFICOS (GC FRIENDLY) */
-	/* ========================================================================= */
-	/***/
 	private static final int MARGEN = 2;
 	private static final int MARGEN_PORTADA = 10;
 	private static final Font FUENTE_PORTADA = new Font(Font.SANS_SERIF, Font.PLAIN, 8);
@@ -92,11 +49,6 @@ public class InventarioVault {
 	private static final Color COLOR_BORDE = Color.LIGHT_GRAY;
 	private static final Color COLOR_TEXTO_TITULO = Color.BLACK;
 
-	/***/
-	/* ========================================================================= */
-	/* 3. ATRIBUTOS Y LÍMITES GEOMÉTRICOS */
-	/* ========================================================================= */
-	/***/
 	private final int ladoSlots;
 	private final ArrayList<Slot> slots;
 	private final Rectangle area;
@@ -108,17 +60,6 @@ public class InventarioVault {
 	private EstadoInventario estadoInventario = EstadoInventario.CERRADO;
 	private Slot slotApuntado;
 
-	/**
-	 * Construye el inventario externo, dimensiona su ventana y genera sus casillas.
-	 * 
-	 * @param contenedor Objeto o Ente propietario que implementa
-	 *                   {@link Contenedor}.
-	 * @param cantSlots  Cantidad total de casillas que contendrá el cofre.
-	 * @param cantMaxH   Cantidad máxima de casillas horizontales por fila
-	 *                   (columnas).
-	 * @param nombre     Título que se mostrará en la portada superior de la
-	 *                   ventana.
-	 */
 	public InventarioVault(final Contenedor contenedor, final int cantSlots, final int cantMaxH, final String nombre) {
 		this.contenedor = contenedor;
 		this.ladoSlots = SlotManager.getLadoSlots();
@@ -131,20 +72,6 @@ public class InventarioVault {
 		this.crearSlots(cantSlots, cantMaxH);
 	}
 
-	/***/
-	/* ========================================================================= */
-	/* 4. ACTUALIZACIÓN LÓGICA Y ENTRADA DE USUARIO (60 APS) */
-	/* ========================================================================= */
-	/***/
-
-	/**
-	 * Actualiza el estado de las casillas y procesa las interacciones de ratón
-	 * mientras la ventana del contenedor está abierta.
-	 * 
-	 * @param raton       Instancia del controlador del ratón.
-	 * @param itemPuntero Controlador del ítem sostenido en el cursor.
-	 * @param mundo       Referencia al mundo activo.
-	 */
 	public void actualizar(final Raton raton, final ItemPuntero itemPuntero, final Mundo mundo) {
 		if (raton == null) {
 			return;
@@ -152,13 +79,9 @@ public class InventarioVault {
 
 		this.actualizarSlots(raton);
 		this.actualizarClickIzquierdo(raton, itemPuntero);
-		this.actualizarClickDerechoEquipamientoRapido(raton);
+		this.actualizarTransferenciaRapida(raton);
 	}
 
-	/**
-	 * Procesa la transferencia o intercambio de ítems con el {@link ItemPuntero}
-	 * mediante clic izquierdo.
-	 */
 	private void actualizarClickIzquierdo(final Raton raton, final ItemPuntero itemPuntero) {
 		if (raton.presionadoClickIzq()
 				&& this.gtRatonPresiono.transcurrioMiliSegundos(Inventario.TIEMPO_ACTUALIZACION_RATON_PRESIONADO)) {
@@ -179,66 +102,54 @@ public class InventarioVault {
 	}
 
 	/**
-	 * Acción rápida de equipamiento con clic derecho: Si el jugador hace clic
-	 * derecho sobre un arma dentro del cofre y actualmente está desarmado, se
-	 * equipa automáticamente.
+	 * Transferencia Rápida con Clic Derecho (Quick-Withdraw): Mueve el ítem
+	 * seleccionado del cofre directamente al inventario del jugador.
 	 */
-	private void actualizarClickDerechoEquipamientoRapido(final Raton raton) {
-		if (raton.presionadoClickDer()) {
+	private void actualizarTransferenciaRapida(final Raton raton) {
+		if (raton.presionadoClickDerUnicaAct()) {
 			final Slot apuntado = this.getSlot(raton.getPuntoPosicionEscalado());
-			if ((apuntado != null) && apuntado.contieneItem() && (apuntado.getItem() instanceof Arma)) {
+			if ((apuntado != null) && apuntado.contieneItem()) {
+				final Item item = apuntado.getItem();
 				final Inventario invJugador = Globales.GESTOR_INVENTARIO.getInventarioJugador();
-				if (invJugador.getArmaEquipada() instanceof Desarmado) {
-					invJugador.equiparArma((Arma) apuntado.getItem());
-					apuntado.eliminarObjeto();
+
+				if (invJugador.agregarObjeto(item)) {
+					if (item instanceof Consumible) {
+						if (((Consumible) item).getCantidad() <= 0) {
+							apuntado.eliminarObjeto();
+						}
+					} else {
+						apuntado.eliminarObjeto();
+					}
+					GestorSonido.reproducir(IDSonido.GOLPE_1);
 				}
 			}
 		}
 	}
 
-	/***/
-	/* ========================================================================= */
-	/* 5. GESTIÓN DEL CICLO DE VIDA Y PROXIMIDAD DEL CONTENEDOR */
-	/* ========================================================================= */
-	/***/
-
-	/**
-	 * Evalúa las condiciones para abrir o cerrar la ventana del contenedor según la
-	 * proximidad del jugador y la pulsación de la tecla de interacción.
-	 */
 	public void actualizarEstadoCofre() {
 		final Ente propietario = this.getEntePropietario();
 		if (propietario == null) {
 			return;
 		}
 
-		// Comprobar si el jugador está dentro del rango de interacción del cofre
 		final boolean jugadorEnRango = (Globales.JUGADOR != null)
 				&& Globales.JUGADOR.getAreaInteraccionCofre().intersects(propietario.getArea());
 		final boolean teclaPresionada = (Globales.TECLADO != null)
 				&& Globales.TECLADO.TECLA_RECOGIENDO.presionadoUnicaActualizacion();
 
 		if (this.estadoInventario == EstadoInventario.CERRADO) {
-			// Apertura: Requiere estar en rango, pulsar tecla y que no haya otro menú
-			// abierto
 			if (!Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && jugadorEnRango && teclaPresionada) {
 				this.estadoInventario = EstadoInventario.ABIERTO;
 				Globales.GESTOR_INVENTARIO.abrirInventarioTercero(this);
 				Globales.GESTOR_INVENTARIO.getInventarioJugador().hacerVisible();
 			}
 		} else if (this.estadoInventario == EstadoInventario.ABIERTO) {
-			// Cierre reactivo: Si el jugador se aleja, cierra su inventario o presiona la
-			// tecla de nuevo
 			if (!Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible() || teclaPresionada || !jugadorEnRango) {
 				this.cerrar();
 			}
 		}
 	}
 
-	/**
-	 * Cierra el cofre de forma segura, notificando al gestor de inventario para
-	 * devolver o soltar al suelo cualquier ítem retenido en el puntero.
-	 */
 	public void cerrar() {
 		this.estadoInventario = EstadoInventario.CERRADO;
 		Globales.GESTOR_INVENTARIO.eliminarInventarioTercero(this.getMundo());
@@ -247,17 +158,6 @@ public class InventarioVault {
 		}
 	}
 
-	/***/
-	/* ========================================================================= */
-	/* 6. PASADAS DE RENDERIZADO (GRAPHICS2D) */
-	/* ========================================================================= */
-	/***/
-
-	/**
-	 * Dibuja el fondo de la ventana, el título y sus casillas (Capa 1).
-	 * 
-	 * @param g Contexto gráfico 2D activo.
-	 */
 	public void pintar(final Graphics2D g) {
 		Render2D.dibujarRectanguloRelleno(g, this.area, Inventario.GRIS_TRANSPARENTE);
 		Render2D.dibujarRectanguloContorno(g, this.area, COLOR_BORDE);
@@ -266,9 +166,6 @@ public class InventarioVault {
 		this.pintarSlots(g);
 	}
 
-	/**
-	 * Dibuja el título del cofre centrado en la barra superior.
-	 */
 	private void pintarPortada(final Graphics2D g) {
 		final Font fuenteOriginal = g.getFont();
 		g.setFont(FUENTE_PORTADA);
@@ -279,13 +176,9 @@ public class InventarioVault {
 		final int yNombre = this.areaPortada.y + (this.areaPortada.height / 2) + (altoNombre / 2);
 
 		Render2D.dibujarString(g, this.nombre, xNombre, yNombre, COLOR_TEXTO_TITULO);
-
 		g.setFont(fuenteOriginal);
 	}
 
-	/**
-	 * Dibuja las casillas del cofre y registra cuál está apuntada por el ratón.
-	 */
 	private void pintarSlots(final Graphics2D g) {
 		final Font fuenteOriginal = g.getFont();
 		g.setFont(FUENTE_SLOTS);
@@ -301,34 +194,20 @@ public class InventarioVault {
 		g.setFont(fuenteOriginal);
 	}
 
-	/**
-	 * Dibuja el tooltip informativo del slot apuntado dentro del cofre (Capa 2).
-	 * 
-	 * @param g Contexto gráfico 2D activo.
-	 */
 	public void pintarTooltips(final Graphics2D g) {
 		if ((this.slotApuntado != null) && this.slotApuntado.contieneItem()) {
 			this.slotApuntado.pintarTooltip(g);
 		}
 	}
 
-	/***/
-	/* ========================================================================= */
-	/* 7. GENERACIÓN DINÁMICA DE CUADRÍCULA (LAYOUT ENGINE) */
-	/* ========================================================================= */
-	/* Calcula la geometría de la ventana y acomoda los slots en pantalla */
-	/* centrados sobre el inventario principal del jugador. */
-	/***/
 	private void crearSlots(final int cant, final int cantMaxH) {
 		if ((cantMaxH <= 0) || (cant <= 0)) {
 			return;
 		}
 
-		// 1. Dimensionamiento del ancho en base al límite horizontal de columnas
 		final int ancho = (cantMaxH * this.ladoSlots) + (cantMaxH * MARGEN) + MARGEN;
 		final int cantFilas = ((cant + cantMaxH) - 1) / cantMaxH;
 
-		// 2. Dimensionamiento del alto total (grilla + barra de título)
 		final int alto = MARGEN + (cantFilas * this.ladoSlots) + (MARGEN * cantFilas);
 		final int x = Constantes.CENTROX - (ancho / 2);
 		final int y = Constantes.CENTROY - alto - (MARGEN * 3) - MARGEN_PORTADA;
@@ -343,7 +222,6 @@ public class InventarioVault {
 		this.areaPortada.width = ancho;
 		this.areaPortada.height = MARGEN_PORTADA;
 
-		// 3. Generación y ubicación de cada celda Slot
 		int cantSlot = 0;
 		for (int y2 = y + MARGEN + MARGEN_PORTADA; y2 < (y + alto); y2 += this.ladoSlots + MARGEN) {
 			for (int x2 = x + MARGEN; x2 < (x + ancho); x2 += this.ladoSlots + MARGEN) {
@@ -355,12 +233,6 @@ public class InventarioVault {
 			}
 		}
 	}
-
-	/***/
-	/* ========================================================================= */
-	/* 8. MÉTODOS DE CONSULTA, ALMACENAMIENTO Y ACCESO */
-	/* ========================================================================= */
-	/***/
 
 	public Slot getSlot(final Point posicion) {
 		if (posicion == null) {
@@ -414,14 +286,15 @@ public class InventarioVault {
 
 	private boolean agregarConsumible(final Consumible item) {
 		Slot slotVacio = null;
-		Consumible cons = null;
 
 		for (final Slot slot : this.slots) {
 			if (slot.contieneItem()) {
 				if (slot.getItem().getTipoItem() == Item.COD_ITEM_CONSUMIBLE) {
-					cons = (Consumible) slot.getItem();
-					if (cons.getCodigoModelo() == item.getCodigoModelo()) {
-						item.establecerCantidad(cons.agregarCantidad(item.getCantidad()));
+					final Consumible cons = (Consumible) slot.getItem();
+					if (cons.getCodigoModelo().equals(item.getCodigoModelo())) {
+						final int sobrante = cons.agregarCantidad(item.getCantidad());
+						item.establecerCantidad(sobrante);
+
 						if (item.getCantidad() <= 0) {
 							return true;
 						}
@@ -432,7 +305,7 @@ public class InventarioVault {
 			}
 		}
 
-		if (slotVacio != null) {
+		if ((item.getCantidad() > 0) && (slotVacio != null)) {
 			slotVacio.establecerObjeto((Consumible) item.copiar());
 			item.establecerCantidad(0);
 			return true;

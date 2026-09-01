@@ -15,13 +15,6 @@ import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
-/**
- * Representa un arma de fuego de mano (Pistola estándar de 9mm). Integra
- * cargador de 12 proyectiles, cadencia semi-automática, balística en 360 grados
- * y deserialización JSON segura contra nulos.
- * 
- * @version 3.1 (Java 8 Compatible - Zero-GC Architecture)
- */
 public class Pistola extends Arma {
 
 	private static final long serialVersionUID = -9196405156055570071L;
@@ -45,33 +38,28 @@ public class Pistola extends Arma {
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
-	/**
-	 * Dispara una bala vectorial en 360 grados apuntando a una coordenada exacta
-	 * del mundo.
-	 */
 	@Override
 	public void disparar(final int xOrigen, final int yOrigen, final int xDestino, final int yDestino,
-			final Mundo escenario, final Criatura causante, final boolean soloContraJugador) {
+			final Mundo escenario, final Criatura causante) {
 
 		if (this.consumirDisparo(causante)) {
 			if (escenario != null) {
 				escenario.crearProyectil(new ProyectilBala(this.damage, this.velocidadDisparo, this.penetrante,
 						this.alcance, escenario, xOrigen, yOrigen, xDestino, yDestino, this.tamanoBala360,
-						this.tamanoBala360, causante, soloContraJugador));
+						this.tamanoBala360, causante));
 			}
 
-			GestorSonido.reproducirEnPosicion(IDSonido.DISPARO_PISTOLA, xOrigen, yOrigen,
-					Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
-					Globales.CAMARA.getEntidadEnfocada().getPosicionY());
+			if ((Globales.CAMARA != null) && (Globales.CAMARA.getEntidadEnfocada() != null)) {
+				GestorSonido.reproducirEnPosicion(IDSonido.DISPARO_PISTOLA, xOrigen, yOrigen,
+						Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
+						Globales.CAMARA.getEntidadEnfocada().getPosicionY());
+			}
 		}
 	}
 
-	/**
-	 * Disparo cardinal adaptado.
-	 */
 	@Override
 	public void disparar(final int xOrigen, final int yOrigen, final Direccion direccion, final Mundo escenario,
-			final Criatura causante, final boolean soloContraJugador) {
+			final Criatura causante) {
 
 		double anguloBase = 0.0;
 		if (direccion == Direccion.ESTE) {
@@ -87,7 +75,7 @@ public class Pistola extends Arma {
 		final int xDest = xOrigen + (int) Math.round(Math.cos(anguloBase) * 500.0);
 		final int yDest = yOrigen + (int) Math.round(Math.sin(anguloBase) * 500.0);
 
-		this.disparar(xOrigen, yOrigen, xDest, yDest, escenario, causante, soloContraJugador);
+		this.disparar(xOrigen, yOrigen, xDest, yDest, escenario, causante);
 	}
 
 	@Override
@@ -107,10 +95,6 @@ public class Pistola extends Arma {
 		return json;
 	}
 
-	/**
-	 * Reconstruye la pistola desde JSON con soporte de retrocompatibilidad y
-	 * protección contra nulos.
-	 */
 	public static Pistola crearDesdeJson(final JSONObject json) {
 		if (json == null) {
 			return new Pistola(ListaModelosItem.COD_EQUIPABLE_ARMA);
@@ -121,8 +105,6 @@ public class Pistola extends Arma {
 		final String codModelo = (json.get("codModelo") != null) ? json.get("codModelo").toString()
 				: ListaModelosItem.COD_EQUIPABLE_ARMA;
 
-		// Retrocompatibilidad: Si no existe "balasCargador", lee "municion" antigua o
-		// usa 12 por defecto
 		int balas = 12;
 		if (json.get("balasCargador") != null) {
 			balas = ((Number) json.get("balasCargador")).intValue();

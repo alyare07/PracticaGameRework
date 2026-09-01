@@ -7,15 +7,6 @@ import principal.entes.criaturas.enemigos.Enemigo;
 import principal.entes.facciones.GestorFacciones;
 import principal.mapa.Mundo;
 
-/**
- * Representa la base genérica de enemigos tipo Bandido.
- * <p>
- * Configura la identidad de facción {@link GestorFacciones#FACCION_BANDIDOS},
- * márgenes de recorte de sprite y constantes temporales de IA y regeneración.
- * </p>
- * 
- * @version 2.5 (Java 8 Compatible - Zero-GC Architecture)
- */
 public abstract class Bandido extends Enemigo {
 
 	protected final AnimacionesBandido ANIMACION;
@@ -23,10 +14,23 @@ public abstract class Bandido extends Enemigo {
 	public Bandido(final double x, final double y, final double vida, final double vidaMaxima, final Mundo mundo) {
 		super(x, y, 12, 20, vida, vidaMaxima, mundo);
 
-		// Asignación de facción oficial de Bandidos
 		this.setFaccion(GestorFacciones.FACCION_BANDIDOS);
-
 		this.ANIMACION = new AnimacionesBandido();
+	}
+
+	@Override
+	public void actualizar() {
+		super.actualizar();
+		this.actualizarAnimacion();
+	}
+
+	protected void actualizarAnimacion() {
+		final String tipo = this.obtenerClaveAnimacionActiva();
+		this.ANIMACION.actualizar(this.direccion, tipo);
+	}
+
+	protected String obtenerClaveAnimacionActiva() {
+		return this.estaEstadoCaminando() ? AnimacionesBandido.CAMINANDO : AnimacionesBandido.ESTANDAR;
 	}
 
 	@Override
@@ -37,10 +41,19 @@ public abstract class Bandido extends Enemigo {
 		this.margenYFinalSprite = 3;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	protected JSONObject exportarParaJSON() {
-		return null;
+		final JSONObject json = new JSONObject();
+		json.put("x", this.getPosicionXInt());
+		json.put("y", this.getPosicionYInt());
+		json.put("vida", this.vida);
+		json.put("vidaMaxima", this.vidaMaxima);
+		json.put("subtipo", this.exportarSubtipoBandido());
+		return json;
 	}
+
+	public abstract String exportarSubtipoBandido();
 
 	@Override
 	public String exportarTipoCriatura() {

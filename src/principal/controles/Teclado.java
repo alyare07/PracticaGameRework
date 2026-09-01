@@ -18,22 +18,11 @@ import org.json.simple.parser.JSONParser;
 
 import principal.utilidades.Globales;
 
-/**
- * Gestor centralizado de entrada de teclado para el motor del juego. Gestiona
- * el mapeo de acciones físicas, detección de pulsaciones de flanco y recarga de
- * armas.
- * 
- * @version 2.5 (Java 8 Pure - Zero-GC Architecture)
- */
 public class Teclado implements KeyListener {
 
 	public final File ARCHIVO_CONFIG = new File("Config.dat");
 	public final ArrayList<Tecla> TECLAS = new ArrayList<Tecla>();
 	public final HashMap<String, Tecla> TECLAS_MODIFICABLES = new HashMap<String, Tecla>();
-
-	// =========================================================================
-	// === DECLARACIÓN DE TECLAS (ACCIONES DEL JUGADOR)
-	// =========================================================================
 
 	public final Tecla TECLA_ARRIBA;
 	public final Tecla TECLA_ABAJO;
@@ -43,11 +32,8 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_CORRIENDO;
 	public final Tecla TECLA_ATACANDO;
 	public final Tecla TECLA_RECARGAR;
+	public final Tecla TECLA_CONSTRUCCION;
 	public final Tecla TECLA_ALT_LEFT;
-
-	// =========================================================================
-	// === DECLARACIÓN DE TECLAS DE DEPURACIÓN / DEBUG
-	// =========================================================================
 
 	public final Tecla TECLA_DEBUG;
 	public final Tecla TECLA_FPS_LIMITE;
@@ -61,22 +47,16 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_OCULTAR_COMPLEMENTOS;
 	public final Tecla TECLA_VER_ALCANCE_ATAQUE;
 
-	// =========================================================================
-	// === DECLARACIÓN DE TECLAS DE SISTEMA E INTERFAZ
-	// =========================================================================
-
 	public final Tecla TECLA_GUARDAR_MAPA;
 	public final Tecla TECLA_ESCAPE;
 	public final Tecla TECLA_PUNTO;
 	public final TeclaAccionCondicionada TECLA_INVENTARIO;
 	public final TeclaAccionCondicionada TECLA_PAUSA;
 
-	// Controles de Cámara / Zoom
 	public final Tecla TECLA_ZOOM_IN;
 	public final Tecla TECLA_ZOOM_OUT;
 	public final Tecla TECLA_ZOOM_REINICIAR;
 
-	// Acciones Rápidas (Barra numérica / Slots)
 	public final Tecla TECLA_NUM_1;
 	public final Tecla TECLA_NUM_2;
 	public final Tecla TECLA_NUM_3;
@@ -87,16 +67,11 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_NUM_8;
 	public final Tecla TECLA_NUM_9;
 
-	// =========================================================================
-	// === BÚFERES PRIMITIVOS DE ESTADO (ZERO-GC)
-	// =========================================================================
-
 	public final boolean[] teclas = new boolean[512];
 	private final boolean[] teclasPresionadasAnterior = new boolean[512];
 	private final boolean[] teclasPulsadasUnaVez = new boolean[512];
 
 	public Teclado() {
-		// Asignación de Controles Básicos
 		this.TECLA_ARRIBA = new Tecla(KeyEvent.VK_UP, "Mover Arriba");
 		this.TECLA_ABAJO = new Tecla(KeyEvent.VK_DOWN, "Mover Abajo");
 		this.TECLA_IZQUIERDA = new Tecla(KeyEvent.VK_LEFT, "Mover Izquierda");
@@ -105,9 +80,9 @@ public class Teclado implements KeyListener {
 		this.TECLA_CORRIENDO = new Tecla(KeyEvent.VK_SHIFT, "Correr");
 		this.TECLA_ATACANDO = new Tecla(KeyEvent.VK_SPACE, "Atacar");
 		this.TECLA_RECARGAR = new Tecla(KeyEvent.VK_R, "Recargar");
+		this.TECLA_CONSTRUCCION = new Tecla(KeyEvent.VK_B, "Modo Construir");
 		this.TECLA_ALT_LEFT = new Tecla(KeyEvent.VK_R, "Recargar");
 
-		// Teclas de Depuración
 		this.TECLA_DEBUG = new Tecla(KeyEvent.VK_F1, true, "Debug");
 		this.TECLA_FPS_LIMITE = new Tecla(KeyEvent.VK_F11, true, "FPS Limite");
 		this.TECLA_VER_COLISIONES = new Tecla(KeyEvent.VK_F7, true, "Ver Colisiones");
@@ -123,12 +98,10 @@ public class Teclado implements KeyListener {
 		this.TECLA_ESCAPE = new Tecla(KeyEvent.VK_ESCAPE, "Escape");
 		this.TECLA_PUNTO = new Tecla(KeyEvent.VK_PERIOD, "Punto");
 
-		// Controles de Zoom
 		this.TECLA_ZOOM_IN = new Tecla(KeyEvent.VK_PLUS, "Zoom In");
 		this.TECLA_ZOOM_OUT = new Tecla(KeyEvent.VK_MINUS, "Zoom Out");
 		this.TECLA_ZOOM_REINICIAR = new Tecla(KeyEvent.VK_ASTERISK, "Zoom Reset");
 
-		// Teclas Numéricas
 		this.TECLA_NUM_1 = new Tecla(KeyEvent.VK_1, "Num_1");
 		this.TECLA_NUM_2 = new Tecla(KeyEvent.VK_2, "Num_2");
 		this.TECLA_NUM_3 = new Tecla(KeyEvent.VK_3, "Num_3");
@@ -139,7 +112,6 @@ public class Teclado implements KeyListener {
 		this.TECLA_NUM_8 = new Tecla(KeyEvent.VK_8, "Num_8");
 		this.TECLA_NUM_9 = new Tecla(KeyEvent.VK_9, "Num_9");
 
-		// Tecla de Inventario
 		this.TECLA_INVENTARIO = new TeclaAccionCondicionada(KeyEvent.VK_I, "Inventario") {
 			@Override
 			public boolean condicion() {
@@ -156,7 +128,6 @@ public class Teclado implements KeyListener {
 			}
 		};
 
-		// Tecla de Pausa
 		this.TECLA_PAUSA = new TeclaAccionCondicionada(KeyEvent.VK_P, "Pausa") {
 			@Override
 			public boolean condicion() {
@@ -185,6 +156,7 @@ public class Teclado implements KeyListener {
 		this.TECLAS.add(this.TECLA_CORRIENDO);
 		this.TECLAS.add(this.TECLA_ATACANDO);
 		this.TECLAS.add(this.TECLA_RECARGAR);
+		this.TECLAS.add(this.TECLA_CONSTRUCCION);
 		this.TECLAS.add(this.TECLA_DEBUG);
 		this.TECLAS.add(this.TECLA_FPS_LIMITE);
 		this.TECLAS.add(this.TECLA_VER_COLISIONES);
@@ -208,7 +180,6 @@ public class Teclado implements KeyListener {
 		this.TECLAS.add(this.TECLA_NUM_1);
 		this.TECLAS.add(this.TECLA_NUM_2);
 		this.TECLAS.add(this.TECLA_NUM_3);
-		this.TECLAS.add(this.TECLAS.get(3));
 		this.TECLAS.add(this.TECLA_NUM_4);
 		this.TECLAS.add(this.TECLA_NUM_5);
 		this.TECLAS.add(this.TECLA_NUM_6);
@@ -226,6 +197,7 @@ public class Teclado implements KeyListener {
 		this.TECLAS_MODIFICABLES.put(this.TECLA_RECOGIENDO.nombre, this.TECLA_RECOGIENDO);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_CORRIENDO.nombre, this.TECLA_CORRIENDO);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_RECARGAR.nombre, this.TECLA_RECARGAR);
+		this.TECLAS_MODIFICABLES.put(this.TECLA_CONSTRUCCION.nombre, this.TECLA_CONSTRUCCION);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_INVENTARIO.nombre, this.TECLA_INVENTARIO);
 
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_IN.nombre, this.TECLA_ZOOM_IN);

@@ -7,17 +7,11 @@ import org.json.simple.JSONObject;
 
 import principal.entes.criaturas.Criatura;
 import principal.entes.modelos.item.ListaModelosItem;
+import principal.entes.objetos.items.materiales.RecursoMaterial;
 import principal.entes.objetos.items.municiones.CajaMunicion;
 import principal.entes.objetos.items.pociones.PocionVidaMenor;
 import principal.utilidades.Render2D;
 
-/**
- * Clase base abstracta para todos los ítems consumibles y acumulables
- * (Stackable Items). Gestiona cantidades apilables, límites de inventario y
- * deserialización polimórfica.
- * 
- * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
- */
 public abstract class Consumible extends Item {
 
 	private static final long serialVersionUID = 504856170135227071L;
@@ -138,10 +132,6 @@ public abstract class Consumible extends Item {
 		return "Consumible";
 	}
 
-	/**
-	 * Fábrica polimórfica para reconstruir cualquier consumible o caja de munición
-	 * desde JSON.
-	 */
 	public static Consumible crearConsumible(final JSONObject json) {
 		if (json == null) {
 			return null;
@@ -157,6 +147,9 @@ public abstract class Consumible extends Item {
 				|| codModelo.equals(ListaModelosItem.COD_CONSUMIBLE_MUNICION_FUSIL)
 				|| codModelo.equals(ListaModelosItem.COD_CONSUMIBLE_MUNICION_PESADA)) {
 			c = CajaMunicion.crearDesdeJson(json);
+		} else if (codModelo.equals(ListaModelosItem.COD_RECURSO_MADERA)
+				|| codModelo.equals(ListaModelosItem.COD_RECURSO_PIEDRA)) {
+			c = RecursoMaterial.crearDesdeJson(json);
 		}
 
 		return c;

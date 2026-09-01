@@ -12,19 +12,6 @@ import principal.mapa.Mundo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
-/**
- * Clase base abstracta para todos los proyectiles balísticos, mágicos y de área
- * del juego.
- * <p>
- * <b>MOTOR BALÍSTICO EN 360° (Zero-GC / O(1)):</b> Soporta trayectorias
- * vectoriales continuas en cualquier ángulo calculando los componentes
- * {@code velX} y {@code velY} una sola vez en el constructor. El movimiento en
- * cada frame no realiza cálculos trigonométricos lentos ni genera objetos en el
- * Heap.
- * </p>
- * 
- * @version 2.5 (Java 8 Compatible - Balística Vectorial 360°)
- */
 public abstract class Proyectil extends Ente implements Serializable {
 
 	private static final long serialVersionUID = -5309717278363977059L;
@@ -36,12 +23,8 @@ public abstract class Proyectil extends Ente implements Serializable {
 	protected final Direccion DIRECCION;
 	protected final Ente CAUSANTE;
 
-	/** Velocidad vectorial continua en el eje horizontal. */
 	protected double velX;
-
-	/** Velocidad vectorial continua en el eje vertical. */
 	protected double velY;
-
 	protected double distanciaRecorrida;
 	protected boolean eliminado;
 	protected double x;
@@ -49,9 +32,6 @@ public abstract class Proyectil extends Ente implements Serializable {
 	protected int ancho;
 	protected int alto;
 
-	/**
-	 * Constructor estándar por dirección cardinal (Norte, Sur, Este, Oeste).
-	 */
 	public Proyectil(final double damage, final double velocidad, final boolean penetrante, final double alcance,
 			final Mundo mundo, final double x, final double y, final int ancho, final int alto,
 			final Direccion direccion, final Ente causante) {
@@ -60,7 +40,7 @@ public abstract class Proyectil extends Ente implements Serializable {
 		this.PENETRANTE = penetrante;
 		this.ALCANCE = alcance;
 		this.mundo = mundo;
-		this.distanciaRecorrida = 0;
+		this.distanciaRecorrida = 0.0;
 		this.eliminado = false;
 		this.x = x;
 		this.y = y;
@@ -69,7 +49,6 @@ public abstract class Proyectil extends Ente implements Serializable {
 		this.DIRECCION = direccion;
 		this.CAUSANTE = causante;
 
-		// Conversión de dirección cardinal a vector de velocidad constante
 		if (direccion == Direccion.OESTE) {
 			this.velX = -velocidad;
 			this.velY = 0.0;
@@ -88,15 +67,6 @@ public abstract class Proyectil extends Ente implements Serializable {
 		}
 	}
 
-	/**
-	 * Constructor vectorial en 360 grados hacia un punto de destino exacto del
-	 * mundo.
-	 *
-	 * @param xOrigen  Posición X de disparo.
-	 * @param yOrigen  Posición Y de disparo.
-	 * @param xDestino Coordenada X del objetivo/cursor.
-	 * @param yDestino Coordenada Y del objetivo/cursor.
-	 */
 	public Proyectil(final double damage, final double velocidad, final boolean penetrante, final double alcance,
 			final Mundo mundo, final double xOrigen, final double yOrigen, final double xDestino, final double yDestino,
 			final int ancho, final int alto, final Ente causante) {
@@ -105,7 +75,7 @@ public abstract class Proyectil extends Ente implements Serializable {
 		this.PENETRANTE = penetrante;
 		this.ALCANCE = alcance;
 		this.mundo = mundo;
-		this.distanciaRecorrida = 0;
+		this.distanciaRecorrida = 0.0;
 		this.eliminado = false;
 		this.x = xOrigen;
 		this.y = yOrigen;
@@ -113,7 +83,6 @@ public abstract class Proyectil extends Ente implements Serializable {
 		this.alto = alto;
 		this.CAUSANTE = causante;
 
-		// Cálculo vectorial normalizado en 360 grados
 		final double dx = xDestino - xOrigen;
 		final double dy = yDestino - yOrigen;
 		final double dist = Math.hypot(dx, dy);
@@ -126,7 +95,6 @@ public abstract class Proyectil extends Ente implements Serializable {
 			this.velY = 0.0;
 		}
 
-		// Asignación de orientación aproximada para compatibilidad gráfica
 		if (Math.abs(dx) > Math.abs(dy)) {
 			this.DIRECCION = (dx > 0) ? Direccion.ESTE : Direccion.OESTE;
 		} else {
@@ -137,14 +105,10 @@ public abstract class Proyectil extends Ente implements Serializable {
 	@Override
 	public void pintar(final Graphics2D g) {
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
-			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.gray);
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.GRAY);
 		}
 	}
 
-	/**
-	 * Desplaza el proyectil a lo largo de su vector en tiempo $O(1)$ sin
-	 * asignaciones de memoria.
-	 */
 	protected void mover() {
 		this.x += this.velX;
 		this.y += this.velY;
@@ -169,21 +133,11 @@ public abstract class Proyectil extends Ente implements Serializable {
 		return this.velY;
 	}
 
+	public Ente getCausante() {
+		return this.CAUSANTE;
+	}
+
 	protected abstract void impactar(final Criatura c);
-
-	public static Rectangle reformarAreaHorizontalVertical(final Rectangle areaI) {
-		final Rectangle areaF = new Rectangle();
-		areaF.x = areaI.x;
-		areaF.y = areaI.y;
-		areaF.width = areaI.height;
-		areaF.height = areaI.width;
-		return areaF;
-	}
-
-	public static Rectangle reformarAreaHorizontalVertical(final double x, final double y, final int ancho,
-			final int alto) {
-		return new Rectangle((int) x, (int) y, ancho, alto);
-	}
 
 	@Override
 	public int getAncho() {
@@ -199,6 +153,46 @@ public abstract class Proyectil extends Ente implements Serializable {
 	public Rectangle getArea() {
 		this.AREA_ENTE_RETORNO.setBounds((int) this.x, (int) this.y, this.ancho, this.alto);
 		return this.AREA_ENTE_RETORNO;
+	}
+
+	@Override
+	public int getPosicionXInt() {
+		return (int) this.x;
+	}
+
+	@Override
+	public int getPosicionYInt() {
+		return (int) this.y;
+	}
+
+	@Override
+	public double getPosicionX() {
+		return this.x;
+	}
+
+	@Override
+	public double getPosicionY() {
+		return this.y;
+	}
+
+	@Override
+	public void modificarPosicionX(final double desplazamientoX) {
+		this.x += desplazamientoX;
+	}
+
+	@Override
+	public void modificarPosicionY(final double desplazamientoY) {
+		this.y += desplazamientoY;
+	}
+
+	@Override
+	public boolean estaEliminado() {
+		return this.eliminado;
+	}
+
+	@Override
+	public void eliminar() {
+		this.eliminado = true;
 	}
 
 	public abstract void pintarAnimacionImpacto(final Graphics2D g);

@@ -91,6 +91,13 @@ public class AnimacionesBandido {
 								this.TIEMPO_MS_POR_FRAME - 75, true)));
 	}
 
+	public void actualizar(final Direccion direccion, final String tipo) {
+		final AnimacionDireccionada animDir = this.ANIMACIONES.get(tipo);
+		if (animDir != null) {
+			animDir.actualizar(direccion);
+		}
+	}
+
 	public void pintar(final Graphics2D g, final int x, final int y, final Direccion direccion, final String tipo,
 			final boolean transparente, final boolean refCamara) {
 		this.pintar(g, x, y, direccion, tipo, transparente, refCamara, false);
@@ -99,14 +106,18 @@ public class AnimacionesBandido {
 	public void pintar(final Graphics2D g, final int x, final int y, final Direccion direccion, final String tipo,
 			final boolean transparente, final boolean refCamara, final boolean flash) {
 		final float alpha = 0.5f;
-		if (transparente) {
-			this.ANIMACIONES.get(tipo).pintarConTransparencia(g, x, y, refCamara, alpha, direccion, flash);
-		} else {
-			this.ANIMACIONES.get(tipo).pintar(g, x, y, refCamara, direccion, flash);
+		final AnimacionDireccionada animDir = this.ANIMACIONES.get(tipo);
+		if (animDir != null) {
+			if (transparente) {
+				animDir.pintarConTransparencia(g, x, y, refCamara, alpha, direccion, flash);
+			} else {
+				animDir.pintar(g, x, y, refCamara, direccion, flash);
+			}
 		}
 	}
 
 	public Animacion getAnimacion(final String tipo, final Direccion direccion) {
-		return this.ANIMACIONES.get(tipo).getAnimacion(direccion);
+		final AnimacionDireccionada animDir = this.ANIMACIONES.get(tipo);
+		return (animDir != null) ? animDir.getAnimacion(direccion) : null;
 	}
 }

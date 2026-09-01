@@ -23,12 +23,6 @@ import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.inventario.ItemPuntero;
 
-/**
- * Administrador central de casillas del inventario y del HUD inferior. Gestiona
- * el equipamiento de armas, apilado de consumibles y extracción de municiones.
- * 
- * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
- */
 public class SlotManager {
 
 	private static final int LADO_SLOTS = 18;
@@ -181,17 +175,6 @@ public class SlotManager {
 		}
 	}
 
-	// =========================================================================
-	// === MÉTODOS DE EXTRACCIÓN Y CONTEO DE MUNICIÓN (ZERO-GC)
-	// =========================================================================
-
-	/**
-	 * Cuenta la cantidad total de balas de reserva de un tipo específico en todo el
-	 * inventario.
-	 *
-	 * @param codModeloMunicion Código del modelo de la caja de munición.
-	 * @return Cantidad acumulada de proyectiles disponibles.
-	 */
 	public int contarMunicionTotal(final String codModeloMunicion) {
 		if (codModeloMunicion == null) {
 			return 0;
@@ -213,15 +196,6 @@ public class SlotManager {
 		return total;
 	}
 
-	/**
-	 * Extrae y descuenta del inventario la cantidad de munición solicitada para
-	 * recargar el arma. Si un stack se agota a 0, la casilla se vacía de forma
-	 * segura.
-	 *
-	 * @param codModeloMunicion Código de la caja de munición requerida.
-	 * @param cantidadRequerida Balas que faltan para llenar el cargador.
-	 * @return Cantidad real de balas extraídas.
-	 */
 	public int extraerMunicion(final String codModeloMunicion, final int cantidadRequerida) {
 		if ((codModeloMunicion == null) || (cantidadRequerida <= 0)) {
 			return 0;
@@ -251,10 +225,6 @@ public class SlotManager {
 
 		return cantidadRequerida - faltan;
 	}
-
-	// =========================================================================
-	// === GESTIÓN DE EQUIPAMIENTO
-	// =========================================================================
 
 	private void desequiparArma() {
 		if ((this.slotArma == null) || !this.slotArma.contieneItem()) {
@@ -305,16 +275,29 @@ public class SlotManager {
 		return false;
 	}
 
+	/**
+	 * Intenta apilar o colocar un consumible. Modifica 'item.cantidad' in-situ con
+	 * el sobrante que no haya podido entrar. Retorna true si al menos una unidad
+	 * fue absorbida.
+	 */
 	public boolean agregarConsumible(final Consumible item) {
-		Slot slotVacio = null;
-		Consumible cons = null;
+		if (item == null) {
+			return false;
+		}
 
+		final int cantidadInicial = item.getCantidad();
+		Slot slotVacio = null;
+
+		// 1. Primero busca stacks existentes del mismo modelo para rellenar
 		for (final Slot slot : this.LISTA_SLOTS) {
 			if (slot.contieneItem()) {
 				if (slot.getItem().getTipoItem() == Item.COD_ITEM_CONSUMIBLE) {
-					cons = (Consumible) slot.getItem();
-					if (cons.getCodigoModelo() == item.getCodigoModelo()) {
-						item.establecerCantidad(cons.agregarCantidad(item.getCantidad()));
+					final Consumible cons = (Consumible) slot.getItem();
+					// Comparación segura con .equals()
+					if (cons.getCodigoModelo().equals(item.getCodigoModelo())) {
+						final int sobrante = cons.agregarCantidad(item.getCantidad());
+						item.establecerCantidad(sobrante);
+
 						if (item.getCantidad() <= 0) {
 							return true;
 						}
@@ -325,13 +308,15 @@ public class SlotManager {
 			}
 		}
 
-		if (slotVacio != null) {
+		// 2. Si todavía queda cantidad y hay un slot libre, lo ubica en el slot vacío
+		if ((item.getCantidad() > 0) && (slotVacio != null)) {
 			slotVacio.establecerObjeto((Consumible) item.copiar());
 			item.establecerCantidad(0);
 			return true;
 		}
 
-		return false;
+		// Retorna true si al menos se absorbió una fracción del stack
+		return item.getCantidad() < cantidadInicial;
 	}
 
 	public void vaciar() {

@@ -12,24 +12,6 @@ import principal.mapa.Mundo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
-/**
- * Variación del enemigo Bandido especializado en combate a distancia con arma
- * de fuego.
- * <p>
- * <b>CARACTERÍSTICAS TÉCNICAS (v3.5):</b>
- * <ul>
- * <li><b>Cargador Táctico y Ventana de Recarga:</b> Gestiona 12 proyectiles en
- * recámara. Al vaciarse, entra en recarga activa durante 1.2 s y se reposiciona
- * tácticamente sin disparar.</li>
- * <li><b>Balística Vectorial 360°:</b> Emisión de proyectiles precisos hacia el
- * centro de masa del blanco.</li>
- * <li><b>Línea de Tiro DDA:</b> Evaluación instantánea de obstáculos antes de
- * abrir fuego.</li>
- * </ul>
- * </p>
- * 
- * @version 3.5 (Java 8 Compatible - Zero-GC Architecture)
- */
 public class BandidoPistolero extends Bandido {
 
 	private final int rangoDisparo = 248;
@@ -46,7 +28,6 @@ public class BandidoPistolero extends Bandido {
 	@Override
 	public void actualizar() {
 		super.actualizar();
-		// Actualiza el temporizador de recarga de la pistola para la IA
 		this.pistola.actualizarCicloRecarga(this);
 	}
 
@@ -55,7 +36,6 @@ public class BandidoPistolero extends Bandido {
 		this.pintarSprite(g);
 		super.pintar(g);
 
-		// Línea de tiro de depuración hacia el objetivo
 		if (Globales.TECLADO.TECLA_DEBUG.presionado() && (this.objetivoActual != null) && Globales.isEstadoJuego()) {
 			final int x1 = this.getCentroX();
 			final int y1 = this.getCentroY();
@@ -79,10 +59,6 @@ public class BandidoPistolero extends Bandido {
 		}
 	}
 
-	/**
-	 * Evalúa mediante Raycasting DDA en 360 grados si existe una línea de tiro
-	 * completamente despejada entre el bandido y el objetivo.
-	 */
 	private boolean tieneLineaDeTiroLimpia(final Criatura objetivo) {
 		if ((objetivo == null) || objetivo.estaEliminado() || (this.mundo == null)) {
 			return false;
@@ -104,10 +80,6 @@ public class BandidoPistolero extends Bandido {
 		return this.mundo.getTerreno().hayLineaDeVisionLimpia(origenX, origenY, destX, destY);
 	}
 
-	/**
-	 * Lógica de combate y disparo balístico en 360 grados considerando recarga y
-	 * cadencia.
-	 */
 	@Override
 	protected void actualizarAtaque() {
 		if (this.objetivoActual == null) {
@@ -115,14 +87,12 @@ public class BandidoPistolero extends Bandido {
 			return;
 		}
 
-		// Si el arma está en proceso de recarga activa, la IA se reposiciona
-		// tácticamente
 		if (this.pistola.isRecargando()) {
 			this.reposicionarseHaciaObjetivo();
 			return;
 		}
 
-		// --- FASE 1: Disparo balístico directo al centro del objetivo ---
+		// --- FASE 1: Disparo balístico ---
 		if (this.realizandoAtaque) {
 			if (this.GT_CARGA_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
 				this.enAccion = false;
@@ -131,12 +101,9 @@ public class BandidoPistolero extends Bandido {
 				final int origenY = this.getCentroY();
 				final int targetX = this.objetivoActual.getCentroX();
 				final int targetY = this.objetivoActual.getCentroY();
-				final boolean soloJugador = (this.objetivoActual instanceof Jugador);
 
 				this.setDireccionMirandoCriatura(this.objetivoActual);
-
-				// Ejecuta el disparo consumiendo un cartucho de la recámara
-				this.pistola.disparar(origenX, origenY, targetX, targetY, this.mundo, this, soloJugador);
+				this.pistola.disparar(origenX, origenY, targetX, targetY, this.mundo, this);
 
 				this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
 				this.GT_ATAQUE_INICIAL_COOLDOWN.establecerReferenciaTiempoActual();
@@ -147,7 +114,6 @@ public class BandidoPistolero extends Bandido {
 			return;
 		}
 
-		// Si aún está en tiempo de enfriamiento (cooldown) tras un disparo
 		if (!this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
 			if (!this.tieneLineaDeTiroLimpia(this.objetivoActual)) {
 				this.reposicionarseHaciaObjetivo();
@@ -155,7 +121,7 @@ public class BandidoPistolero extends Bandido {
 			return;
 		}
 
-		// --- FASE 2: Detección, inicio de carga o reposicionamiento táctico ---
+		// --- FASE 2: Detección y apuntado ---
 		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
 				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
@@ -197,7 +163,15 @@ public class BandidoPistolero extends Bandido {
 		this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
 	}
 
-	// --- Métodos de Contrato Melee (No utilizados por atacantes a distancia) ---
+	@Override
+	public String exportarSubtipoBandido() {
+		return "Pistolero";
+	}
+
+	@Override
+	protected String obtenerClaveAnimacionActiva() {
+		return this.estaEstadoCaminando() ? AnimacionesBandido.PISTOLA_CAMINANDO : AnimacionesBandido.PISTOLA_ESTANDAR;
+	}
 
 	@Override
 	protected double getYRangoAtaqueMele() {

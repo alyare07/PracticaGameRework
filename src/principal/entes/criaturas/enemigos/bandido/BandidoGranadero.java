@@ -9,24 +9,6 @@ import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
 import principal.iluminacion.CalculadorSigilo;
 import principal.mapa.Mundo;
 
-/**
- * Variación del enemigo Bandido enfocado en ataques de área a distancia
- * utilizando granadas.
- * <p>
- * <b>CARACTERÍSTICAS TÉCNICAS (v2.6):</b>
- * <ul>
- * <li><b>Cadencia y Lanzamiento Sincronizados:</b> Control fásico de
- * preparación, lanzamiento y cooldown.</li>
- * <li><b>Reenganche Continuo de Persecución:</b> Mantiene el movimiento activo
- * si el objetivo se desplaza fuera del radio de tiro durante el tiempo de
- * recarga.</li>
- * <li><b>Soporte Multiobjetivo Dinámico:</b> Compatible con cualquier facción
- * enemiga.</li>
- * </ul>
- * </p>
- * 
- * @version 2.6 (Java 8 Compatible - Zero-GC Architecture)
- */
 public class BandidoGranadero extends Bandido {
 
 	private final Granada granada;
@@ -65,9 +47,6 @@ public class BandidoGranadero extends Bandido {
 		}
 	}
 
-	/**
-	 * Lógica de combate y lanzamiento balístico de granadas.
-	 */
 	@Override
 	protected void actualizarAtaque() {
 		if (this.objetivoActual == null) {
@@ -75,30 +54,28 @@ public class BandidoGranadero extends Bandido {
 			return;
 		}
 
-		// --- FASE 1: Lanzamiento efectivo tras culminar el tiempo de carga/apuntado
-		// ---
+		// --- FASE 1: Lanzamiento al culminar carga ---
 		if (this.realizandoAtaque) {
 			if (this.GT_CARGA_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
 				this.enAccion = false;
 
 				final int targetX = this.objetivoActual.getCentroX();
 				final int targetY = this.objetivoActual.getCentroY();
-				final boolean soloJugador = (this.objetivoActual instanceof Jugador);
 
 				this.setDireccionMirandoCriatura(this.objetivoActual);
-				this.granada.arrojar(targetX, targetY, this.direccion, this.mundo, this, soloJugador);
+				this.granada.arrojar(targetX, targetY, this.direccion, this.mundo, this);
 
 				this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
 				this.GT_ATAQUE_INICIAL_COOLDOWN.establecerReferenciaTiempoActual();
 				this.realizandoAtaque = false;
 				this.removerEstado(Estado.ATACANDO);
 				this.removerEstado(Estado.ARROJANDO);
-				this.meterEstado(Estado.PERSIGUIENDO); // Reenganche de persecución
+				this.meterEstado(Estado.PERSIGUIENDO);
 			}
 			return;
 		}
 
-		// Si aún está en tiempo de enfriamiento (cooldown) tras un lanzamiento
+		// Cooldown tras lanzamiento
 		if (!this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
 			final double rangoVision = this.areaDeteccionAncho / 2.0;
 			if (!CalculadorSigilo.puedeDetectar(this, this.objetivoActual, rangoVision)) {
@@ -107,14 +84,13 @@ public class BandidoGranadero extends Bandido {
 			return;
 		}
 
-		// --- FASE 2: Detección, inicio de carga o reposicionamiento táctico ---
+		// --- FASE 2: Detección y aproximación ---
 		final double rangoVision = this.areaDeteccionAncho / 2.0;
 		final boolean objetivoEnVision = CalculadorSigilo.puedeDetectar(this, this.objetivoActual, rangoVision);
 		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
 				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 
 		if (objetivoEnVision) {
-			// En rango de tiro -> Detenerse, apuntar e iniciar carga
 			this.meterEstado(Estado.ATACANDO);
 			this.meterEstado(Estado.ARROJANDO);
 			this.removerEstado(Estado.CAMINANDO);
@@ -155,7 +131,10 @@ public class BandidoGranadero extends Bandido {
 		this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
 	}
 
-	// --- Métodos de Contrato Melee (No utilizados por arrojadizos) ---
+	@Override
+	public String exportarSubtipoBandido() {
+		return "Granadero";
+	}
 
 	@Override
 	protected double getXRangoAtaqueMele() {
@@ -179,11 +158,11 @@ public class BandidoGranadero extends Bandido {
 
 	@Override
 	protected int getTiempoMsEsperaAtaqueInicial() {
-		return 800; // 800 ms de preparación antes de arrojar la granada
+		return 800;
 	}
 
 	@Override
 	protected int getTiempoMsEsperaRetomarAtaque() {
-		return 1800; // 1800 ms de cooldown entre lanzamientos
+		return 1800;
 	}
 }

@@ -7,12 +7,15 @@ import principal.animaciones.listaHojasSprite.ListaHojaSprites;
 import principal.clima.GestorClima;
 import principal.clima.GestorZonasAmbiente;
 import principal.comandos.GestorComandos;
+import principal.construccion.GestorConstruccion;
 import principal.controles.Raton;
 import principal.controles.Teclado;
+import principal.crafteo.GestorCrafteo;
 import principal.entes.criaturas.Jugador;
 import principal.igu.textos.GestorTextosFlotantes;
 import principal.iluminacion.GestorLuz;
 import principal.inventario.vault.InventarioVault;
+import principal.mapa.persistencia.GestorDeltasMundo;
 import principal.mapa.renderEntidades.camara.Camara;
 import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
@@ -21,17 +24,7 @@ import principal.particulas.GestorParticulas;
 import principal.utilidades.funciones.Funciones;
 import principal.utilidades.inventario.GestorInventario;
 
-/**
- * Contenedor maestro de estado global, subsistemas estáticos e instancias
- * compartidas en memoria (Zero-GC).
- * 
- * @version 3.0
- */
 public class Globales {
-
-	// =========================================================================
-	// === 1. MÉTRICAS Y BANDERAS DE MOTOR
-	// =========================================================================
 
 	public static int fps;
 	public static int aps;
@@ -48,18 +41,10 @@ public class Globales {
 	public static boolean viendoContenedor;
 	public static InventarioVault inventarioVault;
 
-	// =========================================================================
-	// === 2. RESOLUCIÓN Y ESCALADO DE PANTALLA
-	// =========================================================================
-
 	public static int ANCHO_PANTALLA_COMPLETA = Toolkit.getDefaultToolkit().getScreenSize().width;
 	public static int ALTO_PANTALLA_COMPLETA = Toolkit.getDefaultToolkit().getScreenSize().height;
 	public static double FACTOR_ESCALADO_X = ANCHO_PANTALLA_COMPLETA / (double) (Constantes.ANCHO_JUEGO);
 	public static double FACTOR_ESCALADO_Y = ALTO_PANTALLA_COMPLETA / (double) Constantes.ALTO_JUEGO;
-
-	// =========================================================================
-	// === 3. SUBSISTEMAS Y GESTORES MAESTROS (SINGLETONS STATIC)
-	// =========================================================================
 
 	public static final GestorTiempo TECLEO_RECOGIDA = new GestorTiempo();
 	public static final Teclado TECLADO = new Teclado();
@@ -77,10 +62,9 @@ public class Globales {
 	public static final GestorClima GESTOR_CLIMA = new GestorClima();
 	public static final GestorZonasAmbiente GESTOR_ZONAS_AMBIENTE = new GestorZonasAmbiente();
 	public static final GestorComandos GESTOR_COMANDOS = new GestorComandos();
-
-	// =========================================================================
-	// === MÉTODOS DE ESCALADO Y CONSULTAS
-	// =========================================================================
+	public static final GestorConstruccion GESTOR_CONSTRUCCION = new GestorConstruccion();
+	public static final GestorCrafteo GESTOR_CRAFTEO = new GestorCrafteo();
+	public static final GestorDeltasMundo GESTOR_DELTAS = new GestorDeltasMundo();
 
 	public static void actualizarFactorEscalado() {
 		final int escalaX = ANCHO_PANTALLA_COMPLETA / Constantes.ANCHO_JUEGO;
@@ -116,10 +100,6 @@ public class Globales {
 		}
 		return false;
 	}
-
-	// =========================================================================
-	// === COORDENADAS PROYECTADAS CON CÁMARA
-	// =========================================================================
 
 	public static int getXDesplazamientoCamara(final int x) {
 		return (CAMARA != null) ? (x - CAMARA.getPosicionXInt()) + CAMARA.getMargenX() : x;

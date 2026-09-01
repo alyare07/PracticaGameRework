@@ -45,12 +45,6 @@ import principal.utilidades.Render2D;
 import principal.utilidades.audio.musica.GestorMusica;
 import principal.utilidades.audio.musica.IDMusica;
 
-/**
- * Estado principal de jugabilidad activa (Gameplay Loop).
- * 
- * @author Copiloto Técnico
- * @version 7.0
- */
 public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	private static final int MARGEN_BUFFER = 32;
@@ -69,9 +63,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	private Tile tilePisado = null;
 	private FuenteLuz auxFuenteLuzTempoPrueba;
 
-	// =========================================================================
-	// === CACHÉ DE TEXTOS HUD (ZERO-GC: SOLO SE RECONSTRUYEN AL CAMBIAR VALOR)
-	// =========================================================================
 	private int lastSegundosJugados = -1;
 	private String cachedTextoTiempoJugado = "0h 0m 0s";
 
@@ -112,6 +103,14 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			GestorMusica.actualizarMusicaFondoPrincipal(false);
 			return;
 		}
+
+		if (Globales.TECLADO.TECLA_DIJKSTRA.presionadoUnicaActualizacion()) {
+			if (Globales.JUGADOR.getFaccionBit() == GestorFacciones.FACCION_JUGADOR) {
+				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
+			} else {
+				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_JUGADOR);
+			}
+		}
 		GestorMusica.actualizarMusicaFondoPrincipal(true);
 
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
@@ -126,12 +125,14 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			this.actualizarEventos();
 		}
 
-		if (Globales.TECLADO.TECLA_DIJKSTRA.presionadoUnicaActualizacion()) {
-			if (Globales.JUGADOR.getFaccionBit() == GestorFacciones.FACCION_JUGADOR) {
-				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
-			} else {
-				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_JUGADOR);
-			}
+		// Conmutar Modo Construcción con Tecla B
+		if (Globales.TECLADO.TECLA_CONSTRUCCION.presionadoUnicaActualizacion()) {
+			Globales.GESTOR_CONSTRUCCION.conmutarModoConstruccion();
+		}
+
+		// Actualizar lógica de construcción en tiempo real
+		if (Globales.GESTOR_CONSTRUCCION.isActivo() && (this.mapa != null) && (this.mapa.getMundoActual() != null)) {
+			Globales.GESTOR_CONSTRUCCION.actualizar(this.RATON, this.mapa.getMundoActual());
 		}
 
 		this.verificarPantallaMuerte();
@@ -151,6 +152,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.GESTOR_ZONAS_AMBIENTE.actualizar(dt);
 		Globales.GESTOR_CLIMA.actualizar();
 		Globales.GESTOR_LUZ.actualizar();
+		Globales.GESTOR_CRAFTEO.actualizar(this.mapa.getMundoActual());
 
 		if (this.auxFuenteLuzTempoPrueba != null) {
 			this.auxFuenteLuzTempoPrueba.orientarSegunDireccion(Globales.JUGADOR.getDireccion());
@@ -272,7 +274,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	}
 
 	// =========================================================================
-	// === RENDERIZADO (PIPELINE GRÁFICO 2D)
+	// === RENDERIZADO
 	// =========================================================================
 
 	@Override
@@ -297,7 +299,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		final int offsetMundoY = centroBufY - Constantes.CENTROY;
 
 		// =====================================================================
-		// FASE 1: RENDERIZADO DEL MUNDO A ESCALA 1:1
+		// FASE 1: RENDERIZADO DEL MUNDO
 		// =====================================================================
 		final Graphics2D gMundo = this.bufferMundo.createGraphics();
 		try {
@@ -313,6 +315,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 			if (this.mapa != null) {
 				this.mapa.pintar(gMundo);
+			}
+
+			// Previsualización de construcción en tiempo real
+			if (Globales.GESTOR_CONSTRUCCION.isActivo()) {
+				Globales.GESTOR_CONSTRUCCION.pintar(gMundo);
 			}
 
 			Globales.GESTOR_PARTICULAS.pintar(gMundo);
@@ -346,14 +353,12 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			g.setTransform(transformOriginal);
 		}
 
-		// 2. Capa Atmosférica (Nubes, Niebla, Aurora, Lluvia en el aire)
+		// Capas Atmosféricas y de Luz
 		Globales.GESTOR_CLIMA.pintar(g);
-
-		// 3. Capa de Iluminación y Penumbra (Lightmap + God Rays)
 		Globales.GESTOR_LUZ.pintar(g);
 
 		// =====================================================================
-		// FASE 3: CAPAS DE INTERFAZ / HUD / LETTERBOX (1:1)
+		// FASE 3: CAPAS DE INTERFAZ / HUD (1:1)
 		// =====================================================================
 
 		if (!Globales.JUGADOR.estaEliminado()) {
@@ -365,6 +370,16 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 		Globales.CAMARA.pintarLetterbox(g);
 		this.pintarDebug(g);
+
+		// PRUEBA-----------------------------
+		if (Globales.TECLADO.TECLA_DEBUG.presionado()) {
+			final ArrayList<Ente> entesIntersectadosRaton = this.getMundo()
+					.getEnteIntersectados(Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara(), true);
+			for (final Ente e : entesIntersectadosRaton) {
+				Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltip(g, e.getClass().getSimpleName(), Color.WHITE,
+						Color.BLACK);
+			}
+		}
 	}
 
 	private void pintarInventarios(final Graphics2D g) {
@@ -442,15 +457,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 					20, 275);
 			Render2D.dibujarString(g, "Direccion: " + Globales.JUGADOR.getDireccion().toString(), 20, 290);
 			Render2D.dibujarString(g, "Estados: " + Globales.JUGADOR.getStringEstados(), 20, 305);
-			Render2D.dibujarString(g,
-					"FPS Limitado(F11): " + (Globales.TECLADO.TECLA_FPS_LIMITE.presionado() ? "Activo" : "Inactivo"),
+			Render2D.dibujarString(g, "Modo Construir(B): " + (Globales.GESTOR_CONSTRUCCION.isActivo() ? "ON" : "OFF"),
 					20, 320);
 		}
 	}
-
-	// =========================================================================
-	// === HUD: CRONÓMETRO DE SESIÓN (TOP-LEFT)
-	// =========================================================================
 
 	private void pintarTiempoJugado(final Graphics2D g) {
 		if (Globales.segundosJugados != this.lastSegundosJugados) {
@@ -461,15 +471,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Render2D.dibujarStringConSombra(g, this.cachedTextoTiempoJugado, 15, 20, Color.CYAN, Color.BLACK, 10f);
 	}
 
-	// =========================================================================
-	// === HUD: WIDGET ATMOSFÉRICO Y CRONOLÓGICO (TOP-RIGHT)
-	// =========================================================================
-
 	private void pintarHoraJuego(final Graphics2D g) {
 		final Font fuenteOriginal = g.getFont();
 		final int margenDerecho = 12;
 
-		// --- 1. LÍNEA 1: [DÍA X - HH:MM] (Fuente 11f / Amarillo Dorado) ---
 		final int minutoActual = (int) Math.round(Globales.GESTOR_LUZ.getCiclo().getHoraActual() * 60.0);
 		final int diaActual = Globales.GESTOR_LUZ.getCiclo().getDiaActual();
 
@@ -485,7 +490,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		final int xL1 = Constantes.ANCHO_JUEGO - anchoL1 - margenDerecho;
 		Render2D.dibujarStringConSombra(g, this.cachedLineaReloj, xL1, 16, Color.YELLOW, Color.ORANGE, 11f);
 
-		// --- 2. LÍNEA 2: / MOMENTO DEL DÍA \ (Fuente 9f / Dorado Suave) ---
 		final String momentoActual = Globales.GESTOR_LUZ.getCiclo().getNombreMomentoDelDia();
 		if (!momentoActual.equals(this.lastMomentoHUD)) {
 			this.lastMomentoHUD = momentoActual;
@@ -498,7 +502,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Render2D.dibujarStringConSombra(g, this.cachedLineaMomento, xL2, 30, new Color(255, 215, 120), Color.DARK_GRAY,
 				9f);
 
-		// --- 3. LÍNEA 3: < CLIMA ACTIVO > (Fuente 9f / Color Reactivo) ---
 		final TipoClima climaActual = Globales.GESTOR_CLIMA.getClimaActual();
 		if (climaActual != this.lastClimaHUD) {
 			this.lastClimaHUD = climaActual;
@@ -510,7 +513,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		final int xL3 = Constantes.ANCHO_JUEGO - anchoL3 - margenDerecho;
 		Render2D.dibujarStringConSombra(g, this.cachedLineaClima, xL3, 44, colorClimaTexto, Color.BLACK, 9f);
 
-		// --- 4. LÍNEA 4: (TEMP °C | VIENTO Fv) (Fuente 9f / Gris Plateado) ---
 		final double temp = Globales.GESTOR_CLIMA.getTemperaturaCelsius();
 		final double viento = Globales.GESTOR_CLIMA.getFuerzaViento();
 		final int tempInt = (int) Math.round(temp * 10.0);
@@ -529,9 +531,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		g.setFont(fuenteOriginal);
 	}
 
-	/**
-	 * Retorna una paleta cromática reactiva para el nombre del clima.
-	 */
 	private Color obtenerColorTextoClima(final TipoClima clima) {
 		if (clima == null) {
 			return Color.WHITE;
@@ -539,24 +538,24 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		switch (clima) {
 		case LLUVIA_TORMENTA:
 		case LLUVIA_LEVE:
-			return new Color(130, 200, 255); // Azul agua
+			return new Color(130, 200, 255);
 		case LLUVIA_ACIDA:
-			return new Color(150, 255, 110); // Verde tóxico
+			return new Color(150, 255, 110);
 		case AURORA_BOREAL:
-			return new Color(80, 255, 210); // Verde esmeralda místico
+			return new Color(80, 255, 210);
 		case ECLIPSE_SOLAR:
-			return new Color(255, 75, 75); // Rojo carmesí
+			return new Color(255, 75, 75);
 		case LLUVIA_ESTRELLAS:
-			return new Color(255, 235, 130); // Oro estelar
+			return new Color(255, 235, 130);
 		case NIEVE:
 		case VENTISCA:
-			return new Color(220, 240, 255); // Blanco hielo
+			return new Color(220, 240, 255);
 		case TORMENTA_ARENA:
-			return new Color(245, 185, 100); // Ámbar desértico
+			return new Color(245, 185, 100);
 		case CENIZA_VOLCANICA:
-			return new Color(255, 130, 60); // Naranja brasa
+			return new Color(255, 130, 60);
 		case PETALOS_CEREZO:
-			return new Color(255, 185, 215); // Rosa flor
+			return new Color(255, 185, 215);
 		default:
 			return Color.WHITE;
 		}

@@ -12,12 +12,6 @@ import principal.entes.criaturas.Jugador;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 
-/**
- * Gestor de animaciones del jugador con soporte de transparencia y Hit-Flash.
- * 
- * @author Copiloto Técnico
- * @version 2.0
- */
 public class AnimacionesJugador {
 
 	private final HashMap<String, AnimacionDireccionada> ANIMACIONES;
@@ -151,43 +145,49 @@ public class AnimacionesJugador {
 										true, this.TIEMPO_MS_POR_FRAME)));
 	}
 
+	public void actualizar(final Jugador jugador) {
+		if (jugador == null) {
+			return;
+		}
+
+		final Direccion direccion = jugador.getDireccion();
+		final Set<Estado> estados = jugador.getEstado();
+		final boolean conPistola = jugador.pistolaEquipada() && !estados.contains(Estado.ARROJANDO);
+
+		final String clave;
+		if (conPistola) {
+			clave = estados.contains(Estado.ESTANDAR) ? ARMADO_ESTANDAR : ARMADO_CAMINANDO;
+		} else {
+			clave = estados.contains(Estado.ESTANDAR) ? ESTANDAR : CAMINANDO;
+		}
+
+		final AnimacionDireccionada animDir = this.ANIMACIONES.get(clave);
+		if (animDir != null) {
+			animDir.actualizar(direccion);
+		}
+	}
+
 	public void pintar(final Graphics2D g, final int x, final int y) {
 		final Jugador jugador = Globales.JUGADOR;
 		final boolean transparencia = jugador.atrasDeComplemento();
 		final boolean flash = jugador.estaEnFlashDanio();
 		final float alpha = 0.5f;
 		final Direccion direccion = jugador.getDireccion();
-		final Set<Estado> ESTADO = jugador.getEstado();
+		final Set<Estado> estados = jugador.getEstado();
 
-		if (jugador.pistolaEquipada() && !ESTADO.contains(Estado.ARROJANDO)) {
-			if (ESTADO.contains(Estado.ESTANDAR)) {
-				if (transparencia) {
-					this.ANIMACIONES.get(ARMADO_ESTANDAR).pintarConTransparencia(g, x, y, false, alpha, direccion,
-							flash);
-				} else {
-					this.ANIMACIONES.get(ARMADO_ESTANDAR).pintar(g, x, y, false, direccion, flash);
-				}
-				return;
-			}
-			if (transparencia) {
-				this.ANIMACIONES.get(ARMADO_CAMINANDO).pintarConTransparencia(g, x, y, false, alpha, direccion, flash);
-			} else {
-				this.ANIMACIONES.get(ARMADO_CAMINANDO).pintar(g, x, y, false, direccion, flash);
-			}
+		final String clave;
+		if (jugador.pistolaEquipada() && !estados.contains(Estado.ARROJANDO)) {
+			clave = estados.contains(Estado.ESTANDAR) ? ARMADO_ESTANDAR : ARMADO_CAMINANDO;
 		} else {
-			if (ESTADO.contains(Estado.ESTANDAR)) {
-				if (transparencia) {
-					this.ANIMACIONES.get(ESTANDAR).pintarConTransparencia(g, x, y, false, alpha, direccion, flash);
-				} else {
-					this.ANIMACIONES.get(ESTANDAR).pintar(g, x, y, false, direccion, flash);
-				}
-				return;
-			}
+			clave = estados.contains(Estado.ESTANDAR) ? ESTANDAR : CAMINANDO;
+		}
 
+		final AnimacionDireccionada animDir = this.ANIMACIONES.get(clave);
+		if (animDir != null) {
 			if (transparencia) {
-				this.ANIMACIONES.get(CAMINANDO).pintarConTransparencia(g, x, y, false, alpha, direccion, flash);
+				animDir.pintarConTransparencia(g, x, y, false, alpha, direccion, flash);
 			} else {
-				this.ANIMACIONES.get(CAMINANDO).pintar(g, x, y, false, direccion, flash);
+				animDir.pintar(g, x, y, false, direccion, flash);
 			}
 		}
 	}

@@ -5,6 +5,7 @@ import java.util.concurrent.locks.LockSupport;
 import principal.comandos.ComandoAmbiente;
 import principal.comandos.ComandoCamara;
 import principal.comandos.ComandoClima;
+import principal.comandos.ComandoCrafteo;
 import principal.comandos.ComandoCurar;
 import principal.comandos.ComandoHora;
 import principal.comandos.ComandoInfo;
@@ -253,5 +254,6 @@ public class GestorPrincipal {
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoParticulas());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoInfo());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoJugador());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoCrafteo());
 	}
 }

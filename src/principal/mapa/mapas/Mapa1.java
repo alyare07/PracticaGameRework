@@ -11,6 +11,7 @@ import principal.entes.criaturas.enemigos.bandido.Bandido;
 import principal.entes.criaturas.enemigos.bandido.BandidoGarrote;
 import principal.entes.criaturas.enemigos.bandido.BandidoGranadero;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
+import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.items.armas.distancia.fuego.automaticas.AmetralladoraPesada;
 import principal.entes.objetos.items.armas.distancia.fuego.automaticas.RifleAsalto;
@@ -18,7 +19,11 @@ import principal.entes.objetos.items.armas.distancia.fuego.automaticas.SubfusilL
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaAutomatica;
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaRecortada;
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaTactica;
+import principal.entes.objetos.items.herramientas.Herramienta;
+import principal.entes.objetos.items.herramientas.TipoHerramienta;
 import principal.entes.objetos.items.municiones.CajaMunicion;
+import principal.entes.objetos.recursos.ArbolCosechable;
+import principal.entes.objetos.recursos.RocaCosechable;
 import principal.eventos.EventoJugadorZonaTP;
 import principal.mapa.Mundo;
 import principal.mapa.escenario.tps.PuertaArea;
@@ -28,6 +33,7 @@ import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.utilidades.Globales;
+import principal.utilidades.Textura;
 
 public class Mapa1 extends Mapa {
 	public static final String NOMBRE_MAPA = "Mapa1";
@@ -49,11 +55,9 @@ public class Mapa1 extends Mapa {
 		final int porcentajeCargaMundo = (25 * porcentajeCargaParcial) / 100;
 
 		gc.setDetalleCarga("Generando mundo " + EXTERIOR);
-//	this.mundo = new Mundo(esc, new Point(776, 300), gc, 25);
 		this.MUNDOS.put(EXTERIOR,
 				new Mundo(this.cargarEscenario(gc, porcentajeCargaEscenario, new File("escenario1.json")),
 						new Point(697, 437), gc, porcentajeCargaMundo));
-
 	}
 
 	@Override
@@ -65,7 +69,6 @@ public class Mapa1 extends Mapa {
 	protected void cargarFuncionalidadesPropias() {
 		final GestorJuego jg = this.GP.getGestorJuego();
 		final ZonaTP zonaTP2 = new ZonaTP(new Rectangle(684, 215, 20, 20), null);
-//	this.mundoActual.eliminarCriaturas();
 		final ZonaTP zonaTP = new ZonaTP(new Rectangle(878, 173, 20, 20),
 				new PuertaArea(new Rectangle(832, 333, 16, 16)));
 		zonaTP2.setPuertaTP(new PuertaMapa(MapaManager.MAPA_0, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, false, this.GP));
@@ -73,13 +76,25 @@ public class Mapa1 extends Mapa {
 		this.mundoActual.meterEntidad(zonaTP2);
 		jg.meterEvento(new EventoJugadorZonaTP(zonaTP, jg, true));
 		jg.meterEvento(new EventoJugadorZonaTP(zonaTP2, jg, true));
+
+		// Enemigos iniciales
 		this.mundoActual.meterEntidad(new BandidoGarrote(890, 220, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoGarrote(897, 220, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoGarrote(876, 220, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 50, 50, this.mundoActual));
 		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 50, 50, this.mundoActual));
-		this.generarEnemigosParaPrueba(3000);
+
+		// Recursos Cosechables de prueba cerca del spawn
+		this.mundoActual.meterEntidad(new ArbolCosechable(720, 420, Textura.TEXTURA_x32_ARBOL_1));
+		this.mundoActual.meterEntidad(new ArbolCosechable(750, 400, Textura.TEXTURA_x32_ARBOL_2));
+		this.mundoActual.meterEntidad(new RocaCosechable(710, 460, Textura.TEXTURA_x16_MURO_PIEDRA_NEGRA));
+
+		// Cofre con herramientas y armamento
 		final ArbolCofre arbolcofre1 = new ArbolCofre(767, 424);
+		arbolcofre1.getInventario().agregarItem(
+				new Herramienta(ListaModelosItem.COD_HERRAMIENTA_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
+		arbolcofre1.getInventario().agregarItem(
+				new Herramienta(ListaModelosItem.COD_HERRAMIENTA_PICO, 6, 14, 400, TipoHerramienta.PICO, 30.0));
 		arbolcofre1.getInventario().agregarItem(new EscopetaAutomatica());
 		arbolcofre1.getInventario().agregarItem(new EscopetaRecortada());
 		arbolcofre1.getInventario().agregarItem(new EscopetaTactica());
@@ -91,68 +106,41 @@ public class Mapa1 extends Mapa {
 		arbolcofre1.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 100));
 		arbolcofre1.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 100));
 		this.mundoActual.meterEntidad(arbolcofre1);
+		this.generarEnemigosParaPrueba(1000);
 		Globales.JUGADOR.setModoDios(true);
 	}
 
-	/***
-	 * METODO DE PRUEBA PARA PROBAR RENDIMIENTO CON X CANTIDAD DE CRIATURAS EN EL
-	 * MUNDO
-	 * 
-	 * @param cantidadDeseada
-	 */
 	public void generarEnemigosParaPrueba(final int cantidadDeseada) {
 		if (this.mundoActual == null) {
 			return;
 		}
 
 		final Random random = new Random();
-
-		// Límites del mapa restando 50px de seguridad
 		final int anchoLimite = Math.max(1, this.mundoActual.getTerreno().getAncho() - 50);
 		final int altoLimite = Math.max(1, this.mundoActual.getTerreno().getAlto() - 50);
-		System.out.println(anchoLimite);
-		System.out.println(altoLimite);
-		// Dimensiones de la colisión del Bandido
 		final int anchoBandido = 12;
 		final int altoBandido = 20;
-
-		// Rectangle auxiliar reutilizable para validar posición sin instanciar objetos
-		// en el Heap
 		final Rectangle areaPrueba = new Rectangle(0, 0, anchoBandido, altoBandido);
 
 		int generados = 0;
 		int intentos = 0;
-		// Evita bucle infinito si el mapa estuviera casi cubierto de sólidos
 		final int intentosMaximos = cantidadDeseada * 100;
 
 		while ((generados < cantidadDeseada) && (intentos < intentosMaximos)) {
 			intentos++;
-
-			// Coordenadas aleatorias entre 0 y los límites del mapa
 			final int posX = random.nextInt(anchoLimite);
 			final int posY = random.nextInt(altoLimite);
-
-			// Posicionamos la caja de colisión auxiliar en la posición aleatoria
 			areaPrueba.setLocation(posX, posY);
 
-			// Verificamos si en esa posición colisiona con el terreno o con un objeto
-			// sólido (árbol, etc.)
 			final boolean colisionaTerreno = this.mundoActual.getTerreno().intersectaSolidoDijkstra(areaPrueba);
 			final boolean colisionaObjeto = this.mundoActual.colisionaConObjetoSolido(areaPrueba);
 
-			// Si la zona está libre de colisiones
 			if (!colisionaTerreno && !colisionaObjeto) {
-				// Instanciamos y agregamos la entidad
-				final Bandido enemigo = new BandidoPistolero(posX, posY, anchoBandido, altoBandido, this.mundoActual);
+				final Bandido enemigo = new BandidoPistolero(posX, posY, 50, 50, this.mundoActual);
 				this.mundoActual.meterEntidad(enemigo);
 				generados++;
 			}
 		}
-
-		System.out.println("--- PRUEBA DE RENDIMIENTO ---");
-		System.out.println("Enemigos solicitados: " + cantidadDeseada);
-		System.out.println("Enemigos colocados exitosamente: " + generados);
-		System.out.println("Intentos totales: " + intentos);
 	}
 
 	@Override
@@ -165,5 +153,4 @@ public class Mapa1 extends Mapa {
 	public String getNombre() {
 		return NOMBRE_MAPA;
 	}
-
 }

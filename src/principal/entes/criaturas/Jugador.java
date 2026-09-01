@@ -20,6 +20,7 @@ import principal.entes.modelos.tile.ListaModeloTile;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Consumible;
 import principal.entes.objetos.items.Item;
+import principal.entes.objetos.items.Portable;
 import principal.entes.objetos.items.armas.Arma;
 import principal.entes.objetos.items.arrojadizos.Arrojadizo;
 import principal.entes.proyectil.GolpeMele;
@@ -35,17 +36,9 @@ import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
+import principal.utilidades.audio.sonido.GestorSonido;
+import principal.utilidades.audio.sonido.IDSonido;
 
-/**
- * Representa al personaje principal controlado por el usuario.
- * <p>
- * Integra el perfil de facción {@link GestorFacciones#FACCION_JUGADOR}, sistema
- * de estamina, recolección, <b>balística vectorial en 360 grados</b> y
- * <b>gestión de recarga manual (Tecla R)</b>.
- * </p>
- * 
- * @version 3.9 (Java 8 Compatible - Zero-GC Architecture)
- */
 public class Jugador extends Criatura {
 
 	protected final int MARGENX;
@@ -72,7 +65,6 @@ public class Jugador extends Criatura {
 	protected double maxEstamina;
 	protected double puntoRecuperarEstaminaXseg;
 	protected double puntoGastarEstaminaXseg;
-	protected final float PTS_CONSUMIR_ESTAMINA = 0.5f;
 
 	protected final int ANCHO_INTERACCION_COFRE;
 	protected final int ALTO_INTERACCION_COFRE;
@@ -124,10 +116,12 @@ public class Jugador extends Criatura {
 				this.curar(Globales.JUGADOR.getDamage());
 			}
 		}
+
 		super.actualizar();
 		if (this.eliminado) {
 			return;
 		}
+
 		if (Globales.RATON.presionadoClickIzqUnicaAct()
 				&& Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())) {
 			this.curar();
@@ -147,22 +141,20 @@ public class Jugador extends Criatura {
 		this.actualizarArrojar();
 		this.actualizarRecarga();
 		this.actualizarAtaque();
+
+		if (Animaciones.JUGADOR != null) {
+			Animaciones.JUGADOR.actualizar(this);
+		}
 	}
 
-	/**
-	 * Actualiza el temporizador de recarga activa y procesa la tecla 'R' de recarga
-	 * manual.
-	 */
 	private void actualizarRecarga() {
 		final Arma armaEquipada = this.getArmaEquipada();
 		if ((armaEquipada == null) || !armaEquipada.esArmaDistancia()) {
 			return;
 		}
 
-		// Actualiza el avance del tiempo de recarga
 		armaEquipada.actualizarCicloRecarga(this);
 
-		// Disparo de recarga manual con la tecla 'R'
 		if (Globales.TECLADO.TECLA_RECARGAR.presionadoUnicaActualizacion()) {
 			armaEquipada.iniciarRecarga(this);
 		}
@@ -520,7 +512,7 @@ public class Jugador extends Criatura {
 			final int yOrigen = this.getCentroY();
 
 			this.direccion = Globales.FUNCIONES.getDireccionMirando(xOrigen, yOrigen, pRaton.x, pRaton.y);
-			armaEquipada.disparar(xOrigen, yOrigen, pRaton.x, pRaton.y, mundo, this, false);
+			armaEquipada.disparar(xOrigen, yOrigen, pRaton.x, pRaton.y, mundo, this);
 
 		} else {
 			this.ataqueMele((int) this.getPosicionX() + 8, (int) this.getPosicionY() + 8, this.direccion, mundo);
@@ -552,8 +544,12 @@ public class Jugador extends Criatura {
 		}
 	}
 
+	// =========================================================================
+	// === RECOGIDA CON ABSORCIÓN PARCIAL ZERO-GC
+	// =========================================================================
+
 	private void actualizarRecogidaItems() {
-		if (!Globales.TECLADO.TECLA_RECOGIENDO.presionado() || (this.tilePisado == null)) {
+		if (!Globales.TECLADO.TECLA_RECOGIENDO.presionado() || (this.tilePisado == null) || (this.mundo == null)) {
 			return;
 		}
 		if (!Globales.TECLEO_RECOGIDA.transcurrioMiliSegundos(300)) {
@@ -563,17 +559,52 @@ public class Jugador extends Criatura {
 		Globales.TECLEO_RECOGIDA.establecerReferenciaTiempoActual();
 		this.actualizarAreaRecoleccion();
 
-		for (final Item item : this.mundo.getItemsIntersectados(this.areaRecoleccion)) {
-			if (Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(item)) {
-				if (item instanceof Consumible) {
-					if (((Consumible) item).getCantidad() == 0) {
-						item.eliminar();
+		this.mundo.paraCadaItemEn(this.areaRecoleccion, item -> {
+			if (item.estaEliminado()) {
+				return;
+			}
+
+			if (item instanceof Consumible) {
+				final Consumible cons = (Consumible) item;
+				final int cantInicial = cons.getCantidad();
+
+				// Intenta agregar al inventario (modifica cons.cantidad in-situ con el
+				// sobrante)
+				Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(cons);
+
+				final int absorbidos = cantInicial - cons.getCantidad();
+
+				// Si se absorbió al menos 1 unidad
+				if (absorbidos > 0) {
+					GestorSonido.reproducir(IDSonido.GOLPE_1);
+					Globales.GESTOR_TEXTOS.agregarTexto("+" + absorbidos + " " + cons.getNombre(), this.getCentroX(),
+							this.getPosicionYInt() - 6, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+
+					// Si no quedó sobrante (absorción total 100%), se elimina del mundo y se
+					// registra en Delta
+					if (cons.getCantidad() <= 0) {
+						cons.eliminar();
+						if (Globales.GESTOR_DELTAS != null) {
+							Globales.GESTOR_DELTAS.obtenerOCrearDelta(this.mundo.getNombreMundo(), 0)
+									.registrarDestruccion(cons.getPosicionXInt(), cons.getPosicionYInt());
+						}
 					}
-				} else {
+				}
+			} else if (item instanceof Portable) {
+				// Ítems portables (armas, armaduras, botas) no son apilables
+				if (Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(item)) {
 					item.eliminar();
+					GestorSonido.reproducir(IDSonido.GOLPE_1);
+					Globales.GESTOR_TEXTOS.agregarTexto("+" + item.getNombre(), this.getCentroX(),
+							this.getPosicionYInt() - 6, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+
+					if (Globales.GESTOR_DELTAS != null) {
+						Globales.GESTOR_DELTAS.obtenerOCrearDelta(this.mundo.getNombreMundo(), 0)
+								.registrarDestruccion(item.getPosicionXInt(), item.getPosicionYInt());
+					}
 				}
 			}
-		}
+		});
 	}
 
 	private void actualizarArrojar() {
@@ -583,7 +614,7 @@ public class Jugador extends Criatura {
 				final Rectangle areaRaton = Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
 				final Arrojadizo item = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo()
 						.getItemArrojadizo();
-				item.arrojar(areaRaton.x, areaRaton.y, this.direccion, this.mundo, this, false);
+				item.arrojar(areaRaton.x, areaRaton.y, this.direccion, this.mundo, this);
 				Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().eliminarObjeto();
 			} else if (Globales.RATON.presionadoClickDerUnicaAct()) {
 				Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().eliminarObjeto();

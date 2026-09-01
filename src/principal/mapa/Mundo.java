@@ -21,9 +21,7 @@ import org.json.simple.JSONObject;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
-import principal.entes.modelos.complemento.ListaModeloComplemento;
-import principal.entes.modelos.complemento.ModeloComplementoT1;
-import principal.entes.modelos.complemento.ModeloComplementoT2;
+import principal.entes.criaturas.Jugador;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.cofres.Cofre;
@@ -38,17 +36,14 @@ import principal.mapa.escenario.Escenario;
 import principal.mapa.mapas.Spawn;
 import principal.mapa.renderEntidades.ZoneBox;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
+import principal.utilidades.AccionEntidad;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
-/**
- * Gestor central del Mundo en el motor RPG 2D.
- * 
- * @version 3.6 (Java 8 Compatible - Zero-GC Architecture)
- */
 public class Mundo {
 
+	protected String nombreMundo = "Exterior";
 	protected final Escenario ESCENARIO;
 	protected final HashMap<String, Spawn> PUNTOS_SPAWN_JUGADOR = new HashMap<String, Spawn>();
 	protected final int LADO_ZONEBOX = 64;
@@ -135,6 +130,14 @@ public class Mundo {
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
 		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(12, 20));
 		this.generarZonas();
+	}
+
+	public String getNombreMundo() {
+		return (this.nombreMundo != null) ? this.nombreMundo : "Exterior";
+	}
+
+	public void setNombreMundo(final String nombreMundo) {
+		this.nombreMundo = nombreMundo;
 	}
 
 	private void generarZonas() {
@@ -310,74 +313,220 @@ public class Mundo {
 			return false;
 		}
 
-		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(e);
-		if (zonas.isEmpty()) {
-			return false;
-		}
+		final int posX = e.getPosicionXInt();
+		final int posY = e.getPosicionYInt();
+		final int ancho = e.getAncho();
+		final int alto = e.getAlto();
+
+		final int minGX = Math.max(0, Math.floorDiv(posX, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1,
+				Math.floorDiv((posX + Math.max(1, ancho)) - 1, this.LADO_ZONEBOX));
+		final int minGY = Math.max(0, Math.floorDiv(posY, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1,
+				Math.floorDiv((posY + Math.max(1, alto)) - 1, this.LADO_ZONEBOX));
 
 		e.setMundo(this);
-		final int totalZonas = zonas.size();
-		for (int i = 0; i < totalZonas; i++) {
-			final ZoneBox zb = zonas.get(i);
-			zb.addEntidad(e);
-			e.getZonasOcupadas().add(zb);
+
+		for (int gy = minGY; gy <= maxGY; gy++) {
+			final int offset = gy * this.cantZonasX;
+			for (int gx = minGX; gx <= maxGX; gx++) {
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
+				if (zb != null) {
+					zb.addEntidad(e);
+					e.getZonasOcupadas().add(zb);
+				}
+			}
 		}
 
 		this.ENTES_REGISTRADOS.add(e);
-
-		if ((e instanceof Objeto) && ((Objeto) e).esSolido()) {
-			this.objetoSolidoVerificarTile((Objeto) e);
-		}
-
 		return true;
 	}
 
-	private void objetoSolidoVerificarTile(final Objeto obj) {
-		if (obj instanceof Complemento) {
-			final Complemento c = (Complemento) obj;
-			final Object modelo = ListaModeloComplemento.getModeloComplemento(c.getCodigoModelo());
-
-			if (modelo instanceof ModeloComplementoT1) {
-				this.objetoSolidoVerificarTileByArea(c,
-						c.getAreaInterseccionEnBaseMargen(((ModeloComplementoT1) modelo).getMargenesInterseccion()));
-			} else if (modelo instanceof ModeloComplementoT2) {
-				for (final Rectangle margen : ((ModeloComplementoT2) modelo).getMargenesInterseccion()) {
-					this.objetoSolidoVerificarTileByArea(c, c.getAreaInterseccionEnBaseMargen(margen));
-				}
-			}
-		} else {
-			this.objetoSolidoVerificarTileByArea(obj, obj.getArea());
-		}
-	}
-
-	private void objetoSolidoVerificarTileByArea(final Objeto obj, final Rectangle area) {
-		if (area == null) {
+	public void paraCadaCriaturaEn(final Shape area, final boolean incluirJugador,
+			final AccionEntidad<Criatura> accion) {
+		if ((area == null) || (accion == null)) {
 			return;
 		}
-		final int ladoTile = this.getTerreno().ladoTile();
-		final int minTX = Math.max(0, Math.floorDiv(area.x, ladoTile));
-		final int maxTX = Math.min(this.getTerreno().CANTIDAD_TILES_X - 1,
-				Math.floorDiv((area.x + area.width) - 1, ladoTile));
-		final int minTY = Math.max(0, Math.floorDiv(area.y, ladoTile));
-		final int maxTY = Math.min(this.getTerreno().CANTIDAD_TILES_Y - 1,
-				Math.floorDiv((area.y + area.height) - 1, ladoTile));
 
-		for (int ty = minTY; ty <= maxTY; ty++) {
-			for (int tx = minTX; tx <= maxTX; tx++) {
-				final Tile t = this.getTerreno().getTileGrid(tx, ty);
-				if (t != null) {
-					t.meterObjetoSolido(obj);
+		if (incluirJugador && area.intersects(Globales.JUGADOR.getArea())) {
+			accion.ejecutar(Globales.JUGADOR);
+		}
+
+		final Rectangle r = area.getBounds();
+		final int minGX = Math.max(0, Math.floorDiv(r.x, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1, Math.floorDiv((r.x + r.width) - 1, this.LADO_ZONEBOX));
+		final int minGY = Math.max(0, Math.floorDiv(r.y, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1, Math.floorDiv((r.y + r.height) - 1, this.LADO_ZONEBOX));
+
+		for (int gy = minGY; gy <= maxGY; gy++) {
+			final int offset = gy * this.cantZonasX;
+			for (int gx = minGX; gx <= maxGX; gx++) {
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
+				if (zb != null) {
+					zb.paraCadaCriatura(area, accion);
 				}
 			}
 		}
 	}
 
-	public ArrayList<ZoneBox> getZonasIntersectadas(final Ente e) {
-		return (e != null) ? this.getZonasIntersectadas(e.getArea()) : new ArrayList<ZoneBox>(0);
+	public void paraCadaItemEn(final Shape area, final AccionEntidad<Item> accion) {
+		if ((area == null) || (accion == null)) {
+			return;
+		}
+
+		final Rectangle r = area.getBounds();
+		final int minGX = Math.max(0, Math.floorDiv(r.x, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1, Math.floorDiv((r.x + r.width) - 1, this.LADO_ZONEBOX));
+		final int minGY = Math.max(0, Math.floorDiv(r.y, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1, Math.floorDiv((r.y + r.height) - 1, this.LADO_ZONEBOX));
+
+		for (int gy = minGY; gy <= maxGY; gy++) {
+			final int offset = gy * this.cantZonasX;
+			for (int gx = minGX; gx <= maxGX; gx++) {
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
+				if (zb != null) {
+					zb.paraCadaItem(area, accion);
+				}
+			}
+		}
+	}
+
+	public void paraCadaObjetoEn(final Shape area, final AccionEntidad<Objeto> accion) {
+		if ((area == null) || (accion == null)) {
+			return;
+		}
+
+		final Rectangle r = area.getBounds();
+		final int minGX = Math.max(0, Math.floorDiv(r.x, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1, Math.floorDiv((r.x + r.width) - 1, this.LADO_ZONEBOX));
+		final int minGY = Math.max(0, Math.floorDiv(r.y, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1, Math.floorDiv((r.y + r.height) - 1, this.LADO_ZONEBOX));
+
+		for (int gy = minGY; gy <= maxGY; gy++) {
+			final int offset = gy * this.cantZonasX;
+			for (int gx = minGX; gx <= maxGX; gx++) {
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
+				if (zb != null) {
+					zb.paraCadaObjeto(area, accion);
+				}
+			}
+		}
+	}
+
+	public void paraCadaEnteEn(final Shape area, final boolean incluirJugador, final AccionEntidad<Ente> accion) {
+		if ((area == null) || (accion == null)) {
+			return;
+		}
+
+		if (incluirJugador && area.intersects(Globales.JUGADOR.getArea())) {
+			accion.ejecutar(Globales.JUGADOR);
+		}
+
+		final Rectangle r = area.getBounds();
+		final int minGX = Math.max(0, Math.floorDiv(r.x, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1, Math.floorDiv((r.x + r.width) - 1, this.LADO_ZONEBOX));
+		final int minGY = Math.max(0, Math.floorDiv(r.y, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1, Math.floorDiv((r.y + r.height) - 1, this.LADO_ZONEBOX));
+
+		for (int gy = minGY; gy <= maxGY; gy++) {
+			final int offset = gy * this.cantZonasX;
+			for (int gx = minGX; gx <= maxGX; gx++) {
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
+				if (zb != null) {
+					zb.paraCadaEnte(area, accion);
+				}
+			}
+		}
+	}
+
+	public boolean colisionaConZonaUObjetoSolido(final Shape area) {
+		return this.getTerreno().intersectaTileSolido(area) || this.colisionaConObjetoSolido(area);
+	}
+
+	public boolean colisionaConObjetoSolido(final Shape area) {
+		if (area == null) {
+			return false;
+		}
+
+		final Rectangle r = area.getBounds();
+		final int minGX = Math.max(0, Math.floorDiv(r.x, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1, Math.floorDiv((r.x + r.width) - 1, this.LADO_ZONEBOX));
+		final int minGY = Math.max(0, Math.floorDiv(r.y, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1, Math.floorDiv((r.y + r.height) - 1, this.LADO_ZONEBOX));
+
+		for (int gy = minGY; gy <= maxGY; gy++) {
+			final int offset = gy * this.cantZonasX;
+			for (int gx = minGX; gx <= maxGX; gx++) {
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
+				if ((zb != null) && zb.intersectaObjetoSolido(area)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public boolean colisionaConAlgoSolidoPermanente(final Shape area) {
+		if (area == null) {
+			return false;
+		}
+		if (this.getTerreno().intersectaTileSolido(area)) {
+			return true;
+		}
+		return this.colisionaConObjetoSolido(area);
+	}
+
+	public boolean colisionaConObjetoSolidoPeroEnZonaNoSolida(final Shape area) {
+		if (area == null) {
+			return false;
+		}
+
+		final Rectangle r = area.getBounds();
+		final int minGX = Math.max(0, Math.floorDiv(r.x, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1, Math.floorDiv((r.x + r.width) - 1, this.LADO_ZONEBOX));
+		final int minGY = Math.max(0, Math.floorDiv(r.y, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1, Math.floorDiv((r.y + r.height) - 1, this.LADO_ZONEBOX));
+
+		for (int gy = minGY; gy <= maxGY; gy++) {
+			final int offset = gy * this.cantZonasX;
+			for (int gx = minGX; gx <= maxGX; gx++) {
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
+				if ((zb != null) && zb.intersectaAreaNoSolidaDeAlgunComplemento(area)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public boolean intersectaAlgunaCriatura(final Shape area, final boolean tenerEnCuentaJugador) {
+		if (area == null) {
+			return false;
+		}
+		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
+			return true;
+		}
+
+		final Rectangle r = area.getBounds();
+		final int minGX = Math.max(0, Math.floorDiv(r.x, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1, Math.floorDiv((r.x + r.width) - 1, this.LADO_ZONEBOX));
+		final int minGY = Math.max(0, Math.floorDiv(r.y, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1, Math.floorDiv((r.y + r.height) - 1, this.LADO_ZONEBOX));
+
+		for (int gy = minGY; gy <= maxGY; gy++) {
+			final int offset = gy * this.cantZonasX;
+			for (int gx = minGX; gx <= maxGX; gx++) {
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
+				if ((zb != null) && zb.intersectaAlgunaCriatura(area)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public ArrayList<ZoneBox> getZonasIntersectadas(final Shape s) {
-		final ArrayList<ZoneBox> lista = new ArrayList<ZoneBox>(4);
+		final ArrayList<ZoneBox> lista = new ArrayList<>(4);
 		if ((s == null) || (this.cantZonasX <= 0) || (this.cantZonasY <= 0)) {
 			return lista;
 		}
@@ -391,9 +540,9 @@ public class Mundo {
 				Math.floorDiv((r.y + Math.max(1, r.height)) - 1, this.LADO_ZONEBOX));
 
 		for (int gy = minGY; gy <= maxGY; gy++) {
-			final int offsetFila = gy * this.cantZonasX;
+			final int offset = gy * this.cantZonasX;
 			for (int gx = minGX; gx <= maxGX; gx++) {
-				final ZoneBox zb = this.ZONAS_ARRAY[offsetFila + gx];
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
 				if ((zb != null) && s.intersects(zb.getArea())) {
 					lista.add(zb);
 				}
@@ -402,158 +551,45 @@ public class Mundo {
 		return lista;
 	}
 
-	public HashSet<ZoneBox> getZoneBoxsIntersectados(final Shape s) {
-		return new HashSet<ZoneBox>(this.getZonasIntersectadas(s));
-	}
-
-	public HashSet<Item> getItemsIntersectados(final Shape area) {
-		final HashSet<Item> lista = new HashSet<Item>();
-		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
-			return lista;
-		}
-		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
-		final int totalZonas = zonas.size();
-		for (int i = 0; i < totalZonas; i++) {
-			lista.addAll(zonas.get(i).getItemsIntersectados(area));
-		}
-		return lista;
+	public ArrayList<ZoneBox> getZonasIntersectadas(final Ente e) {
+		return (e != null) ? this.getZonasIntersectadas(e.getArea()) : new ArrayList<ZoneBox>(0);
 	}
 
 	public ArrayList<Criatura> getCriaturasIntersectadas(final Shape area, final boolean tenerEnCuentaJugador) {
-		final ArrayList<Criatura> lista = new ArrayList<Criatura>();
-		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
-			return lista;
-		}
-		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
-			lista.add(Globales.JUGADOR);
-		}
+		final ArrayList<Criatura> lista = new ArrayList<>();
+		this.paraCadaCriaturaEn(area, tenerEnCuentaJugador, lista::add);
+		return lista;
+	}
 
-		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
-		final int totalZonas = zonas.size();
-		for (int i = 0; i < totalZonas; i++) {
-			lista.addAll(zonas.get(i).getCriaturasIntersectadas(area));
+	public ArrayList<Criatura> getCriaturasIntersectadasConEnte(final Ente e) {
+		final ArrayList<Criatura> criaturas = new ArrayList<>();
+		if (e != null) {
+			this.paraCadaCriaturaEn(e.getArea(), false, c -> {
+				if (!criaturas.contains(c)) {
+					criaturas.add(c);
+				}
+			});
 		}
+		return criaturas;
+	}
 
+	public HashSet<Item> getItemsIntersectados(final Shape area) {
+		final HashSet<Item> lista = new HashSet<>();
+		this.paraCadaItemEn(area, lista::add);
 		return lista;
 	}
 
 	public ArrayList<Ente> getEnteIntersectados(final Shape area, final boolean tenerEnCuentaJugador) {
-		final ArrayList<Ente> lista = new ArrayList<Ente>();
-		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
-			return lista;
-		}
-		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
-			lista.add(Globales.JUGADOR);
-		}
+		final ArrayList<Ente> lista = new ArrayList<>();
+		this.paraCadaEnteEn(area, tenerEnCuentaJugador, lista::add);
 
-		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
-		final int totalZonas = zonas.size();
-		for (int i = 0; i < totalZonas; i++) {
-			lista.addAll(zonas.get(i).getEntesIntersectados(area));
-		}
-
-		final int totalProyectiles = this.PROYECTILES.size();
-		for (int i = 0; i < totalProyectiles; i++) {
+		for (int i = 0; i < this.PROYECTILES.size(); i++) {
 			final Proyectil p = this.PROYECTILES.get(i);
 			if (area.intersects(p.getArea())) {
 				lista.add(p);
 			}
 		}
-
 		return lista;
-	}
-
-	public ArrayList<Criatura> getCriaturasIntersectadasConEnte(final Ente e) {
-		final ArrayList<Criatura> criaturas = new ArrayList<Criatura>();
-		if (e == null) {
-			return criaturas;
-		}
-		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(e);
-		final int totalZonas = zonas.size();
-
-		for (int z = 0; z < totalZonas; z++) {
-			final ArrayList<Criatura> criatZona = zonas.get(z).getCriaturas();
-			final int totalCriat = criatZona.size();
-			for (int i = 0; i < totalCriat; i++) {
-				final Criatura c = criatZona.get(i);
-				if (!criaturas.contains(c)) {
-					criaturas.add(c);
-				}
-			}
-		}
-		return criaturas;
-	}
-
-	public boolean intersectaAlgunaCriatura(final Shape area, final boolean tenerEnCuentaJugador) {
-		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
-			return false;
-		}
-		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
-			return true;
-		}
-
-		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
-		final int totalZonas = zonas.size();
-		for (int i = 0; i < totalZonas; i++) {
-			if (zonas.get(i).intersectaAlgunaCriatura(area)) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	public boolean colisionaConZonaUObjetoSolido(final Shape area) {
-		return this.getTerreno().intersectaTileSolido(area) || this.colisionaConObjetoSolido(area);
-	}
-
-	public boolean colisionaConObjetoSolido(final Shape area) {
-		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
-			return false;
-		}
-
-		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
-		final int totalZonas = zonas.size();
-		for (int i = 0; i < totalZonas; i++) {
-			if (zonas.get(i).intersectaObjetoSolido(area)) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	public boolean colisionaConAlgoSolidoPermanente(final Shape area) {
-		if (area == null) {
-			return false;
-		}
-		if (this.getTerreno().intersectaSolidoDijkstra(area.getBounds())) {
-			return true;
-		}
-
-		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
-		final int totalZonas = zonas.size();
-		for (int i = 0; i < totalZonas; i++) {
-			if (zonas.get(i).intersectaObjetoSolidoPermanente(area)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	public boolean colisionaConObjetoSolidoPeroEnZonaNoSolida(final Shape area) {
-		if ((area == null) || !this.getTerreno().AreaDentroDelTerreno(area.getBounds())) {
-			return false;
-		}
-
-		final ArrayList<ZoneBox> zonas = this.getZonasIntersectadas(area);
-		final int totalZonas = zonas.size();
-		for (int i = 0; i < totalZonas; i++) {
-			if (zonas.get(i).intersectaAreaNoSolidaDeAlgunComplemento(area)) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	public boolean agregarItemEnPosicionJugador(final Item item, final boolean copiar) {
@@ -591,15 +627,13 @@ public class Mundo {
 	}
 
 	private void pintarParticulas(final Graphics2D g) {
-		final int total = this.PARTICULAS.size();
-		for (int i = 0; i < total; i++) {
+		for (int i = 0; i < this.PARTICULAS.size(); i++) {
 			this.PARTICULAS.get(i).pintar(g);
 		}
 	}
 
 	private void pintarProyectiles(final Graphics2D g) {
-		final int total = this.PROYECTILES.size();
-		for (int i = 0; i < total; i++) {
+		for (int i = 0; i < this.PROYECTILES.size(); i++) {
 			this.PROYECTILES.get(i).pintar(g);
 		}
 	}
@@ -675,10 +709,6 @@ public class Mundo {
 		g.setFont(fontOriginal);
 	}
 
-	/**
-	 * Actualiza el grafo Dijkstra hacia la posición del jugador si hay criaturas
-	 * activas requiriendo ruta (sin requerir pulsación de teclas de depuración).
-	 */
 	private void actualizarDijkstra() {
 		if (this.dijkstra.hayEntidadesAlPendiente() || this.forzarUnaActualizacionDijkstra) {
 			this.dijkstra.actualizar(Globales.JUGADOR.getPosicionParado());
@@ -761,8 +791,7 @@ public class Mundo {
 
 	private int generarCriaturas(final ArrayList<Criatura> criaturas) {
 		int cant = 0;
-		final int total = criaturas.size();
-		for (int i = 0; i < total; i++) {
+		for (int i = 0; i < criaturas.size(); i++) {
 			this.meterEntidad(criaturas.get(i));
 			cant++;
 		}
@@ -811,7 +840,13 @@ public class Mundo {
 		final JSONArray listaObjetos = new JSONArray();
 
 		for (final Ente e : this.getEntes()) {
+			if (e.estaEliminado()) {
+				continue;
+			}
 			if (e instanceof Criatura) {
+				if (!(e instanceof Jugador)) {
+					listaCriaturas.add(((Criatura) e).getJsonCriatura());
+				}
 			} else if (e instanceof Complemento) {
 				listaComplementos.add(((Complemento) e).exportarParaJSON());
 			} else if (e instanceof Item) {

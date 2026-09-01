@@ -3,18 +3,11 @@ package principal.animaciones;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
-import principal.utilidades.Render2D;
 import principal.utilidades.GestorTIempoActualizacion;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
+import principal.utilidades.Render2D;
 
-/**
- * Controlador de fotogramas y temporización de animaciones con soporte para
- * renderizado estándar, transparencia y máscaras de impacto Hit-Flash.
- * 
- * @author Copiloto Técnico
- * @version 2.0
- */
 public class Animacion {
 
 	protected final HojaSprite hojasprite;
@@ -25,7 +18,7 @@ public class Animacion {
 	protected int spritePosicion;
 	protected final int MAX_SPRITE_POSICION;
 	protected boolean pausado;
-	private int codPintado;
+	private int codActualizacion;
 	private final boolean inversa;
 
 	public Animacion(final HojaSprite hojasprite, final boolean repetitiva, final int tiempoMSFrames) {
@@ -37,39 +30,56 @@ public class Animacion {
 		this.hojasprite = hojasprite;
 		this.repetitiva = repetitiva;
 		this.TIEMPO_MS_POR_FRAMES = tiempoMSFrames;
-		this.MAX_SPRITE_POSICION = hojasprite.getCantidadSprite() - 1;
+		this.MAX_SPRITE_POSICION = (hojasprite != null) ? hojasprite.getCantidadSprite() - 1 : 0;
 		this.GT_DURACION_ANIMACION = new GestorTIempoActualizacion();
 		this.animando = true;
 		this.inversa = inversa;
+		this.codActualizacion = Integer.MIN_VALUE;
+
 		if (inversa) {
 			this.spritePosicion = this.MAX_SPRITE_POSICION;
 		}
 	}
 
+	// =========================================================================
+	// === ACTUALIZACIÓN LÓGICA (60 APS / TICK LÓGICO)
+	// =========================================================================
+
+	public void actualizar() {
+		if (!this.animando || this.pausado || Globales.pausa) {
+			return;
+		}
+
+		final int codGlobal = Globales.getCodActualizacion();
+		if (this.codActualizacion == codGlobal) {
+			return; // Ya fue actualizada en este tick lógico
+		}
+		this.codActualizacion = codGlobal;
+
+		this.GT_DURACION_ANIMACION.actualizar();
+
+		if (this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES)) {
+			if (!this.repetitiva && ((this.inversa && (this.spritePosicion == 0))
+					|| (!this.inversa && (this.spritePosicion == this.MAX_SPRITE_POSICION)))) {
+				return;
+			}
+
+			this.GT_DURACION_ANIMACION.reiniciarTiempo();
+			this.siguienteSprite();
+		}
+	}
+
+	// =========================================================================
+	// === RENDERIZADO IDEMPOTENTE (SOLO LECTURA)
+	// =========================================================================
+
 	public void pintar(final Graphics2D g, final double x, final double y, final boolean refJugador) {
 		this.pintar(g, x, y, refJugador, false);
 	}
 
-	/**
-	 * Renderiza el frame actual alternando entre la textura normal y la máscara
-	 * blanca de impacto.
-	 *
-	 * @param g          Contexto gráfico {@link Graphics2D}.
-	 * @param x          Coordenada X.
-	 * @param y          Coordenada Y.
-	 * @param refJugador {@code true} para aplicar desplazamiento de cámara.
-	 * @param flash      {@code true} para dibujar la silueta blanca de daño
-	 *                   (Hit-Flash).
-	 */
 	public void pintar(final Graphics2D g, final double x, final double y, final boolean refJugador,
 			final boolean flash) {
-		if (!this.animando) {
-			return;
-		}
-		if (!this.repetitiva
-				&& ((this.inversa && (this.spritePosicion == 0))
-						|| (!this.inversa && (this.spritePosicion == this.MAX_SPRITE_POSICION)))
-				&& this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES)) {
+		if (!this.animando || (this.hojasprite == null)) {
 			return;
 		}
 
@@ -81,31 +91,6 @@ public class Animacion {
 		} else {
 			Render2D.dibujarImagen(g, spriteActual, (int) x, (int) y);
 		}
-
-		if (Globales.pausa) {
-			if (!this.pausado) {
-				this.pausado = true;
-			}
-		} else if (this.pausado) {
-			this.pausado = false;
-		}
-
-		if (this.codPintado != Globales.getCodActualizacion()) {
-			if (!this.pausado) {
-				this.codPintado = Globales.getCodActualizacion();
-				this.GT_DURACION_ANIMACION.actualizar();
-				if (this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES)) {
-					if (!this.repetitiva
-							&& ((this.inversa && (this.spritePosicion == 0))
-									|| (!this.inversa && (this.spritePosicion == this.MAX_SPRITE_POSICION)))
-							&& this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES)) {
-						return;
-					}
-					this.GT_DURACION_ANIMACION.reiniciarTiempo();
-					this.siguienteSprite();
-				}
-			}
-		}
 	}
 
 	public void pintarConTransparencia(final Graphics2D g, final double x, final double y, final boolean refJugador,
@@ -115,13 +100,7 @@ public class Animacion {
 
 	public void pintarConTransparencia(final Graphics2D g, final double x, final double y, final boolean refJugador,
 			final float alpha, final boolean flash) {
-		if (!this.animando) {
-			return;
-		}
-		if (!this.repetitiva
-				&& ((this.inversa && (this.spritePosicion == 0))
-						|| (!this.inversa && (this.spritePosicion == this.MAX_SPRITE_POSICION)))
-				&& this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES)) {
+		if (!this.animando || (this.hojasprite == null)) {
 			return;
 		}
 
@@ -133,29 +112,22 @@ public class Animacion {
 		} else {
 			Render2D.dibujarImagenConTransparencia(g, spriteActual, (int) x, (int) y, alpha);
 		}
+	}
 
-		if (Globales.pausa) {
-			if (!this.pausado) {
-				this.pausado = true;
+	// =========================================================================
+	// === CONTROL DE ESTADO
+	// =========================================================================
+
+	protected void siguienteSprite() {
+		if (!this.inversa) {
+			this.spritePosicion++;
+			if (this.spritePosicion > this.MAX_SPRITE_POSICION) {
+				this.spritePosicion = 0;
 			}
-		} else if (this.pausado) {
-			this.pausado = false;
-		}
-
-		if (this.codPintado != Globales.getCodActualizacion()) {
-			if (!this.pausado) {
-				this.codPintado = Globales.getCodActualizacion();
-				this.GT_DURACION_ANIMACION.actualizar();
-				if (this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES)) {
-					if (!this.repetitiva
-							&& ((this.inversa && (this.spritePosicion == 0))
-									|| (!this.inversa && (this.spritePosicion == this.MAX_SPRITE_POSICION)))
-							&& this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES)) {
-						return;
-					}
-					this.GT_DURACION_ANIMACION.reiniciarTiempo();
-					this.siguienteSprite();
-				}
+		} else {
+			this.spritePosicion--;
+			if (this.spritePosicion < 0) {
+				this.spritePosicion = this.MAX_SPRITE_POSICION;
 			}
 		}
 	}
@@ -181,32 +153,12 @@ public class Animacion {
 		return this.animando;
 	}
 
-	protected void siguienteSprite() {
-		if (!this.inversa) {
-			this.spritePosicion++;
-			if (this.spritePosicion > this.MAX_SPRITE_POSICION) {
-				this.spritePosicion = 0;
-			}
-		} else {
-			this.spritePosicion--;
-			if (this.spritePosicion < 0) {
-				this.spritePosicion = this.MAX_SPRITE_POSICION;
-			}
-		}
+	public int getSpritePosicion() {
+		return this.spritePosicion;
 	}
 
-	public int getSpritePosicion() {
-		if (this.codPintado != Globales.getCodActualizacion()) {
-			if (!this.pausado && !Globales.pausa) {
-				this.codPintado = Globales.getCodActualizacion();
-				this.GT_DURACION_ANIMACION.actualizar();
-				if (this.GT_DURACION_ANIMACION.transcurrioMS(this.TIEMPO_MS_POR_FRAMES)) {
-					this.GT_DURACION_ANIMACION.reiniciarTiempo();
-					this.siguienteSprite();
-				}
-			}
-		}
-		return this.spritePosicion;
+	public void setSpritePosicion(final int pos) {
+		this.spritePosicion = Math.max(0, Math.min(this.MAX_SPRITE_POSICION, pos));
 	}
 
 	public boolean animacionFinalizada() {

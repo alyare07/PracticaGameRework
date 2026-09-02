@@ -13,7 +13,7 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 public class BandidoPistolero extends Bandido {
-
+	private final static String NOMBRE = "Bandido Pistolero";
 	private final int rangoDisparo = 248;
 	private final Pistola pistola;
 
@@ -206,5 +206,10 @@ public class BandidoPistolero extends Bandido {
 	@Override
 	protected int getTiempoMsEsperaRetomarAtaque() {
 		return 1100;
+	}
+
+	@Override
+	public String getNombre() {
+		return NOMBRE;
 	}
 }

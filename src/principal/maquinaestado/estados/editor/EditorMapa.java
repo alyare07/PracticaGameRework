@@ -7,6 +7,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Transparency;
+import java.awt.event.KeyEvent;
 import java.awt.image.VolatileImage;
 import java.io.File;
 import java.time.LocalDateTime;
@@ -140,11 +141,14 @@ public class EditorMapa implements EstadoJuego {
 		this.borrarElemento();
 		this.MUNDO_EDITOR.actualizar();
 
-		if (Globales.TECLADO.TECLA_GUARDAR_MAPA.presionado()) {
+		if (Globales.TECLADO.TECLA_GUARDAR_MAPA.presionadoUnicaActualizacion()) {
 			if (this.GT.transcurrioSegundos(1)) {
 				this.GT.establecerReferenciaTiempoActual();
 				this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
 			}
+		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
+			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
+			this.GE.disposeEditor();
 		} else if (Globales.TECLADO.TECLA_ESCAPE.presionado()) {
 			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
 			this.GE.disposeEditor();

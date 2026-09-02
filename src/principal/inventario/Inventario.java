@@ -208,7 +208,7 @@ public class Inventario {
 		}
 
 		final Font fuentePrevia = g.getFont();
-		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 4.5f));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 7f));
 
 		final int str = Globales.JUGADOR.getFuerzaTotal();
 		final int agi = Globales.JUGADOR.getAgilidadTotal();
@@ -216,7 +216,7 @@ public class Inventario {
 		final int def = Globales.JUGADOR.getDefensaTotal();
 
 		final int xStats = (this.X + this.ANCHO) - 34;
-		final int yBase = this.Y + 5;
+		final int yBase = this.Y + 7;
 
 		Render2D.dibujarStringConSombra(g, "FUE: " + str, xStats, yBase, COLOR_TEXTO_FUE, Color.BLACK);
 		Render2D.dibujarStringConSombra(g, "AGI: " + agi, xStats, yBase + 5, COLOR_TEXTO_AGI, Color.BLACK);

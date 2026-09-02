@@ -79,10 +79,10 @@ public class Mapa1 extends Mapa {
 
 		// Enemigos iniciales
 		this.mundoActual.meterEntidad(new BandidoGarrote(890, 220, 50, 50, this.mundoActual));
-		this.mundoActual.meterEntidad(new BandidoGarrote(897, 220, 50, 50, this.mundoActual));
-		this.mundoActual.meterEntidad(new BandidoGarrote(876, 220, 50, 50, this.mundoActual));
-		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 50, 50, this.mundoActual));
-		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 50, 50, this.mundoActual));
+		this.mundoActual.meterEntidad(new BandidoGarrote(897, 220, 75, 75, this.mundoActual));
+		this.mundoActual.meterEntidad(new BandidoGarrote(876, 220, 125, 125, this.mundoActual));
+		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 1500, 1500, this.mundoActual));
+		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 250, 250, this.mundoActual));
 
 		// Recursos Cosechables de prueba cerca del spawn
 		this.mundoActual.meterEntidad(new ArbolCosechable(720, 420, Textura.TEXTURA_x32_ARBOL_1));
@@ -160,7 +160,8 @@ public class Mapa1 extends Mapa {
 			final boolean colisionaObjeto = this.mundoActual.colisionaConObjetoSolido(areaPrueba);
 
 			if (!colisionaTerreno && !colisionaObjeto) {
-				final Bandido enemigo = new BandidoPistolero(posX, posY, 50, 50, this.mundoActual);
+				final int vida = 150;
+				final Bandido enemigo = new BandidoPistolero(posX, posY, vida, vida, this.mundoActual);
 				this.mundoActual.meterEntidad(enemigo);
 				generados++;
 			}

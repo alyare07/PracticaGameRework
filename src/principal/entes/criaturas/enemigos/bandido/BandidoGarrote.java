@@ -10,7 +10,7 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 public class BandidoGarrote extends Bandido {
-
+	private static final String NOMBRE = "Bandido Con Garrote";
 	private boolean pintarAtaque;
 	private boolean impactoRealizadoEnCiclo;
 	private static final int FOTOGRAMA_IMPACTO = 2;
@@ -123,5 +123,10 @@ public class BandidoGarrote extends Bandido {
 	@Override
 	protected double getGrosorRangoAtaqueMele() {
 		return 6.0;
+	}
+
+	@Override
+	public String getNombre() {
+		return NOMBRE;
 	}
 }

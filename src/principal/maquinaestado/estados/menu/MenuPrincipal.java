@@ -1,57 +1,43 @@
 package principal.maquinaestado.estados.menu;
 
 import java.awt.Color;
-import java.awt.Rectangle;
 
 import principal.maquinaestado.GestorEstados;
-import principal.maquinaestado.estados.menu.herramientas.Boton;
-import principal.utilidades.Globales;
 
 public class MenuPrincipal extends Menu {
 
 	public MenuPrincipal(final GestorEstados ge) {
-		super(ge);
+		super(ge, "PROYECTO RPG");
+		this.subtituloMenu = "- MOTOR 2D -";
+		this.colorFondo = new Color(10, 12, 16, 255);
+		this.inicializarMenu();
 	}
 
 	@Override
-	protected void inicializarBotones() {
-		final int anchoBoton = 380;
-		final int altoBoton = 45;
-		final int xBoton = (this.DIMENSION.width / 2) - (anchoBoton / 2);
-		final Boton b1 = new Boton("Iniciar Partida", Color.gray, new Rectangle(xBoton, 100, anchoBoton, altoBoton));
-		b1.establecerAccion(() -> {
+	protected void inicializarMenu() {
+		this.componentes.clear();
+		this.botones.clear();
+
+		this.agregarBoton("Iniciar Partida", () -> {
 			this.GE.iniciarPartidaNueva();
-//			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_PARTIDA);
 		});
 
-		final Boton b2 = new Boton("Cargar Partida", Color.gray, new Rectangle(xBoton, 160, anchoBoton, altoBoton));
-		b2.establecerAccion(() -> {
+		this.agregarBoton("Cargar Partida", () -> {
 			this.GE.seleccionarMundo();
-			this.accionPostClick();
 		});
 
-		final Boton b3 = new Boton("Configuracion", Color.gray, new Rectangle(xBoton, 220, anchoBoton, altoBoton));
-
-		b3.establecerAccion(() -> {
+		this.agregarBoton("Configuracion", () -> {
 			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU_CONFIGURACIONES);
 		});
 
-		final Boton b4 = new Boton("Editor", Color.gray,
-				new Rectangle((xBoton / 2) - ((anchoBoton / 8)), 220, anchoBoton / 4, altoBoton));
-		b4.establecerAccion(() -> {
+		this.agregarBoton("Editor de Mapas", () -> {
 			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_EDITOR_MAPA);
 		});
 
-		final Boton b5 = new Boton("Salir", Color.gray, new Rectangle(xBoton, 280, anchoBoton, altoBoton));
-		b5.establecerAccion(() -> {
-			Globales.FUNCIONES.TEMP_MANAGER.eliminarTemp();
+		this.agregarBoton("Salir", () -> {
 			System.exit(0);
 		});
-		this.COMPONENTES.add(b1);
-		this.COMPONENTES.add(b2);
-		this.COMPONENTES.add(b3);
-		this.COMPONENTES.add(b4);
-		this.COMPONENTES.add(b5);
-	}
 
+		this.establecerIndiceEnfocado(0);
+	}
 }

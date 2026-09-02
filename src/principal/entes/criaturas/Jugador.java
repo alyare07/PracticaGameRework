@@ -43,7 +43,7 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 public class Jugador extends Criatura {
-
+	private static final String NOMBRE = "Alyare";
 	protected final int MARGENX;
 	protected final int MARGENY;
 	protected double desplazamientoX;
@@ -1132,5 +1132,10 @@ public class Jugador extends Criatura {
 			this.DIJKSTRA = new DijkstraRework(mundo, new Dimension(this.ANCHO, this.ALTO));
 		}
 		this.moviendoPorRecorrido = false;
+	}
+
+	@Override
+	public String getNombre() {
+		return NOMBRE;
 	}
 }

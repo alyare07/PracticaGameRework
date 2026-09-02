@@ -24,10 +24,10 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Base abstracta para todas las criaturas con soporte de Atributos RPG (Zero-GC
- * / O(1)).
+ * Base abstracta para todas las criaturas con soporte de Atributos RPG,
+ * Facciones y Barras de Salud Multicapa (Zero-GC / O(1)).
  * 
- * @version 4.0 (Vanilla Java 8)
+ * @version 5.0 (Vanilla Java 8)
  */
 public abstract class Criatura extends Ente {
 
@@ -62,9 +62,22 @@ public abstract class Criatura extends Ente {
 		}
 	}
 
+	// =========================================================================
+	// === PALETA MULTICAPA DE SALUD (50 HP POR CAPA)
+	// =========================================================================
+	private static final double HP_POR_CAPA = 50.0;
+
 	private static final Color COLOR_FONDO_BARRA = Color.BLACK;
-	private static final Color COLOR_BARRA_LAG = new Color(255, 205, 40);
-	private static final Color COLOR_BARRA_VIDA = new Color(235, 30, 30);
+	private static final Color COLOR_BARRA_LAG = new Color(255, 205, 40); // Amarillo rastro
+
+	private static final Color[] COLORES_CAPAS_VIDA = { new Color(235, 30, 30), // Capa 1 (0-50 HP): Rojo clásico
+			// (Peligro crítico)
+			new Color(255, 120, 0), // Capa 2 (51-100 HP): Naranja fuego (Advertencia)
+			new Color(40, 235, 100), // Capa 3 (101-150 HP): Verde esmeralda (Salud base normal)
+			new Color(16, 109, 54), // Capa 4 (151-200 HP): Cian mágico (Salud extra / Escudo)
+			new Color(150, 20, 200), // Capa 5 (201-250 HP): Púrpura arcano (Nivel Épico)
+			new Color(255, 200, 40) // Capa 6+ (>250 HP): Dorado solar (Nivel Máximo / Divino)
+	};
 
 	// =========================================================================
 	// === 1. ATRIBUTOS RPG FUNDAMENTALES (ZERO-GC)
@@ -167,9 +180,7 @@ public abstract class Criatura extends Ente {
 		this.mascaraHostilidad = GestorFacciones.getMascaraHostilidadPorDefecto(this.faccionBit);
 	}
 
-	// =========================================================================
-	// === MÉTODOS DE ATRIBUTOS POLIMÓRFICOS
-	// =========================================================================
+	public abstract String getNombre();
 
 	public int getFuerzaTotal() {
 		return this.fuerzaBase;
@@ -206,10 +217,6 @@ public abstract class Criatura extends Ente {
 	public void setInteligenciaBase(final int inteligencia) {
 		this.inteligenciaBase = Math.max(1, inteligencia);
 	}
-
-	// =========================================================================
-	// === ACTUALIZACIÓN LÓGICA Y REPULSIÓN DE MANADA
-	// =========================================================================
 
 	@Override
 	public void actualizar() {
@@ -278,10 +285,6 @@ public abstract class Criatura extends Ente {
 		}
 	}
 
-	// =========================================================================
-	// === MÉTODOS DE FACCIONES
-	// =========================================================================
-
 	public int getFaccionBit() {
 		return this.faccionBit;
 	}
@@ -306,10 +309,6 @@ public abstract class Criatura extends Ente {
 		return GestorFacciones.esHostil(otra.getFaccionBit(), this.mascaraHostilidad);
 	}
 
-	// =========================================================================
-	// === HIT-FLASH Y COMBATE
-	// =========================================================================
-
 	public boolean estaEnFlashDanio() {
 		return !this.GT_FLASH_DANIO.transcurrioMiliSegundos(TIEMPO_MS_FLASH_DANIO);
 	}
@@ -324,6 +323,10 @@ public abstract class Criatura extends Ente {
 		}
 		this.reducirVida(damage);
 		this.activarFlashDanio();
+
+		if ((this.vidaMaxima >= 1000.0) && (Globales.MOTOR_IGU != null)) {
+			Globales.MOTOR_IGU.fijarJefe(this);
+		}
 
 		if (this.mundo != null) {
 			final double dirX = (causante != null) ? Math.signum(this.x - causante.getPosicionX()) : 0.0;
@@ -380,46 +383,86 @@ public abstract class Criatura extends Ente {
 	}
 
 	protected void pintarIndicadorVida(final Graphics2D g) {
-		if (this.estaEstadoPersiguiendo() || this.estaEstadoAtacando()) {
+		if (this.vidaMaxima >= 1000.0) {
+			return; // Jefes renderizados por BarraJefe en el HUD
+		}
+
+		if (this.estaEstadoPersiguiendo() || this.estaEstadoAtacando()
+				|| Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())) {
 			this.pintarRectanguloBarraVida(g);
-		} else if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getPosicionX(),
-				this.getPosicionY(), this.ANCHO, this.ALTO)) {
-			this.pintarRectanguloBarraVida(g);
-			this.pintarValorVida(g);
 		}
 	}
 
-	private void pintarValorVida(final Graphics2D g) {
-		g.setFont(Globales.GESTOR_FUENTES.getFuente(4f));
-		final String texto = (int) this.vida + "/" + (int) this.vidaMaxima;
-		final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
-
-		final int xTexto = this.getPosicionXInt() + ((this.ANCHO - anchoTexto) / 2);
-		Render2D.dibujarStringRefCamara(g, texto, xTexto, this.getPosicionYInt() - 6, Color.WHITE);
-		g.setFont(Globales.GESTOR_FUENTES.getFuente(Constantes.TAMANO_FUENTE));
-	}
+	// =========================================================================
+	// === RENDERIZADO MULTICAPA DE SALUD (ZERO-GC / O(1))
+	// =========================================================================
 
 	private void pintarRectanguloBarraVida(final Graphics2D g) {
 		final int posX = this.getPosicionXInt();
 		final int posY = this.getPosicionYInt();
+		final int anchoBarra = this.ANCHO;
 
-		final int anchoRojo = (int) Math.round((this.vida * this.ANCHO) / this.vidaMaxima);
-		final int anchoAmarillo = (int) Math.round((this.vidaLag * this.ANCHO) / this.vidaMaxima);
+		final double vidaAct = Math.max(0.0, this.vida);
+		final double vidaLagVal = Math.max(0.0, this.vidaLag);
+		final double vidaMax = Math.max(1.0, this.vidaMaxima);
 
-		Render2D.dibujarRectanguloRellenoRefCamara(g, posX - 1, posY - 5, this.ANCHO + 2, 4, COLOR_FONDO_BARRA);
+		final int capaMaxima = this.obtenerIndiceCapa(vidaMax);
 
-		if (anchoAmarillo > 0) {
-			Render2D.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoAmarillo, 2, COLOR_BARRA_LAG);
+		// 1. Cálculo de capa activa y progreso adaptativo en O(1)
+		final int capaActual = Math.min(capaMaxima, this.obtenerIndiceCapa(vidaAct));
+		final double progresoActual = this.obtenerProgresoCapa(vidaAct, capaActual, capaMaxima, vidaMax);
+
+		// 2. Cálculo de lag sobre la capa actual
+		final int capaLag = Math.min(capaMaxima, this.obtenerIndiceCapa(vidaLagVal));
+		final double progresoLag = (capaLag > capaActual) ? 1.0
+				: this.obtenerProgresoCapa(vidaLagVal, capaActual, capaMaxima, vidaMax);
+
+		// A. Fondo y borde negro exterior (1 px alrededor)
+		Render2D.dibujarRectanguloRellenoRefCamara(g, posX - 1, posY - 5, anchoBarra + 2, 4, COLOR_FONDO_BARRA);
+
+		// B. Capa de fondo subyacente (Color de la capa anterior si existe)
+		if (capaActual > 0) {
+			final Color colorFondoCapa = COLORES_CAPAS_VIDA[capaActual - 1];
+			Render2D.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoBarra, 2, colorFondoCapa);
 		}
 
-		if (anchoRojo > 0) {
-			Render2D.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoRojo, 2, COLOR_BARRA_VIDA);
+		// C. Barra fantasma de daño amarillo (Lag)
+		if (progresoLag > progresoActual) {
+			final int anchoAmarillo = (int) Math.round(progresoLag * anchoBarra);
+			if (anchoAmarillo > 0) {
+				Render2D.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoAmarillo, 2, COLOR_BARRA_LAG);
+			}
+		}
+
+		// D. Barra frontal de salud de la capa actual
+		final int anchoFrontal = (int) Math.round(progresoActual * anchoBarra);
+		if (anchoFrontal > 0) {
+			final Color colorCapaActual = COLORES_CAPAS_VIDA[capaActual];
+			Render2D.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoFrontal, 2, colorCapaActual);
 		}
 	}
 
-	// =========================================================================
-	// === NAVEGACIÓN Y WAYPOINTS A*
-	// =========================================================================
+	private int obtenerIndiceCapa(final double hp) {
+		if (hp <= 0.0) {
+			return 0;
+		}
+		int capa = (int) (hp / HP_POR_CAPA);
+		if ((hp % HP_POR_CAPA) == 0.0) {
+			capa--;
+		}
+		return Math.max(0, Math.min(COLORES_CAPAS_VIDA.length - 1, capa));
+	}
+
+	private double obtenerProgresoCapa(final double hp, final int capa, final int capaMaxima, final double hpMax) {
+		if (hp <= 0.0) {
+			return 0.0;
+		}
+		final double hpBaseCapa = capa * HP_POR_CAPA;
+		final double hpEnEstaCapa = hp - hpBaseCapa;
+		final double capacidadEstaCapa = (capa == capaMaxima) ? Math.max(1.0, hpMax - hpBaseCapa) : HP_POR_CAPA;
+
+		return Math.max(0.0, Math.min(1.0, hpEnEstaCapa / capacidadEstaCapa));
+	}
 
 	protected void moverANodoADestino() {
 		if (this.nodoADestino == null) {
@@ -622,6 +665,10 @@ public abstract class Criatura extends Ente {
 
 	public void meterEstado(final Estado estado) {
 		this.estados.add(estado);
+		if ((this.vidaMaxima >= 1000.0) && ((estado == Estado.PERSIGUIENDO) || (estado == Estado.ATACANDO))
+				&& (Globales.MOTOR_IGU != null)) {
+			Globales.MOTOR_IGU.fijarJefe(this);
+		}
 	}
 
 	public void removerEstado(final Estado estado) {
@@ -737,6 +784,9 @@ public abstract class Criatura extends Ente {
 
 	@Override
 	public void eliminar() {
+		if ((this.vidaMaxima >= 1000.0) && (Globales.MOTOR_IGU != null)) {
+			Globales.MOTOR_IGU.desvincularJefe();
+		}
 		this.eliminado = true;
 		this.desvincularDeZonas();
 	}

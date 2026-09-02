@@ -9,7 +9,7 @@ import principal.entes.criaturas.Criatura;
 import principal.inventario.Contenedor;
 import principal.inventario.vault.InventarioVault;
 
-public class Comerciante extends Criatura implements Contenedor {
+public abstract class Comerciante extends Criatura implements Contenedor {
 	private final InventarioVault INVENTARIO;
 
 	public Comerciante(final double x, final double y, final int ancho, final int alto, final double vidaMaxima) {

@@ -1,79 +1,109 @@
 package principal.utilidades;
 
 import java.awt.Font;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Gestor centralizado y almacén Flyweight de tipografías (Zero-GC / O(1)).
- * Pre-computa tamaños comunes en VRAM/RAM y elimina deriveFont() en caliente.
+ * Carga 'm5x7.ttf' como fuente maestra pixel-art y pre-deriva tamaños en
+ * VRAM/RAM.
  * 
- * @version 1.1 (Vanilla Java 8 - Service Locator Pattern)
+ * @version 2.0 (Vanilla Java 8)
  */
 public class GestorFuentes {
 
-	private final String FAMILIA_DEFECTO = Font.SANS_SERIF;
-	private final int MAX_TAMANO_PRECALCULADO = 64;
+	private static final String RUTA_FUENTE_PIXEL = "/fuentes/m5x7.ttf";
+	private static final String FAMILIA_FALLBACK = Font.SANS_SERIF;
+	private static final int MAX_TAMANO_PRECALCULADO = 64;
+
+	private Font fuenteBasePixel;
 
 	/** Matriz plana O(1): [Estilo (0..3)][Tamaño (1..64)] */
-	private final Font[][] cachePlano = new Font[4][this.MAX_TAMANO_PRECALCULADO + 1];
+	private final Font[][] cachePlano = new Font[4][MAX_TAMANO_PRECALCULADO + 1];
 
-	/** Mapa para tamaños decimales (ej. 6.5f) o fuentes especiales */
+	/** Caché para tamaños fraccionarios excepcionales */
 	private final Map<String, Font> cacheDinamico = new HashMap<String, Font>();
 
 	public GestorFuentes() {
-		// Pre-computación en tiempo de arranque (Boot-time)
+		this.cargarFuenteBase();
+		this.precalcularCache();
+	}
+
+	/**
+	 * Carga el archivo TTF del classpath con try-with-resources y fallback seguro.
+	 */
+	private void cargarFuenteBase() {
+		try (final InputStream is = GestorFuentes.class.getResourceAsStream(RUTA_FUENTE_PIXEL)) {
+			if (is != null) {
+				this.fuenteBasePixel = Font.createFont(Font.TRUETYPE_FONT, is);
+				System.out.println("[GestorFuentes] Tipografia Pixel 'm5x7.ttf' cargada correctamente.");
+			} else {
+				System.err.println(
+						"[GestorFuentes] Advertencia: No se encontro '" + RUTA_FUENTE_PIXEL + "'. Usando fallback.");
+				this.fuenteBasePixel = new Font(FAMILIA_FALLBACK, Font.PLAIN, 12);
+			}
+		} catch (final Exception e) {
+			System.err.println("[GestorFuentes] Error al procesar la fuente: " + e.getMessage());
+			this.fuenteBasePixel = new Font(FAMILIA_FALLBACK, Font.PLAIN, 12);
+		}
+	}
+
+	/**
+	 * Llena la tabla de consulta directa para acceso instantáneo O(1).
+	 */
+	private void precalcularCache() {
 		for (int estilo = Font.PLAIN; estilo <= Font.BOLD; estilo++) {
-			for (int tam = 1; tam <= this.MAX_TAMANO_PRECALCULADO; tam++) {
-				this.cachePlano[estilo][tam] = new Font(this.FAMILIA_DEFECTO, estilo, tam);
+			for (int tam = 1; tam <= MAX_TAMANO_PRECALCULADO; tam++) {
+				this.cachePlano[estilo][tam] = this.fuenteBasePixel.deriveFont(estilo, tam);
 			}
 		}
 	}
 
 	/**
-	 * Obtiene una fuente estándar (PLAIN, SansSerif) en tiempo O(1).
+	 * Obtiene la fuente pixel en estilo PLAIN en tiempo O(1) puro.
 	 */
 	public Font getFuente(final float tamano) {
-		return this.getFuente(this.FAMILIA_DEFECTO, Font.PLAIN, tamano);
+		return this.getFuente(Font.PLAIN, tamano);
 	}
 
 	/**
-	 * Obtiene una fuente SansSerif con estilo específico (PLAIN, BOLD, ITALIC).
+	 * Obtiene la fuente pixel con estilo (PLAIN, BOLD) en tiempo O(1) puro.
 	 */
 	public Font getFuente(final int estilo, final float tamano) {
-		return this.getFuente(this.FAMILIA_DEFECTO, estilo, tamano);
-	}
-
-	/**
-	 * Obtiene o almacena en caché dinámico cualquier combinación de fuente.
-	 */
-	public Font getFuente(final String familia, final int estilo, final float tamano) {
 		final int estiloValidado = Math.max(0, Math.min(3, estilo));
-		final boolean esFamiliaDefecto = (familia == null) || familia.equals(this.FAMILIA_DEFECTO);
-
-		// 1. Acceso directo por índice de arreglo O(1)
 		final int tamInt = Math.round(tamano);
 		final boolean esEnteroExacto = Math.abs(tamano - tamInt) < 0.001f;
 
-		if (esFamiliaDefecto && esEnteroExacto && (tamInt >= 1) && (tamInt <= this.MAX_TAMANO_PRECALCULADO)) {
-			Font f = this.cachePlano[estiloValidado][tamInt];
-			if (f == null) {
-				f = new Font(this.FAMILIA_DEFECTO, estiloValidado, tamInt);
-				this.cachePlano[estiloValidado][tamInt] = f;
-			}
-			return f;
+		if (esEnteroExacto && (tamInt >= 1) && (tamInt <= MAX_TAMANO_PRECALCULADO)) {
+			return this.cachePlano[estiloValidado][tamInt];
 		}
 
-		// 2. Caché dinámico para tamaños fraccionarios
-		final String clave = (familia != null ? familia : this.FAMILIA_DEFECTO) + "_" + estiloValidado + "_" + tamano;
-		Font fuente = this.cacheDinamico.get(clave);
-
-		if (fuente == null) {
-			fuente = new Font(familia != null ? familia : this.FAMILIA_DEFECTO, estiloValidado, tamInt)
-					.deriveFont(tamano);
-			this.cacheDinamico.put(clave, fuente);
+		// Fallback dinámico para tamaños flotantes poco comunes
+		final String clave = "pixel_" + estiloValidado + "_" + tamano;
+		Font f = this.cacheDinamico.get(clave);
+		if (f == null) {
+			f = this.fuenteBasePixel.deriveFont(estiloValidado, tamano);
+			this.cacheDinamico.put(clave, f);
 		}
+		return f;
+	}
 
-		return fuente;
+	/**
+	 * Sobrecarga por compatibilidad para fuentes del sistema si fueran necesarias.
+	 */
+	public Font getFuente(final String familia, final int estilo, final float tamano) {
+		if ((familia == null) || familia.equalsIgnoreCase("pixel") || familia.equalsIgnoreCase("m5x7")) {
+			return this.getFuente(estilo, tamano);
+		}
+		// Consulta genérica para fuentes estándar del SO
+		final String clave = familia + "_" + estilo + "_" + tamano;
+		Font f = this.cacheDinamico.get(clave);
+		if (f == null) {
+			f = new Font(familia, estilo, Math.round(tamano)).deriveFont(tamano);
+			this.cacheDinamico.put(clave, f);
+		}
+		return f;
 	}
 }

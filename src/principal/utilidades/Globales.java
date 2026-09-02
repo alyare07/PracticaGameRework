@@ -12,6 +12,7 @@ import principal.controles.Raton;
 import principal.controles.Teclado;
 import principal.crafteo.GestorCrafteo;
 import principal.entes.criaturas.Jugador;
+import principal.igu.MotorIGU;
 import principal.igu.textos.GestorTextosFlotantes;
 import principal.iluminacion.GestorLuz;
 import principal.inventario.vault.InventarioVault;
@@ -51,6 +52,7 @@ public class Globales {
 	public static final Raton RATON = new Raton();
 	public static final Funciones FUNCIONES = new Funciones();
 	public static final Jugador JUGADOR = new Jugador(0, 0);
+	public static final MotorIGU MOTOR_IGU = new MotorIGU();
 	public static final GestorInventario GESTOR_INVENTARIO = new GestorInventario();
 	public static final HojaSprite HOJA_JUGADORES = new HojaSprite("/imagenes/sprites/jugadores.png", 32, false);
 	public static final int LADO_CURSOR = 4;

@@ -1,316 +1,218 @@
 package principal.maquinaestado.estados.menu;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 
+import principal.controles.Raton;
 import principal.controles.Tecla;
 import principal.maquinaestado.GestorEstados;
-import principal.maquinaestado.estados.menu.herramientas.Boton;
-import principal.maquinaestado.estados.menu.herramientas.CajaTecla;
-import principal.maquinaestado.estados.menu.herramientas.Componente;
-import principal.maquinaestado.estados.menu.herramientas.Label;
+import principal.maquinaestado.estados.menu.herramientas.BotonPixel;
+import principal.maquinaestado.estados.menu.herramientas.CajaTeclaPixel;
 import principal.utilidades.Constantes;
-import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
+import principal.utilidades.audio.sonido.GestorSonido;
+import principal.utilidades.audio.sonido.IDSonido;
 
+/**
+ * Menú de configuración de controles con foco unificado y scroll por rueda
+ * (Zero-GC).
+ * 
+ * @version 3.3 (Vanilla Java 8)
+ */
 public class MenuConfiguracion extends Menu {
-	protected final Rectangle AREA_CONFIGURACIONES;
-	protected final int COMIENZO_X = 30;
-	protected final int COMIENZO_Y = 20;
-	protected final int ANCHO_AREA = Constantes.ANCHO_JUEGO - (this.COMIENZO_X * 2);
-//	protected final Rectangle AREA_VISTA;
-	protected int y;
-	protected int desplazamiento;
-	protected final ArrayList<Componente> COMPONENTES_DESPLAZABLES = new ArrayList<Componente>();
-	protected Boton btnGuardar;
-	protected Boton btnVolver;
-	protected Boton btnSubir;
-	protected Boton btnBajar;
+
+	private static final int FILA_ALTO = 22;
+	private static final int VISTA_Y = 85;
+	private static final int VISTA_ALTO = 210;
+	private static final int PANEL_ANCHO = 360;
+
+	private final ArrayList<CajaTeclaPixel> cajasTeclas = new ArrayList<CajaTeclaPixel>();
+	private BotonPixel botonGuardar;
+	private BotonPixel botonVolver;
+
+	private int scrollY = 0;
+	private int maxScrollY = 0;
+
+	private int ultimoMouseX = -999;
+	private int ultimoMouseY = -999;
 
 	public MenuConfiguracion(final GestorEstados ge) {
-		super(ge);
-		this.AREA_CONFIGURACIONES = new Rectangle(this.COMIENZO_X, this.COMIENZO_Y, this.ANCHO_AREA, 400);
-//		this.AREA_VISTA =  new Rectangle(this.COMIENZO_X, this.COMIENZO_Y, this.ANCHO_AREA, 300);
-		this.y = this.DIMENSION.height;
-		this.inicializarComponentesDesplazables();
-		this.actualizarVisibilidadBotonesSubirBajar();
+		super(ge, "CONFIGURACION DE CONTROLES");
+		this.subtituloMenu = "- REASIGNACION DE TECLAS -";
+		this.inicializarMenu();
+	}
 
+	@Override
+	protected void inicializarMenu() {
+		this.cajasTeclas.clear();
+		this.componentes.clear();
+		this.botones.clear();
+
+		final int panelX = Constantes.CENTROX - (PANEL_ANCHO / 2);
+		int yItem = VISTA_Y + 4;
+
+		for (final Tecla t : Globales.TECLADO.TECLAS_MODIFICABLES.values()) {
+			final Rectangle areaCaja = new Rectangle((panelX + PANEL_ANCHO) - 100, yItem, 90, 16);
+			final CajaTeclaPixel caja = new CajaTeclaPixel(areaCaja, t);
+			this.cajasTeclas.add(caja);
+			yItem += FILA_ALTO;
+		}
+
+		final int altoContenidoTotal = yItem - VISTA_Y;
+		this.maxScrollY = Math.max(0, altoContenidoTotal - VISTA_ALTO);
+
+		final int yBotones = Constantes.ALTO_JUEGO - 40;
+		this.botonGuardar = new BotonPixel("Guardar", new Rectangle(Constantes.CENTROX - 110, yBotones, 100, 18),
+				() -> {
+					for (int i = 0; i < this.cajasTeclas.size(); i++) {
+						this.cajasTeclas.get(i).aplicarCambios();
+					}
+					Globales.TECLADO.guardarConfig();
+					Globales.GESTOR_TEXTOS.agregarTexto("Configuracion Guardada", Constantes.CENTROX,
+							Constantes.CENTROY - 40, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+				});
+
+		this.botonVolver = new BotonPixel("Volver", new Rectangle(Constantes.CENTROX + 10, yBotones, 100, 18), () -> {
+			this.alPresionarEscape();
+		});
+
+		this.componentes.add(this.botonGuardar);
+		this.componentes.add(this.botonVolver);
+		this.botones.add(this.botonGuardar);
+		this.botones.add(this.botonVolver);
+
+		this.establecerIndiceEnfocado(0);
 	}
 
 	@Override
 	public void actualizar() {
-		for (final Componente c : this.COMPONENTES) {
-			if (c.visible()) {
-				c.actualizar();
+		final Raton raton = Globales.RATON;
+
+		// 1. Scroll por rueda del ratón
+		final int rueda = raton.getRotacionRueda();
+		if (rueda != 0) {
+			this.scrollY = Math.max(0, Math.min(this.maxScrollY, this.scrollY + (rueda * 24)));
+		}
+
+		// 2. Actualizar cajas de teclas con scroll
+		for (int i = 0; i < this.cajasTeclas.size(); i++) {
+			this.cajasTeclas.get(i).actualizarConScroll(raton, this.scrollY);
+		}
+
+		// 3. Detección de movimiento del ratón para alternar foco entre Guardar y
+		// Volver
+		final int mx = raton.getPosicionXEscalada();
+		final int my = raton.getPosicionYEscalada();
+		final boolean mouseSeMovio = (mx != this.ultimoMouseX) || (my != this.ultimoMouseY);
+
+		if (mouseSeMovio) {
+			this.ultimoMouseX = mx;
+			this.ultimoMouseY = my;
+			final Point pMouse = raton.getPuntoPosicionEscalado();
+
+			if (this.botonGuardar.getArea().contains(pMouse)) {
+				this.establecerIndiceEnfocado(0);
+			} else if (this.botonVolver.getArea().contains(pMouse)) {
+				this.establecerIndiceEnfocado(1);
 			}
 		}
 
-		for (final Componente c : this.COMPONENTES_DESPLAZABLES) {
-			if (c.visible()) {
-				c.actualizar();
-				if (c instanceof CajaTecla) {
-					((CajaTecla) c).establecerDesplazamientoY(this.desplazamiento);
-				}
+		// 4. Navegación por Teclado entre Guardar (0) y Volver (1)
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_LEFT)
+				|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_A)) {
+			this.establecerIndiceEnfocado(0);
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_RIGHT)
+				|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_D)) {
+			this.establecerIndiceEnfocado(1);
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}
+
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ENTER)
+				|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_SPACE)) {
+			if (this.indiceBotonEnfocado == 0) {
+				this.botonGuardar.accionar();
+			} else if (this.indiceBotonEnfocado == 1) {
+				this.botonVolver.accionar();
 			}
 		}
 
-		this.actualizarVisibilidadBtnGuardar();
-		this.actualizarVisibilidadBotonesSubirBajar();
+		this.botonGuardar.actualizar(raton);
+		this.botonVolver.actualizar(raton);
 
+		// 5. Atajo Escape
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
+			this.alPresionarEscape();
+		}
+	}
+
+	@Override
+	protected void alPresionarEscape() {
+		this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
 	}
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		Render2D.dibujarImagen(g, this.FONDO, 0, 0);
-//		DibujoDebug.dibujarRectanguloRelleno(g, new Rectangle(this.AREA_CONFIGURACIONES.x,this.AREA_CONFIGURACIONES.y-desplazamiento,this.AREA_CONFIGURACIONES.width,this.AREA_CONFIGURACIONES.height), Color.orange);
-		Render2D.dibujarRectanguloContorno(g,
-				new Rectangle(this.AREA_CONFIGURACIONES.x, this.AREA_CONFIGURACIONES.y - this.desplazamiento - 1,
-						this.AREA_CONFIGURACIONES.width, this.AREA_CONFIGURACIONES.height),
-				Color.red);
-		for (final Componente c : this.COMPONENTES) {
-			if (c.visible()) {
-				c.pintar(g);
-			}
-		}
+		this.pintarFondo(g);
+		this.pintarCabecera(g);
 
-		for (final Componente c : this.COMPONENTES_DESPLAZABLES) {
-			if (c.visible()) {
-				c.pintar(g, this.desplazamiento);
-			}
-		}
+		final int panelX = Constantes.CENTROX - (PANEL_ANCHO / 2);
 
-	}
+		// 1. Panel de fondo
+		Render2D.dibujarRectanguloRelleno(g, panelX, VISTA_Y, PANEL_ANCHO, VISTA_ALTO, new Color(16, 20, 26, 220));
+		Render2D.dibujarRectanguloContorno(g, panelX, VISTA_Y, PANEL_ANCHO, VISTA_ALTO, new Color(55, 60, 75));
 
-	protected void actualizarVisibilidadBotonesSubirBajar() {
-		if ((this.AREA_CONFIGURACIONES.height + this.AREA_CONFIGURACIONES.y) < this.DIMENSION.height) {
-			if (this.btnSubir.visible()) {
-				this.btnSubir.visible(false);
-			}
-			if (this.btnBajar.visible()) {
-				this.btnBajar.visible(false);
-			}
-		} else if (((this.AREA_CONFIGURACIONES.y + this.AREA_CONFIGURACIONES.height) > this.DIMENSION.height)
-				&& (this.desplazamiento == 0)) {
-			if (this.btnSubir.visible()) {
-				this.btnSubir.visible(false);
-			}
-			if (!this.btnBajar.visible()) {
-				this.btnBajar.visible(true);
-			}
-		} else if (((this.AREA_CONFIGURACIONES.y + this.AREA_CONFIGURACIONES.height) > this.DIMENSION.height)
-				&& ((this.DIMENSION.height + this.desplazamiento) >= (this.AREA_CONFIGURACIONES.y
-						+ this.AREA_CONFIGURACIONES.height))) {
-			if (!this.btnSubir.visible()) {
-				this.btnSubir.visible(true);
-			}
-			if (this.btnBajar.visible()) {
-				this.btnBajar.visible(false);
-			}
-		} else {
-			if (!this.btnSubir.visible()) {
-				this.btnSubir.visible(true);
-			}
-			if (!this.btnBajar.visible()) {
-				this.btnBajar.visible(true);
-			}
-		}
-	}
+		// 2. Lista recortada con scroll
+		final Graphics2D gClip = (Graphics2D) g.create();
+		try {
+			gClip.setClip(panelX + 2, VISTA_Y + 2, PANEL_ANCHO - 4, VISTA_ALTO - 4);
 
-	// HAY QUE HACER QUE LOS BOTONES SUBIR Y BAJAR SOLO SE VEAN CUANDO CORRESPONDAN
-	// Y NO EN TODO MOMENTO!!!!
+			final Font fontPrevia = gClip.getFont();
+			gClip.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, 16f));
 
-	@Override
-	protected void inicializarBotones() {
+			for (int i = 0; i < this.cajasTeclas.size(); i++) {
+				final CajaTeclaPixel caja = this.cajasTeclas.get(i);
+				final int itemY = caja.getArea().y - this.scrollY;
 
-		// Estos componentes tiene posicion de dibujado fija!
-		final int anchoArea = Constantes.ANCHO_JUEGO - (this.COMIENZO_X * 2);
-		final Boton subir = new Boton("Subir", Color.gray,
-				new Rectangle(this.COMIENZO_X + anchoArea + 4, this.COMIENZO_Y, 20, 15));
-		subir.establecerAccion(() -> {
-			this.moverArriba();
-		});
+				if (((itemY + FILA_ALTO) >= VISTA_Y) && (itemY <= (VISTA_Y + VISTA_ALTO))) {
+					final String nombreAccion = caja.getTecla().getNombre();
+					Render2D.dibujarStringConSombra(gClip, nombreAccion, panelX + 12,
+							(itemY + caja.getArea().height) - 4, Color.WHITE, Color.BLACK);
 
-		final Boton bajar = new Boton("Bajar", Color.gray,
-				new Rectangle(this.COMIENZO_X + anchoArea + 4, this.DIMENSION.height - this.COMIENZO_Y, 20, 15));
-		bajar.establecerAccion(() -> {
-			this.moverAbajo();
-		});
-
-		final Boton volver = new Boton("Volver", Color.gray,
-				new Rectangle(2, this.DIMENSION.height - this.COMIENZO_Y, 24, 15));
-		volver.establecerAccion(() -> {
-			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
-		});
-
-		this.btnVolver = volver;
-
-		final Boton guardar = new Boton("Guardar", Color.gray,
-				new Rectangle(2, this.DIMENSION.height - this.COMIENZO_Y - 20, 24, 15));
-		guardar.establecerTamanoLetra(6f);
-		guardar.establecerAccion(() -> {
-			for (final Componente c : this.COMPONENTES_DESPLAZABLES) {
-				if (c instanceof CajaTecla) {
-					final CajaTecla ct = (CajaTecla) c;
-					ct.establecerCambiosEnTecla();
+					caja.pintarConScroll(gClip, this.scrollY);
 				}
 			}
+			gClip.setFont(fontPrevia);
 
-			Globales.TECLADO.guardarConfig();
-		});
-
-		this.btnGuardar = guardar;
-		this.COMPONENTES.add(subir);
-		this.COMPONENTES.add(bajar);
-		this.COMPONENTES.add(volver);
-		this.COMPONENTES.add(guardar);
-
-		this.btnBajar = bajar;
-		this.btnSubir = subir;
-
-	}
-
-	protected void inicializarComponentesDesplazables() {
-		final int margenYLineas = 20;
-		final int margenXLabelCT = 4;
-		// Componentes dentro del campo con desplazamiento en el dibujado
-		final Label lbInventario = new Label("Inventario", this.COMIENZO_X + 2, this.COMIENZO_Y + 20, Color.white, 9f);
-		final CajaTecla ctInventario = new CajaTecla(
-				new Rectangle(lbInventario.getPunto().x + lbInventario.getAncho() + margenXLabelCT,
-						(lbInventario.getPunto().y - lbInventario.getAlto()) + margenXLabelCT, 80, 10),
-				Color.white, Color.black, Globales.TECLADO.TECLA_INVENTARIO);
-
-//		final Label lbCorrer = new Label("Correr", lbInventario.getPunto().x ,lbInventario.getPunto().y+20,Color.white ,9f );
-//		final CajaTecla ctCorrer = new CajaTecla(new Rectangle(lbCorrer.getPunto().x + lbCorrer.getAncho()+margenXLabelCT , lbCorrer.getPunto().y-lbCorrer.getAlto()+margenXLabelCT,80,10), Color.white, Color.black,Constantes.TECLADO.TECLA_CORRIENDO);
-
-		final Label lbCorrer = this.generarLabelPosicionado("Correr", lbInventario, Color.white, 9f);
-		final CajaTecla ctCorrer = this.generarCajaTeclaPosicionado(lbCorrer, Color.white, Color.black,
-				Globales.TECLADO.TECLA_CORRIENDO, margenXLabelCT);
-
-		final Label lbAtacar = this.generarLabelPosicionado("Atacar", lbCorrer, Color.white, 9f);
-		final CajaTecla ctAtacar = this.generarCajaTeclaPosicionado(lbAtacar, Color.white, Color.black,
-				Globales.TECLADO.TECLA_ATACANDO, margenXLabelCT);
-
-		final Label lbRecoger = this.generarLabelPosicionado("Recoger", lbAtacar, Color.white, 9f);
-		final CajaTecla ctRecoger = this.generarCajaTeclaPosicionado(lbRecoger, Color.white, Color.black,
-				Globales.TECLADO.TECLA_RECOGIENDO, margenXLabelCT);
-
-		final Label lbMoverArriba = this.generarLabelPosicionado("Mover Arriba", lbRecoger, Color.white, 9f);
-		final CajaTecla ctMoverArriba = this.generarCajaTeclaPosicionado(lbMoverArriba, Color.white, Color.black,
-				Globales.TECLADO.TECLA_ARRIBA, margenXLabelCT);
-
-		final Label lbMoverAbajo = this.generarLabelPosicionado("Mover Abajo", lbMoverArriba, Color.white, 9f);
-		final CajaTecla ctMoverAbajo = this.generarCajaTeclaPosicionado(lbMoverAbajo, Color.white, Color.black,
-				Globales.TECLADO.TECLA_ABAJO, margenXLabelCT);
-
-		final Label lbMoverIzquierda = this.generarLabelPosicionado("Mover Izquierda", lbMoverAbajo, Color.white, 9f);
-		final CajaTecla ctMoverIzquierda = this.generarCajaTeclaPosicionado(lbMoverIzquierda, Color.white, Color.black,
-				Globales.TECLADO.TECLA_IZQUIERDA, margenXLabelCT);
-
-		final Label lbMoverDerecha = this.generarLabelPosicionado("Mover Derecha", lbMoverIzquierda, Color.white, 9f);
-		final CajaTecla ctMoverDerecha = this.generarCajaTeclaPosicionado(lbMoverDerecha, Color.white, Color.black,
-				Globales.TECLADO.TECLA_DERECHA, margenXLabelCT);
-
-		this.COMPONENTES_DESPLAZABLES.add(lbInventario);
-		this.COMPONENTES_DESPLAZABLES.add(ctInventario);
-		this.COMPONENTES_DESPLAZABLES.add(lbCorrer);
-		this.COMPONENTES_DESPLAZABLES.add(ctCorrer);
-		this.COMPONENTES_DESPLAZABLES.add(ctAtacar);
-		this.COMPONENTES_DESPLAZABLES.add(lbAtacar);
-		this.COMPONENTES_DESPLAZABLES.add(ctRecoger);
-		this.COMPONENTES_DESPLAZABLES.add(lbRecoger);
-		this.COMPONENTES_DESPLAZABLES.add(ctMoverArriba);
-		this.COMPONENTES_DESPLAZABLES.add(lbMoverArriba);
-		this.COMPONENTES_DESPLAZABLES.add(ctMoverAbajo);
-		this.COMPONENTES_DESPLAZABLES.add(lbMoverAbajo);
-		this.COMPONENTES_DESPLAZABLES.add(ctMoverIzquierda);
-		this.COMPONENTES_DESPLAZABLES.add(lbMoverIzquierda);
-		this.COMPONENTES_DESPLAZABLES.add(ctMoverDerecha);
-		this.COMPONENTES_DESPLAZABLES.add(lbMoverDerecha);
-
-//		this.ultimoLabelLineaInferior(lbMoverDerecha);
-		this.AREA_CONFIGURACIONES.height = this.DIMENSION.height + 200;
-	}
-
-	/***
-	 * Permite determinar la visibilidad del boton guardar en base a si las cajas de
-	 * teclas possen valores diferentes a los determinado en sus Teclas
-	 * referenciadas
-	 * 
-	 **/
-	private void actualizarVisibilidadBtnGuardar() {
-		boolean mostrar = false;
-		for (final Componente c : this.COMPONENTES_DESPLAZABLES) {
-			if (c instanceof CajaTecla) {
-				final CajaTecla ct = (CajaTecla) c;
-				if (ct.modificado()) {
-					mostrar = true;
-					break;
-				}
-			}
+		} finally {
+			gClip.dispose();
 		}
-		this.btnGuardar.visible(mostrar);
 
-	}
+		// 3. Barra de scroll
+		if (this.maxScrollY > 0) {
+			final int trackX = (panelX + PANEL_ANCHO) - 6;
+			final int trackY = VISTA_Y + 4;
+			final int trackH = VISTA_ALTO - 8;
+			Render2D.dibujarRectanguloRelleno(g, trackX, trackY, 3, trackH, new Color(30, 35, 45));
 
-	/**
-	 * Permite generar un label en base al label posicionado en la linea superior al
-	 * que se generara este, de forma que este label quede en la linea de abajo
-	 * 
-	 * @param texto         -> es el texto que mostrara el label
-	 * @param labelSuperior -> es el label que se usa como referencia para generar
-	 *                      este label pero en la siguiente linea de abajo
-	 * @param colorLetra    -> es el color que tendra la letra
-	 * @param tamanoLetra   -> es el tamano que tendran las letras del texto en el
-	 *                      label
-	 * @return Label -> retorna un nuevo label en base a los parametros pasados
-	 * 
-	 **/
-	private Label generarLabelPosicionado(final String texto, final Label labelSuperior, final Color colorLetra,
-			final float tamanoLetra) {
-		return new Label(texto, labelSuperior.getPunto().x, labelSuperior.getPunto().y + 20, colorLetra, tamanoLetra);
-	}
+			final double ratio = (double) this.scrollY / this.maxScrollY;
+			final int thumbH = Math.max(16, (int) (((double) VISTA_ALTO / (VISTA_ALTO + this.maxScrollY)) * trackH));
+			final int thumbY = trackY + (int) (ratio * (trackH - thumbH));
 
-	/**
-	 * Permite generar una CajaTecla en base al label posicionado en el costado
-	 * izquierdo al que se generara este, de forma que esta CajaTecla quede en al
-	 * lado derecho del label
-	 * 
-	 * @param labelIzquierdo  -> es el label que se usa como referencia para generar
-	 *                        esta CajaTecla pero al costado derecho del label
-	 * @param colorFondo      -> es el color que tendra el fondo de la CajaTecla
-	 * @param colorLetra      -> es el color que tendra la letra
-	 * @param teclaReferencia -> es la tecla a la que se cambiaran los valores en el
-	 *                        teclado y usaran como referencia
-	 * @return CajaTecla -> retorna una CajaTecla en base a los parametros pasados
-	 * 
-	 **/
-	private CajaTecla generarCajaTeclaPosicionado(final Label labelIzquierdo, final Color colorFondo,
-			final Color colorLetra, final Tecla teclaReferencia, final int margenXLabelCT) {
-		return new CajaTecla(
-				new Rectangle(labelIzquierdo.getPunto().x + labelIzquierdo.getAncho() + margenXLabelCT,
-						(labelIzquierdo.getPunto().y - labelIzquierdo.getAlto()) + margenXLabelCT, 80, 10),
-				colorFondo, colorLetra, teclaReferencia);
-	}
-
-	private void moverArriba() {
-		if (this.y > this.DIMENSION.height) {
-			this.y--;
-			this.desplazamiento--;
+			Render2D.dibujarRectanguloRelleno(g, trackX, thumbY, 3, thumbH, new Color(220, 180, 50));
 		}
+
+		// 4. Botones
+		this.botonGuardar.pintar(g);
+		this.botonVolver.pintar(g);
+
+		this.pintarGuiaControles(g);
 	}
-
-	private void moverAbajo() {
-
-		if (this.y < (this.AREA_CONFIGURACIONES.height + this.COMIENZO_Y)) {
-			this.y++;
-			this.desplazamiento++;
-		}
-	}
-
-	private void ultimoLabelLineaInferior(final Label l) {
-		this.AREA_CONFIGURACIONES.height = ((l.getPunto().y + l.getAlto()) - this.COMIENZO_Y) + 4;
-	}
-
 }

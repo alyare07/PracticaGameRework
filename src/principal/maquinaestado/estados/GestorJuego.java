@@ -7,6 +7,7 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.Transparency;
+import java.awt.event.KeyEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.image.VolatileImage;
 import java.util.ArrayList;
@@ -23,7 +24,6 @@ import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
 import principal.entes.proyectil.explosivo.BolaFuego;
 import principal.eventos.Evento;
 import principal.eventos.EventoJugadorZonaTP;
-import principal.igu.MotorIGU;
 import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.TipoLuz;
 import principal.mapa.Mundo;
@@ -53,7 +53,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	protected final GestorEstados GE;
 	protected final GestorPartida GP;
 	private final Raton RATON = Globales.RATON;
-	private final MotorIGU motoIGU;
 	protected Mapa mapa;
 	protected final ArrayList<Evento> EVENTOS = new ArrayList<Evento>();
 
@@ -84,7 +83,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.GE = ge;
 		this.GP = gp;
 		this.GT_MOSTRAR_PANTALLA_MUERTE = new GestorTiempo();
-		this.motoIGU = new MotorIGU();
 
 		GestorMusica.reproducirMusicaFondoPrincipal(IDMusica.FONDO_FOREST);
 	}
@@ -136,7 +134,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		this.verificarPantallaMuerte();
-		this.motoIGU.actualizar();
+		Globales.MOTOR_IGU.actualizar();
 
 		final Shape areaMovimiento = Globales.JUGADOR.getAreaInterseccionMovimiento();
 		if ((areaMovimiento != null) && (this.mapa != null) && (this.mapa.getMundoActual() != null)) {
@@ -230,15 +228,19 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	}
 
 	private boolean detectarCambioAMenu() {
-		if (Globales.TECLADO.TECLA_ESCAPE.presionado()) {
+		// Se evalúa ÚNICAMENTE la pulsación de fotograma único para evitar rebotes de
+		// ciclo
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
 			GestorMusica.actualizarMusicaFondoPrincipal(false);
 
+			// 1. Si el inventario del jugador está abierto, ESC lo cierra primero sin
+			// pausar
 			if (Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible()) {
 				Globales.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
-				Globales.TECLADO.TECLA_ESCAPE.soltar();
 				return false;
 			}
 
+			// 2. Si no había inventario abierto, abre el menú de pausa
 			Globales.CAMARA.getGestorEfectos().detenerTodosLosEfectos();
 			this.GP.establecerEstadoActivoMenu();
 			return true;
@@ -365,13 +367,12 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			this.pintarInventarios(g);
 		}
 
-		this.motoIGU.pintar(g);
+		Globales.MOTOR_IGU.pintar(g);
 		this.pintarPantallaDerrota(g);
 
 		Globales.CAMARA.pintarLetterbox(g);
 		this.pintarDebug(g);
 
-		// PRUEBA-----------------------------
 		if (Globales.TECLADO.TECLA_DEBUG.presionado()) {
 			final ArrayList<Ente> entesIntersectadosRaton = this.getMundo()
 					.getEnteIntersectados(Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara(), true);
@@ -526,7 +527,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		final int anchoL4 = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, this.cachedLineaTermica);
 		final int xL4 = Constantes.ANCHO_JUEGO - anchoL4 - margenDerecho;
 		Render2D.dibujarStringConSombra(g, this.cachedLineaTermica, xL4, 58, Color.LIGHT_GRAY, Color.BLACK, 9f);
-
 	}
 
 	private Color obtenerColorTextoClima(final TipoClima clima) {
@@ -570,6 +570,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.GESTOR_LUZ.apagarTodasLasLuces();
 		Globales.GESTOR_PARTICULAS.limpiar();
 		Globales.GESTOR_ZONAS_AMBIENTE.limpiarZonas();
+		Globales.MOTOR_IGU.desvincularJefe();
 
 		this.mapa = MapaManager.cargarMapa(nombreMapa, gc);
 

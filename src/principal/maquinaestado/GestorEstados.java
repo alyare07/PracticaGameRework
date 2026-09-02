@@ -58,6 +58,7 @@ public class GestorEstados {
 
 	public void pintar(final Graphics2D g) {
 		if (this.estadoActual != null) {
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(12f));
 			this.estadoActual.pintar(g);
 		}
 	}

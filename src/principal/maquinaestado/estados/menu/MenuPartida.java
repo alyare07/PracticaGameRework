@@ -1,55 +1,71 @@
 package principal.maquinaestado.estados.menu;
 
 import java.awt.Color;
-import java.awt.Rectangle;
+import java.awt.Graphics2D;
 
 import principal.mapa.mapas.MapaManager;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.GestorPartida;
-import principal.maquinaestado.estados.menu.herramientas.Boton;
+import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 
 public class MenuPartida extends Menu {
+
 	protected final GestorPartida GP;
 
 	public MenuPartida(final GestorEstados ge, final GestorPartida gp) {
-		super(ge);
+		super(ge, "PAUSA");
 		this.GP = gp;
+		this.subtituloMenu = "- PARTIDA EN CURSO -";
+		this.colorFondo = new Color(6, 8, 12, 200);
+		this.inicializarMenu();
 	}
 
 	@Override
-	protected void inicializarBotones() {
-		final int anchoBoton = 380;
-		final int altoBoton = 45;
-		final int xBoton = (this.DIMENSION.width / 2) - (anchoBoton / 2);
-		final Boton b1 = new Boton("Continuar Partida", Color.gray, new Rectangle(xBoton, 100, anchoBoton, altoBoton));
-		b1.establecerAccion(() -> {
-			this.GP.establecerEstadoActivoJuego();
+	protected void inicializarMenu() {
+		this.componentes.clear();
+		this.botones.clear();
+
+		this.agregarBoton("Continuar", () -> {
+			if (this.GP != null) {
+				this.GP.establecerEstadoActivoJuego();
+			}
 		});
 
-		final Boton b2 = new Boton("Guardar Partida", Color.gray, new Rectangle(xBoton, 160, anchoBoton, altoBoton));
-
-		final Boton b3 = new Boton("Configuracion", Color.gray, new Rectangle(xBoton, 220, anchoBoton, altoBoton));
-		b3.establecerAccion(() -> {
-			this.GE.establecerEstadoActual(this.GE.NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA);
+		this.agregarBoton("Guardar Partida", () -> {
+			if ((this.GP != null) && (this.GP.getGestorJuego().getMapa() != null)) {
+				MapaManager.guardarMapaEnTemp(this.GP.getGestorJuego().getMapa());
+				Globales.GESTOR_TEXTOS.agregarTexto("Partida Guardada", Constantes.CENTROX, Constantes.CENTROY - 40,
+						principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+			}
 		});
 
-		final Boton b4 = new Boton("Salir de la Partida", Color.gray,
-				new Rectangle(xBoton, 280, anchoBoton, altoBoton));
-		b4.establecerAccion(() -> {
+		this.agregarBoton("Configuracion", () -> {
+			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA);
+		});
+
+		this.agregarBoton("Salir al Menu", () -> {
 			MapaManager.vaciarTemp();
-			Globales.FUNCIONES.TEMP_MANAGER.reiniciarTemp();
+			Globales.CAMARA.reiniciarZoom();
 			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
 			this.GE.disposePartida();
-			Globales.CAMARA.reiniciarZoom();
-			this.accionPostClick();
-			// el click se mantiene cierto tiempo por lo que llega al menuprincipal y activa
-			// la accion del boton salir de ese menu
 		});
-		this.COMPONENTES.add(b1);
-		this.COMPONENTES.add(b2);
-		this.COMPONENTES.add(b3);
-		this.COMPONENTES.add(b4);
+
+		this.establecerIndiceEnfocado(0);
 	}
 
+	@Override
+	protected void alPresionarEscape() {
+		if (this.GP != null) {
+			this.GP.establecerEstadoActivoJuego();
+		}
+	}
+
+	@Override
+	public void pintar(final Graphics2D g) {
+		if ((this.GP != null) && (this.GP.getGestorJuego() != null)) {
+			this.GP.getGestorJuego().pintar(g);
+		}
+		super.pintar(g);
+	}
 }

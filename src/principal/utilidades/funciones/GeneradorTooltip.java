@@ -25,8 +25,8 @@ public final class GeneradorTooltip {
 	private static final int PADDING_INTERNO = 6;
 	private static final int ESPACIADO_LINEAS = 2;
 
-	private static final float TAMANIO_TITULO = 8.0f;
-	private static final float TAMANIO_INFO = 6.0f;
+	private static final float TAMANIO_TITULO = 11.0f;
+	private static final float TAMANIO_INFO = 9.0f;
 
 	private static final Color COLOR_FONDO_DEFECTO = new Color(15, 15, 20, 235);
 	private static final Color COLOR_BORDE_DEFECTO = new Color(80, 80, 100, 255);

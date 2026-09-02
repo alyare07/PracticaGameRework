@@ -10,7 +10,7 @@ import principal.iluminacion.CalculadorSigilo;
 import principal.mapa.Mundo;
 
 public class BandidoGranadero extends Bandido {
-
+	private static final String NOMBRE = "Bandido Granadero";
 	private final Granada granada;
 
 	public BandidoGranadero(final double x, final double y, final double vida, final double vidaMaxima,
@@ -164,5 +164,10 @@ public class BandidoGranadero extends Bandido {
 	@Override
 	protected int getTiempoMsEsperaRetomarAtaque() {
 		return 1800;
+	}
+
+	@Override
+	public String getNombre() {
+		return NOMBRE;
 	}
 }

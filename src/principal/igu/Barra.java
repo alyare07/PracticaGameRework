@@ -4,60 +4,37 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.text.DecimalFormat;
 
 import principal.entes.Ente;
-import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
 /**
- * Clase base abstracta para todas las barras de estado de la interfaz gráfica
- * fija (HUD).
- * <p>
- * <b>Optimizaciones y Mejoras de IGU:</b>
- * <ul>
- * <li><b>Soporte Nativo de Barra Fantasma (Lag Bar):</b> Permite que barras
- * como la de salud dibujen un rastro amarillo amortiguado tras recibir daño
- * mediante {@link #getCantidadLag()}.</li>
- * <li><b>Zero-GC en Renderizado de Texto:</b> Utiliza una fuente fija
- * pre-asignada {@link #FUENTE_TEXTO_BARRA}, eliminando llamadas continuas a
- * {@code deriveFont()} en el Heap.</li>
- * <li><b>Zero-GC en Consultas de Área:</b> Reutiliza {@link #AREA_ENTE_RETORNO}
- * de {@link Ente}.</li>
- * </ul>
- * </p>
+ * Clase base abstracta para las barras de estado del HUD (Zero-GC / O(1)).
  * 
- * @author Copiloto Técnico
- * @version 2.5
+ * @version 3.0 (Vanilla Java 8 - m5x7 Pixel Typography)
  */
 public abstract class Barra extends Ente {
 
-	/**
-	 * Fuente pre-instanciada estática para el texto numérico de la barra. Evita
-	 * instanciar objetos 'Font' en cada fotograma del bucle de IGU.
-	 */
-	private static final Font FUENTE_TEXTO_BARRA = new Font(Font.SANS_SERIF, Font.BOLD, 6);
+	protected final Rectangle AREA;
+	protected final Color COLOR_BORDES;
+	protected final Color COLOR_FONDO;
+	protected final Color COLOR_RELLENO;
+	protected final Color COLOR_LAG;
+	protected final Color COLOR_TEXTO;
 
-	/** Color amarillo dorado predeterminado para el rastro de daño (Lag). */
-	private static final Color COLOR_DEFECTO_LAG = new Color(255, 205, 40);
+	protected int anchoActual;
+	protected int anchoLag;
 
-	private final Rectangle AREA;
-	private final Color COLOR_BORDES;
-	private final Color COLOR_FONDO;
-	private final Color COLOR_RELLENO;
-	private final Color COLOR_LAG;
-	private final Color COLOR_TEXTO;
-	private final DecimalFormat DF;
-
-	/** Ancho en píxeles de la barra principal (valor actual). */
-	private int anchoActual;
-
-	/** Ancho en píxeles de la barra fantasma amortiguada (valor lag). */
-	private int anchoLag;
+	// Caché de texto formateado para evitar concatenar Strings en caliente
+	// (Zero-GC)
+	private int lastActualInt = -1;
+	private int lastLimiteInt = -1;
+	private String cachedInfoTexto = "";
 
 	public Barra(final Rectangle area, final Color colorBordes, final Color colorFondo, final Color colorRelleno,
 			final Color colorTexto) {
-		this(area, colorBordes, colorFondo, colorRelleno, COLOR_DEFECTO_LAG, colorTexto);
+		this(area, colorBordes, colorFondo, colorRelleno, new Color(255, 205, 40), colorTexto);
 	}
 
 	public Barra(final Rectangle area, final Color colorBordes, final Color colorFondo, final Color colorRelleno,
@@ -68,117 +45,77 @@ public abstract class Barra extends Ente {
 		this.COLOR_RELLENO = colorRelleno;
 		this.COLOR_LAG = colorLag;
 		this.COLOR_TEXTO = colorTexto;
-		this.DF = new DecimalFormat("0.00");
 	}
 
-	// =========================================================================
-	// === ACTUALIZACIÓN LÓGICA (60 APS)
-	// =========================================================================
-
-	/**
-	 * Calcula los anchos en píxeles de la barra principal y de la barra fantasma.
-	 */
 	@Override
 	public void actualizar() {
 		final double limite = Math.max(0.001, this.getLimite());
 
-		// 1. Ancho proporcional de la barra principal
 		final double ratioActual = Math.max(0.0, Math.min(1.0, this.getCantidadActual() / limite));
-		this.anchoActual = (int) Math.round(ratioActual * this.AREA.width);
+		this.anchoActual = (int) Math.round(ratioActual * (this.AREA.width - 2));
 
-		// 2. Ancho proporcional de la barra fantasma (Lag)
 		final double ratioLag = Math.max(0.0, Math.min(1.0, this.getCantidadLag() / limite));
-		this.anchoLag = (int) Math.round(ratioLag * this.AREA.width);
+		this.anchoLag = (int) Math.round(ratioLag * (this.AREA.width - 2));
 	}
 
-	// =========================================================================
-	// === RENDERIZADO EN EL HUD (CAPA FIJA 1:1)
-	// =========================================================================
-
-	/**
-	 * Dibuja la barra en 4 pasadas ordenadas:
-	 * <ol>
-	 * <li>Fondo de la barra.</li>
-	 * <li>Barra fantasma (amarilla) si existe daño pendiente.</li>
-	 * <li>Barra principal (roja/azul/verde) con el valor actual.</li>
-	 * <li>Borde exterior y texto numérico centrado.</li>
-	 * </ol>
-	 *
-	 * @param g Contexto gráfico {@link Graphics2D}.
-	 */
 	@Override
 	public void pintar(final Graphics2D g) {
 		// 1. Fondo base de la barra
 		Render2D.dibujarRectanguloRelleno(g, this.AREA.x, this.AREA.y, this.AREA.width, this.AREA.height,
 				this.COLOR_FONDO);
 
-		// 2. Barra fantasma de daño (Amarilla / Lag)
+		// 2. Barra fantasma de amortiguación (Amarilla / Lag)
 		if (this.anchoLag > this.anchoActual) {
-			Render2D.dibujarRectanguloRelleno(g, this.AREA.x, this.AREA.y, this.anchoLag, this.AREA.height,
+			Render2D.dibujarRectanguloRelleno(g, this.AREA.x + 1, this.AREA.y + 1, this.anchoLag, this.AREA.height - 2,
 					this.COLOR_LAG);
 		}
 
-		// 3. Barra principal frontal de valor actual (Roja / Relleno)
+		// 3. Barra frontal activa
 		if (this.anchoActual > 0) {
-			Render2D.dibujarRectanguloRelleno(g, this.AREA.x, this.AREA.y, this.anchoActual, this.AREA.height,
-					this.COLOR_RELLENO);
+			Render2D.dibujarRectanguloRelleno(g, this.AREA.x + 1, this.AREA.y + 1, this.anchoActual,
+					this.AREA.height - 2, this.COLOR_RELLENO);
 		}
 
 		// 4. Borde exterior delimitador
 		Render2D.dibujarRectanguloContorno(g, this.AREA, this.COLOR_BORDES);
 
-		// 5. Texto numérico centrado con métricas
+		// 5. Texto de valores numéricos centrado
 		this.pintarInfo(g);
 	}
 
-	/**
-	 * Renderiza el texto de valores numéricos (ej: "100.00 / 100.00") centrado en
-	 * la barra.
-	 */
-	private void pintarInfo(final Graphics2D g) {
-		final String info = this.DF.format(this.getCantidadActual()) + " / " + this.DF.format(this.getLimite());
+	protected void pintarInfo(final Graphics2D g) {
+		final int act = (int) Math.ceil(this.getCantidadActual());
+		final int lim = (int) Math.ceil(this.getLimite());
+
+		if ((act != this.lastActualInt) || (lim != this.lastLimiteInt)) {
+			this.lastActualInt = act;
+			this.lastLimiteInt = lim;
+			this.cachedInfoTexto = act + " / " + lim;
+		}
 
 		final Font fontPrevia = g.getFont();
-		g.setFont(FUENTE_TEXTO_BARRA);
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 16f));
 
-		final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, info);
-		final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, info);
-
+		final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, this.cachedInfoTexto);
 		final int x = this.AREA.x + ((this.AREA.width - anchoTexto) / 2);
-		final int y = (this.AREA.y + this.AREA.height) - ((this.AREA.height - altoTexto) / 2) - 2;
+		final int y = (this.AREA.y + this.AREA.height) - 2;
 
-		Render2D.dibujarString(g, info, x, y, this.COLOR_TEXTO);
+		Render2D.dibujarStringConSombra(g, this.cachedInfoTexto, x, y, this.COLOR_TEXTO, Color.BLACK);
 
 		g.setFont(fontPrevia);
 	}
-
-	// =========================================================================
-	// === MÉTODOS DE CONTRATO Y GANCHOS POLIMÓRFICOS
-	// =========================================================================
 
 	protected abstract double getLimite();
 
 	protected abstract double getCantidadActual();
 
-	/**
-	 * Retorna el valor de la barra fantasma atrasada (Lag). Por defecto devuelve
-	 * {@link #getCantidadActual()} (sin efecto lag). Las subclases como
-	 * {@link BarraVida} sobreescriben este método.
-	 *
-	 * @return Valor numérico del rastro amortiguado.
-	 */
 	protected double getCantidadLag() {
 		return this.getCantidadActual();
 	}
 
-	// =========================================================================
-	// === GESTIÓN DE ENTE Y ÁREA (ZERO-GC)
-	// =========================================================================
-
 	@Override
 	public Rectangle getArea() {
-		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(),
-				this.getAlto());
+		this.AREA_ENTE_RETORNO.setBounds(this.AREA);
 		return this.AREA_ENTE_RETORNO;
 	}
 
@@ -232,9 +169,5 @@ public abstract class Barra extends Ente {
 
 	@Override
 	public void setPosicion(final double x, final double y) {
-	}
-
-	public void restaurar() {
-		this.eliminado = false;
 	}
 }

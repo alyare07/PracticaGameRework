@@ -2,6 +2,7 @@ package principal.entes.criaturas;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -707,7 +708,7 @@ public class Jugador extends Criatura {
 	}
 
 	private void pintarDebugCaminos(final Graphics2D g) {
-		g.setFont(g.getFont().deriveFont(7f));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(7f));
 
 		if (this.recorridoD != null) {
 			int pos = 1;
@@ -815,9 +816,8 @@ public class Jugador extends Criatura {
 		Render2D.dibujarRectanguloRelleno(g, posX - 1, posY - 5, this.ANCHO + 2, 4, Color.BLACK);
 		Render2D.dibujarRectanguloRelleno(g, posX, posY - 4, porcentajeBarraActual, 2, Color.RED);
 
-		g.setFont(g.getFont().deriveFont(4f));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 4f));
 		Render2D.dibujarString(g, (int) this.vida + "/" + (int) this.vidaMaxima, posX, posY - 6, Color.WHITE);
-		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
 	}
 
 	private void actualizarAreaRecoleccion() {

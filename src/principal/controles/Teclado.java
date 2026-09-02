@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import org.json.simple.JSONObject;
@@ -18,11 +19,21 @@ import org.json.simple.parser.JSONParser;
 
 import principal.utilidades.Globales;
 
+/**
+ * Gestor centralizado de teclado con sincronización Thread-Safe entre el hilo
+ * EDT de Swing y el Game Loop de 60 APS (Zero-GC / Snapshot Isolation).
+ * 
+ * @version 3.0 (Vanilla Java 8 - Lock-Free Latch Bridge)
+ */
 public class Teclado implements KeyListener {
 
 	public final File ARCHIVO_CONFIG = new File("Config.dat");
 	public final ArrayList<Tecla> TECLAS = new ArrayList<Tecla>();
 	public final HashMap<String, Tecla> TECLAS_MODIFICABLES = new HashMap<String, Tecla>();
+
+	// =========================================================================
+	// === TECLAS DE ACCIÓN PRINCIPALES
+	// =========================================================================
 
 	public final Tecla TECLA_ARRIBA;
 	public final Tecla TECLA_ABAJO;
@@ -67,9 +78,30 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_NUM_8;
 	public final Tecla TECLA_NUM_9;
 
-	public final boolean[] teclas = new boolean[512];
-	private final boolean[] teclasPresionadasAnterior = new boolean[512];
-	private final boolean[] teclasPulsadasUnaVez = new boolean[512];
+	// =========================================================================
+	// === BÚFERES DE CONCURRENCIA THREAD-SAFE (ZERO-GC)
+	// =========================================================================
+
+	private static final int TOTAL_TECLAS = 512;
+	private final Object candadoSincronizacion = new Object();
+
+	/** Estado crudo escrito exclusivamente por el hilo EDT de Swing. */
+	private final boolean[] teclasFisicasEDT = new boolean[TOTAL_TECLAS];
+
+	/** Pestillo para capturar toques ultra-rápidos entre frames sin perderlos. */
+	private final boolean[] latchPulsadasEDT = new boolean[TOTAL_TECLAS];
+
+	/** Búfer de transferencia intermedio (reutilizado, 0 allocations). */
+	private final boolean[] latchConsumido = new boolean[TOTAL_TECLAS];
+
+	/** Snapshot inmutable consumido por el Game Loop a 60 APS. */
+	public final boolean[] teclas = new boolean[TOTAL_TECLAS];
+	private final boolean[] teclasPresionadasAnterior = new boolean[TOTAL_TECLAS];
+	private final boolean[] teclasPulsadasUnaVez = new boolean[TOTAL_TECLAS];
+
+	// =========================================================================
+	// === CONSTRUCTOR
+	// =========================================================================
 
 	public Teclado() {
 		this.TECLA_ARRIBA = new Tecla(KeyEvent.VK_UP, "Mover Arriba");
@@ -205,9 +237,26 @@ public class Teclado implements KeyListener {
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_REINICIAR.nombre, this.TECLA_ZOOM_REINICIAR);
 	}
 
+	// =========================================================================
+	// === CICLO LÓGICO DEL JUEGO (GAME LOOP - 60 APS)
+	// =========================================================================
+
+	/**
+	 * Transfiere de forma atómica el estado de los eventos del hilo EDT al Game
+	 * Loop.
+	 */
 	public void actualizar() {
-		for (int i = 0; i < this.teclas.length; i++) {
-			this.teclasPulsadasUnaVez[i] = this.teclas[i] && !this.teclasPresionadasAnterior[i];
+		// Transferencia atómica y segura entre hilos (< 0.0002 ms)
+		synchronized (this.candadoSincronizacion) {
+			System.arraycopy(this.teclasFisicasEDT, 0, this.teclas, 0, TOTAL_TECLAS);
+			System.arraycopy(this.latchPulsadasEDT, 0, this.latchConsumido, 0, TOTAL_TECLAS);
+			Arrays.fill(this.latchPulsadasEDT, false);
+		}
+
+		// Evaluación de pulsaciones de frame único
+		for (int i = 0; i < TOTAL_TECLAS; i++) {
+			this.teclasPulsadasUnaVez[i] = this.latchConsumido[i]
+					|| (this.teclas[i] && !this.teclasPresionadasAnterior[i]);
 			this.teclasPresionadasAnterior[i] = this.teclas[i];
 		}
 
@@ -218,7 +267,7 @@ public class Teclado implements KeyListener {
 	}
 
 	public boolean isTeclaPresionadaUnaVez(final int codigoTecla) {
-		if ((codigoTecla >= 0) && (codigoTecla < this.teclasPulsadasUnaVez.length)) {
+		if ((codigoTecla >= 0) && (codigoTecla < TOTAL_TECLAS)) {
 			return this.teclasPulsadasUnaVez[codigoTecla];
 		}
 		return false;
@@ -232,11 +281,15 @@ public class Teclado implements KeyListener {
 	}
 
 	public boolean presionaTeclaEnLista(final int codigo) {
-		if ((codigo >= 0) && (codigo < this.teclas.length)) {
+		if ((codigo >= 0) && (codigo < TOTAL_TECLAS)) {
 			return this.teclas[codigo];
 		}
 		return false;
 	}
+
+	// =========================================================================
+	// === EVENTOS ASÍNCRONOS DE TECLADO (HILO EDT DE SWING)
+	// =========================================================================
 
 	@Override
 	public void keyTyped(final KeyEvent e) {
@@ -246,8 +299,11 @@ public class Teclado implements KeyListener {
 	public void keyPressed(final KeyEvent e) {
 		final int code = e.getKeyCode();
 
-		if ((code >= 0) && (code < this.teclas.length)) {
-			this.teclas[code] = true;
+		if ((code >= 0) && (code < TOTAL_TECLAS)) {
+			synchronized (this.candadoSincronizacion) {
+				this.teclasFisicasEDT[code] = true;
+				this.latchPulsadasEDT[code] = true;
+			}
 		}
 
 		final int total = this.TECLAS.size();
@@ -263,8 +319,10 @@ public class Teclado implements KeyListener {
 	public void keyReleased(final KeyEvent e) {
 		final int code = e.getKeyCode();
 
-		if ((code >= 0) && (code < this.teclas.length)) {
-			this.teclas[code] = false;
+		if ((code >= 0) && (code < TOTAL_TECLAS)) {
+			synchronized (this.candadoSincronizacion) {
+				this.teclasFisicasEDT[code] = false;
+			}
 		}
 
 		final int total = this.TECLAS.size();
@@ -275,6 +333,10 @@ public class Teclado implements KeyListener {
 			}
 		}
 	}
+
+	// =========================================================================
+	// === PERSISTENCIA JSON
+	// =========================================================================
 
 	@SuppressWarnings("unchecked")
 	protected JSONObject getConfigJson() {

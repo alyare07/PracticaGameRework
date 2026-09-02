@@ -395,8 +395,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			final float tamanoLetra = 48f;
 			final Color color = Color.RED;
 
-			final Font fuenteOriginal = g.getFont();
-			g.setFont(fuenteOriginal.deriveFont(tamanoLetra));
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, tamanoLetra));
 
 			final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
 			final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, texto);
@@ -404,7 +403,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			final int y = Constantes.CENTROY - (altoTexto / 2);
 
 			Render2D.dibujarString(g, texto, x, y, color);
-			g.setFont(fuenteOriginal);
 		}
 	}
 
@@ -426,6 +424,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 		if (Globales.TECLADO.TECLA_DEBUG.presionado()) {
 			g.setColor(Color.GREEN);
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, Constantes.TAMANO_FUENTE));
 			Render2D.dibujarString(g, "X: " + Globales.JUGADOR.getPosicionXInt(), 20, 80);
 			Render2D.dibujarString(g, "Y: " + Globales.JUGADOR.getPosicionYInt(), 20, 95);
 			Render2D.dibujarString(g, "X_PARADO: " + Globales.JUGADOR.getPosicionXParado(), 20, 110);
@@ -485,7 +484,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 					+ Globales.GESTOR_LUZ.getCiclo().getHoraFormato24h() + "]";
 		}
 
-		g.setFont(fuenteOriginal.deriveFont(11f));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 11f));
 		final int anchoL1 = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, this.cachedLineaReloj);
 		final int xL1 = Constantes.ANCHO_JUEGO - anchoL1 - margenDerecho;
 		Render2D.dibujarStringConSombra(g, this.cachedLineaReloj, xL1, 16, Color.YELLOW, Color.ORANGE, 11f);
@@ -496,7 +495,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			this.cachedLineaMomento = "/ " + momentoActual + " \\";
 		}
 
-		g.setFont(fuenteOriginal.deriveFont(9f));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 9f));
 		final int anchoL2 = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, this.cachedLineaMomento);
 		final int xL2 = Constantes.ANCHO_JUEGO - anchoL2 - margenDerecho;
 		Render2D.dibujarStringConSombra(g, this.cachedLineaMomento, xL2, 30, new Color(255, 215, 120), Color.DARK_GRAY,
@@ -528,7 +527,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		final int xL4 = Constantes.ANCHO_JUEGO - anchoL4 - margenDerecho;
 		Render2D.dibujarStringConSombra(g, this.cachedLineaTermica, xL4, 58, Color.LIGHT_GRAY, Color.BLACK, 9f);
 
-		g.setFont(fuenteOriginal);
 	}
 
 	private Color obtenerColorTextoClima(final TipoClima clima) {

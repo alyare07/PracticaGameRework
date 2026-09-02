@@ -9,8 +9,8 @@ import java.util.ArrayList;
 import principal.entes.objetos.items.Item;
 import principal.graficos.SuperficieDibujo;
 import principal.utilidades.Constantes;
-import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
 /**
  * Clase de utilidad para la generación y renderizado dinámico de Tooltips
@@ -44,11 +44,8 @@ public final class GeneradorTooltip {
 			return;
 		}
 
-		final Font fuenteOriginal = g.getFont();
-
 		try {
-			final Font fuenteTooltip = fuenteOriginal.deriveFont(Font.PLAIN, TAMANIO_INFO);
-			g.setFont(fuenteTooltip);
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, TAMANIO_INFO));
 
 			final Point raton = SuperficieDibujo.obtenerSuperficieDibujo().RATON.getPuntoPosicionEscalado();
 
@@ -70,7 +67,6 @@ public final class GeneradorTooltip {
 					letraFinal);
 
 		} finally {
-			g.setFont(fuenteOriginal);
 		}
 	}
 
@@ -83,15 +79,13 @@ public final class GeneradorTooltip {
 			return;
 		}
 
-		final Font fuenteOriginal = g.getFont();
-
 		try {
 			final String nombre = item.getNombre();
 			final ArrayList<String> infoLines = item.getInfo();
 
 			// Configurar Fuentes Explícitas: Título Grande y BOLD, Info Pequeña y PLAIN
-			final Font fuenteTitulo = fuenteOriginal.deriveFont(Font.BOLD, TAMANIO_TITULO);
-			final Font fuenteInfo = fuenteOriginal.deriveFont(Font.PLAIN, TAMANIO_INFO);
+			final Font fuenteTitulo = Globales.GESTOR_FUENTES.getFuente(Font.BOLD, TAMANIO_TITULO);
+			final Font fuenteInfo = Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, TAMANIO_INFO);
 
 			// 1. Medir Título (Fuente Grande)
 			g.setFont(fuenteTitulo);
@@ -149,8 +143,6 @@ public final class GeneradorTooltip {
 			}
 
 		} finally {
-			// Restaurar siempre la fuente original de Graphics2D
-			g.setFont(fuenteOriginal);
 		}
 	}
 

@@ -9,8 +9,16 @@ import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.mapa.Mundo;
+import principal.utilidades.AccionEntidad;
 
-public class ProyectilGeneral extends Proyectil implements Serializable {
+/**
+ * Proyectil estándar con resolución de impacto Zero-GC. Implementa
+ * AccionEntidad directamente para evitar la creación de lambdas capturadoras en
+ * el bucle caliente de colisiones.
+ * 
+ * @version 2.0 (Vanilla Java 8 - Zero-GC)
+ */
+public class ProyectilGeneral extends Proyectil implements Serializable, AccionEntidad<Criatura> {
 
 	private static final long serialVersionUID = -3596461015684122157L;
 
@@ -53,27 +61,8 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 
 		final Rectangle area = this.getArea();
 
-		// 1. Detección de impacto sobre cualquier criatura mediante Visitor Zero-GC
-		this.mundo.paraCadaCriaturaEn(area, true, victima -> {
-			if (this.eliminado || (victima == this.CAUSANTE) || this.perforados.contains(victima)
-					|| victima.estaEliminado()) {
-				return;
-			}
-
-			boolean esBlancoValido = true;
-			if (this.CAUSANTE instanceof Criatura) {
-				// Evalúa en O(1) si el emisor considera hostil a la víctima según su máscara de
-				// facciones
-				esBlancoValido = ((Criatura) this.CAUSANTE).esHostilHacia(victima);
-			}
-
-			if (esBlancoValido) {
-				this.impactar(victima);
-				if (!this.PENETRANTE) {
-					this.eliminar();
-				}
-			}
-		});
+		// 1. Evaluación directa pasando 'this' como visitor (CERO asignaciones en Heap)
+		this.mundo.paraCadaCriaturaEn(area, true, this);
 
 		if (this.eliminado) {
 			return;
@@ -82,6 +71,30 @@ public class ProyectilGeneral extends Proyectil implements Serializable {
 		// 2. Colisión contra paredes y objetos sólidos del mapa
 		if (!this.PENETRANTE && this.mundo.colisionaConZonaUObjetoSolido(area)) {
 			this.eliminar();
+		}
+	}
+
+	/**
+	 * Callback ejecutado por ZoneBox / Mundo para cada criatura que intersecta el
+	 * proyectil.
+	 */
+	@Override
+	public void ejecutar(final Criatura victima) {
+		if (this.eliminado || (victima == this.CAUSANTE) || this.perforados.contains(victima)
+				|| victima.estaEliminado()) {
+			return;
+		}
+
+		boolean esBlancoValido = true;
+		if (this.CAUSANTE instanceof Criatura) {
+			esBlancoValido = ((Criatura) this.CAUSANTE).esHostilHacia(victima);
+		}
+
+		if (esBlancoValido) {
+			this.impactar(victima);
+			if (!this.PENETRANTE) {
+				this.eliminar();
+			}
 		}
 	}
 

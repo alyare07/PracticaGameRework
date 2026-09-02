@@ -7,9 +7,9 @@ import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 
 import principal.controles.Tecla;
-import principal.utilidades.Render2D;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
 public class CajaTecla extends Componente {
 	protected final Rectangle AREA;
@@ -61,7 +61,7 @@ public class CajaTecla extends Componente {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		g.setFont(g.getFont().deriveFont(this.tamanoLetra));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(this.tamanoLetra));
 		Render2D.dibujarImagen(g, this.FONDO, this.AREA.x, this.AREA.y);
 		this.pintarTexto(g, 0);
 		if (this.seleccionado) {

@@ -5,6 +5,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 
 import principal.utilidades.Constantes;
+import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
@@ -85,7 +86,7 @@ public class TextoFlotante {
 
 		// Asignación de fuente según sea crítico (más grande) o normal
 		final int estilo = this.esCritico ? Font.BOLD : Font.PLAIN;
-		this.fuente = new Font(Font.SANS_SERIF, estilo, (int) tipo.getTamanoFuente());
+		this.fuente = Globales.GESTOR_FUENTES.getFuente(Font.SANS_SERIF, estilo, (int) tipo.getTamanoFuente());
 
 		/*
 		 * =====================================================================

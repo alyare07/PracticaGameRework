@@ -5,8 +5,8 @@ import java.awt.Rectangle;
 import java.util.HashMap;
 
 import principal.utilidades.Animacion;
-import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 import principal.utilidades.Textura;
 
 public class ListaModeloComplemento {
@@ -37,26 +37,6 @@ public class ListaModeloComplemento {
 				new ModeloComplementoT1(32, Textura.TEXTURA_x32_ARBOL_1, true, false, new Rectangle(12, 2, 11, 0)));
 		LISTA_MODELOS.put(COD_ARBOL_2,
 				new ModeloComplementoT1(32, Textura.TEXTURA_x32_ARBOL_2, true, false, new Rectangle(11, 0, 10, 0)));
-		LISTA_MODELOS.put(COD_AGUA_HORIZONTAL_X16,
-				new ModeloComplementoT1(16, Textura.TEXTURA_x16_AGUA_HORIZONTAL, true, false, new Rectangle()));
-		LISTA_MODELOS.put(COD_AGUA_HORIZONTAL_X16_2,
-				new ModeloComplementoT1(16, Textura.TEXTURA_x16_AGUA_HORIZONTAL_2, true, false, new Rectangle()));
-		LISTA_MODELOS.put(COD_AGUA_HORIZONTAL_X16_3,
-				new ModeloComplementoT1(16, Textura.TEXTURA_x16_AGUA_HORIZONTAL_3, true, false, new Rectangle()));
-		LISTA_MODELOS.put(COD_AGUA_HORIZONTAL_X16_4,
-				new ModeloComplementoT1(16, Textura.TEXTURA_x16_AGUA_HORIZONTAL_4, true, false, new Rectangle()));
-		LISTA_MODELOS.put(COD_AGUA_HORIZONTAL_X16_5,
-				new ModeloComplementoT1(16, Textura.TEXTURA_x16_AGUA_HORIZONTAL_5, true, false, new Rectangle()));
-		LISTA_MODELOS.put(COD_AGUA_HORIZONTAL_X16_6,
-				new ModeloComplementoT1(16, Textura.TEXTURA_x16_AGUA_HORIZONTAL_6, true, false, new Rectangle()));
-		LISTA_MODELOS.put(COD_AGUA_VERTICAL_X16,
-				new ModeloComplementoT1(16, Textura.TEXTURA_x16_AGUA_VERTICAL, true, false, new Rectangle()));
-		LISTA_MODELOS.put(COD_AGUA_VERTICAL_X16_2,
-				new ModeloComplementoT1(16, Textura.TEXTURA_x16_AGUA_VERTICAL_2, true, false, new Rectangle()));
-		LISTA_MODELOS.put(COD_AGUA_VERTICAL_X16_3,
-				new ModeloComplementoT1(16, Textura.TEXTURA_x16_AGUA_VERTICAL_3, true, false, new Rectangle()));
-		LISTA_MODELOS.put(COD_AGUA_VERTICAL_X16_4,
-				new ModeloComplementoT1(16, Textura.TEXTURA_x16_AGUA_VERTICAL_4, true, false, new Rectangle()));
 		LISTA_MODELOS.put(COD_ARBOL_3,
 				new ModeloComplementoT1(32, Textura.TEXTURA_x32_ARBOL_3, true, true, new Rectangle(13, 19, 14, 0)));
 		LISTA_MODELOS.put(COD_ARBOL_4,
@@ -66,17 +46,13 @@ public class ListaModeloComplemento {
 					public void pintar(final Graphics2D g, final int x, final int y) {
 						final int resto = Globales.animacion % 400;
 						if ((resto >= 100) && (resto <= 200)) {
-							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_0), x,
-									y);
+							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_0), x, y);
 						} else if ((resto > 200) && (resto <= 300)) {
-							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_1), x,
-									y);
+							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_1), x, y);
 						} else if ((resto > 300) && (resto <= 400)) {
-							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_2), x,
-									y);
+							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_2), x, y);
 						} else {
-							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_3), x,
-									y);
+							Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_x32_ARBOL_3), x, y);
 						}
 					}
 				}));

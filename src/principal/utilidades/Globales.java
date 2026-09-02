@@ -65,6 +65,7 @@ public class Globales {
 	public static final GestorConstruccion GESTOR_CONSTRUCCION = new GestorConstruccion();
 	public static final GestorCrafteo GESTOR_CRAFTEO = new GestorCrafteo();
 	public static final GestorDeltasMundo GESTOR_DELTAS = new GestorDeltasMundo();
+	public static final GestorFuentes GESTOR_FUENTES = new GestorFuentes();
 
 	public static void actualizarFactorEscalado() {
 		final int escalaX = ANCHO_PANTALLA_COMPLETA / Constantes.ANCHO_JUEGO;

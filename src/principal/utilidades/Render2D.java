@@ -3,6 +3,7 @@ package principal.utilidades;
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Composite;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Point;
@@ -202,6 +203,22 @@ public final class Render2D {
 		g.drawString(s, x, y);
 	}
 
+	public static void dibujarString(final Graphics2D g, final String s, final int x, final int y, final Color c,
+			final float tamanofuente, final boolean bold) {
+		if ((g == null) || (s == null)) {
+			return;
+		}
+
+		if (bold) {
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, tamanofuente));
+		} else {
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(tamanofuente));
+		}
+		objetosDibujados++;
+		g.setColor(c);
+		g.drawString(s, x, y);
+	}
+
 	public static void dibujarString(final Graphics2D g, final String s, final Point p, final Color c) {
 		if ((s == null) || (p == null)) {
 			return;
@@ -223,7 +240,21 @@ public final class Render2D {
 		if ((g == null) || (s == null)) {
 			return;
 		}
-		g.setFont(g.getFont().deriveFont(tamanoFuente));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(tamanoFuente));
+		dibujarString(g, s, x + 1, y + 1, sombra);
+		dibujarString(g, s, x, y, c);
+	}
+
+	public static void dibujarStringConSombra(final Graphics2D g, final String s, final int x, final int y,
+			final Color c, final Color sombra, final float tamanoFuente, final boolean bold) {
+		if ((g == null) || (s == null)) {
+			return;
+		}
+		if (bold) {
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, tamanoFuente));
+		} else {
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(tamanoFuente));
+		}
 		dibujarString(g, s, x + 1, y + 1, sombra);
 		dibujarString(g, s, x, y, c);
 	}
@@ -414,10 +445,41 @@ public final class Render2D {
 		dibujarStringRefCamara(g, s, p.x, p.y, c);
 	}
 
+	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final int x, final int y,
+			final Color c, final float tamanofuente, final boolean bold) {
+		if ((s == null)) {
+			return;
+		}
+		if (bold) {
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, tamanofuente));
+		} else {
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(tamanofuente));
+		}
+		objetosDibujados++;
+		g.setColor(c);
+		g.drawString(s, Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y));
+	}
+
 	public static void dibujarStringConSombraRefCamara(final Graphics2D g, final String s, final int x, final int y,
 			final Color c, final Color sombra) {
 		if ((g == null) || (s == null)) {
 			return;
+		}
+		final int renderX = Globales.getXDesplazamientoCamara(x);
+		final int renderY = Globales.getYDesplazamientoCamara(y);
+		dibujarString(g, s, renderX + 1, renderY + 1, sombra);
+		dibujarString(g, s, renderX, renderY, c);
+	}
+
+	public static void dibujarStringConSombraRefCamara(final Graphics2D g, final String s, final int x, final int y,
+			final Color c, final Color sombra, final float tamano, final boolean bold) {
+		if ((g == null) || (s == null)) {
+			return;
+		}
+		if (bold) {
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, tamano));
+		} else {
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(tamano));
 		}
 		final int renderX = Globales.getXDesplazamientoCamara(x);
 		final int renderY = Globales.getYDesplazamientoCamara(y);

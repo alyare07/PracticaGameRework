@@ -5,8 +5,8 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 
-import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
 public class Boton extends Componente {
 	protected final Rectangle AREA;
@@ -49,7 +49,7 @@ public class Boton extends Componente {
 	}
 
 	private void pintarTexto(final Graphics2D g) {
-		g.setFont(g.getFont().deriveFont(this.tamanoLetra));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(this.tamanoLetra));
 		g.setColor(this.colorForeground);
 		final int ancho = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, this.texto);
 		final int alto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, this.texto);

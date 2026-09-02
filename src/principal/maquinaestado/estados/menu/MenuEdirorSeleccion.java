@@ -11,9 +11,8 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import principal.mapa.escenario.EscenarioLoader;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.menu.herramientas.Boton;
-import principal.utilidades.Constantes;
-import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
 public class MenuEdirorSeleccion extends Menu {
 	protected boolean cargandoMapa;
@@ -84,15 +83,13 @@ public class MenuEdirorSeleccion extends Menu {
 	}
 
 	private void pintarAvisoCarga(final Graphics2D g) {
-		g.setFont(g.getFont().deriveFont(18));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(18f));
 
 		final int ancho = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, this.textoCarga);
 		final int alto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, this.textoCarga);
 		final int puntoX = (this.DIMENSION.width / 2) - (ancho / 2);
 		final int puntoY = (this.DIMENSION.height / 2) + (alto / 2);
 		Render2D.dibujarString(g, this.textoCarga, puntoX, puntoY, Color.YELLOW);
-		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
-
 	}
 
 	private void abrirMapa() {

@@ -104,20 +104,7 @@ public final class Textura {
 	public static final int INICIO_AUTOTILE_VACIO = getSiguienteRangoTerreno(20);
 
 	// Subterreno 16x16
-	public static final int TEXTURA_x16_AGUA = getSiguienteIdSubTerreno();
 	public static final int TEXTURA_x16_MURO_PIEDRA_NEGRA = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_TIERRA = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_CESPED = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_AGUA_HORIZONTAL = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_AGUA_HORIZONTAL_2 = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_AGUA_HORIZONTAL_3 = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_AGUA_HORIZONTAL_4 = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_AGUA_HORIZONTAL_5 = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_AGUA_HORIZONTAL_6 = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_AGUA_VERTICAL = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_AGUA_VERTICAL_2 = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_AGUA_VERTICAL_3 = getSiguienteIdSubTerreno();
-	public static final int TEXTURA_x16_AGUA_VERTICAL_4 = getSiguienteIdSubTerreno();
 
 	// Objetos
 	public static final int TEXTURA_x32_ARBOL_0 = getSiguienteIdObjeto();
@@ -333,6 +320,8 @@ public final class Textura {
 		cargarSetTerreno(hojaTerrenos, 10, INICIO_AUTOTILE_CESPED_3);
 		cargarSetTerreno(hojaTerrenos, 11, INICIO_AUTOTILE_CESPED_3_NEVADO);
 		cargarSetTerreno(hojaTerrenos, 12, INICIO_AUTOTILE_VACIO);
+
+		cargarTexturasDungeon();
 	}
 
 	private static void cargarSetTerreno(final HojaSprite hoja, final int fila, final int idBase) {
@@ -358,6 +347,14 @@ public final class Textura {
 		final BufferedImage vram = Globales.FUNCIONES.TEXTURAS_TOOLS.convertirAVRAM(img);
 		registrarEnCatalogo(id, vram);
 		TEXTURAS.put(id, vram);
+	}
+
+	private static void cargarTexturasDungeon() {
+		final HojaSprite hojaDungeon = new HojaSprite(
+				Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(Globales.FUNCIONES.CARGADOR_RECURSOS
+						.cargarImagenCompatibleTranslucida("/imagenes/texturas/dungeon.png"), 2048 / 2, 1536 / 2),
+				16, false);
+		guardar(TEXTURA_x16_MURO_PIEDRA_NEGRA, hojaDungeon.getSprite(813));
 	}
 
 	private static void registrarEnCatalogo(final int id, final BufferedImage img) {
@@ -391,6 +388,9 @@ public final class Textura {
 				return img;
 			}
 		}
+
+		// Micro-inspección en Textura.java
+		System.err.println("[ERROR TEXTURA] ID no encontrado en VRAM: " + codTextura);
 		return texturaError;
 	}
 

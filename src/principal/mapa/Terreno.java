@@ -20,6 +20,8 @@ public class Terreno implements Serializable {
 
 	private static final long serialVersionUID = -230565732234345L;
 
+	public static final int LADO_CHUNK = 256; // 16 tiles x 16 px = 256 px por Chunk
+
 	protected final int ANCHO;
 	protected final int ALTO;
 	protected final int CANTIDAD_TILES_X;
@@ -27,6 +29,11 @@ public class Terreno implements Serializable {
 	protected final int LADO_TILE;
 	protected final long CANT_TILES;
 	protected final Tile[] TILES;
+
+	// Sistema de Chunks en VRAM
+	protected transient ChunkTerreno[] chunks;
+	protected transient int cantChunksX;
+	protected transient int cantChunksY;
 
 	public Terreno(final int cantTilesAncho, final int cantTilesAlto, final int ladoTile) {
 		this(cantTilesAncho, cantTilesAlto, ladoTile, ListaModeloTile.COD_TIERRA);
@@ -43,6 +50,7 @@ public class Terreno implements Serializable {
 		this.TILES = new Tile[cantTilesAncho * cantTilesAlto];
 		this.llenarVacioTerreno(idModeloTile);
 		this.calcularAutotiles();
+		this.inicializarChunks();
 	}
 
 	public Terreno(final JSONObject jso) {
@@ -110,7 +118,98 @@ public class Terreno implements Serializable {
 		}
 
 		this.calcularAutotiles();
+		this.inicializarChunks();
 	}
+
+	// =========================================================================
+	// === SISTEMA DE CHUNKS PRE-HORNEADOS (ZERO-GC)
+	// =========================================================================
+
+	public void inicializarChunks() {
+		this.cantChunksX = Math.max(1, (int) Math.ceil((double) this.ANCHO / LADO_CHUNK));
+		this.cantChunksY = Math.max(1, (int) Math.ceil((double) this.ALTO / LADO_CHUNK));
+
+		this.chunks = new ChunkTerreno[this.cantChunksX * this.cantChunksY];
+
+		for (int cy = 0; cy < this.cantChunksY; cy++) {
+			for (int cx = 0; cx < this.cantChunksX; cx++) {
+				this.chunks[(cy * this.cantChunksX) + cx] = new ChunkTerreno(cx, cy, LADO_CHUNK);
+			}
+		}
+	}
+
+	public void marcarChunkSucio(final int worldX, final int worldY) {
+		if (this.chunks == null) {
+			return;
+		}
+		final int cx = Math.max(0, Math.min(this.cantChunksX - 1, Math.floorDiv(worldX, LADO_CHUNK)));
+		final int cy = Math.max(0, Math.min(this.cantChunksY - 1, Math.floorDiv(worldY, LADO_CHUNK)));
+
+		final ChunkTerreno chunk = this.chunks[(cy * this.cantChunksX) + cx];
+		if (chunk != null) {
+			chunk.marcarSucio();
+		}
+	}
+
+	public void marcarTodosLosChunksSucios() {
+		if (this.chunks == null) {
+			return;
+		}
+		for (int i = 0; i < this.chunks.length; i++) {
+			if (this.chunks[i] != null) {
+				this.chunks[i].marcarSucio();
+			}
+		}
+	}
+
+	// =========================================================================
+	// === RENDERIZADO OPTIMIZADO POR CHUNKS (BAJO OPF)
+	// =========================================================================
+
+	public void pintar(final Graphics2D g) {
+		if (this.chunks == null) {
+			this.inicializarChunks();
+		}
+
+		final double zoomActivo = Math.max(0.2, Globales.CAMARA.getZoomFinal());
+		final double rotAbs = Math.abs(Globales.CAMARA.getGestorEfectos().getAnguloRotacion());
+		final double shakeX = Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetX());
+		final double shakeY = Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetY());
+
+		final double cos = Math.cos(rotAbs);
+		final double sin = Math.sin(rotAbs);
+
+		// Margen de seguridad con soporte para rotación y temblor
+		final int radioVisibleX = (int) Math
+				.ceil(((Constantes.CENTROX * cos) + (Constantes.CENTROY * sin)) / zoomActivo) + (int) shakeX
+				+ LADO_CHUNK;
+		final int radioVisibleY = (int) Math
+				.ceil(((Constantes.CENTROX * sin) + (Constantes.CENTROY * cos)) / zoomActivo) + (int) shakeY
+				+ LADO_CHUNK;
+
+		final int camX = Globales.CAMARA.getPosicionXInt();
+		final int camY = Globales.CAMARA.getPosicionYInt();
+
+		// Rango de chunks visibles en el frustum de la cámara
+		final int startChunkX = Math.max(0, Math.floorDiv(camX - radioVisibleX, LADO_CHUNK));
+		final int endChunkX = Math.min(this.cantChunksX - 1, Math.floorDiv(camX + radioVisibleX, LADO_CHUNK));
+		final int startChunkY = Math.max(0, Math.floorDiv(camY - radioVisibleY, LADO_CHUNK));
+		final int endChunkY = Math.min(this.cantChunksY - 1, Math.floorDiv(camY + radioVisibleY, LADO_CHUNK));
+
+		for (int cy = startChunkY; cy <= endChunkY; cy++) {
+			final int offset = cy * this.cantChunksX;
+			for (int cx = startChunkX; cx <= endChunkX; cx++) {
+				final ChunkTerreno chunk = this.chunks[offset + cx];
+				if (chunk != null) {
+					chunk.pintar(g, this);
+				}
+			}
+		}
+	}
+
+	// =========================================================================
+	// === AUTOTILING Y LÓGICA ESPACIAL
+	// =========================================================================
 
 	@SuppressWarnings("unchecked")
 	public JSONObject getTilesJson() {
@@ -177,6 +276,7 @@ public class Terreno implements Serializable {
 				tileActual.setVariacionPropia(this.calcularVariacionDeterminista(tx, ty, modelo));
 			}
 		}
+		this.marcarTodosLosChunksSucios();
 	}
 
 	public void actualizarAutotile(final int worldX, final int worldY) {
@@ -213,6 +313,7 @@ public class Terreno implements Serializable {
 
 		tileActual.setMascaraBit(mascara);
 		tileActual.setVariacionPropia(this.calcularVariacionDeterminista(tx, ty, modelo));
+		this.marcarChunkSucio(worldX, worldY);
 	}
 
 	public void actualizarAutotileLocal(final int worldX, final int worldY) {
@@ -246,6 +347,7 @@ public class Terreno implements Serializable {
 						idModeloTile);
 			}
 		}
+		this.marcarTodosLosChunksSucios();
 	}
 
 	public void establecerTileReferenciado(final int x, final int y, final Tile tile) {
@@ -273,41 +375,6 @@ public class Terreno implements Serializable {
 
 	public boolean contienePuntoTileReferenciado(final Point p) {
 		return (p != null) && this.contienePuntoTileReferenciado(p.x, p.y);
-	}
-
-	public void pintar(final Graphics2D g) {
-		final double zoomActivo = Math.max(0.2, Globales.CAMARA.getZoomFinal());
-		final double rotAbs = Math.abs(Globales.CAMARA.getGestorEfectos().getAnguloRotacion());
-		final double shakeX = Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetX());
-		final double shakeY = Math.abs(Globales.CAMARA.getGestorEfectos().getOffsetY());
-
-		final double cos = Math.cos(rotAbs);
-		final double sin = Math.sin(rotAbs);
-
-		final int radioVisibleX = (int) Math
-				.ceil(((Constantes.CENTROX * cos) + (Constantes.CENTROY * sin)) / zoomActivo) + (int) shakeX
-				+ this.LADO_TILE;
-		final int radioVisibleY = (int) Math
-				.ceil(((Constantes.CENTROX * sin) + (Constantes.CENTROY * cos)) / zoomActivo) + (int) shakeY
-				+ this.LADO_TILE;
-
-		final int camX = Globales.CAMARA.getPosicionXInt();
-		final int camY = Globales.CAMARA.getPosicionYInt();
-
-		final int startTileX = Math.max(0, Math.floorDiv(camX - radioVisibleX, this.LADO_TILE));
-		final int endTileX = Math.min(this.CANTIDAD_TILES_X - 1, Math.floorDiv(camX + radioVisibleX, this.LADO_TILE));
-		final int startTileY = Math.max(0, Math.floorDiv(camY - radioVisibleY, this.LADO_TILE));
-		final int endTileY = Math.min(this.CANTIDAD_TILES_Y - 1, Math.floorDiv(camY + radioVisibleY, this.LADO_TILE));
-
-		for (int ty = startTileY; ty <= endTileY; ty++) {
-			final int fila = ty * this.CANTIDAD_TILES_X;
-			for (int tx = startTileX; tx <= endTileX; tx++) {
-				final Tile t = this.TILES[fila + tx];
-				if (t != null) {
-					t.pintar(g);
-				}
-			}
-		}
 	}
 
 	public boolean hayLineaDeVisionLimpia(final double x0, final double y0, final double x1, final double y1) {

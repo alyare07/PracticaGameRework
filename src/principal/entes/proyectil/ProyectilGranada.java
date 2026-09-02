@@ -9,7 +9,6 @@ import org.json.simple.JSONObject;
 
 import principal.animaciones.Animacion;
 import principal.entes.Ente;
-import principal.entes.criaturas.Criatura;
 import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.modelos.item.ModeloGranada;
 import principal.entes.objetos.Objeto;
@@ -22,6 +21,11 @@ import principal.utilidades.Textura;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
+/**
+ * Granada con física parabólica Bézier y daño de área radial Zero-GC.
+ * 
+ * @version 2.0 (Vanilla Java 8 - Zero-GC)
+ */
 public class ProyectilGranada extends ProyectilGeneral {
 
 	private static final long serialVersionUID = 9083899449947637545L;
@@ -48,8 +52,6 @@ public class ProyectilGranada extends ProyectilGeneral {
 		final ModeloGranada modelo = (ModeloGranada) ListaModelosItem
 				.getModeloConsumible(this.GRANADA.getCodigoModelo());
 
-		// Recorta exclusivamente la primera fila (10 frames de 50x50 px) para una
-		// explosión fluida
 		final BufferedImage imgCompleta = modelo.getTexturaExplosion();
 		final BufferedImage tiraExplosion = (imgCompleta.getHeight() > 50)
 				? imgCompleta.getSubimage(0, 0, Math.min(imgCompleta.getWidth(), 500), 50)
@@ -105,8 +107,6 @@ public class ProyectilGranada extends ProyectilGeneral {
 			this.mover();
 			this.verificarImpacto();
 		} else {
-			// Durante la fase de explosión, avanza la animación hasta finalizar y se
-			// auto-elimina
 			this.ANIMACION_EXPLOSION.actualizar();
 			if (this.ANIMACION_EXPLOSION.animacionFinalizada()) {
 				this.eliminar();
@@ -117,7 +117,6 @@ public class ProyectilGranada extends ProyectilGeneral {
 	@Override
 	public void pintar(final Graphics2D g) {
 		if (this.realizoImpacto) {
-			// Dibuja la explosión centrada sobre el área de impacto
 			this.ANIMACION_EXPLOSION.pintar(g, this.AREA_DESTINO.getX(), this.AREA_DESTINO.getY() - 20, true);
 		} else {
 			Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_X10_GRANADA_1), (int) this.x,
@@ -147,20 +146,8 @@ public class ProyectilGranada extends ProyectilGeneral {
 	protected void verificarImpacto() {
 		if (!this.realizoImpacto && (this.trayectoria != null) && (this.posTrayectoria >= this.trayectoria[0].length)) {
 			if (this.mundo != null) {
-				this.mundo.paraCadaCriaturaEn(this.AREA_DESTINO, true, victima -> {
-					if ((victima == this.CAUSANTE) || victima.estaEliminado() || this.perforados.contains(victima)) {
-						return;
-					}
-
-					boolean esBlanco = true;
-					if (this.CAUSANTE instanceof Criatura) {
-						esBlanco = ((Criatura) this.CAUSANTE).esHostilHacia(victima);
-					}
-
-					if (esBlanco) {
-						this.impactar(victima);
-					}
-				});
+				// Daño de área radial pasando 'this' como visitor (Zero-GC)
+				this.mundo.paraCadaCriaturaEn(this.AREA_DESTINO, true, this);
 			}
 
 			if ((Globales.CAMARA != null) && (Globales.CAMARA.getEntidadEnfocada() != null)) {

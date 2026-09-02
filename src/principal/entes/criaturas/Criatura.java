@@ -2,6 +2,7 @@ package principal.entes.criaturas;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -344,7 +345,7 @@ public abstract class Criatura extends Ente {
 
 		if ((Globales.CAMARA.getEntidadEnfocada() == this)
 				&& (!this.recorridoA.isEmpty() || (this.nodoADestino != null))) {
-			g.setFont(g.getFont().deriveFont(7f));
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(7f));
 
 			final Dimension dimNodo = this.getMundo().getAEstrellaX12X20().getDimensionNodoA();
 			final int anchoTile = dimNodo.width;
@@ -386,13 +387,13 @@ public abstract class Criatura extends Ente {
 	}
 
 	private void pintarValorVida(final Graphics2D g) {
-		g.setFont(g.getFont().deriveFont(4f));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.MONOSPACED, Font.BOLD, 8f));
 		final String texto = (int) this.vida + "/" + (int) this.vidaMaxima;
 		final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
 
 		final int xTexto = this.getPosicionXInt() + ((this.ANCHO - anchoTexto) / 2);
-		Render2D.dibujarStringRefCamara(g, texto, xTexto, this.getPosicionYInt() - 6, Color.WHITE);
-		g.setFont(g.getFont().deriveFont(Constantes.TAMANO_FUENTE));
+		Render2D.dibujarStringConSombraRefCamara(g, texto, xTexto, this.getPosicionYInt() - 6, Color.WHITE,
+				Color.BLACK);
 	}
 
 	private void pintarRectanguloBarraVida(final Graphics2D g) {

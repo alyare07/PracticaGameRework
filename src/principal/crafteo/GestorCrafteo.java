@@ -5,6 +5,8 @@ import java.util.EnumSet;
 
 import principal.entes.criaturas.Jugador;
 import principal.entes.objetos.Objeto;
+import principal.iluminacion.FuenteLuz;
+import principal.iluminacion.TipoLuz;
 import principal.inventario.Inventario;
 import principal.mapa.Mundo;
 import principal.utilidades.AccionEntidad;
@@ -16,7 +18,7 @@ import principal.utilidades.audio.sonido.IDSonido;
  * Gestor maestro del sistema de fabricación y detección de estaciones cercanas.
  * Opera con cero asignaciones en memoria en cada frame (Zero-GC).
  * 
- * @version 2.0 (Vanilla Java 8 - Zero-GC)
+ * @version 2.1 (Vanilla Java 8 - Zero-GC)
  */
 public class GestorCrafteo implements AccionEntidad<Objeto> {
 
@@ -27,10 +29,6 @@ public class GestorCrafteo implements AccionEntidad<Objeto> {
 	public GestorCrafteo() {
 	}
 
-	/**
-	 * Actualiza las estaciones de crafteo activas según los objetos y fuentes de
-	 * calor cercanos.
-	 */
 	public void actualizar(final Mundo mundo) {
 		this.estacionesDisponibles.clear();
 		this.estacionesDisponibles.add(EstacionCrafteo.MANUAL);
@@ -46,18 +44,15 @@ public class GestorCrafteo implements AccionEntidad<Objeto> {
 
 		this.areaDeteccionEstaciones.setBounds(centroX - radio, centroY - radio, radio * 2, radio * 2);
 
-		// 1. Escaneo espacial de objetos físicos pasando 'this' como visitor (Zero-GC)
+		// 1. Escaneo espacial de objetos físicos con visitor Zero-GC
 		mundo.paraCadaObjetoEn(this.areaDeteccionEstaciones, this);
 
-		// 2. Detección de proximidad a fuentes de luz de tipo FOGATA
+		// 2. Detección de proximidad a fuentes de calor reales (Fogatas)
 		if (Globales.GESTOR_LUZ != null) {
 			this.detectarFogatasPorLuz(centroX, centroY);
 		}
 	}
 
-	/**
-	 * Callback Zero-GC ejecutado por el barrido espacial para cada objeto en rango.
-	 */
 	@Override
 	public void ejecutar(final Objeto objeto) {
 		if ((objeto instanceof EstacionInteractiva) && !objeto.estaEliminado()) {
@@ -67,21 +62,28 @@ public class GestorCrafteo implements AccionEntidad<Objeto> {
 	}
 
 	/**
-	 * Habilita recetas de cocina/fogata si el jugador está junto a una luz de
-	 * fogata activa.
+	 * Verifica si hay una fuente de luz activa de tipo FOGATA dentro del rango
+	 * físico de calor.
 	 */
 	private void detectarFogatasPorLuz(final int centroX, final int centroY) {
 		if (this.estacionesDisponibles.contains(EstacionCrafteo.FOGATA)) {
-			return; // Ya fue detectada por un objeto físico
+			return;
 		}
 
 		final double rangoSq = RANGO_DETECCION_ESTACION * RANGO_DETECCION_ESTACION;
+		final int totalLuces = Globales.GESTOR_LUZ.getCantidadActivas();
 
-		// Escaneo en tiempo constante O(Luces Activas)
-		if (Globales.GESTOR_LUZ.isPosicionIluminada(centroX, centroY)) {
-			// Si la posición está en luz, validamos si la luz más cercana es de
-			// fuego/fogata
-			this.estacionesDisponibles.add(EstacionCrafteo.FOGATA);
+		// Búsqueda directa O(N) sobre luces activas
+		for (int i = 0; i < totalLuces; i++) {
+			final FuenteLuz luz = Globales.GESTOR_LUZ.getLuzPorIndice(i);
+			if ((luz != null) && luz.isActiva() && (luz.getTipo() == TipoLuz.FOGATA)) {
+				final double dx = centroX - luz.getPosX();
+				final double dy = centroY - luz.getPosY();
+				if (((dx * dx) + (dy * dy)) <= rangoSq) {
+					this.estacionesDisponibles.add(EstacionCrafteo.FOGATA);
+					break;
+				}
+			}
 		}
 	}
 
@@ -90,7 +92,6 @@ public class GestorCrafteo implements AccionEntidad<Objeto> {
 			return false;
 		}
 
-		// 1. Verifica si la estación de trabajo requerida está disponible
 		if (!this.estacionesDisponibles.contains(receta.getEstacionRequerida())) {
 			return false;
 		}
@@ -100,7 +101,6 @@ public class GestorCrafteo implements AccionEntidad<Objeto> {
 			return false;
 		}
 
-		// 2. Ejecuta el crafteo
 		final boolean exito = receta.craftear(inventario);
 
 		if (exito) {

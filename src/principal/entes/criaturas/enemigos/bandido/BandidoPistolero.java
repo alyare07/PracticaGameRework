@@ -59,6 +59,10 @@ public class BandidoPistolero extends Bandido {
 		}
 	}
 
+	/**
+	 * Verifica si hay línea de tiro directa considerando distancia, terreno y
+	 * obstáculos físicos (árboles/muros).
+	 */
 	private boolean tieneLineaDeTiroLimpia(final Criatura objetivo) {
 		if ((objetivo == null) || objetivo.estaEliminado() || (this.mundo == null)) {
 			return false;
@@ -77,7 +81,8 @@ public class BandidoPistolero extends Bandido {
 			return false;
 		}
 
-		return this.mundo.getTerreno().hayLineaDeVisionLimpia(origenX, origenY, destX, destY);
+		// Raycasting híbrido completo en el Mundo
+		return this.mundo.hayLineaDeTiroLimpia(origenX, origenY, destX, destY);
 	}
 
 	@Override
@@ -121,7 +126,7 @@ public class BandidoPistolero extends Bandido {
 			return;
 		}
 
-		// --- FASE 2: Detección y apuntado ---
+		// --- FASE 2: Detección y apuntado con cobertura ---
 		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
 				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 

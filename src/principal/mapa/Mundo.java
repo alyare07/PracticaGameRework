@@ -342,6 +342,54 @@ public class Mundo {
 		return true;
 	}
 
+	// =========================================================================
+	// === RAYCASTING HÍBRIDO DE COMBATE / LÍNEA DE TIRO LIMPIA (ZERO-GC)
+	// =========================================================================
+
+	/**
+	 * Evalúa si una trayectoria de disparo en línea recta está 100% limpia de muros
+	 * de terreno y de obstáculos físicos (árboles, rocas, casas, estructuras).
+	 * 
+	 * @param x0 Origen X (Disparador)
+	 * @param y0 Origen Y (Disparador)
+	 * @param x1 Destino X (Objetivo)
+	 * @param y1 Destino Y (Objetivo)
+	 * @return {@code true} si la bala tiene trayectoria libre sin chocar.
+	 */
+	public boolean hayLineaDeTiroLimpia(final double x0, final double y0, final double x1, final double y1) {
+		// 1. Validar suelo sólido (Paredes de roca del mapa base)
+		if (!this.getTerreno().hayLineaDeVisionLimpia(x0, y0, x1, y1)) {
+			return false;
+		}
+
+		// 2. Delimitar las ZoneBoxes que intersectan el rayo de tiro
+		final int minX = (int) Math.min(x0, x1);
+		final int maxX = (int) Math.max(x0, x1);
+		final int minY = (int) Math.min(y0, y1);
+		final int maxY = (int) Math.max(y0, y1);
+
+		final int minGX = Math.max(0, Math.floorDiv(minX, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1, Math.floorDiv(maxX, this.LADO_ZONEBOX));
+		final int minGY = Math.max(0, Math.floorDiv(minY, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1, Math.floorDiv(maxY, this.LADO_ZONEBOX));
+
+		for (int gy = minGY; gy <= maxGY; gy++) {
+			final int offset = gy * this.cantZonasX;
+			for (int gx = minGX; gx <= maxGX; gx++) {
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
+				if ((zb != null) && zb.intersectaLineaSolida(x0, y0, x1, y1)) {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	// =========================================================================
+	// === MÉTODOS VISITOR Y ACCIONES ESPACIALES
+	// =========================================================================
+
 	public void paraCadaCriaturaEn(final Shape area, final boolean incluirJugador,
 			final AccionEntidad<Criatura> accion) {
 		if ((area == null) || (accion == null)) {

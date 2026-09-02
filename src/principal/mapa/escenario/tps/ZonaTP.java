@@ -4,6 +4,8 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
@@ -14,7 +16,6 @@ public class ZonaTP extends Ente {
 	private boolean eliminado;
 	private final Rectangle AREA;
 	private PuertaTP puertaTP;
-	private boolean pintarEfecto;
 	private final HashMap<Criatura, Criatura> ENTES_TELETRANSPORTADOS_HACIA_ACA = new HashMap<Criatura, Criatura>();
 
 	public ZonaTP(final Rectangle area, final PuertaTP puerta) {
@@ -25,10 +26,15 @@ public class ZonaTP extends Ente {
 	@Override
 	public void actualizar() {
 		if (!this.ENTES_TELETRANSPORTADOS_HACIA_ACA.isEmpty()) {
-			for (final Criatura c : this.ENTES_TELETRANSPORTADOS_HACIA_ACA.values()) {
+			// Iteración segura con Iterator.remove() para prevenir
+			// ConcurrentModificationException
+			final Iterator<Map.Entry<Criatura, Criatura>> it = this.ENTES_TELETRANSPORTADOS_HACIA_ACA.entrySet()
+					.iterator();
+			while (it.hasNext()) {
+				final Criatura c = it.next().getKey();
 				if (c instanceof Jugador) {
 					if (!((Jugador) c).getAreaInterseccionMovimiento().intersects(this.AREA)) {
-						this.ENTES_TELETRANSPORTADOS_HACIA_ACA.remove(c);
+						it.remove();
 					}
 				}
 			}
@@ -60,7 +66,9 @@ public class ZonaTP extends Ente {
 	}
 
 	public void teletransportar(final Criatura c) {
-		this.puertaTP.teletransportar(c);
+		if (this.puertaTP != null) {
+			this.puertaTP.teletransportar(c);
+		}
 	}
 
 	public int getCentroX(final Ente e) {
@@ -144,5 +152,4 @@ public class ZonaTP extends Ente {
 		this.AREA.y = (int) Math.round(y);
 		this.verificarZoneBox();
 	}
-
 }

@@ -2,7 +2,6 @@ package principal.entes.criaturas;
 
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -25,22 +24,10 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Clase abstracta base para todas las entidades vivas (Jugador, Enemigos,
- * NPCs).
- * <p>
- * <b>Nuevas Características Arquitectónicas (v3.5):</b>
- * <ul>
- * <li><b>Matriz de Hostilidad Bitmask O(1):</b> Identidad de facción y máscara
- * de relaciones diplomáticas.</li>
- * <li><b>Repulsión Elástica de Manada (Soft Push):</b> Desatasco y separación
- * orgánica entre criaturas adyacentes.</li>
- * <li><b>Barra Fantasma de Daño (Ease-Out HP):</b> Amortiguación visual suave
- * tras impactos.</li>
- * <li><b>Hit-Flash Blanco (65 ms):</b> Destello sólido reactivo de daño.</li>
- * </ul>
- * </p>
+ * Base abstracta para todas las criaturas con soporte de Atributos RPG (Zero-GC
+ * / O(1)).
  * 
- * @version 3.5 (Java 8 Compatible - Zero-GC Architecture)
+ * @version 4.0 (Vanilla Java 8)
  */
 public abstract class Criatura extends Ente {
 
@@ -75,30 +62,28 @@ public abstract class Criatura extends Ente {
 		}
 	}
 
-	// =========================================================================
-	// === COLORES CONSTANTES DE BARRA DE VIDA (ZERO-GC)
-	// =========================================================================
 	private static final Color COLOR_FONDO_BARRA = Color.BLACK;
 	private static final Color COLOR_BARRA_LAG = new Color(255, 205, 40);
 	private static final Color COLOR_BARRA_VIDA = new Color(235, 30, 30);
 
 	// =========================================================================
-	// === FACCIONES Y RELACIONES DIPLOMÁTICAS (BITMASKS O(1))
+	// === 1. ATRIBUTOS RPG FUNDAMENTALES (ZERO-GC)
 	// =========================================================================
+	protected int fuerzaBase = 10;
+	protected int agilidadBase = 10;
+	protected int inteligenciaBase = 10;
 
-	/** Bit identificador de la facción a la que pertenece esta criatura. */
+	// =========================================================================
+	// === 2. FACCIONES Y RELACIONES DIPLOMÁTICAS
+	// =========================================================================
 	protected int faccionBit = GestorFacciones.FACCION_NEUTRAL;
-
-	/** Máscara de bits que define qué facciones son consideradas enemigas. */
 	protected int mascaraHostilidad = 0;
 
 	// =========================================================================
-	// === CINEMÁTICA, INERCIA Y WAYPOINTS
+	// === 3. CINEMÁTICA Y WAYPOINTS
 	// =========================================================================
-
 	protected double velActualX = 0.0;
 	protected double velActualY = 0.0;
-
 	protected double agilidadGiro = 0.25;
 	protected static final double RADIO_ANTICIPACION_ESQUINA = 12.0;
 	protected static final double RADIO_LLEGADA_WAYPOINT = 4.0;
@@ -112,9 +97,8 @@ public abstract class Criatura extends Ente {
 	protected boolean modoDios = false;
 
 	// =========================================================================
-	// === GESTIÓN DE VIDA Y HIT-FLASH
+	// === 4. VIDA, HIT-FLASH Y TIEMPOS
 	// =========================================================================
-
 	protected double vida;
 	protected double vidaLag;
 	protected double vidaMaxima;
@@ -179,13 +163,52 @@ public abstract class Criatura extends Ente {
 		this.direccion = Direccion.ESTE;
 		this.recorridoA = new ArrayDeque<NodoA>();
 
-		// Inicialización por defecto en facción neutral
 		this.faccionBit = GestorFacciones.FACCION_NEUTRAL;
 		this.mascaraHostilidad = GestorFacciones.getMascaraHostilidadPorDefecto(this.faccionBit);
 	}
 
 	// =========================================================================
-	// === ACTUALIZACIÓN LÓGICA Y REPULSIÓN DE MANADA (SOFT PUSH)
+	// === MÉTODOS DE ATRIBUTOS POLIMÓRFICOS
+	// =========================================================================
+
+	public int getFuerzaTotal() {
+		return this.fuerzaBase;
+	}
+
+	public int getAgilidadTotal() {
+		return this.agilidadBase;
+	}
+
+	public int getInteligenciaTotal() {
+		return this.inteligenciaBase;
+	}
+
+	public int getFuerzaBase() {
+		return this.fuerzaBase;
+	}
+
+	public void setFuerzaBase(final int fuerza) {
+		this.fuerzaBase = Math.max(1, fuerza);
+	}
+
+	public int getAgilidadBase() {
+		return this.agilidadBase;
+	}
+
+	public void setAgilidadBase(final int agilidad) {
+		this.agilidadBase = Math.max(1, agilidad);
+	}
+
+	public int getInteligenciaBase() {
+		return this.inteligenciaBase;
+	}
+
+	public void setInteligenciaBase(final int inteligencia) {
+		this.inteligenciaBase = Math.max(1, inteligencia);
+	}
+
+	// =========================================================================
+	// === ACTUALIZACIÓN LÓGICA Y REPULSIÓN DE MANADA
 	// =========================================================================
 
 	@Override
@@ -196,11 +219,6 @@ public abstract class Criatura extends Ente {
 		this.aplicarFuerzaSeparacion();
 	}
 
-	/**
-	 * Drena la barra fantasma amarilla de forma suave tras recibir daño.
-	 *
-	 * @param dt Delta de tiempo en segundos.
-	 */
 	public void actualizarBarraFantasma(final double dt) {
 		if (this.vidaLag > this.vida) {
 			final double diferencia = this.vidaLag - this.vida;
@@ -215,11 +233,6 @@ public abstract class Criatura extends Ente {
 		}
 	}
 
-	/**
-	 * Aplica una fuerza elástica de separación (Soft Push) respecto a otras
-	 * criaturas cercanas en las mismas celdas ZoneBox para prevenir el apilamiento
-	 * de sprites (Zero-GC).
-	 */
 	protected void aplicarFuerzaSeparacion() {
 		if (this.zonasOcupadas.isEmpty()) {
 			return;
@@ -266,7 +279,7 @@ public abstract class Criatura extends Ente {
 	}
 
 	// =========================================================================
-	// === MÉTODOS DE FACCIONES Y RELACIONES DIPLOMÁTICAS
+	// === MÉTODOS DE FACCIONES
 	// =========================================================================
 
 	public int getFaccionBit() {
@@ -286,12 +299,6 @@ public abstract class Criatura extends Ente {
 		this.mascaraHostilidad = mascaraHostilidad;
 	}
 
-	/**
-	 * Evalúa en O(1) si esta criatura considera hostil a otra entidad viva.
-	 *
-	 * @param otra Criatura a evaluar.
-	 * @return {@code true} si debe atacarla.
-	 */
 	public boolean esHostilHacia(final Criatura otra) {
 		if ((otra == null) || otra.estaEliminado() || (otra == this)) {
 			return false;
@@ -326,10 +333,6 @@ public abstract class Criatura extends Ente {
 			Globales.GESTOR_TEXTOS.agregarDanio((int) damage, this.getPosicionX(), this.getPosicionY(), false);
 		}
 	}
-
-	// =========================================================================
-	// === RENDERIZADO CON BARRA FANTASMA
-	// =========================================================================
 
 	public Rectangle getRectangulo() {
 		return this.getArea();
@@ -387,13 +390,13 @@ public abstract class Criatura extends Ente {
 	}
 
 	private void pintarValorVida(final Graphics2D g) {
-		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.MONOSPACED, Font.BOLD, 8f));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(4f));
 		final String texto = (int) this.vida + "/" + (int) this.vidaMaxima;
 		final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
 
 		final int xTexto = this.getPosicionXInt() + ((this.ANCHO - anchoTexto) / 2);
-		Render2D.dibujarStringConSombraRefCamara(g, texto, xTexto, this.getPosicionYInt() - 6, Color.WHITE,
-				Color.BLACK);
+		Render2D.dibujarStringRefCamara(g, texto, xTexto, this.getPosicionYInt() - 6, Color.WHITE);
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Constantes.TAMANO_FUENTE));
 	}
 
 	private void pintarRectanguloBarraVida(final Graphics2D g) {
@@ -517,10 +520,6 @@ public abstract class Criatura extends Ente {
 		this.velocidad = this.velocidadEstandar;
 	}
 
-	// =========================================================================
-	// === GESTIÓN DE VIDA
-	// =========================================================================
-
 	public double getVida() {
 		return this.vida;
 	}
@@ -556,7 +555,7 @@ public abstract class Criatura extends Ente {
 	}
 
 	public void reducirVidaMaxima(final double puntos) {
-		this.vidaMaxima = Math.max(50, this.vidaMaxima - puntos);
+		this.vidaMaxima = Math.max(10, this.vidaMaxima - puntos);
 		this.vida = Math.min(this.vida, this.vidaMaxima);
 		this.vidaLag = Math.min(this.vidaLag, this.vidaMaxima);
 	}
@@ -609,14 +608,10 @@ public abstract class Criatura extends Ente {
 		this.nodoADestino = this.recorridoA.poll();
 	}
 
-	// =========================================================================
-	// === MÁQUINA DE ESTADOS (ENUMSET ZERO-GC)
-	// =========================================================================
-
 	public String getStringEstados() {
 		final StringBuilder sb = new StringBuilder();
 		for (final Estado e : this.estados) {
-			sb.append(e.toString()).append("  ");
+			sb.append(e.toString()).append(" ");
 		}
 		return sb.toString();
 	}
@@ -681,10 +676,6 @@ public abstract class Criatura extends Ente {
 	public void setVelocidadBase(final double velBase) {
 		this.velocidadEstandar = velBase;
 	}
-
-	// =========================================================================
-	// === GETTERS Y SETTERS DE POSICIÓN
-	// =========================================================================
 
 	public Set<Estado> getEstado() {
 		return this.estados;

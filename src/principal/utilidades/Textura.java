@@ -123,6 +123,8 @@ public final class Textura {
 	public static final int TEXTURA_x16_POCION_ROJA = getSiguienteIdItem();
 	public static final int TEXTURA_x16_POCION_AZUL = getSiguienteIdItem();
 	public static final int TEXTURA_x16_BOTAS_CUERO_MARRON = getSiguienteIdItem();
+	public static final int TEXTURA_x16_CASCO_BASE = getSiguienteIdItem();
+	public static final int TEXTURA_x16_ARMADURA_BASE = getSiguienteIdItem();
 
 	// -----ARMAS-----
 	public static final int TEXTURA_x16_PISTOLA = getSiguienteIdItem();
@@ -141,6 +143,10 @@ public final class Textura {
 	public static final int TEXTURA_x10_POCION_AZUL = getSiguienteIdItem();
 	public static final int TEXTURA_x10_POCION_ROJA = getSiguienteIdItem();
 	public static final int TEXTURA_x10_BOTAS_CUERO_MARRON = getSiguienteIdItem();
+	public static final int TEXTURA_x10_CASCO_BASE = getSiguienteIdItem();
+	public static final int TEXTURA_x10_ARMADURA_BASE = getSiguienteIdItem();
+	public static final int TEXTURA_x10_ANILLO_PLATA = getSiguienteIdItem();
+	public static final int TEXTURA_x10_ANILLO_ORO = getSiguienteIdItem();
 
 	public static final int TEXTURA_X10_GRANADA_1 = getSiguienteIdItem();
 	public static final int TEXTURA_X10_GRANADA_2 = getSiguienteIdItem();
@@ -241,12 +247,21 @@ public final class Textura {
 
 		// 3. Items y Granadas
 		final HojaSprite hojaItems16 = new HojaSprite("/imagenes/objetos/items.png", 16, false);
-		guardar(TEXTURA_x16_ANILLO_PLATA, hojaItems16.getSprite(0));
-		guardar(TEXTURA_x16_ANILLO_ORO, hojaItems16.getSprite(13));
+		guardar(TEXTURA_x16_ANILLO_PLATA, hojaItems16.getSprite(6));
+		guardar(TEXTURA_x16_ANILLO_ORO, hojaItems16.getSprite(19));
 		guardar(TEXTURA_x16_ESMERALDA, hojaItems16.getSprite(28));
 		guardar(TEXTURA_x16_POCION_ROJA, hojaItems16.getSprite(50));
 		guardar(TEXTURA_x16_POCION_AZUL, hojaItems16.getSprite(48));
 		guardar(TEXTURA_x16_BOTAS_CUERO_MARRON, hojaItems16.getSprite(122));
+		guardar(TEXTURA_x16_CASCO_BASE, hojaItems16.getSprite(112));
+		guardar(TEXTURA_x16_ARMADURA_BASE, hojaItems16.getSprite(113));
+
+//		public static final int TEXTURA_x16_ESMERALDA = getSiguienteIdItem();
+//		public static final int TEXTURA_x16_POCION_ROJA = getSiguienteIdItem();
+//		public static final int TEXTURA_x16_POCION_AZUL = getSiguienteIdItem();
+//		public static final int TEXTURA_x16_BOTAS_CUERO_MARRON = getSiguienteIdItem();
+//		public static final int TEXTURA_x16_CASCO_CUERO = getSiguienteIdItem();
+//		public static final int TEXTURA_x16_ARMADURA_CUERO = getSiguienteIdItem();
 
 		cargarGranadas("/imagenes/objetos/granadas.png", 16, TEXTURA_X16_GRANADA_1);
 
@@ -254,6 +269,11 @@ public final class Textura {
 		guardar(TEXTURA_x10_POCION_ROJA, hojaItems10.getSprite(50));
 		guardar(TEXTURA_x10_POCION_AZUL, hojaItems10.getSprite(48));
 		guardar(TEXTURA_x10_BOTAS_CUERO_MARRON, hojaItems10.getSprite(122));
+		guardar(TEXTURA_x10_CASCO_BASE, hojaItems10.getSprite(113));
+		guardar(TEXTURA_x10_ARMADURA_BASE, hojaItems10.getSprite(114));
+		guardar(TEXTURA_x10_ANILLO_PLATA, hojaItems10.getSprite(6));
+		guardar(TEXTURA_x10_ANILLO_ORO, hojaItems10.getSprite(19));
+//		
 
 		cargarGranadas("/imagenes/objetos/granadas.png", 10, TEXTURA_X10_GRANADA_1);
 

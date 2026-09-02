@@ -707,6 +707,12 @@ public class GestorLuz {
 	// =========================================================================
 	// === GETTERS Y SETTERS
 	// =========================================================================
+	public FuenteLuz getLuzPorIndice(final int indice) {
+		if ((indice >= 0) && (indice < this.cantidadActivas)) {
+			return this.activas[indice];
+		}
+		return null;
+	}
 
 	public CicloDiaNoche getCiclo() {
 		return this.ciclo;

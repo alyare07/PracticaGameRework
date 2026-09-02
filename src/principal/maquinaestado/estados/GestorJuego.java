@@ -103,6 +103,15 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			GestorMusica.actualizarMusicaFondoPrincipal(false);
 			return;
 		}
+		this.actualizarControlesDebug();
+		GestorMusica.actualizarMusicaFondoPrincipal(true);
+
+		if (Globales.JUGADOR.estaEliminado()) {
+			return;
+		}
+		Globales.GESTOR_INVENTARIO.actualizar(this.RATON, this.mapa.getMundoActual());
+		this.mapa.actualizar();
+		this.actualizarEventos();
 
 		if (Globales.TECLADO.TECLA_DIJKSTRA.presionadoUnicaActualizacion()) {
 			if (Globales.JUGADOR.getFaccionBit() == GestorFacciones.FACCION_JUGADOR) {
@@ -111,19 +120,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_JUGADOR);
 			}
 		}
-		GestorMusica.actualizarMusicaFondoPrincipal(true);
 
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
 
-		this.actualizarControlesDebug();
-
 		Globales.JUGADOR.actualizar();
-
-		if (!Globales.JUGADOR.estaEliminado()) {
-			Globales.GESTOR_INVENTARIO.actualizar(this.RATON, this.mapa.getMundoActual());
-			this.mapa.actualizar();
-			this.actualizarEventos();
-		}
 
 		// Conmutar Modo Construcción con Tecla B
 		if (Globales.TECLADO.TECLA_CONSTRUCCION.presionadoUnicaActualizacion()) {

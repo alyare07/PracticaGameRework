@@ -15,22 +15,20 @@ import principal.inventario.Inventario;
 import principal.inventario.equipamiento.SlotManager;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
-import principal.utilidades.Textura;
 
 /**
- * Representa una celda o casilla interactiva dentro de cualquier interfaz de
- * usuario (IGU). Capaz de contener, validar y renderizar ítems con badges de
- * cantidad y estado de recarga.
+ * Casilla interactiva de interfaz con renderizado Pixel-Art táctico (Zero-GC).
  * 
- * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
+ * @version 3.1 (Vanilla Java 8 - Crisp Pixel Art)
  */
 public class Slot {
 
-	private static final Font FUENTE_CANTIDAD = new Font(Font.SANS_SERIF, Font.PLAIN, 5);
-	private static final Font FUENTE_MUNICION = new Font(Font.SANS_SERIF, Font.PLAIN, 4);
-	private static final Font FUENTE_TOOLTIP = new Font(Font.SANS_SERIF, Font.PLAIN, 5);
+	private static final Color COLOR_TEXTO_LLENO = new Color(255, 255, 255);
+	private static final Color COLOR_TEXTO_MEDIO = new Color(255, 205, 50);
+	private static final Color COLOR_TEXTO_VACIO = new Color(255, 65, 65);
 
-	private static final Color COLOR_FONDO_RECARGA = new Color(30, 30, 30, 220);
+	private static final Color COLOR_BARRA_FONDO = new Color(15, 15, 20, 220);
+	private static final Color COLOR_BARRA_LLENA = new Color(40, 220, 240);
 	private static final Color COLOR_TEXTO_RECARGA = new Color(255, 185, 40);
 
 	protected static final int MARGEN_ESPACIADO_DEFECTO = 2;
@@ -103,10 +101,7 @@ public class Slot {
 
 	public void pintarTooltip(final Graphics2D g) {
 		if (this.apuntado && this.contieneItem()) {
-			final Font fuenteOriginal = g.getFont();
-			g.setFont(FUENTE_TOOLTIP);
 			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipItem(g, this.item);
-			g.setFont(fuenteOriginal);
 		}
 	}
 
@@ -125,43 +120,67 @@ public class Slot {
 		// 1. Dibujar textura del ítem
 		this.item.pintarInventario(g, area.x + this.MARGEN_ESPACIADO, area.y + this.MARGEN_ESPACIADO);
 
-		// 2. Metadatos de Consumible (Cantidad de stack en esquina superior)
+		// 2. Cantidad de Consumibles (Esquina superior derecha con sombra)
 		if (this.item instanceof Consumible) {
-			final Font fuenteOriginal = g.getFont();
-			g.setFont(FUENTE_CANTIDAD);
+			final Font fuentePrevia = g.getFont();
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 5.5f));
 
-			Render2D.dibujarRectanguloRelleno(g, area.x, area.y, 6, 6, Color.LIGHT_GRAY);
-			Render2D.dibujarString(g, String.valueOf(((Consumible) this.item).getCantidad()), area.x, area.y + 6,
-					Color.BLACK);
+			final String cantidad = String.valueOf(((Consumible) this.item).getCantidad());
+			final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, cantidad);
 
-			g.setFont(fuenteOriginal);
+			final int xCant = (area.x + area.width) - anchoTexto - 1;
+			final int yCant = area.y + 6;
+
+			Render2D.dibujarStringConSombra(g, cantidad, xCant, yCant, Color.WHITE, Color.BLACK);
+
+			g.setFont(fuentePrevia);
 		}
-		// 3. Metadatos de Arma de Fuego (Balas en cargador o estado de recarga)
+		// 3. Munición de Armas de Fuego (Esquina inferior derecha + micro-barra)
 		else if (this.item instanceof Arma) {
 			final Arma arma = (Arma) this.item;
 			if (arma.esArmaDistancia()) {
-				final Font fuenteOriginal = g.getFont();
-				g.setFont(FUENTE_MUNICION);
+				final Font fuentePrevia = g.getFont();
+				g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 5.5f));
 
-				// Visualización de estado RECARGANDO
 				if (arma.isRecargando()) {
-					Render2D.dibujarRectanguloRelleno(g, area.x, (area.y + area.height) - 6, 14, 5,
-							COLOR_FONDO_RECARGA);
-					Render2D.dibujarString(g, "REC...", area.x + 1, (area.y + area.height) - 2, COLOR_TEXTO_RECARGA);
-				} else {
-					final String cantidadBalas = String.valueOf(arma.getBalasCargador());
-					final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, cantidadBalas);
-					final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, cantidadBalas);
+					final String txtRec = "REC";
+					final int anchoRec = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txtRec);
+					final int xRec = area.x + ((area.width - anchoRec) / 2);
+					final int yRec = (area.y + area.height) - 3;
 
-					Render2D.dibujarRectanguloRelleno(g, area.x, (area.y + area.height) - altoTexto - 1, 11, 6,
-							Color.LIGHT_GRAY);
-					Render2D.dibujarString(g, cantidadBalas, area.x, (area.y + area.height) - (altoTexto / 2),
-							Color.BLACK);
-					Render2D.dibujarImagen(g, Textura.getTextura(Textura.TEXTURA_x4_BALA), area.x + anchoTexto,
-							(area.y + area.height) - altoTexto);
+					Render2D.dibujarStringConSombra(g, txtRec, xRec, yRec, COLOR_TEXTO_RECARGA, Color.BLACK);
+				} else {
+					final int balas = arma.getBalasCargador();
+					final int capacidad = Math.max(1, arma.getCapacidadCargador());
+					final double ratio = (double) balas / capacidad;
+
+					// Micro-barra inferior
+					final int barraAnchoMax = area.width - 2;
+					final int barraProgreso = (int) Math.round(ratio * barraAnchoMax);
+					final int barraX = area.x + 1;
+					final int barraY = (area.y + area.height) - 2;
+
+					Render2D.dibujarRectanguloRelleno(g, barraX, barraY, barraAnchoMax, 1, COLOR_BARRA_FONDO);
+					if (barraProgreso > 0) {
+						final Color colorBarra = (ratio > 0.35) ? COLOR_BARRA_LLENA
+								: ((ratio > 0.15) ? COLOR_TEXTO_MEDIO : COLOR_TEXTO_VACIO);
+						Render2D.dibujarRectanguloRelleno(g, barraX, barraY, barraProgreso, 1, colorBarra);
+					}
+
+					// Número con sombra de alto contraste
+					final String txtBalas = String.valueOf(balas);
+					final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txtBalas);
+
+					final int xNum = (area.x + area.width) - anchoTexto - 1;
+					final int yNum = (area.y + area.height) - 4;
+
+					final Color colorNumero = (balas == 0) ? COLOR_TEXTO_VACIO
+							: ((ratio <= 0.30) ? COLOR_TEXTO_MEDIO : COLOR_TEXTO_LLENO);
+
+					Render2D.dibujarStringConSombra(g, txtBalas, xNum, yNum, colorNumero, Color.BLACK);
 				}
 
-				g.setFont(fuenteOriginal);
+				g.setFont(fuentePrevia);
 			}
 		}
 	}

@@ -47,7 +47,7 @@ public class InventarioVault {
 	private static final Font FUENTE_PORTADA = new Font(Font.SANS_SERIF, Font.PLAIN, 8);
 	private static final Font FUENTE_SLOTS = new Font(Font.SANS_SERIF, Font.PLAIN, 6);
 	private static final Color COLOR_BORDE = Color.LIGHT_GRAY;
-	private static final Color COLOR_TEXTO_TITULO = Color.BLACK;
+	private static final Color COLOR_TEXTO_TITULO = Color.LIGHT_GRAY;
 
 	private final int ladoSlots;
 	private final ArrayList<Slot> slots;

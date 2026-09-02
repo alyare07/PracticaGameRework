@@ -11,8 +11,8 @@ import org.json.simple.JSONObject;
 import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.modelos.complemento.ModeloComplementoT1;
 import principal.entes.modelos.complemento.ModeloComplementoT2;
-import principal.utilidades.Render2D;
 import principal.utilidades.Globales;
+import principal.utilidades.Render2D;
 
 /**
  * Representa elementos escénicos del mapa como árboles, casas, rocas y muros.
@@ -77,14 +77,13 @@ public class Complemento extends Objeto {
 				ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).getAnimacion().pintar(g,
 						this.getPosicionXInt(), this.getPosicionYInt());
 			} else {
-				Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(),
-						this.getPosicionYInt());
+				Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(), this.getPosicionYInt());
 			}
 		}
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
 			this.pintarAreaInterseccion(g);
-			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
+//			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
 		}
 	}
 

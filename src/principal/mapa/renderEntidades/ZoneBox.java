@@ -163,7 +163,37 @@ public class ZoneBox extends Ente {
 	}
 
 	// =========================================================================
-	// === MÉTODOS VISITOR ZERO-GC (CALLBACKS SIN ALLOCATIONS)
+	// === EVALUACIÓN DE RAYCASTING / LÍNEA DE TIRO (ZERO-GC / O(1))
+	// =========================================================================
+
+	/**
+	 * Evalúa si una línea de tiro (x0,y0 -> x1,y1) es bloqueada por árboles, rocas,
+	 * casas o muros sólidos dentro de esta ZoneBox.
+	 */
+	public boolean intersectaLineaSolida(final double x0, final double y0, final double x1, final double y1) {
+		// 1. Comprobar árboles cosechables, rocas, cofres y estructuras construidas
+		final int totalObj = this.OBJETOS.size();
+		for (int i = 0; i < totalObj; i++) {
+			final Objeto o = this.OBJETOS.get(i);
+			if (o.esSolido() && !o.estaEliminado() && o.getArea().intersectsLine(x0, y0, x1, y1)) {
+				return true;
+			}
+		}
+
+		// 2. Comprobar complementos y casas
+		final int totalComp = this.COMPLEMENTOS.size();
+		for (int i = 0; i < totalComp; i++) {
+			final Complemento c = this.COMPLEMENTOS.get(i);
+			if (c.esSolido() && !c.estaEliminado() && c.getArea().intersectsLine(x0, y0, x1, y1)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	// =========================================================================
+	// === MÉTODOS VISITOR ZERO-GC
 	// =========================================================================
 
 	public void paraCadaCriatura(final Shape area, final AccionEntidad<Criatura> accion) {
@@ -326,10 +356,6 @@ public class ZoneBox extends Ente {
 	public boolean intersectaZona(final Shape area) {
 		return (area != null) && area.intersects(this.AREA);
 	}
-
-	// =========================================================================
-	// === MÉTODOS HEREDADOS Y GETTERS
-	// =========================================================================
 
 	public ArrayList<Criatura> getCriaturas() {
 		return this.CRIATURAS;

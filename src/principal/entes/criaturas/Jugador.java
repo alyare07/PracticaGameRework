@@ -2,7 +2,6 @@ package principal.entes.criaturas;
 
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -24,15 +23,18 @@ import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.Portable;
 import principal.entes.objetos.items.armas.Arma;
 import principal.entes.objetos.items.arrojadizos.Arrojadizo;
+import principal.entes.objetos.items.equipamiento.PiezaEquipo;
 import principal.entes.proyectil.GolpeMele;
 import principal.ia.Lista;
 import principal.ia.aEstrella.NodoA;
 import principal.ia.dijkstra.DijkstraRework;
 import principal.ia.dijkstra.NodoD;
+import principal.inventario.equipamiento.SlotEquipamiento;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.Tile;
 import principal.mapa.renderEntidades.ZoneBox;
+import principal.utilidades.AccionEntidad;
 import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -62,6 +64,12 @@ public class Jugador extends Criatura {
 	protected final double PTS_VIDAMAX_BASE = 20;
 	protected final double PTS_DAMAGE_BASE = 5;
 
+	// Modificadores de Atributos por Equipamiento
+	protected int modFuerzaEquipo = 0;
+	protected int modAgilidadEquipo = 0;
+	protected int modInteligenciaEquipo = 0;
+	protected int defensaTotal = 0;
+
 	protected double estamina;
 	protected double maxEstamina;
 	protected double puntoRecuperarEstaminaXseg;
@@ -81,6 +89,13 @@ public class Jugador extends Criatura {
 	private final Rectangle RECTANGLE_AUXILIAR = new Rectangle();
 	private final Point PUNTO_AUXILIAR = new Point();
 
+	private final AccionEntidad<Item> accionRecogidaItem = new AccionEntidad<Item>() {
+		@Override
+		public void ejecutar(final Item item) {
+			Jugador.this.procesarAbsorcionItem(item);
+		}
+	};
+
 	public Jugador(final int x, final int y) {
 		super(x, y, 12, 20, 50, 50);
 
@@ -90,23 +105,106 @@ public class Jugador extends Criatura {
 		this.MARGENX = Constantes.CENTROX - (anchoSprite / 2);
 		this.MARGENY = Constantes.CENTROY - (altoSprite / 2);
 
-		this.establecerVidaMaxima(this.PTS_VIDAMAX_BASE);
-		this.damage = this.PTS_DAMAGE_BASE;
-		this.velocidadEstandar = 0.5;
+		this.fuerzaBase = 10;
+		this.agilidadBase = 10;
+		this.inteligenciaBase = 10;
+
+		this.recalcularAtributos();
+		this.sanar();
 
 		this.GT_ULTIMO_ATAQUE = new GestorTiempo();
 		this.GT_RECUPERACION_ESTAMINA = new GestorTiempo();
 		this.dibujarAtaque = false;
 
 		this.actualizarAreaRecoleccion();
-		this.maxEstamina = 30;
-		this.estamina = this.maxEstamina;
 		this.puntoRecuperarEstaminaXseg = 5;
 		this.puntoGastarEstaminaXseg = 5;
 
 		this.ANCHO_INTERACCION_COFRE = this.ANCHO + 2;
 		this.ALTO_INTERACCION_COFRE = this.ALTO + 2;
 	}
+
+	// =========================================================================
+	// === MATEMÁTICA Y RECÁLCULO DE ATRIBUTOS DERIVADOS (O(1))
+	// =========================================================================
+
+	public void recalcularAtributos() {
+		int f = 0;
+		int a = 0;
+		int i = 0;
+		int def = 0;
+
+		if ((Globales.GESTOR_INVENTARIO != null) && (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
+			final ArrayList<SlotEquipamiento> slots = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotManager()
+					.getSlotsEquipamiento();
+
+			for (int idx = 0; idx < slots.size(); idx++) {
+				final SlotEquipamiento s = slots.get(idx);
+				if (s.contieneItem() && (s.getItem() instanceof PiezaEquipo)) {
+					final PiezaEquipo p = (PiezaEquipo) s.getItem();
+					f += p.getBonifFuerza();
+					a += p.getBonifAgilidad();
+					i += p.getBonifInteligencia();
+					def += p.getArmaduraDefensa();
+				}
+			}
+		}
+
+		this.modFuerzaEquipo = f;
+		this.modAgilidadEquipo = a;
+		this.modInteligenciaEquipo = i;
+		this.defensaTotal = def;
+
+		// 1. Vida Máxima = Base (20) + (Fuerza Total * 2)
+		final double nuevaVidaMax = this.PTS_VIDAMAX_BASE + (this.getFuerzaTotal() * 2.0);
+		final double ratioVida = (this.vidaMaxima > 0) ? (this.vida / this.vidaMaxima) : 1.0;
+		this.vidaMaxima = nuevaVidaMax;
+		this.vida = Math.min(this.vidaMaxima, nuevaVidaMax * ratioVida);
+		this.vidaLag = this.vida;
+
+		// 2. Daño Melee = Base (5) + (Fuerza Total * 0.5)
+		this.damage = this.PTS_DAMAGE_BASE + (this.getFuerzaTotal() * 0.5);
+
+		// 3. Velocidad Base = 0.40 + (Agilidad Total * 0.01)
+		this.velocidadEstandar = 0.40 + (this.getAgilidadTotal() * 0.01);
+		this.establecerVelocidadStardar();
+
+		// 4. Estamina Máxima = 20 + (Agilidad * 0.5) + (Inteligencia * 0.5)
+		this.maxEstamina = 20.0 + (this.getAgilidadTotal() * 0.5) + (this.getInteligenciaTotal() * 0.5);
+		this.estamina = Math.min(this.maxEstamina, this.estamina);
+	}
+
+	@Override
+	public int getFuerzaTotal() {
+		return this.fuerzaBase + this.modFuerzaEquipo;
+	}
+
+	@Override
+	public int getAgilidadTotal() {
+		return this.agilidadBase + this.modAgilidadEquipo;
+	}
+
+	@Override
+	public int getInteligenciaTotal() {
+		return this.inteligenciaBase + this.modInteligenciaEquipo;
+	}
+
+	public int getDefensaTotal() {
+		return this.defensaTotal;
+	}
+
+	@Override
+	public void recibirAtaque(final double damageRecibido, final Ente causante) {
+		// Mitigación por Armadura / Defensa: dañoNeto = daño * (100 / (100 + Defensa))
+		final double factorReduccion = 100.0 / (100.0 + Math.max(0, this.defensaTotal));
+		final double danioEfectivo = Math.max(1.0, damageRecibido * factorReduccion);
+
+		super.recibirAtaque(danioEfectivo, causante);
+	}
+
+	// =========================================================================
+	// === CICLO LÓGICO
+	// =========================================================================
 
 	@Override
 	public void actualizar() {
@@ -545,10 +643,6 @@ public class Jugador extends Criatura {
 		}
 	}
 
-	// =========================================================================
-	// === RECOGIDA CON ABSORCIÓN PARCIAL ZERO-GC
-	// =========================================================================
-
 	private void actualizarRecogidaItems() {
 		if (!Globales.TECLADO.TECLA_RECOGIENDO.presionado() || (this.tilePisado == null) || (this.mundo == null)) {
 			return;
@@ -560,52 +654,48 @@ public class Jugador extends Criatura {
 		Globales.TECLEO_RECOGIDA.establecerReferenciaTiempoActual();
 		this.actualizarAreaRecoleccion();
 
-		this.mundo.paraCadaItemEn(this.areaRecoleccion, item -> {
-			if (item.estaEliminado()) {
-				return;
-			}
+		this.mundo.paraCadaItemEn(this.areaRecoleccion, this.accionRecogidaItem);
+	}
 
-			if (item instanceof Consumible) {
-				final Consumible cons = (Consumible) item;
-				final int cantInicial = cons.getCantidad();
+	private void procesarAbsorcionItem(final Item item) {
+		if (item.estaEliminado()) {
+			return;
+		}
 
-				// Intenta agregar al inventario (modifica cons.cantidad in-situ con el
-				// sobrante)
-				Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(cons);
+		if (item instanceof Consumible) {
+			final Consumible cons = (Consumible) item;
+			final int cantInicial = cons.getCantidad();
 
-				final int absorbidos = cantInicial - cons.getCantidad();
+			Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(cons);
 
-				// Si se absorbió al menos 1 unidad
-				if (absorbidos > 0) {
-					GestorSonido.reproducir(IDSonido.GOLPE_1);
-					Globales.GESTOR_TEXTOS.agregarTexto("+" + absorbidos + " " + cons.getNombre(), this.getCentroX(),
-							this.getPosicionYInt() - 6, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+			final int absorbidos = cantInicial - cons.getCantidad();
 
-					// Si no quedó sobrante (absorción total 100%), se elimina del mundo y se
-					// registra en Delta
-					if (cons.getCantidad() <= 0) {
-						cons.eliminar();
-						if (Globales.GESTOR_DELTAS != null) {
-							Globales.GESTOR_DELTAS.obtenerOCrearDelta(this.mundo.getNombreMundo(), 0)
-									.registrarDestruccion(cons.getPosicionXInt(), cons.getPosicionYInt());
-						}
-					}
-				}
-			} else if (item instanceof Portable) {
-				// Ítems portables (armas, armaduras, botas) no son apilables
-				if (Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(item)) {
-					item.eliminar();
-					GestorSonido.reproducir(IDSonido.GOLPE_1);
-					Globales.GESTOR_TEXTOS.agregarTexto("+" + item.getNombre(), this.getCentroX(),
-							this.getPosicionYInt() - 6, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+			if (absorbidos > 0) {
+				GestorSonido.reproducir(IDSonido.GOLPE_1);
+				Globales.GESTOR_TEXTOS.agregarTexto("+" + absorbidos + " " + cons.getNombre(), this.getCentroX(),
+						this.getPosicionYInt() - 6, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
 
+				if (cons.getCantidad() <= 0) {
+					cons.eliminar();
 					if (Globales.GESTOR_DELTAS != null) {
 						Globales.GESTOR_DELTAS.obtenerOCrearDelta(this.mundo.getNombreMundo(), 0)
-								.registrarDestruccion(item.getPosicionXInt(), item.getPosicionYInt());
+								.registrarDestruccion(cons.getPosicionXInt(), cons.getPosicionYInt());
 					}
 				}
 			}
-		});
+		} else if (item instanceof Portable) {
+			if (Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(item)) {
+				item.eliminar();
+				GestorSonido.reproducir(IDSonido.GOLPE_1);
+				Globales.GESTOR_TEXTOS.agregarTexto("+" + item.getNombre(), this.getCentroX(),
+						this.getPosicionYInt() - 6, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+
+				if (Globales.GESTOR_DELTAS != null) {
+					Globales.GESTOR_DELTAS.obtenerOCrearDelta(this.mundo.getNombreMundo(), 0)
+							.registrarDestruccion(item.getPosicionXInt(), item.getPosicionYInt());
+				}
+			}
+		}
 	}
 
 	private void actualizarArrojar() {
@@ -816,8 +906,9 @@ public class Jugador extends Criatura {
 		Render2D.dibujarRectanguloRelleno(g, posX - 1, posY - 5, this.ANCHO + 2, 4, Color.BLACK);
 		Render2D.dibujarRectanguloRelleno(g, posX, posY - 4, porcentajeBarraActual, 2, Color.RED);
 
-		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 4f));
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(4f));
 		Render2D.dibujarString(g, (int) this.vida + "/" + (int) this.vidaMaxima, posX, posY - 6, Color.WHITE);
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Constantes.TAMANO_FUENTE));
 	}
 
 	private void actualizarAreaRecoleccion() {
@@ -1002,11 +1093,6 @@ public class Jugador extends Criatura {
 	}
 
 	@Override
-	public void recibirAtaque(final double damage, final Ente causante) {
-		super.recibirAtaque(damage, causante);
-	}
-
-	@Override
 	public JSONObject exportarParaJSON() {
 		return null;
 	}
@@ -1018,9 +1104,11 @@ public class Jugador extends Criatura {
 
 	public void restablecerYCambiarMundo(final Mundo mundo) {
 		this.eliminado = false;
-		this.establecerVidaMaxima(this.PTS_VIDAMAX_BASE);
+		this.fuerzaBase = 10;
+		this.agilidadBase = 10;
+		this.inteligenciaBase = 10;
+		this.recalcularAtributos();
 		this.sanar();
-		this.damage = this.PTS_DAMAGE_BASE;
 		this.setFaccion(GestorFacciones.FACCION_JUGADOR);
 		this.setMundo(mundo);
 		Globales.GESTOR_INVENTARIO.getInventarioJugador().vaciar();

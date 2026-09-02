@@ -106,8 +106,32 @@ public class Mapa1 extends Mapa {
 		arbolcofre1.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 100));
 		arbolcofre1.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 100));
 		this.mundoActual.meterEntidad(arbolcofre1);
-		this.generarEnemigosParaPrueba(1000);
+		this.generarEnemigosParaPrueba(5);
 		Globales.JUGADOR.setModoDios(true);
+
+		arbolcofre1.getInventario()
+				.agregarItem(new principal.entes.objetos.items.equipamiento.PiezaEquipo(
+						ListaModelosItem.COD_EQUIPABLE_CASCO_LIGERA,
+						principal.entes.objetos.items.equipamiento.TipoEquipo.CASCO, 0, 0, 3, 5)); // Casco: +3 INT, +5
+																									// DEF
+
+		arbolcofre1.getInventario()
+				.agregarItem(new principal.entes.objetos.items.equipamiento.PiezaEquipo(
+						ListaModelosItem.COD_EQUIPABLE_ARMADURA_LIGERA,
+						principal.entes.objetos.items.equipamiento.TipoEquipo.TORSO, 4, 0, 0, 15)); // Armadura: +4 FUE,
+																									// +15 DEF
+
+		arbolcofre1.getInventario()
+				.agregarItem(new principal.entes.objetos.items.equipamiento.PiezaEquipo(
+						ListaModelosItem.COD_PORTABLE_BOTAS_CUERO,
+						principal.entes.objetos.items.equipamiento.TipoEquipo.BOTAS, 0, 6, 0, 3)); // Botas: +6 AGI, +3
+																									// DEF
+
+		arbolcofre1.getInventario()
+				.agregarItem(new principal.entes.objetos.items.equipamiento.PiezaEquipo(
+						ListaModelosItem.COD_EQUIPABLE_ANILLO_ORO,
+						principal.entes.objetos.items.equipamiento.TipoEquipo.ANILLO, 2, 2, 2, 0)); // Anillo Oro: +2 a
+																									// todo
 	}
 
 	public void generarEnemigosParaPrueba(final int cantidadDeseada) {

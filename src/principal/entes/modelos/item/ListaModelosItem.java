@@ -22,7 +22,6 @@ public class ListaModelosItem {
 	public static final String COD_CONSUMIBLE_MUNICION_FUSIL = "Caja Municion 7.62mm";
 	public static final String COD_CONSUMIBLE_MUNICION_PESADA = "Caja Municion Pesada";
 
-	// Materiales de Recolección
 	public static final String COD_RECURSO_MADERA = "Madera";
 	public static final String COD_RECURSO_PIEDRA = "Piedra";
 
@@ -51,7 +50,6 @@ public class ListaModelosItem {
 				new ModeloConsumible("Cinta Munición Pesada (LMG)", 8, 300, false, new Rectangle(),
 						Textura.TEXTURA_x16_CAJA_MUNICION, Textura.TEXTURA_x8_CAJA_MUNICION));
 
-		// Registro de Materiales Cosechables
 		LISTA_MODELOS_CONSUMIBLES.put(COD_RECURSO_MADERA, new ModeloConsumible("Tronco de Madera", 10, 999, false,
 				new Rectangle(), Textura.TEXTURA_x16_BOTAS_CUERO_MARRON, Textura.TEXTURA_x10_BOTAS_CUERO_MARRON));
 
@@ -64,14 +62,18 @@ public class ListaModelosItem {
 	}
 
 	// =========================================================================
-	// === 2. PORTABLES, ARMAS Y HERRAMIENTAS
+	// === 2. PORTABLES, EQUIPO Y ARMAS
 	// =========================================================================
 
 	public static final HashMap<String, ModeloPortable> LISTA_MODELOS_PORTABLE = new HashMap<String, ModeloPortable>();
 
-	public static final String COD_PORTABLE_BOTAS = "Botas";
-	public static final String COD_EQUIPABLE_ARMA = "Pistola";
+	public static final String COD_PORTABLE_BOTAS_CUERO = "Botas Cuero";
+	public static final String COD_EQUIPABLE_CASCO_LIGERA = "Casco Ligero";
+	public static final String COD_EQUIPABLE_ARMADURA_LIGERA = "Armadura Ligera";
+	public static final String COD_EQUIPABLE_ANILLO_ORO = "Anillo de Oro";
+	public static final String COD_EQUIPABLE_ANILLO_PLATA = "Anillo de Plata";
 
+	public static final String COD_EQUIPABLE_ARMA = "Pistola";
 	public static final String COD_HERRAMIENTA_HACHA = "Hacha de Tala";
 	public static final String COD_HERRAMIENTA_PICO = "Pico de Minería";
 
@@ -84,9 +86,23 @@ public class ListaModelosItem {
 	public static final String COD_ARMA_AMETRALLADORA_PESADA = "Ametralladora Pesada";
 
 	static {
-		LISTA_MODELOS_PORTABLE.put(COD_PORTABLE_BOTAS, new ModeloPortable("BOTAS LIGERAS", 10, false, new Rectangle(),
-				Textura.TEXTURA_x16_BOTAS_CUERO_MARRON, Textura.TEXTURA_x10_BOTAS_CUERO_MARRON));
+		// Piezas de Armadura y Joyería RPG
+		LISTA_MODELOS_PORTABLE.put(COD_PORTABLE_BOTAS_CUERO, new ModeloPortable("Botas de Cuero", 10, false,
+				new Rectangle(), Textura.TEXTURA_x16_BOTAS_CUERO_MARRON, Textura.TEXTURA_x10_BOTAS_CUERO_MARRON));
 
+		LISTA_MODELOS_PORTABLE.put(COD_EQUIPABLE_CASCO_LIGERA, new ModeloPortable("Casco Ligero", 10, false,
+				new Rectangle(), Textura.TEXTURA_x16_CASCO_BASE, Textura.TEXTURA_x10_CASCO_BASE));
+
+		LISTA_MODELOS_PORTABLE.put(COD_EQUIPABLE_ARMADURA_LIGERA, new ModeloPortable("Armadura Ligera", 10, false,
+				new Rectangle(), Textura.TEXTURA_x16_ARMADURA_BASE, Textura.TEXTURA_x10_ARMADURA_BASE));
+
+		LISTA_MODELOS_PORTABLE.put(COD_EQUIPABLE_ANILLO_ORO, new ModeloPortable("Anillo de Oro Fino", 10, false,
+				new Rectangle(), Textura.TEXTURA_x16_ANILLO_ORO, Textura.TEXTURA_x10_ANILLO_ORO));
+
+		LISTA_MODELOS_PORTABLE.put(COD_EQUIPABLE_ANILLO_PLATA, new ModeloPortable("Anillo de Plata", 10, false,
+				new Rectangle(), Textura.TEXTURA_x16_ANILLO_PLATA, Textura.TEXTURA_x10_ANILLO_PLATA));
+
+		// Herramientas y Armas
 		LISTA_MODELOS_PORTABLE.put(COD_HERRAMIENTA_HACHA, new ModeloPortable("Hacha de Tala", 10, false,
 				new Rectangle(), Textura.TEXTURA_x16_ESMERALDA, Textura.TEXTURA_x10_BOTAS_CUERO_MARRON));
 

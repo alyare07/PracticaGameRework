@@ -13,21 +13,26 @@ import principal.inventario.CajaInfo;
 import principal.inventario.Info;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
-import principal.utilidades.Textura;
 
 /**
- * Slot de equipamiento especializado en la gestión del arma activa del jugador.
- * Sincroniza dinámicamente el conteo de balas en recámara, reserva total en
- * mochila y estado visual de recarga activa en tiempo real (Zero-GC).
+ * Slot de equipamiento especializado en el arma activa del jugador. Renderizado
+ * Pixel-Art con sombra de contraste y micro-barra de estado (Zero-GC).
  * 
- * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
+ * @version 3.1 (Vanilla Java 8 - Crisp Pixel Art)
  */
 public class SlotArma extends SlotEquipamiento {
 
-	private static final Font FUENTE_MUNICION = new Font(Font.SANS_SERIF, Font.PLAIN, 4);
 	private static final String RUTA_LOGO_ARMA = "/imagenes/objetos/gun16x12_transparente.png";
 
-	private static final Color COLOR_FONDO_RECARGA = new Color(30, 30, 30, 220);
+	// =========================================================================
+	// === PALETA CROMÁTICA REACTIVA ZERO-GC
+	// =========================================================================
+	private static final Color COLOR_TEXTO_LLENO = new Color(255, 255, 255);
+	private static final Color COLOR_TEXTO_MEDIO = new Color(255, 205, 50);
+	private static final Color COLOR_TEXTO_VACIO = new Color(255, 65, 65);
+
+	private static final Color COLOR_BARRA_FONDO = new Color(15, 15, 20, 220);
+	private static final Color COLOR_BARRA_LLENA = new Color(40, 220, 240);
 	private static final Color COLOR_TEXTO_RECARGA = new Color(255, 185, 40);
 
 	private static final String CLAVE_ATAQUE = "Ataque";
@@ -63,11 +68,6 @@ public class SlotArma extends SlotEquipamiento {
 		}
 	}
 
-	/**
-	 * Sincroniza dinámicamente la munición del cargador y la reserva total de la
-	 * mochila mutando las instancias persistentes de Info sin generar objetos para
-	 * el Garbage Collector.
-	 */
 	private void sincronizarValoresArma(final Arma arma) {
 		if (arma.esArmaDistancia() && this.lista.containsKey(CLAVE_MUNICION)) {
 			final int reserva = Globales.GESTOR_INVENTARIO.getInventarioJugador()
@@ -111,33 +111,56 @@ public class SlotArma extends SlotEquipamiento {
 	@Override
 	protected void pintarObjeto(final Graphics2D g, final Rectangle area) {
 		if (this.item != null) {
+			// 1. Dibujar textura del arma limpia
 			this.item.pintarInventario(g, area.x + this.MARGEN_ESPACIADO, area.y + this.MARGEN_ESPACIADO);
 
+			// 2. Renderizado táctico de munición
 			if (this.item instanceof Arma) {
 				final Arma arma = (Arma) this.item;
 				if (arma.esArmaDistancia()) {
-					final Font fuenteOriginal = g.getFont();
-					g.setFont(FUENTE_MUNICION);
+					final Font fuentePrevia = g.getFont();
+					g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 5.5f));
 
 					if (arma.isRecargando()) {
-						Render2D.dibujarRectanguloRelleno(g, area.x, (area.y + area.height) - 6, 14, 5,
-								COLOR_FONDO_RECARGA);
-						Render2D.dibujarString(g, "REC...", area.x + 1, (area.y + area.height) - 2,
-								COLOR_TEXTO_RECARGA);
-					} else {
-						final String cantidadBalas = String.valueOf(arma.getBalasCargador());
-						final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, cantidadBalas);
-						final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, cantidadBalas);
+						// Texto de recarga centrado con sombra negra
+						final String txtRec = "REC";
+						final int anchoRec = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txtRec);
+						final int xRec = area.x + ((area.width - anchoRec) / 2);
+						final int yRec = (area.y + area.height) - 3;
 
-						Render2D.dibujarRectanguloRelleno(g, area.x, (area.y + area.height) - altoTexto - 1, 11, 6,
-								Color.LIGHT_GRAY);
-						Render2D.dibujarString(g, cantidadBalas, area.x, (area.y + area.height) - (altoTexto / 2),
-								Color.BLACK);
-						Render2D.dibujarImagen(g, Textura.getTextura(Textura.TEXTURA_x4_BALA), area.x + anchoTexto,
-								(area.y + area.height) - altoTexto);
+						Render2D.dibujarStringConSombra(g, txtRec, xRec, yRec, COLOR_TEXTO_RECARGA, Color.BLACK);
+					} else {
+						final int balas = arma.getBalasCargador();
+						final int capacidad = Math.max(1, arma.getCapacidadCargador());
+						final double ratio = (double) balas / capacidad;
+
+						// A. Micro-barra de cargador en la base (1 px de alto)
+						final int barraAnchoMax = area.width - 2;
+						final int barraProgreso = (int) Math.round(ratio * barraAnchoMax);
+						final int barraX = area.x + 1;
+						final int barraY = (area.y + area.height) - 2;
+
+						Render2D.dibujarRectanguloRelleno(g, barraX, barraY, barraAnchoMax, 1, COLOR_BARRA_FONDO);
+						if (barraProgreso > 0) {
+							final Color colorBarra = (ratio > 0.35) ? COLOR_BARRA_LLENA
+									: ((ratio > 0.15) ? COLOR_TEXTO_MEDIO : COLOR_TEXTO_VACIO);
+							Render2D.dibujarRectanguloRelleno(g, barraX, barraY, barraProgreso, 1, colorBarra);
+						}
+
+						// B. Número en esquina inferior derecha con sombra de contraste de 1 px
+						final String txtBalas = String.valueOf(balas);
+						final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txtBalas);
+
+						final int xNum = (area.x + area.width) - anchoTexto - 1;
+						final int yNum = (area.y + area.height) - 4;
+
+						final Color colorNumero = (balas == 0) ? COLOR_TEXTO_VACIO
+								: ((ratio <= 0.30) ? COLOR_TEXTO_MEDIO : COLOR_TEXTO_LLENO);
+
+						Render2D.dibujarStringConSombra(g, txtBalas, xNum, yNum, colorNumero, Color.BLACK);
 					}
 
-					g.setFont(fuenteOriginal);
+					g.setFont(fuentePrevia);
 				}
 			}
 		} else if (this.logo != null) {

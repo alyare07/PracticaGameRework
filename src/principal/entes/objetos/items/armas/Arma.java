@@ -1,5 +1,7 @@
 package principal.entes.objetos.items.armas;
 
+import java.util.ArrayList;
+
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.criaturas.Jugador;
@@ -206,5 +208,15 @@ public abstract class Arma extends Portable {
 
 	public Municion getMunicion() {
 		return this.MUNICION_COMPATIBLE;
+	}
+
+	/**
+	 * Actualiza y formatea la información del arma en tiempo real para el tooltip.
+	 */
+	@Override
+	public ArrayList<String> getInfo() {
+		this.LISTA_INFO.clear();
+		this.rellenarInfo(this.LISTA_INFO);
+		return this.LISTA_INFO;
 	}
 }

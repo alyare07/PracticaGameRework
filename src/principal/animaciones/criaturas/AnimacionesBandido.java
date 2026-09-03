@@ -44,7 +44,7 @@ public class AnimacionesBandido {
 				new Animacion(hojaNormal.recortarRango(16, frames), true, this.TIEMPO_MS_POR_FRAME - 50),
 				new Animacion(hojaNormal.recortarRango(12, frames), true, this.TIEMPO_MS_POR_FRAME - 50),
 				new Animacion(hojaNormal.recortarRango(20, frames), true, this.TIEMPO_MS_POR_FRAME - 50),
-				new Animacion(hojaVolteada.recortarRango(20, frames), true, this.TIEMPO_MS_POR_FRAME));
+				new Animacion(hojaVolteada.recortarRango(20, frames), true, this.TIEMPO_MS_POR_FRAME - 50));
 
 		// 3. PISTOLA ESTÁNDAR (Filas 6, 7, 8)
 		this.animaciones[PISTOLA_ESTANDAR] = new AnimacionDireccionada(
@@ -76,10 +76,13 @@ public class AnimacionesBandido {
 
 		// 7. GARROTE ATACANDO (Filas 18, 19, 20)
 		this.animaciones[GARROTE_ATACANDO] = new AnimacionDireccionada(
-				new Animacion(hojaNormal.recortarRango(76, frames), false, this.TIEMPO_MS_POR_FRAME - 75),
-				new Animacion(hojaNormal.recortarRango(72, frames), false, this.TIEMPO_MS_POR_FRAME - 75),
-				new Animacion(hojaNormal.recortarRango(80, frames), false, this.TIEMPO_MS_POR_FRAME - 75),
-				new Animacion(hojaVolteada.recortarRango(80, frames), false, this.TIEMPO_MS_POR_FRAME - 75, true) // Inversa
+				new Animacion(hojaNormal.recortarRango(76, frames), false, this.TIEMPO_MS_POR_FRAME - 75), // Norte
+				new Animacion(hojaNormal.recortarRango(72, frames), false, this.TIEMPO_MS_POR_FRAME - 75), // Sur
+				new Animacion(hojaNormal.recortarRango(80, frames), false, this.TIEMPO_MS_POR_FRAME - 75), // Este
+				new Animacion(hojaVolteada.recortarRango(80, frames), false, this.TIEMPO_MS_POR_FRAME - 75) // Oeste
+																											// (Orden
+																											// normal 0
+																											// -> 3)
 		);
 	}
 

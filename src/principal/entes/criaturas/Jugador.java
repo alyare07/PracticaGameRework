@@ -42,9 +42,10 @@ import principal.utilidades.audio.sonido.IDSonido;
 
 /**
  * Representa al personaje jugable con física diagonal normalizada, redondeo
- * simétrico con la cámara, gestión de equipamiento y estamina (Zero-GC).
+ * simétrico con la cámara, gestión de equipamiento, termodinámica y estamina
+ * (Zero-GC).
  * 
- * @version 4.0 (Vanilla Java 8 - Anti-Jitter Subpixel Physics)
+ * @version 4.1 (Vanilla Java 8 - Thermal Equipment Integration)
  */
 public class Jugador extends Criatura {
 
@@ -73,6 +74,7 @@ public class Jugador extends Criatura {
 	protected int modAgilidadEquipo = 0;
 	protected int modInteligenciaEquipo = 0;
 	protected int defensaTotal = 0;
+	protected int modTemperaturaEquipo = 0;
 
 	protected double estamina;
 	protected double maxEstamina;
@@ -133,6 +135,7 @@ public class Jugador extends Criatura {
 		int a = 0;
 		int i = 0;
 		int def = 0;
+		int temp = 0;
 
 		if ((Globales.GESTOR_INVENTARIO != null) && (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
 			final ArrayList<SlotEquipamiento> slots = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotManager()
@@ -146,6 +149,7 @@ public class Jugador extends Criatura {
 					a += p.getBonifAgilidad();
 					i += p.getBonifInteligencia();
 					def += p.getArmaduraDefensa();
+					temp += p.getBonifTemperatura();
 				}
 			}
 		}
@@ -154,6 +158,7 @@ public class Jugador extends Criatura {
 		this.modAgilidadEquipo = a;
 		this.modInteligenciaEquipo = i;
 		this.defensaTotal = def;
+		this.modTemperaturaEquipo = temp;
 
 		final double nuevaVidaMax = this.PTS_VIDAMAX_BASE + (this.getFuerzaTotal() * 2.0);
 		final double ratioVida = (this.vidaMaxima > 0) ? (this.vida / this.vidaMaxima) : 1.0;
@@ -187,6 +192,10 @@ public class Jugador extends Criatura {
 
 	public int getDefensaTotal() {
 		return this.defensaTotal;
+	}
+
+	public int getAislamientoTermicoEquipo() {
+		return this.modTemperaturaEquipo;
 	}
 
 	@Override
@@ -1020,7 +1029,7 @@ public class Jugador extends Criatura {
 
 	public void setMaxEstamina(final double maxEstamina) {
 		this.maxEstamina = Math.max(1, maxEstamina);
-		this.estamina = Math.min(this.estamina, this.maxEstamina);
+		this.estamina = Math.min(this.maxEstamina, this.estamina);
 	}
 
 	@Override

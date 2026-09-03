@@ -81,10 +81,24 @@ public class RecursoMaterial extends Consumible {
 	}
 
 	private static TexturaItem resolverTexturaInv(final String cod) {
-		return COD_PIEDRA.equals(cod) ? TexturaItem.ANILLO_PLATA_INV : TexturaItem.BOTAS_CUERO_INV;
+		switch (cod) {
+		case RecursoMaterial.COD_MADERA:
+			return TexturaItem.MADERA_INV;
+		case RecursoMaterial.COD_PIEDRA:
+			return TexturaItem.PIEDRA_INV;
+		default:
+			return TexturaItem.PARTICULA_SANGRE_8;
+		}
 	}
 
 	private static TexturaItem resolverTexturaMapa(final String cod) {
-		return COD_PIEDRA.equals(cod) ? TexturaItem.POCION_AZUL_MAPA : TexturaItem.BOTAS_CUERO_MAPA;
+		switch (cod) {
+		case RecursoMaterial.COD_MADERA:
+			return TexturaItem.MADERA_MAPA;
+		case RecursoMaterial.COD_PIEDRA:
+			return TexturaItem.PIEDRA_MAPA;
+		default:
+			return TexturaItem.PARTICULA_SANGRE_8;
+		}
 	}
 }

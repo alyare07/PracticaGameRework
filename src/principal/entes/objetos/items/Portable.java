@@ -143,10 +143,10 @@ public abstract class Portable extends Item {
 			return TexturaItem.ANILLO_PLATA_INV;
 		}
 		if (cod.contains("Hacha")) {
-			return TexturaItem.ESMERALDA_INV;
+			return TexturaItem.HACHA_BASICO_INV;
 		}
 		if (cod.contains("Pico")) {
-			return TexturaItem.ANILLO_ORO_INV;
+			return TexturaItem.PICO_BASICO_INV;
 		}
 		return TexturaItem.PISTOLA_INV;
 	}
@@ -190,6 +190,13 @@ public abstract class Portable extends Item {
 		}
 		if (cod.contains("Plata")) {
 			return TexturaItem.ANILLO_PLATA_MAPA;
+		}
+
+		if (cod.contains("Hacha")) {
+			return TexturaItem.HACHA_BASICO_MAPA;
+		}
+		if (cod.contains("Pico")) {
+			return TexturaItem.PICO_BASICO_MAPA;
 		}
 		return TexturaItem.PISTOLA_MAPA;
 	}

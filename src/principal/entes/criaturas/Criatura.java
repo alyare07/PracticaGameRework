@@ -14,6 +14,8 @@ import java.util.Set;
 import org.json.simple.JSONObject;
 
 import principal.entes.Ente;
+import principal.entes.efectos.EfectoEstado;
+import principal.entes.efectos.TipoEfectoEstado;
 import principal.entes.facciones.GestorFacciones;
 import principal.ia.aEstrella.NodoA;
 import principal.mapa.Mundo;
@@ -24,11 +26,11 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Base abstracta para todas las criaturas con soporte de Atributos RPG,
- * Facciones, Barras de Salud Multicapa, Knockback, Física de Manadas y
- * renderizado sub-píxel libre de vibración (Zero-GC / O(1)).
+ * Base abstracta para todas las criaturas con motor de Efectos de Estado (Buffs
+ * y Debuffs temporales e infinitos condicionados), Atributos RPG, Facciones y
+ * física sub-píxel Zero-GC.
  * 
- * @version 6.7 (Vanilla Java 8 - Subpixel Jitter Fix)
+ * @version 7.1 (Vanilla Java 8 - Constructor Initialization Order Fix)
  */
 public abstract class Criatura extends Ente {
 
@@ -64,10 +66,14 @@ public abstract class Criatura extends Ente {
 	}
 
 	// =========================================================================
-	// === PALETA MULTICAPA DE SALUD (50 HP POR CAPA)
+	// === 1. MOTOR DE EFECTOS DE ESTADO (ZERO-GC / ARREGLO PLANO PREASIGNADO)
+	// =========================================================================
+	protected final EfectoEstado[] efectosActivos = new EfectoEstado[TipoEfectoEstado.values().length];
+
+	// =========================================================================
+	// === 2. PALETA MULTICAPA DE SALUD (50 HP POR CAPA)
 	// =========================================================================
 	private static final double HP_POR_CAPA = 50.0;
-
 	private static final Color COLOR_FONDO_BARRA = Color.BLACK;
 	private static final Color COLOR_BARRA_LAG = new Color(255, 205, 40);
 
@@ -75,20 +81,17 @@ public abstract class Criatura extends Ente {
 			new Color(40, 235, 100), new Color(16, 109, 54), new Color(150, 20, 200), new Color(255, 200, 40) };
 
 	// =========================================================================
-	// === 1. ATRIBUTOS RPG FUNDAMENTALES (ZERO-GC)
+	// === 3. ATRIBUTOS RPG Y FACCIONES
 	// =========================================================================
 	protected int fuerzaBase = 10;
 	protected int agilidadBase = 10;
 	protected int inteligenciaBase = 10;
 
-	// =========================================================================
-	// === 2. FACCIONES Y RELACIONES DIPLOMÁTICAS
-	// =========================================================================
 	protected int faccionBit = GestorFacciones.FACCION_NEUTRAL;
 	protected int mascaraHostilidad = 0;
 
 	// =========================================================================
-	// === 3. CINEMÁTICA Y FÍSICA DE MANADAS
+	// === 4. CINEMÁTICA Y FÍSICA DE MANADAS
 	// =========================================================================
 	protected double velActualX = 0.0;
 	protected double velActualY = 0.0;
@@ -97,7 +100,6 @@ public abstract class Criatura extends Ente {
 	protected static final double RADIO_LLEGADA_WAYPOINT = 4.0;
 
 	protected final Rectangle AREA_COLISION_MOVIMIENTO_AUX = new Rectangle();
-
 	private static final Criatura[] EVALUADOS_SEPARACION = new Criatura[32];
 	private static int cantEvaluados = 0;
 
@@ -110,7 +112,7 @@ public abstract class Criatura extends Ente {
 	protected boolean modoDios = false;
 
 	// =========================================================================
-	// === 4. VIDA, HIT-FLASH Y TIEMPOS
+	// === 5. VIDA, HIT-FLASH Y TIEMPOS
 	// =========================================================================
 	protected double vida;
 	protected double vidaLag;
@@ -155,6 +157,12 @@ public abstract class Criatura extends Ente {
 
 	private Criatura(final double x, final double y, final int ancho, final int alto, final double vida,
 			final double vidaMaxima, final double velocidadEstandar) {
+
+		// 1. INICIALIZACIÓN INMEDIATA DEL MOTOR DE EFECTOS (Debe ir primero)
+		for (final TipoEfectoEstado t : TipoEfectoEstado.values()) {
+			this.efectosActivos[t.ordinal()] = new EfectoEstado(t);
+		}
+
 		this.establecerMargenesSprite();
 		this.ANCHO = ancho;
 		this.ALTO = alto;
@@ -181,6 +189,113 @@ public abstract class Criatura extends Ente {
 	}
 
 	public abstract String getNombre();
+
+	// =========================================================================
+	// === GESTIÓN DE EFECTOS DE ESTADO (API PÚBLICA EN O(1))
+	// =========================================================================
+
+	public void aplicarEfecto(final TipoEfectoEstado tipo, final double duracionSegundos, final double potencia,
+			final int maxStacks) {
+		if ((tipo != null) && (this.efectosActivos[tipo.ordinal()] != null)) {
+			this.efectosActivos[tipo.ordinal()].aplicar(duracionSegundos, potencia, maxStacks);
+			this.establecerVelocidadStardar();
+		}
+	}
+
+	public void aplicarEfecto(final TipoEfectoEstado tipo, final double duracionSegundos, final double potencia) {
+		this.aplicarEfecto(tipo, duracionSegundos, potencia, 1);
+	}
+
+	public void aplicarEfectoInfinito(final TipoEfectoEstado tipo, final double potencia) {
+		if ((tipo != null) && (this.efectosActivos[tipo.ordinal()] != null)) {
+			this.efectosActivos[tipo.ordinal()].aplicarInfinito(potencia);
+			this.establecerVelocidadStardar();
+		}
+	}
+
+	public void finalizarEfectoInfinito(final TipoEfectoEstado tipo, final double tiempoResidualSegundos) {
+		if ((tipo != null) && (this.efectosActivos[tipo.ordinal()] != null)) {
+			this.efectosActivos[tipo.ordinal()].desactivarInfinito(tiempoResidualSegundos);
+		}
+	}
+
+	public void removerEfecto(final TipoEfectoEstado tipo) {
+		if ((tipo != null) && (this.efectosActivos[tipo.ordinal()] != null)) {
+			this.efectosActivos[tipo.ordinal()].apagar();
+			this.establecerVelocidadStardar();
+		}
+	}
+
+	public boolean tieneEfectoActivo(final TipoEfectoEstado tipo) {
+		if ((tipo == null) || (this.efectosActivos[tipo.ordinal()] == null)) {
+			return false;
+		}
+		return this.efectosActivos[tipo.ordinal()].isActivo();
+	}
+
+	public EfectoEstado getEfecto(final TipoEfectoEstado tipo) {
+		if (tipo == null) {
+			return null;
+		}
+		return this.efectosActivos[tipo.ordinal()];
+	}
+
+	public EfectoEstado[] getEfectos() {
+		return this.efectosActivos;
+	}
+
+	// =========================================================================
+	// === CICLO DE ACTUALIZACIÓN
+	// =========================================================================
+
+	@Override
+	public void actualizar() {
+		this.verificarZoneBox();
+		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
+
+		this.actualizarEfectosEstado(dt);
+		this.actualizarBarraFantasma(dt);
+		this.aplicarFuerzaSeparacion();
+	}
+
+	protected void actualizarEfectosEstado(final double dt) {
+		boolean cambioVelocidad = false;
+		for (int i = 0; i < this.efectosActivos.length; i++) {
+			final EfectoEstado e = this.efectosActivos[i];
+			if ((e != null) && e.isActivo()) {
+				final boolean estabaActivo = e.isActivo();
+				e.actualizar(this, dt);
+				if (estabaActivo && !e.isActivo()) {
+					cambioVelocidad = true;
+				}
+			}
+		}
+		if (cambioVelocidad) {
+			this.establecerVelocidadStardar();
+		}
+	}
+
+	public double getMultiplicadorVelocidadEfectos() {
+		double mult = 1.0;
+		if (this.tieneEfectoActivo(TipoEfectoEstado.CELERIDAD)) {
+			mult += 0.25;
+		}
+		if (this.tieneEfectoActivo(TipoEfectoEstado.HIPOTERMIA)) {
+			mult -= 0.20;
+		}
+		if (this.tieneEfectoActivo(TipoEfectoEstado.ATURDIMIENTO)) {
+			mult = 0.0;
+		}
+		return Math.max(0.0, mult);
+	}
+
+	public double getMultiplicadorDanioEfectos() {
+		double mult = 1.0;
+		if (this.tieneEfectoActivo(TipoEfectoEstado.FUERZA)) {
+			mult += 0.30;
+		}
+		return mult;
+	}
 
 	public Rectangle getAreaColisionMovimiento(final double desplazamientoX, final double desplazamientoY) {
 		final int anchoPies = Math.min(10, this.ANCHO);
@@ -226,14 +341,6 @@ public abstract class Criatura extends Ente {
 
 	public void setInteligenciaBase(final int inteligencia) {
 		this.inteligenciaBase = Math.max(1, inteligencia);
-	}
-
-	@Override
-	public void actualizar() {
-		this.verificarZoneBox();
-		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
-		this.actualizarBarraFantasma(dt);
-		this.aplicarFuerzaSeparacion();
 	}
 
 	public void actualizarBarraFantasma(final double dt) {
@@ -368,21 +475,12 @@ public abstract class Criatura extends Ente {
 
 	public void recibirAtaque(final double damage, final Ente causante) {
 		if (this.modoDios) {
-			this.activarFlashDanio();
-			final double dx = (causante != null) ? (this.getCentroX() - causante.getCentroX()) : 0.0;
-			final double dy = (causante != null) ? (this.getCentroY() - causante.getCentroY()) : 0.0;
-			final double dist = Math.sqrt((dx * dx) + (dy * dy));
-			final double dirSangreX = (dist > 0.001) ? (dx / dist) : 0.0;
-			final double dirSangreY = (dist > 0.001) ? (dy / dist) : 0.0;
-
-			Globales.GESTOR_PARTICULAS.emitirSangre(this.getCentroX(), this.getCentroY(), dirSangreX, dirSangreY, 15);
-			Globales.GESTOR_TEXTOS.agregarDanio((int) damage, this.getPosicionX(), this.getPosicionY(), false);
 			return;
 		}
 		this.reducirVida(damage);
 		this.activarFlashDanio();
 
-		if ((this.vidaMaxima >= 1000.0) && (Globales.MOTOR_IGU != null) && !(this instanceof Jugador)) {
+		if ((this.vidaMaxima >= 1000.0) && (Globales.MOTOR_IGU != null)) {
 			Globales.MOTOR_IGU.fijarJefe(this);
 		}
 
@@ -636,7 +734,7 @@ public abstract class Criatura extends Ente {
 	}
 
 	protected void establecerVelocidadStardar() {
-		this.velocidad = this.velocidadEstandar;
+		this.velocidad = this.velocidadEstandar * this.getMultiplicadorVelocidadEfectos();
 	}
 
 	public double getVida() {
@@ -798,6 +896,7 @@ public abstract class Criatura extends Ente {
 
 	public void setVelocidadBase(final double velBase) {
 		this.velocidadEstandar = velBase;
+		this.establecerVelocidadStardar();
 	}
 
 	public Set<Estado> getEstado() {
@@ -838,10 +937,6 @@ public abstract class Criatura extends Ente {
 	protected void setPosicionXSinVerificarZonebox(final double x) {
 		this.x = x;
 	}
-
-	// =========================================================================
-	// === POSICIÓN DIBUJADA CON REDONDEO SUB-PÍXEL COHERENTE (ANTI-JITTER)
-	// =========================================================================
 
 	protected int getPosicionXIntDibujado() {
 		return (int) Math.round(this.x) - this.margenXInicialSprite;

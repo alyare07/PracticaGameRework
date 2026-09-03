@@ -35,7 +35,7 @@ public class RocaCosechable extends RecursoCosechable {
 
 	@Override
 	public Rectangle getArea() {
-		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt() + 4, this.getPosicionYInt() + 8, 24, 20);
+		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt(), this.getPosicionYInt(), 16, 16);
 		return this.AREA_ENTE_RETORNO;
 	}
 

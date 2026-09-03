@@ -4,6 +4,7 @@ import java.awt.Toolkit;
 
 import principal.Main;
 import principal.clima.GestorClima;
+import principal.clima.GestorTermicoJugador;
 import principal.clima.GestorZonasAmbiente;
 import principal.comandos.GestorComandos;
 import principal.construccion.GestorConstruccion;
@@ -77,12 +78,13 @@ public class Globales {
 	public static Camara CAMARA = new Camara(JUGADOR);
 
 	// =========================================================================
-	// === 6. SUBSISTEMAS DE PARTÍCULAS, LUZ, CLIMA, IA Y PERSISTENCIA
+	// === 6. SUBSISTEMAS DE PARTÍCULAS, LUZ, CLIMA, IA Y TERMODINÁMICA
 	// =========================================================================
 	public static final GestorTextosFlotantes GESTOR_TEXTOS = new GestorTextosFlotantes();
 	public static final GestorParticulas GESTOR_PARTICULAS = new GestorParticulas();
 	public static final GestorLuz GESTOR_LUZ = new GestorLuz();
 	public static final GestorClima GESTOR_CLIMA = new GestorClima();
+	public static final GestorTermicoJugador GESTOR_TERMICO_JUGADOR = new GestorTermicoJugador();
 	public static final GestorZonasAmbiente GESTOR_ZONAS_AMBIENTE = new GestorZonasAmbiente();
 	public static final GestorComandos GESTOR_COMANDOS = new GestorComandos();
 	public static final GestorConstruccion GESTOR_CONSTRUCCION = new GestorConstruccion();

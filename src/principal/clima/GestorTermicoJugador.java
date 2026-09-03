@@ -1,68 +1,65 @@
 package principal.clima;
 
+import principal.entes.efectos.TipoEfectoEstado;
 import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.TipoLuz;
+import principal.mapa.renderEntidades.camara.efectos.TipoEfectoCamara;
+import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 
 /**
- * Gestor de termorregulación, inercia térmica corporal y radiación calórica por
- * fuentes de luz para el jugador (Zero-GC / O(1)).
- * <p>
- * <b>Mecánicas Soportadas:</b>
- * <ul>
- * <li><b>Auras de Calor por Fuego:</b> Estar cerca de antorchas o fogatas
- * irradia calor y contrarresta climas gélidos.</li>
- * <li><b>Humedad y Lluvia:</b> Estar bajo la lluvia incrementa la tasa de
- * enfriamiento corporal.</li>
- * <li><b>Estados de Confort:</b> Monitorea Hipotermia, Confort e Hipertermia.</li>
- * </ul>
- * </p>
+ * Gestor de termorregulación, inercia térmica corporal y conexión reactiva con
+ * el sistema de Efectos de Estado infinitos y residuales (Zero-GC / O(1)).
  * 
- * @author Copiloto Técnico
- * @version 1.0
+ * @version 2.2 (Vanilla Java 8 - Status Effect Integration)
  */
 public class GestorTermicoJugador {
 
 	// =========================================================================
-	// === 1. CONSTANTES TERMODINÁMICAS
+	// === 1. CONSTANTES TERMODINÁMICAS Y UMBRALES
 	// =========================================================================
 
-	public static final double TEMP_NOMINAL_CUERPO = 37.0; // 37.0 °C (Salud óptima)
-	public static final double UMBRAL_HIPOTERMIA_LEVE = 35.0;
-	public static final double UMBRAL_HIPOTERMIA_SEVERA = 32.0;
-	public static final double UMBRAL_HIPERTERMIA = 39.0;
+	public static final double TEMP_NOMINAL_CUERPO = 37.0; // 37.0 °C (Confort humano óptimo)
+	public static final double UMBRAL_HIPOTERMIA_LEVE = 35.0; // Debuff Hipotermia
+	public static final double UMBRAL_HIPOTERMIA_SEVERA = 32.0; // Congelación y daño
+	public static final double UMBRAL_HIPERTERMIA_LEVE = 38.5; // Debuff Hipertermia
+	public static final double UMBRAL_HIPERTERMIA_SEVERA = 40.0; // Golpe de calor extremo
+
+	private static final double TIEMPO_RESIDUAL_RECUPERACION = 6.0; // 6 segundos de transición tras abrigarse
 
 	// =========================================================================
-	// === 2. ESTADO DEL JUGADOR
+	// === 2. ESTADO TÉRMICO
 	// =========================================================================
 
 	private double temperaturaCorporal = TEMP_NOMINAL_CUERPO;
 	private double calorRecibidoFuego = 0.0;
+	private double tendenciaTermica = 0.0;
+
 	private boolean cercaDeFuenteCalor = false;
 	private boolean expuestoALluvia = false;
+
+	private final GestorTiempo GT_DANIO_EXTREMO = new GestorTiempo();
+	private final GestorTiempo GT_TEMBLOR_FRIO = new GestorTiempo();
+
+	public GestorTermicoJugador() {
+	}
 
 	// =========================================================================
 	// === 3. CICLO DE ACTUALIZACIÓN (60 APS)
 	// =========================================================================
 
-	/**
-	 * Actualiza el balance térmico del jugador en función del bioma, lluvia y
-	 * proximidad a fogatas/antorchas.
-	 *
-	 * @param dt Delta de tiempo en segundos (1/60 s).
-	 */
 	public void actualizar(final double dt) {
-		if (Globales.JUGADOR == null) {
+		if ((Globales.JUGADOR == null) || Globales.JUGADOR.estaEliminado()) {
 			return;
 		}
 
 		final double jx = Globales.JUGADOR.getCentroX();
 		final double jy = Globales.JUGADOR.getCentroY();
 
-		// 1. Escaneo de radiación térmica de luces cercanas (Fogatas, Antorchas)
+		// 1. Escaneo de radiación térmica de luces activas
 		this.escanearRadiacionLuces(jx, jy);
 
-		// 2. Evaluación de temperatura ambiental y lluvia
+		// 2. Temperatura ambiental base y clima
 		final double tempAmbiente = (Globales.GESTOR_CLIMA != null) ? Globales.GESTOR_CLIMA.getTemperaturaCelsius()
 				: 20.0;
 
@@ -73,28 +70,77 @@ public class GestorTermicoJugador {
 
 		this.expuestoALluvia = llueve;
 
-		// Temperatura aparente percibida (Ambiente + Radiación de Fuego)
-		final double tempPercibida = tempAmbiente + this.calorRecibidoFuego;
+		// 3. Aislamiento térmico de prendas
+		final int aislamientoPrendas = Globales.JUGADOR.getAislamientoTermicoEquipo();
 
-		// 3. Inercia térmica corporal (aproximación suave hacia el equilibrio)
-		double velocidadCambio = 0.005; // Inercia base del cuerpo humano
+		// 4. Temperatura efectiva percibida
+		final double tempPercibida = tempAmbiente + this.calorRecibidoFuego + aislamientoPrendas;
 
-		if (tempPercibida < 10.0) {
-			// Clima frío: el agua duplica la pérdida de calor
-			velocidadCambio *= this.expuestoALluvia ? 2.2 : 1.0;
+		// 5. Inercia térmica corporal
+		double velocidadCambio = 0.045;
+		if ((tempPercibida < 15.0) && this.expuestoALluvia) {
+			velocidadCambio *= 2.0;
 		}
 
-		// Temperatura objetivo hacia donde tiende el cuerpo
 		double tempObjetivoCuerpo = TEMP_NOMINAL_CUERPO;
-		if (tempPercibida < 15.0) {
-			// Enfriamiento progresivo
-			tempObjetivoCuerpo = Math.max(30.0, TEMP_NOMINAL_CUERPO - ((15.0 - tempPercibida) * 0.35));
-		} else if (tempPercibida > 35.0) {
-			// Calentamiento progresivo
-			tempObjetivoCuerpo = Math.min(41.0, TEMP_NOMINAL_CUERPO + ((tempPercibida - 35.0) * 0.25));
+		if (tempPercibida < 19.0) {
+			tempObjetivoCuerpo = Math.max(26.0, TEMP_NOMINAL_CUERPO - ((19.0 - tempPercibida) * 0.55));
+		} else if (tempPercibida > 29.0) {
+			tempObjetivoCuerpo = Math.min(42.0, TEMP_NOMINAL_CUERPO + ((tempPercibida - 29.0) * 0.40));
 		}
 
+		final double prevTemp = this.temperaturaCorporal;
 		this.temperaturaCorporal += (tempObjetivoCuerpo - this.temperaturaCorporal) * (dt * velocidadCambio);
+		this.tendenciaTermica = this.temperaturaCorporal - prevTemp;
+
+		// 6. Conexión Reactiva con el Motor de Efectos de Estado
+		this.actualizarEfectosEstadoAmbientales();
+	}
+
+	private void actualizarEfectosEstadoAmbientales() {
+		// A. GESTIÓN DE HIPOTERMIA (Frío)
+		if (this.temperaturaCorporal < UMBRAL_HIPOTERMIA_LEVE) {
+			// Condición activa -> Efecto Infinito mientras esté frío
+			Globales.JUGADOR.aplicarEfectoInfinito(TipoEfectoEstado.HIPOTERMIA, 1.0);
+
+			if (this.isHipotermiaSevera()) {
+				if (this.GT_DANIO_EXTREMO.transcurrioMiliSegundos(2500)) {
+					Globales.JUGADOR.recibirAtaque(2.0, null);
+					this.GT_DANIO_EXTREMO.establecerReferenciaTiempoActual();
+				}
+				if (this.GT_TEMBLOR_FRIO.transcurrioMiliSegundos(3500) && (Globales.CAMARA != null)) {
+					Globales.CAMARA.aplicarTemblor(250, 1.0);
+					this.GT_TEMBLOR_FRIO.establecerReferenciaTiempoActual();
+				}
+			}
+		} else // Condición regulada -> Transiciona a cuenta regresiva residual (6 seg)
+		if (Globales.JUGADOR.tieneEfectoActivo(TipoEfectoEstado.HIPOTERMIA)) {
+			Globales.JUGADOR.finalizarEfectoInfinito(TipoEfectoEstado.HIPOTERMIA, TIEMPO_RESIDUAL_RECUPERACION);
+		}
+
+		// B. GESTIÓN DE HIPERTERMIA (Calor)
+		if (this.temperaturaCorporal > UMBRAL_HIPERTERMIA_LEVE) {
+			Globales.JUGADOR.aplicarEfectoInfinito(TipoEfectoEstado.HIPERTERMIA, 1.0);
+
+			if (this.temperaturaCorporal > UMBRAL_HIPERTERMIA_SEVERA) {
+				if (this.GT_DANIO_EXTREMO.transcurrioMiliSegundos(3000)) {
+					Globales.JUGADOR.recibirAtaque(2.0, null);
+					this.GT_DANIO_EXTREMO.establecerReferenciaTiempoActual();
+				}
+				if ((Globales.CAMARA != null)
+						&& !Globales.CAMARA.getGestorEfectos().getEfecto(TipoEfectoCamara.BORRACHO).isActivo()) {
+					Globales.CAMARA.activarModoBorracho(true);
+				}
+			}
+		} else {
+			if (Globales.JUGADOR.tieneEfectoActivo(TipoEfectoEstado.HIPERTERMIA)) {
+				Globales.JUGADOR.finalizarEfectoInfinito(TipoEfectoEstado.HIPERTERMIA, TIEMPO_RESIDUAL_RECUPERACION);
+			}
+			if ((Globales.CAMARA != null)
+					&& Globales.CAMARA.getGestorEfectos().getEfecto(TipoEfectoCamara.BORRACHO).isActivo()) {
+				Globales.CAMARA.activarModoBorracho(false);
+			}
+		}
 	}
 
 	private void escanearRadiacionLuces(final double jx, final double jy) {
@@ -105,14 +151,19 @@ public class GestorTermicoJugador {
 			return;
 		}
 
-		// Proximidad a luces activas
-		// Las fogatas emiten +25°C, antorchas +12°C, bolas de fuego +10°C
-		// Escaneo en tiempo constante O(Luces Activas)
+		final int totalLuces = Globales.GESTOR_LUZ.getCantidadActivas();
+		for (int i = 0; i < totalLuces; i++) {
+			final FuenteLuz luz = Globales.GESTOR_LUZ.getLuzPorIndice(i);
+			if ((luz != null) && luz.isActiva() && (luz.getEnteAnclado() != Globales.JUGADOR)) {
+				final double dx = jx - luz.getPosX();
+				final double dy = jy - luz.getPosY();
+				final double dist = Math.sqrt((dx * dx) + (dy * dy));
+
+				this.aportarCalor(luz.getTipo(), dist);
+			}
+		}
 	}
 
-	/**
-	 * Registra calor aportado por una fuente cercana.
-	 */
 	public void aportarCalor(final TipoLuz tipo, final double distancia) {
 		if (tipo == null) {
 			return;
@@ -150,11 +201,15 @@ public class GestorTermicoJugador {
 	}
 
 	// =========================================================================
-	// === MÉTODOS DE CONSULTA Y ESTADO
+	// === GETTERS Y SETTERS
 	// =========================================================================
 
 	public double getTemperaturaCorporal() {
 		return this.temperaturaCorporal;
+	}
+
+	public double getTendenciaTermica() {
+		return this.tendenciaTermica;
 	}
 
 	public boolean isHipotermia() {
@@ -166,7 +221,7 @@ public class GestorTermicoJugador {
 	}
 
 	public boolean isHipertermia() {
-		return this.temperaturaCorporal > UMBRAL_HIPERTERMIA;
+		return this.temperaturaCorporal > UMBRAL_HIPERTERMIA_LEVE;
 	}
 
 	public boolean isCercaDeFuenteCalor() {
@@ -177,19 +232,11 @@ public class GestorTermicoJugador {
 		return this.expuestoALluvia;
 	}
 
-	public String getReporteTermico() {
-		if (this.isHipotermiaSevera()) {
-			return "¡Hipotermia Severa! (-30% Velocidad / Daño continuo)";
-		}
-		if (this.isHipotermia()) {
-			return "Sintiendo entumecimiento por frío (-15% Velocidad)";
-		}
-		if (this.isHipertermia()) {
-			return "¡Golpe de calor! (Agotamiento rápido de estamina)";
-		}
-		if (this.cercaDeFuenteCalor) {
-			return "Reconfortado por el calor del fuego (+Confort)";
-		}
-		return "Temperatura corporal estable (Confort)";
+	public void setTemperaturaCorporal(final double temp) {
+		this.temperaturaCorporal = Math.max(25.0, Math.min(45.0, temp));
+	}
+
+	public void restablecerTemperaturaNominal() {
+		this.temperaturaCorporal = TEMP_NOMINAL_CUERPO;
 	}
 }

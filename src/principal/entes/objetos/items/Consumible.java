@@ -159,7 +159,8 @@ public abstract class Consumible extends Item {
 		if (codModelo.startsWith("Caja Municion") || codModelo.startsWith("Cartuchos")
 				|| codModelo.startsWith("Cinta")) {
 			return CajaMunicion.crearDesdeJson(json);
-		} else if (codModelo.equals("Madera") || codModelo.equals("Piedra")) {
+		}
+		if (codModelo.equals("Madera") || codModelo.equals("Piedra")) {
 			return RecursoMaterial.crearDesdeJson(json);
 		}
 
@@ -184,10 +185,10 @@ public abstract class Consumible extends Item {
 			return TexturaItem.GRANADA_T1_INV;
 		}
 		if (cod.equals("Madera")) {
-			return TexturaItem.BOTAS_CUERO_INV;
+			return TexturaItem.MADERA_INV;
 		}
 		if (cod.equals("Piedra")) {
-			return TexturaItem.ANILLO_PLATA_INV;
+			return TexturaItem.PIEDRA_INV;
 		}
 		return TexturaItem.POCION_ROJA_INV;
 	}
@@ -209,10 +210,10 @@ public abstract class Consumible extends Item {
 			return TexturaItem.GRANADA_T1_MAPA;
 		}
 		if (cod.equals("Madera")) {
-			return TexturaItem.BOTAS_CUERO_MAPA;
+			return TexturaItem.MADERA_MAPA;
 		}
 		if (cod.equals("Piedra")) {
-			return TexturaItem.POCION_AZUL_MAPA;
+			return TexturaItem.PIEDRA_MAPA;
 		}
 		return TexturaItem.POCION_ROJA_MAPA;
 	}

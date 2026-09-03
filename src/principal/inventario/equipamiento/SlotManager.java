@@ -14,7 +14,6 @@ import principal.entes.objetos.items.armas.Arma;
 import principal.entes.objetos.items.armas.Desarmado;
 import principal.entes.objetos.items.arrojadizos.Arrojadizo;
 import principal.entes.objetos.items.equipamiento.PiezaEquipo;
-import principal.entes.objetos.items.equipamiento.TipoEquipo;
 import principal.inventario.CajaInfo;
 import principal.inventario.Inventario;
 import principal.inventario.slot.Slot;
@@ -25,6 +24,12 @@ import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.inventario.ItemPuntero;
 
+/**
+ * Gestor maestro de casillas de inventario, equipamiento rápido y transferencia
+ * bidireccional (Zero-GC / O(1)).
+ * 
+ * @version 2.2 (Vanilla Java 8)
+ */
 public class SlotManager {
 
 	private static final int LADO_SLOTS = 18;
@@ -32,12 +37,12 @@ public class SlotManager {
 	private static final int FILAS_ALMACEN = 3;
 
 	private final Inventario INVENTARIO;
-	private final ArrayList<Slot> LISTA_SLOTS = new ArrayList<Slot>();
-	private final ArrayList<SlotIGU> LISTA_SLOTS_IGU = new ArrayList<SlotIGU>();
-	private final ArrayList<Slot> LISTA_SLOTS_GENERAL = new ArrayList<Slot>();
-	private final ArrayList<Slot> LISTA_SLOTS_ALMACEN = new ArrayList<Slot>();
-	private final ArrayList<Slot> LISTA_SLOTS_PRINCIPALES = new ArrayList<Slot>();
-	private final ArrayList<SlotEquipamiento> LISTA_SLOTS_EQUIPAMIENTO = new ArrayList<SlotEquipamiento>();
+	private final ArrayList<Slot> LISTA_SLOTS = new ArrayList<Slot>(40);
+	private final ArrayList<SlotIGU> LISTA_SLOTS_IGU = new ArrayList<SlotIGU>(11);
+	private final ArrayList<Slot> LISTA_SLOTS_GENERAL = new ArrayList<Slot>(47);
+	private final ArrayList<Slot> LISTA_SLOTS_ALMACEN = new ArrayList<Slot>(30);
+	private final ArrayList<Slot> LISTA_SLOTS_PRINCIPALES = new ArrayList<Slot>(10);
+	private final ArrayList<SlotEquipamiento> LISTA_SLOTS_EQUIPAMIENTO = new ArrayList<SlotEquipamiento>(7);
 
 	private final Rectangle ZONA_SLOTS_ALMACEN;
 	private final Rectangle ZONA_SLOTS_PRINCIPALES;
@@ -105,7 +110,9 @@ public class SlotManager {
 
 	private void actualizarActivarItem(final Raton raton) {
 		if (raton.presionadoClickDerUnicaAct() && this.INVENTARIO.getActivarItemDisponible()) {
-			for (final Slot slot : this.LISTA_SLOTS_GENERAL) {
+			final int totalSlots = this.LISTA_SLOTS_GENERAL.size();
+			for (int s = 0; s < totalSlots; s++) {
+				final Slot slot = this.LISTA_SLOTS_GENERAL.get(s);
 				if (slot.ratonIntersecta(raton)) {
 					if (slot.contieneItem()) {
 						final Item i = slot.getItem();
@@ -168,7 +175,7 @@ public class SlotManager {
 			} else if (!this.slotAnillo3.contieneItem()) {
 				slotDestino = this.slotAnillo3;
 			} else {
-				slotDestino = this.slotAnillo1; // Swap con el primero si están llenos
+				slotDestino = this.slotAnillo1;
 			}
 			break;
 		default:
@@ -191,7 +198,8 @@ public class SlotManager {
 			return;
 		}
 
-		for (final Slot s : this.LISTA_SLOTS_PRINCIPALES) {
+		for (int i = 0; i < this.LISTA_SLOTS_PRINCIPALES.size(); i++) {
+			final Slot s = this.LISTA_SLOTS_PRINCIPALES.get(i);
 			if (!s.contieneItem()) {
 				s.establecerObjeto(slotEquipo.getItem());
 				slotEquipo.eliminarObjeto();
@@ -199,7 +207,8 @@ public class SlotManager {
 			}
 		}
 
-		for (final Slot s : this.LISTA_SLOTS_ALMACEN) {
+		for (int i = 0; i < this.LISTA_SLOTS_ALMACEN.size(); i++) {
+			final Slot s = this.LISTA_SLOTS_ALMACEN.get(i);
 			if (!s.contieneItem()) {
 				s.establecerObjeto(slotEquipo.getItem());
 				slotEquipo.eliminarObjeto();
@@ -210,7 +219,8 @@ public class SlotManager {
 
 	private void actualizarActivarItemIGU(final Raton raton) {
 		if (raton.presionadoClickDerUnicaAct() && this.INVENTARIO.getActivarItemDisponible()) {
-			for (final SlotIGU slotIGU : this.LISTA_SLOTS_IGU) {
+			for (int idx = 0; idx < this.LISTA_SLOTS_IGU.size(); idx++) {
+				final SlotIGU slotIGU = this.LISTA_SLOTS_IGU.get(idx);
 				if (slotIGU.apuntado() && slotIGU.contieneItem()) {
 					final Item i = slotIGU.getItem();
 					this.INVENTARIO.setActivarItemDisponible(false);
@@ -314,7 +324,8 @@ public class SlotManager {
 	}
 
 	public boolean agregarPortable(final Portable item) {
-		for (final Slot slot : this.LISTA_SLOTS) {
+		for (int i = 0; i < this.LISTA_SLOTS.size(); i++) {
+			final Slot slot = this.LISTA_SLOTS.get(i);
 			if (!slot.contieneItem()) {
 				slot.establecerObjeto((Portable) item.copiar());
 				return true;
@@ -331,7 +342,8 @@ public class SlotManager {
 		final int cantidadInicial = item.getCantidad();
 		Slot slotVacio = null;
 
-		for (final Slot slot : this.LISTA_SLOTS) {
+		for (int i = 0; i < this.LISTA_SLOTS.size(); i++) {
+			final Slot slot = this.LISTA_SLOTS.get(i);
 			if (slot.contieneItem()) {
 				if (slot.getItem().getTipoItem() == Item.COD_ITEM_CONSUMIBLE) {
 					final Consumible cons = (Consumible) slot.getItem();
@@ -359,8 +371,8 @@ public class SlotManager {
 	}
 
 	public void vaciar() {
-		for (final Slot slot : this.LISTA_SLOTS_GENERAL) {
-			slot.establecerObjeto(null);
+		for (int i = 0; i < this.LISTA_SLOTS_GENERAL.size(); i++) {
+			this.LISTA_SLOTS_GENERAL.get(i).establecerObjeto(null);
 		}
 	}
 
@@ -369,7 +381,8 @@ public class SlotManager {
 		g.setFont(Globales.GESTOR_FUENTES.getFuente(6f));
 
 		this.slotApuntado = null;
-		for (final Slot slot : this.LISTA_SLOTS_GENERAL) {
+		for (int i = 0; i < this.LISTA_SLOTS_GENERAL.size(); i++) {
+			final Slot slot = this.LISTA_SLOTS_GENERAL.get(i);
 			slot.pintar(g);
 			if (slot.estaApuntado() && (this.slotApuntado == null)) {
 				this.slotApuntado = slot;
@@ -387,7 +400,8 @@ public class SlotManager {
 
 	public void pintarSlotsIGU(final Graphics2D g) {
 		this.slotIguApuntado = null;
-		for (final SlotIGU slotIGU : this.LISTA_SLOTS_IGU) {
+		for (int i = 0; i < this.LISTA_SLOTS_IGU.size(); i++) {
+			final SlotIGU slotIGU = this.LISTA_SLOTS_IGU.get(i);
 			slotIGU.pintar(g);
 			if (slotIGU.apuntado() && slotIGU.contieneItem()) {
 				this.slotIguApuntado = slotIGU;
@@ -402,14 +416,14 @@ public class SlotManager {
 	}
 
 	private void actualizarSlots(final Raton raton) {
-		for (final Slot slot : this.LISTA_SLOTS_GENERAL) {
-			slot.actualizar(raton);
+		for (int i = 0; i < this.LISTA_SLOTS_GENERAL.size(); i++) {
+			this.LISTA_SLOTS_GENERAL.get(i).actualizar(raton);
 		}
 	}
 
 	private void actualizarSlotsIGU(final Raton raton) {
-		for (final SlotIGU slotIGU : this.LISTA_SLOTS_IGU) {
-			slotIGU.actualizar(raton);
+		for (int i = 0; i < this.LISTA_SLOTS_IGU.size(); i++) {
+			this.LISTA_SLOTS_IGU.get(i).actualizar(raton);
 		}
 	}
 
@@ -417,7 +431,8 @@ public class SlotManager {
 		if (posicion == null) {
 			return null;
 		}
-		for (final Slot slot : this.LISTA_SLOTS_GENERAL) {
+		for (int i = 0; i < this.LISTA_SLOTS_GENERAL.size(); i++) {
+			final Slot slot = this.LISTA_SLOTS_GENERAL.get(i);
 			if (slot.intersecta(posicion)) {
 				return slot;
 			}
@@ -460,44 +475,43 @@ public class SlotManager {
 		int x = this.ZONA_SLOTS_EQUIPAMIENTOS.x;
 		final int y = this.ZONA_SLOTS_EQUIPAMIENTOS.y;
 
-		// 1. Slot Arma
 		this.slotArma = new SlotArma(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), this.infoArma);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotArma);
 		this.LISTA_SLOTS_GENERAL.add(this.slotArma);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
-		// 2. Slot Casco
-		this.slotCasco = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null, TipoEquipo.CASCO);
+		this.slotCasco = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
+				principal.entes.objetos.items.equipamiento.TipoEquipo.CASCO);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotCasco);
 		this.LISTA_SLOTS_GENERAL.add(this.slotCasco);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
-		// 3. Slot Torso / Indumentaria
-		this.slotTorso = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null, TipoEquipo.TORSO);
+		this.slotTorso = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
+				principal.entes.objetos.items.equipamiento.TipoEquipo.TORSO);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotTorso);
 		this.LISTA_SLOTS_GENERAL.add(this.slotTorso);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
-		// 4. Slot Botas
-		this.slotBotas = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null, TipoEquipo.BOTAS);
+		this.slotBotas = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
+				principal.entes.objetos.items.equipamiento.TipoEquipo.BOTAS);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotBotas);
 		this.LISTA_SLOTS_GENERAL.add(this.slotBotas);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
-		// 5. Slot Anillo 1
-		this.slotAnillo1 = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null, TipoEquipo.ANILLO);
+		this.slotAnillo1 = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
+				principal.entes.objetos.items.equipamiento.TipoEquipo.ANILLO);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotAnillo1);
 		this.LISTA_SLOTS_GENERAL.add(this.slotAnillo1);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
-		// 6. Slot Anillo 2
-		this.slotAnillo2 = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null, TipoEquipo.ANILLO);
+		this.slotAnillo2 = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
+				principal.entes.objetos.items.equipamiento.TipoEquipo.ANILLO);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotAnillo2);
 		this.LISTA_SLOTS_GENERAL.add(this.slotAnillo2);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
-		// 7. Slot Anillo 3
-		this.slotAnillo3 = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null, TipoEquipo.ANILLO);
+		this.slotAnillo3 = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
+				principal.entes.objetos.items.equipamiento.TipoEquipo.ANILLO);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotAnillo3);
 		this.LISTA_SLOTS_GENERAL.add(this.slotAnillo3);
 	}
@@ -505,7 +519,8 @@ public class SlotManager {
 	private void llenarSlotsIGU() {
 		final int posIguY = Constantes.ALTO_JUEGO - LADO_SLOTS - this.MARGEN_GENERAL;
 
-		for (final Slot slot : this.LISTA_SLOTS_PRINCIPALES) {
+		for (int i = 0; i < this.LISTA_SLOTS_PRINCIPALES.size(); i++) {
+			final Slot slot = this.LISTA_SLOTS_PRINCIPALES.get(i);
 			this.LISTA_SLOTS_IGU.add(new SlotIGU(slot, slot.getX(), posIguY));
 		}
 

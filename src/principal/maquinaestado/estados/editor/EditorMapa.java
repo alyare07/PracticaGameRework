@@ -33,6 +33,12 @@ import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
+/**
+ * Editor de escenarios y mapas integrado en tiempo real con soporte de pinceles
+ * multiforma, proyección de cámara y guardado JSON encriptado.
+ * 
+ * @version 2.1 (Vanilla Java 8 - Math & Viewport Optimization)
+ */
 public class EditorMapa implements EstadoJuego {
 
 	private final GestorEstados GE;
@@ -45,7 +51,7 @@ public class EditorMapa implements EstadoJuego {
 	private int y;
 	private final AsistenteCamara asistenteCamara;
 
-	private final Raton RATON = SuperficieDibujo.obetenerSuperficieDibujo().RATON;
+	private final Raton RATON = SuperficieDibujo.obtenerSuperficieDibujo().RATON;
 	private final Rectangle areaTileSelected = new Rectangle();
 	private boolean tileApuntadoValido = false;
 	private final Rectangle ultimaAreaTileAlterado = new Rectangle();
@@ -53,8 +59,7 @@ public class EditorMapa implements EstadoJuego {
 	private final Rectangle PALETA_MAPA;
 	private final GrupoPaleta PALETAS;
 
-	// Sistema de Pinceles
-	private int tamanoPincel = 1; // 1 = 1x1, 2 = 2x2, 3 = 3x3, 4 = 4x4
+	private int tamanoPincel = 1;
 	private boolean pincelCircular = false;
 
 	private final GestorTiempo GT = new GestorTiempo();
@@ -85,7 +90,6 @@ public class EditorMapa implements EstadoJuego {
 		this.inicializarCamara();
 	}
 
-	// SOBRECARGA DE COMPATIBILIDAD TRANSITORIA:
 	@Deprecated
 	public EditorMapa(final int ladoTile, final int anchoTiles, final int altoTiles, final int idModeloTile,
 			final GestorEstados ge) {
@@ -137,7 +141,7 @@ public class EditorMapa implements EstadoJuego {
 
 	@Override
 	public void actualizar() {
-		this.RATON.actualizar(SuperficieDibujo.obetenerSuperficieDibujo());
+		this.RATON.actualizar(SuperficieDibujo.obtenerSuperficieDibujo());
 
 		this.actualizarZoom();
 		this.mover();
@@ -154,10 +158,8 @@ public class EditorMapa implements EstadoJuego {
 				this.GT.establecerReferenciaTiempoActual();
 				this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
 			}
-		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
-			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
-			this.GE.disposeEditor();
-		} else if (Globales.TECLADO.TECLA_ESCAPE.presionado()) {
+		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)
+				|| Globales.TECLADO.TECLA_ESCAPE.presionado()) {
 			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
 			this.GE.disposeEditor();
 		}
@@ -190,8 +192,6 @@ public class EditorMapa implements EstadoJuego {
 		final int mouseX = this.RATON.getPosicionXEscalada();
 		final int mouseY = this.RATON.getPosicionYEscalada();
 
-		// Proyección matemática exacta que compensa el centro del viewport del editor y
-		// el zoom
 		if (mouseX < viewW) {
 			final double dx = (mouseX - centroVX) / z;
 			final double dy = (mouseY - centroVY) / z;
@@ -228,7 +228,6 @@ public class EditorMapa implements EstadoJuego {
 		final int baseTX = Math.floorDiv(this.AREA_MOUSE_APUNTADO.x, this.LADO_TILE);
 		final int baseTY = Math.floorDiv(this.AREA_MOUSE_APUNTADO.y, this.LADO_TILE);
 
-		// Alineación limpia de inicio de cuadrícula
 		final int offset = (this.tamanoPincel - 1) / 2;
 		final int startTX = baseTX - offset;
 		final int startTY = baseTY - offset;
@@ -245,7 +244,7 @@ public class EditorMapa implements EstadoJuego {
 				return;
 			}
 
-			// 1. Pincel de Suelos (1x1=1 tile, 2x2=4 tiles, 3x3=9 tiles, 4x4=16 tiles)
+			// 1. Pincel de Suelos
 			if (paleta instanceof PaletaTile) {
 				final PaletaTile paletaTile = (PaletaTile) paleta;
 				final Tile tilePaleta = paletaTile.getTileSeleccionado();
@@ -268,8 +267,10 @@ public class EditorMapa implements EstadoJuego {
 
 						if (this.pincelCircular && (this.tamanoPincel > 2)) {
 							final double centroRel = (this.tamanoPincel - 1) / 2.0;
-							final double distSq = Math.pow(dx - centroRel, 2) + Math.pow(dy - centroRel, 2);
-							final double maxRadioSq = Math.pow(this.tamanoPincel / 2.0, 2);
+							final double dxRel = dx - centroRel;
+							final double dyRel = dy - centroRel;
+							final double distSq = (dxRel * dxRel) + (dyRel * dyRel);
+							final double maxRadioSq = (this.tamanoPincel / 2.0) * (this.tamanoPincel / 2.0);
 							if (distSq > maxRadioSq) {
 								continue;
 							}
@@ -377,9 +378,7 @@ public class EditorMapa implements EstadoJuego {
 		final int centroVY = Constantes.ALTO_JUEGO / 2;
 		final double z = Math.max(0.2, Globales.CAMARA.getZoom());
 
-		// =====================================================================
-		// 1. RENDERIZADO DEL MUNDO A ESCALA 1:1 EN BUFFER COMPLETO
-		// =====================================================================
+		// 1. Renderizado a escala 1:1 en VolatileImage
 		final Graphics2D gBuf = this.bufferEditor.createGraphics();
 		try {
 			gBuf.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
@@ -396,9 +395,7 @@ public class EditorMapa implements EstadoJuego {
 			gBuf.dispose();
 		}
 
-		// =====================================================================
-		// 2. PROYECCIÓN CON ZOOM EN EL LIENZO DEL EDITOR (SIN DESFASES)
-		// =====================================================================
+		// 2. Proyección sobre el Viewport del editor
 		final Graphics2D gView = (Graphics2D) g.create();
 		try {
 			gView.setClip(this.PALETA_MAPA);
@@ -409,9 +406,7 @@ public class EditorMapa implements EstadoJuego {
 			gView.dispose();
 		}
 
-		// =====================================================================
-		// 3. CAPAS DE INTERFAZ 1:1 (PALETA, COORDENADAS, TOOLTIPS)
-		// =====================================================================
+		// 3. Capas de interfaz 1:1
 		this.pintarCoordenadas(g);
 		this.PALETAS.pintar(g);
 		this.pintarTooltipPaleta(g);

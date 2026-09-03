@@ -12,6 +12,12 @@ import principal.mapa.Mundo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
+/**
+ * Base abstracta para proyectiles y proyectiles balísticos con soporte de
+ * reciclado en memoria (Pool) y cinemática en espacio continuo (Zero-GC).
+ * 
+ * @version 2.6 (Vanilla Java 8 - Constructor Safety Fix)
+ */
 public abstract class Proyectil extends Ente implements Serializable {
 
 	private static final long serialVersionUID = -5309717278363977059L;
@@ -85,7 +91,7 @@ public abstract class Proyectil extends Ente implements Serializable {
 
 		final double dx = xDestino - xOrigen;
 		final double dy = yDestino - yOrigen;
-		final double dist = Math.hypot(dx, dy);
+		final double dist = Math.sqrt((dx * dx) + (dy * dy));
 
 		if (dist > 0.0001) {
 			this.velX = (dx / dist) * velocidad;
@@ -121,7 +127,10 @@ public abstract class Proyectil extends Ente implements Serializable {
 		this.y = y;
 	}
 
-	// AGREGAR este método al final de la clase:
+	/**
+	 * Reinicia las propiedades físicas del proyectil al ser reutilizado desde el
+	 * pool de memoria sin crear nuevos objetos (Zero-GC).
+	 */
 	public void reiniciar(final double damage, final double velocidad, final boolean penetrante, final double alcance,
 			final Mundo mundo, final double xOrigen, final double yOrigen, final double xDestino, final double yDestino,
 			final int ancho, final int alto, final Ente causante) {
@@ -140,7 +149,7 @@ public abstract class Proyectil extends Ente implements Serializable {
 
 		final double dx = xDestino - xOrigen;
 		final double dy = yDestino - yOrigen;
-		final double dist = Math.hypot(dx, dy);
+		final double dist = Math.sqrt((dx * dx) + (dy * dy));
 
 		if (dist > 0.0001) {
 			this.velX = (dx / dist) * velocidad;

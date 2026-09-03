@@ -19,7 +19,7 @@ import principal.utilidades.Render2D;
  * Gestor maestro del subsistema de iluminación dinámica 2D, sombreado acelerado
  * en VRAM, ciclo solar de 24 horas y oclusión exclusiva para interiores.
  * 
- * @version 17.0
+ * @version 17.1 (Vanilla Java 8 - Fast Culling & Math)
  */
 public class GestorLuz {
 
@@ -648,7 +648,6 @@ public class GestorLuz {
 				gLight.drawImage(this.texturaMascaraAlphaHD, screenX, screenY, diametro, diametro, null);
 			}
 
-			// Oclusión de sombras: ACTIVA EXCLUSIVAMENTE EN INTERIORES
 			if (enInterior && (luz.getTipo() != TipoLuz.AURA_JUGADOR)) {
 				this.oclusorSombras.proyectarSombrasPaseA(gLight, luz, centroMundoCamX, centroMundoCamY, z, shakeX,
 						shakeY, this.colorAmbienteCalculado);
@@ -704,9 +703,6 @@ public class GestorLuz {
 		}
 	}
 
-	// =========================================================================
-	// === GETTERS Y SETTERS
-	// =========================================================================
 	public FuenteLuz getLuzPorIndice(final int indice) {
 		if ((indice >= 0) && (indice < this.cantidadActivas)) {
 			return this.activas[indice];

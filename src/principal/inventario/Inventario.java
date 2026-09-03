@@ -27,14 +27,14 @@ import principal.utilidades.inventario.ItemPuntero;
  * relieve. Muestra el héroe, los 7 slots de equipamiento, los 4 atributos RPG y
  * tooltips enriquecidos (Bold + Plain).
  * 
- * @version 3.3 (Vanilla Java 8 - Enhanced Rich Tooltips)
+ * @version 3.4 (Vanilla Java 8 - Enhanced Rich Tooltips)
  */
 public class Inventario {
 
 	public static final int TIEMPO_ACTUALIZACION_RATON_PRESIONADO = 500;
 
 	// =========================================================================
-	// === PALETA TÁCTICA PIXEL-ART (90% OPACIDAD / ZERO-GC)
+	// === PALETA TÁCTICA PIXEL-ART (ZERO-GC)
 	// =========================================================================
 	public static final Color FONDO_PANEL_OSCURO = new Color(16, 18, 24, 235);
 	public static final Color FONDO_SECCION_HEROE = new Color(24, 28, 38, 240);
@@ -53,9 +53,6 @@ public class Inventario {
 	private static final Color COLOR_TEXTO_DEF = new Color(220, 225, 240);
 	private static final Color COLOR_DESC_TOOLTIP = new Color(230, 235, 245);
 
-	// =========================================================================
-	// === TÍTULOS Y DESCRIPCIONES DE TOOLTIPS SEPARADAS (ZERO-GC)
-	// =========================================================================
 	private static final String TITULO_FUE = "Fuerza: ";
 	private static final String DESC_FUE = "Aumenta el daño melee (+0.5/pt) y la vida máxima (+2 HP/pt).";
 
@@ -158,8 +155,6 @@ public class Inventario {
 
 		final Point pMouse = Globales.RATON.getPuntoPosicionEscalado();
 
-		// Renderizado con Cabecera BOLD en color del atributo y Descripción en PLAIN
-		// blanco
 		if (this.areaStatsFUE.contains(pMouse)) {
 			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipConCabecera(g, TITULO_FUE, DESC_FUE, COLOR_TEXTO_FUE,
 					COLOR_DESC_TOOLTIP, FONDO_PANEL_OSCURO);

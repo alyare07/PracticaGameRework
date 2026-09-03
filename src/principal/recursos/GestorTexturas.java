@@ -15,7 +15,7 @@ import principal.utilidades.HojaSprite;
  * Centraliza todo el acceso I/O del juego, garantizando que ningún archivo se
  * lea más de una vez del disco.
  * 
- * @version 1.0 (Vanilla Java 8)
+ * @version 1.1 (Vanilla Java 8 - Robust Pipeline)
  */
 public class GestorTexturas {
 
@@ -41,7 +41,6 @@ public class GestorTexturas {
 	private final BufferedImage texturaContornoGroupTile;
 
 	public GestorTexturas() {
-		// 1. Crear texturas especiales de depuración
 		this.texturaError = Globales.FUNCIONES.TEXTURAS_TOOLS.crearTexturaError(Constantes.LADO_TILE);
 		this.texturaTransparente = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(1, 1, Transparency.TRANSLUCENT);
 		this.texturaContornoTile = Globales.FUNCIONES.TEXTURAS_TOOLS
@@ -49,7 +48,6 @@ public class GestorTexturas {
 		this.texturaContornoGroupTile = Globales.FUNCIONES.TEXTURAS_TOOLS
 				.crearImagenRectanguloContornoEnVRAM(Constantes.LADO_TILE * 2, Color.BLUE);
 
-		// 2. Carga y pre-horneado de todos los dominios
 		this.cargarTodo();
 	}
 
@@ -57,17 +55,12 @@ public class GestorTexturas {
 		this.precargarHojasSprites();
 		this.precargarSetsTerreno();
 		this.precargarTexturasItems();
-		System.out.println("[GestorTexturas] Pipeline de texturas inicializado en VRAM exitosamente.");
 	}
 
 	// =========================================================================
 	// === GESTIÓN DE I/O CENTRALIZADA (1 SOLA LECTURA POR RUTA)
 	// =========================================================================
 
-	/**
-	 * Obtiene la imagen maestra en VRAM. Si no fue cargada previamente, la lee del
-	 * disco y la guarda en caché.
-	 */
 	public BufferedImage getImagenBase(final String ruta) {
 		if ((ruta == null) || ruta.trim().isEmpty()) {
 			return this.texturaError;
@@ -93,7 +86,6 @@ public class GestorTexturas {
 		for (final ClaveHoja clave : ClaveHoja.values()) {
 			BufferedImage imagenBase = this.getImagenBase(clave.getRuta());
 
-			// 'dungeon.png' requiere reducción al 50% para coincidir con la grilla clásica
 			if ((clave == ClaveHoja.DUNGEON_16) && (imagenBase != null)) {
 				imagenBase = Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(imagenBase, imagenBase.getWidth() / 2,
 						imagenBase.getHeight() / 2);
@@ -142,9 +134,8 @@ public class GestorTexturas {
 	private void precargarTexturasItems() {
 		for (final TexturaItem item : TexturaItem.values()) {
 			final HojaSprite hoja = this.getHoja(item.getHojaOrigen());
-			BufferedImage sprite = hoja.getSprite(item.getIndiceSprite());
+			BufferedImage sprite = (hoja != null) ? hoja.getSprite(item.getIndiceSprite()) : this.texturaError;
 
-			// Adaptación de armas a 8x8 para el mapa si provienen de la hoja de 16x16
 			if (item.name().endsWith("_MAPA") && (item.getHojaOrigen() == ClaveHoja.ARMAS_PACK_16)) {
 				sprite = Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(sprite, 8, 8);
 			}
@@ -189,14 +180,6 @@ public class GestorTexturas {
 		return this.texturaContornoGroupTile;
 	}
 
-	// =========================================================================
-	// === CONTROL DE CICLO DE VIDA Y LIBERACIÓN DE MEMORIA VRAM
-	// =========================================================================
-
-	/**
-	 * Libera todas las superficies nativas en VRAM invocando flush() en las
-	 * imágenes.
-	 */
 	public void liberarRecursos() {
 		for (final BufferedImage img : this.cacheImagenesRaw.values()) {
 			if (img != null) {
@@ -211,7 +194,5 @@ public class GestorTexturas {
 				this.cacheItems[i] = null;
 			}
 		}
-
-		System.out.println("[GestorTexturas] Memoria de VRAM purgada correctamente.");
 	}
 }

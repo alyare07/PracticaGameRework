@@ -24,7 +24,7 @@ import principal.utilidades.audio.sonido.IDSonido;
  * criaturas vía herencia de ProyectilGeneral y objetos vía visitor
  * pre-asignado.
  * 
- * @version 2.1 (Vanilla Java 8 - Zero-GC)
+ * @version 2.2 (Vanilla Java 8 - Zero-GC)
  */
 public class GolpeMele extends ProyectilGeneral {
 
@@ -64,8 +64,7 @@ public class GolpeMele extends ProyectilGeneral {
 
 	@Override
 	protected void verificarImpacto() {
-		// 1. Detección de daño a criaturas (utiliza 'this' heredado de
-		// ProyectilGeneral)
+		// 1. Detección de daño a criaturas
 		super.verificarImpacto();
 
 		if (this.mundo == null) {

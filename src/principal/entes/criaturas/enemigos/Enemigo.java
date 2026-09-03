@@ -25,31 +25,12 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Base abstracta para todos los enemigos del juego.
- * <p>
- * <b>CARACTERÍSTICAS DEL MOTOR DE IA (v3.6):</b>
- * <ul>
- * <li><b>Control de Estados Robusto:</b> Previene el desenganche y la
- * congelación del enemigo en combate.</li>
- * <li><b>Targeting Multiobjetivo:</b> Selecciona dinámicamente cualquier
- * {@link Criatura} hostil o al jugador.</li>
- * <li><b>Sensorium Fotorreactivo:</b> Integración con {@link CalculadorSigilo}
- * para detección por luz y distancias.</li>
- * <li><b>Navegación Híbrida:</b> Conmuta automáticamente entre el flujo masivo
- * {@link DijkstraRework} y cálculo táctico individual con
- * {@link principal.ia.aEstrella.AEstrella}.</li>
- * <li><b>Zero-GC Sensory Geometry:</b> Reutilización de primitivas para
- * comprobaciones espaciales en caliente.</li>
- * </ul>
- * </p>
+ * Base abstracta para todos los enemigos del juego con cinemática optimizada.
  * 
- * @version 3.6 (Java 8 Compatible - Zero-GC Architecture)
+ * @version 3.7 (Java 8 - Fast Euclidean Math)
  */
 public abstract class Enemigo extends Criatura {
 
-	/**
-	 * Objetivo vivo actual hacia el que se orientan la persecución y los ataques.
-	 */
 	protected Criatura objetivoActual;
 
 	protected boolean pendienteADijkstra;
@@ -73,7 +54,6 @@ public abstract class Enemigo extends Criatura {
 	protected int accion;
 	protected int tiempoAccionEsperaMs;
 
-	// Búferes geométricos pre-asignados para Zero-GC
 	private final Ellipse2D.Double AREA_DETECCION_AUXILIAR = new Ellipse2D.Double();
 	protected final Rectangle AREA_RANGO_ATAQUE_MELE_AUXILIAR_NORTE = new Rectangle();
 	protected final Rectangle AREA_RANGO_ATAQUE_MELE_AUXILIAR_SUR = new Rectangle();
@@ -109,17 +89,14 @@ public abstract class Enemigo extends Criatura {
 		super.actualizar();
 		this.curar();
 
-		// 1. Pipeline Sensorial y Adquisición de Blancos
 		this.actualizarPercepcionYObjetivo();
 
-		// 2. Transición de Decisiones: Combate/Persecución vs Patrulla Pasiva
 		if (this.objetivoActual != null) {
 			this.actualizarAtaque();
 		} else {
 			this.tomarAccion();
 		}
 
-		// Curación o daño en modo prueba mediante clic secundario
 		if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())
 				&& Globales.RATON.presionadoClickDerUnicaAct()) {
 			this.curar(Globales.JUGADOR.getDamage());
@@ -134,7 +111,6 @@ public abstract class Enemigo extends Criatura {
 	// =========================================================================
 
 	protected void actualizarPercepcionYObjetivo() {
-		// Validar si el objetivo actual sigue con vida
 		if (this.objetivoActual != null) {
 			if (this.objetivoActual.estaEliminado()) {
 				this.desactivarModoAgresivo();
@@ -149,7 +125,6 @@ public abstract class Enemigo extends Criatura {
 				this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
 			}
 
-			// Garantizar que si no está atacando, siempre permanezca en persecución
 			if (!this.tieneEstado(Estado.ATACANDO) && !this.tieneEstado(Estado.PERSIGUIENDO)) {
 				this.meterEstado(Estado.PERSIGUIENDO);
 				this.removerEstado(Estado.ESTANDAR);
@@ -157,7 +132,6 @@ public abstract class Enemigo extends Criatura {
 			return;
 		}
 
-		// Escanear al Jugador prioritariamente si es hostil
 		if (this.esHostilHacia(Globales.JUGADOR) && !Globales.JUGADOR.estaEliminado()) {
 			final double rangoVision = this.areaDeteccionAncho / 2.0;
 			if (CalculadorSigilo.puedeDetectar(this, Globales.JUGADOR, rangoVision) || this.recibiendoAtaque()) {
@@ -166,7 +140,6 @@ public abstract class Enemigo extends Criatura {
 			}
 		}
 
-		// Escaneo en celdas espaciales locales para detectar otras criaturas enemigas
 		if (!this.zonasOcupadas.isEmpty()) {
 			Criatura blancoMasCercano = null;
 			double menorDistSq = Double.MAX_VALUE;
@@ -191,14 +164,10 @@ public abstract class Enemigo extends Criatura {
 					final double dy = miCentroY - candidata.getCentroY();
 					final double distSq = (dx * dx) + (dy * dy);
 
-					// PODA TEMPRANA: Si ya encontramos a alguien más cerca, o si está fuera del
-					// cono visual,
-					// descartamos de inmediato sin evaluar sigilo ni luces
 					if ((distSq >= menorDistSq) || (distSq > rangoVisionSq)) {
 						continue;
 					}
 
-					// Solo si es el más cercano hasta ahora evaluamos iluminación
 					if (CalculadorSigilo.puedeDetectar(distSq, candidata, rangoVision)) {
 						menorDistSq = distSq;
 						blancoMasCercano = candidata;
@@ -234,7 +203,6 @@ public abstract class Enemigo extends Criatura {
 			return;
 		}
 
-		// --- FASE 1: Ejecución y recuperación del golpe cargado ---
 		if (this.realizandoAtaque) {
 			if (this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
 				this.enAccion = false;
@@ -251,7 +219,7 @@ public abstract class Enemigo extends Criatura {
 				this.GT_RETOMAR_ATAQUE.establecerReferenciaTiempoActual();
 				this.realizandoAtaque = false;
 				this.removerEstado(Estado.ATACANDO);
-				this.meterEstado(Estado.PERSIGUIENDO); // Reenganche de persecución
+				this.meterEstado(Estado.PERSIGUIENDO);
 			}
 			return;
 		}
@@ -260,7 +228,6 @@ public abstract class Enemigo extends Criatura {
 			return;
 		}
 
-		// --- FASE 2: Evaluación de rangos y movimiento hacia el objetivo ---
 		final double rangoVision = this.areaDeteccionAncho / 2.0;
 		final boolean objetivoVisible = CalculadorSigilo.puedeDetectar(this, this.objetivoActual, rangoVision);
 		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
@@ -270,7 +237,6 @@ public abstract class Enemigo extends Criatura {
 			this.rangoAtaqueMele = this.obtenerRangoAtaqueMeleValido();
 
 			if (this.rangoAtaqueMele != null) {
-				// En rango Melee -> Iniciar secuencia de golpe
 				this.meterEstado(Estado.ATACANDO);
 				this.removerEstado(Estado.CAMINANDO);
 				this.removerEstado(Estado.PERSIGUIENDO);
@@ -285,7 +251,6 @@ public abstract class Enemigo extends Criatura {
 					}
 				}
 			} else {
-				// Fuera de rango Melee -> Aproximación táctica híbrida
 				this.removerEstado(Estado.ATACANDO);
 				this.meterEstado(Estado.PERSIGUIENDO);
 
@@ -315,9 +280,8 @@ public abstract class Enemigo extends Criatura {
 			d.aumentarEntidadesPendientes();
 		}
 
-		// POR (Anclaje exacto en los pies para evitar solape de 2 px):
 		final double pieX = this.getPosicionX() + (this.ANCHO / 2.0);
-		final double pieY = (this.getPosicionY() + this.ALTO) - 3.0; // Centro vertical de la caja de pies
+		final double pieY = (this.getPosicionY() + this.ALTO) - 3.0;
 
 		final NodoD n = d.getNodoCercano((int) pieX, (int) pieY);
 
@@ -332,14 +296,16 @@ public abstract class Enemigo extends Criatura {
 
 		final int readBuf = d.getBufferLecturaIndex();
 
-		final double offsetManadaX = ((this.hashCode() % 9) - 4.0) * 0.3; // Offset atenuado para no empujar a paredes
+		final double offsetManadaX = ((this.hashCode() % 9) - 4.0) * 0.3;
 		final double offsetManadaY = (((this.hashCode() / 9) % 9) - 4.0) * 0.3;
 
-		// El objetivo es alinear los pies del enemigo con el centro del nodo
 		double targetX = n.getXMundo() + (n.getAncho() / 2.0) + offsetManadaX;
 		double targetY = n.getYMundo() + (n.getAlto() / 2.0) + offsetManadaY;
 
-		final double distAlNodoActual = Math.hypot(targetX - pieX, targetY - pieY);
+		final double dxNodo = targetX - pieX;
+		final double dyNodo = targetY - pieY;
+		final double distAlNodoActual = Math.sqrt((dxNodo * dxNodo) + (dyNodo * dyNodo));
+
 		final NodoD siguienteNodo = n.getNodoProcedente(readBuf);
 
 		if ((siguienteNodo != null) && (distAlNodoActual < Criatura.RADIO_ANTICIPACION_ESQUINA)) {
@@ -353,7 +319,7 @@ public abstract class Enemigo extends Criatura {
 
 		final double diffX = targetX - pieX;
 		final double diffY = targetY - pieY;
-		final double distanciaTotal = Math.hypot(diffX, diffY);
+		final double distanciaTotal = Math.sqrt((diffX * diffX) + (diffY * diffY));
 
 		if (distanciaTotal > 0.001) {
 			final double dirDeseadaX = (diffX / distanciaTotal) * this.velocidad;
@@ -669,5 +635,4 @@ public abstract class Enemigo extends Criatura {
 		this.desactivarModoAgresivo();
 		super.eliminar();
 	}
-
 }

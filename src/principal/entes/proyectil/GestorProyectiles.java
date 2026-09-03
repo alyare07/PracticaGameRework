@@ -11,7 +11,7 @@ import principal.mapa.Mundo;
  * Gestor maestro y Pool de alto rendimiento para proyectiles (Zero-GC / O(1)).
  * Utiliza compactación Swap-and-Pop y reciclado de instancias en caliente.
  * 
- * @version 1.0 (Vanilla Java 8 - Zero-GC)
+ * @version 1.1 (Vanilla Java 8 - Zero-GC)
  */
 public class GestorProyectiles {
 
@@ -19,11 +19,9 @@ public class GestorProyectiles {
 	private static final int POOL_BALAS = 128;
 	private static final int POOL_PERDIGONES = 128;
 
-	// Arreglo contiguo activo (Swap-and-Pop)
 	private final Proyectil[] activos = new Proyectil[MAX_PROYECTILES];
 	private int cantidadActivos = 0;
 
-	// Pools preasignados para reciclaje
 	private final ProyectilBala[] poolBalas = new ProyectilBala[POOL_BALAS];
 	private int topeBalas = 0;
 
@@ -31,7 +29,6 @@ public class GestorProyectiles {
 	private int topePerdigones = 0;
 
 	public GestorProyectiles() {
-		// Pre-instanciación única en el arranque (0 alocaciones en combate)
 		for (int i = 0; i < POOL_BALAS; i++) {
 			this.poolBalas[i] = new ProyectilBala(0, 0, false, 0, null, 0, 0, 0, 0, 0, 0, null);
 		}
@@ -48,11 +45,11 @@ public class GestorProyectiles {
 	// =========================================================================
 
 	public void dispararBala(final double damage, final double velocidad, final boolean penetrante,
-			final double alcance, final Mundo mundo, final double xOrigen, final double yOrigen,
-			final double xDestino, final double yDestino, final int ancho, final int alto, final Ente causante) {
+			final double alcance, final Mundo mundo, final double xOrigen, final double yOrigen, final double xDestino,
+			final double yDestino, final int ancho, final int alto, final Ente causante) {
 
 		if (this.cantidadActivos >= MAX_PROYECTILES) {
-			return; // Capacidad llena: descarta limpiamente sin crashear
+			return;
 		}
 
 		ProyectilBala p;
@@ -62,13 +59,14 @@ public class GestorProyectiles {
 			p = new ProyectilBala(0, 0, false, 0, null, 0, 0, 0, 0, 0, 0, null);
 		}
 
-		p.reiniciar(damage, velocidad, penetrante, alcance, mundo, xOrigen, yOrigen, xDestino, yDestino, ancho, alto, causante);
+		p.reiniciar(damage, velocidad, penetrante, alcance, mundo, xOrigen, yOrigen, xDestino, yDestino, ancho, alto,
+				causante);
 		this.activos[this.cantidadActivos++] = p;
 	}
 
 	public void dispararPerdigon(final double damage, final double velocidad, final boolean penetrante,
-			final double alcance, final Mundo mundo, final double xOrigen, final double yOrigen,
-			final double xDestino, final double yDestino, final Ente causante) {
+			final double alcance, final Mundo mundo, final double xOrigen, final double yOrigen, final double xDestino,
+			final double yDestino, final Ente causante) {
 
 		if (this.cantidadActivos >= MAX_PROYECTILES) {
 			return;
@@ -81,13 +79,11 @@ public class GestorProyectiles {
 			p = new ProyectilPerdigon(0, 0, false, 0, null, 0, 0, 0, 0, null);
 		}
 
-		p.reiniciar(damage, velocidad, penetrante, alcance, mundo, xOrigen, yOrigen, xDestino, yDestino, 2, 2, causante);
+		p.reiniciar(damage, velocidad, penetrante, alcance, mundo, xOrigen, yOrigen, xDestino, yDestino, 2, 2,
+				causante);
 		this.activos[this.cantidadActivos++] = p;
 	}
 
-	/**
-	 * Permite incorporar proyectiles complejos (ej: Granadas, Bolas de Fuego, GolpeMele).
-	 */
 	public void agregarProyectil(final Proyectil p) {
 		if ((p != null) && (this.cantidadActivos < MAX_PROYECTILES)) {
 			this.activos[this.cantidadActivos++] = p;
@@ -105,7 +101,6 @@ public class GestorProyectiles {
 			p.actualizar();
 
 			if (p.estaEliminado()) {
-				// Devolver a los pools de reciclaje si corresponde
 				if (p instanceof ProyectilPerdigon) {
 					if (this.topePerdigones < POOL_PERDIGONES) {
 						this.poolPerdigones[this.topePerdigones++] = (ProyectilPerdigon) p;
@@ -116,7 +111,7 @@ public class GestorProyectiles {
 					}
 				}
 
-				// Swap-and-Pop O(1): Reemplazamos la casilla muerta por la última viva
+				// Swap-and-Pop O(1)
 				this.activos[i] = this.activos[this.cantidadActivos - 1];
 				this.activos[this.cantidadActivos - 1] = null;
 				this.cantidadActivos--;
@@ -133,6 +128,9 @@ public class GestorProyectiles {
 	}
 
 	public void agregarIntersecciones(final Rectangle area, final ArrayList<Ente> listaDestino) {
+		if ((area == null) || (listaDestino == null)) {
+			return;
+		}
 		for (int i = 0; i < this.cantidadActivos; i++) {
 			final Proyectil p = this.activos[i];
 			if (area.intersects(p.getArea())) {
@@ -143,6 +141,16 @@ public class GestorProyectiles {
 
 	public void limpiar() {
 		for (int i = 0; i < this.cantidadActivos; i++) {
+			final Proyectil p = this.activos[i];
+			if (p instanceof ProyectilPerdigon) {
+				if (this.topePerdigones < POOL_PERDIGONES) {
+					this.poolPerdigones[this.topePerdigones++] = (ProyectilPerdigon) p;
+				}
+			} else if (p instanceof ProyectilBala) {
+				if (this.topeBalas < POOL_BALAS) {
+					this.poolBalas[this.topeBalas++] = (ProyectilBala) p;
+				}
+			}
 			this.activos[i] = null;
 		}
 		this.cantidadActivos = 0;

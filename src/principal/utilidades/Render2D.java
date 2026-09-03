@@ -9,14 +9,13 @@ import java.awt.Image;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Shape;
-import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 
 /**
  * Biblioteca centralizada de renderizado 2D, proyección de cámara, deformación
  * eólica de vegetación y telemetría gráfica de alto rendimiento (Zero-GC).
  * 
- * @version 4.0
+ * @version 4.1 (Vanilla Java 8 - Zero-GC Transform Pipeline)
  */
 public final class Render2D {
 
@@ -54,20 +53,12 @@ public final class Render2D {
 	}
 
 	// =========================================================================
-	// === 2. DIBUJO CON DEFORMACIÓN EÓLICA (VEGETACIÓN REACTIVA)
+	// === 2. DIBUJO CON DEFORMACIÓN EÓLICA (ZERO-GC TRANSFORM INVERSION)
 	// =========================================================================
 
 	/**
-	 * Dibuja un sprite de vegetación (árbol, arbusto, flor, estandarte) en
-	 * coordenadas de mundo inclinando su copa según la fuerza del viento, mientras
-	 * las raíces permanecen ancladas al suelo.
-	 *
-	 * @param g              Contexto gráfico {@link Graphics2D}.
-	 * @param img            Sprite del árbol o planta.
-	 * @param x              Coordenada X de mundo.
-	 * @param y              Coordenada Y de mundo.
-	 * @param fuerzaBalanceo Factor de inclinación calculado por
-	 *                       {@code GestorClima}.
+	 * Dibuja un sprite de vegetación en coordenadas de mundo deformando su copa con
+	 * el viento sin instanciar objetos AffineTransform en cada frame.
 	 */
 	public static void dibujarImagenConBalanceoRefCamara(final Graphics2D g, final Image img, final int x, final int y,
 			final double fuerzaBalanceo) {
@@ -82,15 +73,16 @@ public final class Render2D {
 		final int w = img.getWidth(null);
 		final int h = img.getHeight(null);
 
-		final AffineTransform transformOriginal = g.getTransform();
-		try {
-			// Punto de anclaje en la base central (raíces/tronco en el suelo)
-			g.translate(rx + (w / 2), ry + h);
-			g.shear(fuerzaBalanceo, 0.0);
-			g.drawImage(img, -(w / 2), -h, null);
-		} finally {
-			g.setTransform(transformOriginal);
-		}
+		final int pivotX = rx + (w / 2);
+		final int pivotY = ry + h;
+
+		// Transformación directa e inversión simétrica (CERO creación de objetos en
+		// Heap)
+		g.translate(pivotX, pivotY);
+		g.shear(fuerzaBalanceo, 0.0);
+		g.drawImage(img, -(w / 2), -h, null);
+		g.shear(-fuerzaBalanceo, 0.0);
+		g.translate(-pivotX, -pivotY);
 	}
 
 	public static void dibujarImagenConBalanceo(final Graphics2D g, final Image img, final int x, final int y,
@@ -103,15 +95,14 @@ public final class Render2D {
 
 		final int w = img.getWidth(null);
 		final int h = img.getHeight(null);
+		final int pivotX = x + (w / 2);
+		final int pivotY = y + h;
 
-		final AffineTransform transformOriginal = g.getTransform();
-		try {
-			g.translate(x + (w / 2), y + h);
-			g.shear(fuerzaBalanceo, 0.0);
-			g.drawImage(img, -(w / 2), -h, null);
-		} finally {
-			g.setTransform(transformOriginal);
-		}
+		g.translate(pivotX, pivotY);
+		g.shear(fuerzaBalanceo, 0.0);
+		g.drawImage(img, -(w / 2), -h, null);
+		g.shear(-fuerzaBalanceo, 0.0);
+		g.translate(-pivotX, -pivotY);
 	}
 
 	// =========================================================================
@@ -447,7 +438,7 @@ public final class Render2D {
 
 	public static void dibujarStringRefCamara(final Graphics2D g, final String s, final int x, final int y,
 			final Color c, final float tamanofuente, final boolean bold) {
-		if ((s == null)) {
+		if (s == null) {
 			return;
 		}
 		if (bold) {

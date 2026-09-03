@@ -12,9 +12,9 @@ import principal.utilidades.Globales;
 
 /**
  * Motor de oclusión de sombras 2D activo exclusivamente en interiores,
- * mazmorras y cuevas (Zero-GC / O(1)).
+ * mazmorras y cuevas (Zero-GC / O(1) Vector Math).
  * 
- * @version 6.0
+ * @version 6.1 (Vanilla Java 8 - Fast Math Optimization)
  */
 public class OclusorSombras2D {
 
@@ -35,7 +35,6 @@ public class OclusorSombras2D {
 	public void proyectarSombrasPaseA(final Graphics2D gLight, final FuenteLuz luz, final double centroMundoCamX,
 			final double centroMundoCamY, final double zoom, final double shakeX, final double shakeY,
 			final Color colorAmbiente) {
-		// Descarte temprano estricto: 0% procesamiento si estamos en el exterior
 		if (!this.estaEnInterior() || (luz == null) || (colorAmbiente == null)) {
 			return;
 		}
@@ -59,10 +58,6 @@ public class OclusorSombras2D {
 		this.procesarSombrasMuros(gLight, luz, centroMundoCamX, centroMundoCamY, zoom, shakeX, shakeY);
 	}
 
-	/**
-	 * Evalúa si el jugador se encuentra actualmente dentro de una cueva, mazmorra o
-	 * interior.
-	 */
 	private boolean estaEnInterior() {
 		final boolean porZona = (Globales.GESTOR_ZONAS_AMBIENTE != null)
 				&& Globales.GESTOR_ZONAS_AMBIENTE.isEnZonaInterior();
@@ -116,7 +111,7 @@ public class OclusorSombras2D {
 	}
 
 	// =========================================================================
-	// === 4. EXTRUSIÓN VECTORIAL DE MUROS DE CUEVA (ZERO-GC)
+	// === 4. EXTRUSIÓN VECTORIAL DE MUROS (ZERO-GC / FAST EUCLIDEAN MATH)
 	// =========================================================================
 
 	private void extruirSombraMuro(final Graphics2D gLight, final double lx, final double ly, final int rx,
@@ -126,7 +121,10 @@ public class OclusorSombras2D {
 		final double tcx = rx + (rw / 2.0);
 		final double tcy = ry + (rh / 2.0);
 
-		final double distCentro = Math.hypot(tcx - lx, tcy - ly);
+		final double dxCentro = tcx - lx;
+		final double dyCentro = tcy - ly;
+		final double distCentro = Math.sqrt((dxCentro * dxCentro) + (dyCentro * dyCentro));
+
 		if ((distCentro < 4.0) || (distCentro > radioLuz)) {
 			return;
 		}
@@ -192,7 +190,7 @@ public class OclusorSombras2D {
 
 		final double dAx = ax - lx;
 		final double dAy = ay - ly;
-		final double lenA = Math.hypot(dAx, dAy);
+		final double lenA = Math.sqrt((dAx * dAx) + (dAy * dAy));
 		if (lenA < 0.001) {
 			return;
 		}
@@ -202,7 +200,7 @@ public class OclusorSombras2D {
 
 		final double dBx = bx - lx;
 		final double dBy = by - ly;
-		final double lenB = Math.hypot(dBx, dBy);
+		final double lenB = Math.sqrt((dBx * dBx) + (dBy * dBy));
 		if (lenB < 0.001) {
 			return;
 		}

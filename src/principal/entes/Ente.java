@@ -8,6 +8,13 @@ import principal.iluminacion.FuenteLuz;
 import principal.mapa.Mundo;
 import principal.mapa.renderEntidades.ZoneBox;
 
+/**
+ * Clase base abstracta para todas las entidades del mundo. Gestiona
+ * identificadores de frame, sincronización de celdas espaciales ZoneBox y
+ * anclaje de fuentes de luz (Zero-GC).
+ * 
+ * @version 2.2 (Vanilla Java 8)
+ */
 public abstract class Ente {
 
 	protected boolean eliminado;
@@ -26,6 +33,9 @@ public abstract class Ente {
 	public abstract void pintar(final Graphics2D g);
 
 	public void eliminar() {
+		if (this.eliminado) {
+			return;
+		}
 		this.eliminado = true;
 		this.desvincularLuz();
 		this.desvincularDeZonas();

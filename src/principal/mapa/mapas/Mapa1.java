@@ -9,6 +9,7 @@ import org.json.simple.JSONObject;
 
 import principal.entes.criaturas.enemigos.bandido.Bandido;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
+import principal.entes.facciones.GestorFacciones;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.items.armas.distancia.fuego.automaticas.AmetralladoraPesada;
 import principal.entes.objetos.items.armas.distancia.fuego.automaticas.RifleAsalto;
@@ -67,6 +68,7 @@ public class Mapa1 extends Mapa {
 	@Override
 	protected void cargarFuncionalidadesPropias() {
 		final GestorJuego jg = this.GP.getGestorJuego();
+		Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
 		final ZonaTP zonaTP2 = new ZonaTP(new Rectangle(684, 215, 20, 20), null);
 		final ZonaTP zonaTP = new ZonaTP(new Rectangle(878, 173, 20, 20),
 				new PuertaArea(new Rectangle(832, 333, 16, 16)));

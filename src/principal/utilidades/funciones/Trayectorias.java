@@ -39,12 +39,8 @@ public final class Trayectorias {
 		final double vel = Math.max(0.005, 1.0 / Math.max(1.0, cantApsDistancia));
 		final int pasos = (int) Math.ceil(1.0 / vel) + 1;
 
-		// Asignación de memoria directa $O(1)$ sin instanciar objetos Point ni
-		// ArrayList
 		final int[][] coords = new int[2][pasos];
 
-		// Punto de control para el arco (parábola). La altura del arco se adapta a la
-		// distancia
 		final double x3 = (px1 + px2) / 2.0;
 		final double alturaArco = Math.max(25.0, dist * 0.25);
 		final double y3 = Math.min(py1, py2) - alturaArco;
@@ -60,7 +56,6 @@ public final class Trayectorias {
 			i++;
 		}
 
-		// Aseguramos que el último punto coincida exactamente con el destino
 		coords[0][pasos - 1] = px2;
 		coords[1][pasos - 1] = py2;
 
@@ -84,9 +79,11 @@ public final class Trayectorias {
 	}
 
 	/**
-	 * Calcula la distancia euclidiana entre dos puntos $O(1)$.
+	 * Calcula la distancia euclidiana directa en O(1) con Math.sqrt.
 	 */
 	public double calcularDistancia(final double x1, final double y1, final double x2, final double y2) {
-		return Math.hypot(x2 - x1, y2 - y1);
+		final double dx = x2 - x1;
+		final double dy = y2 - y1;
+		return Math.sqrt((dx * dx) + (dy * dy));
 	}
 }

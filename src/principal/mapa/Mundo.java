@@ -42,6 +42,12 @@ import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
+/**
+ * Gestor maestro del mapa activo, flujo de navegación, zonas de indexación y
+ * ciclo de vida de entidades.
+ * 
+ * @version 5.0 (Vanilla Java 8 - Memory Safe Lifecycle)
+ */
 public class Mundo {
 
 	protected String nombreMundo = "Exterior";
@@ -295,7 +301,7 @@ public class Mundo {
 	}
 
 	public void agregarAColaRender(final Ente e) {
-		if (e == null) {
+		if ((e == null) || e.estaEliminado()) {
 			return;
 		}
 		if (this.cantEntidadesEnCola >= this.colaRenderEntidades.length) {
@@ -307,7 +313,7 @@ public class Mundo {
 	}
 
 	public boolean meterEntidad(final Ente e) {
-		if ((e == null) || this.ENTES_REGISTRADOS.contains(e)) {
+		if ((e == null) || e.estaEliminado() || this.ENTES_REGISTRADOS.contains(e)) {
 			return false;
 		}
 		if (!this.getTerreno().AreaDentroDelTerreno(e.getArea())) {
@@ -347,23 +353,11 @@ public class Mundo {
 	// === RAYCASTING HÍBRIDO DE COMBATE / LÍNEA DE TIRO LIMPIA (ZERO-GC)
 	// =========================================================================
 
-	/**
-	 * Evalúa si una trayectoria de disparo en línea recta está 100% limpia de muros
-	 * de terreno y de obstáculos físicos (árboles, rocas, casas, estructuras).
-	 * 
-	 * @param x0 Origen X (Disparador)
-	 * @param y0 Origen Y (Disparador)
-	 * @param x1 Destino X (Objetivo)
-	 * @param y1 Destino Y (Objetivo)
-	 * @return {@code true} si la bala tiene trayectoria libre sin chocar.
-	 */
 	public boolean hayLineaDeTiroLimpia(final double x0, final double y0, final double x1, final double y1) {
-		// 1. Validar suelo sólido (Paredes de roca del mapa base)
 		if (!this.getTerreno().hayLineaDeVisionLimpia(x0, y0, x1, y1)) {
 			return false;
 		}
 
-		// 2. Delimitar las ZoneBoxes que intersectan el rayo de tiro
 		final int minX = (int) Math.min(x0, x1);
 		final int maxX = (int) Math.max(x0, x1);
 		final int minY = (int) Math.min(y0, y1);
@@ -407,7 +401,7 @@ public class Mundo {
 			return;
 		}
 
-		if (incluirJugador && area.intersects(Globales.JUGADOR.getArea())) {
+		if (incluirJugador && !Globales.JUGADOR.estaEliminado() && area.intersects(Globales.JUGADOR.getArea())) {
 			accion.ejecutar(Globales.JUGADOR);
 		}
 
@@ -477,7 +471,7 @@ public class Mundo {
 			return;
 		}
 
-		if (incluirJugador && area.intersects(Globales.JUGADOR.getArea())) {
+		if (incluirJugador && !Globales.JUGADOR.estaEliminado() && area.intersects(Globales.JUGADOR.getArea())) {
 			accion.ejecutar(Globales.JUGADOR);
 		}
 
@@ -562,7 +556,7 @@ public class Mundo {
 		if (area == null) {
 			return false;
 		}
-		if (tenerEnCuentaJugador && area.intersects(Globales.JUGADOR.getArea())) {
+		if (tenerEnCuentaJugador && !Globales.JUGADOR.estaEliminado() && area.intersects(Globales.JUGADOR.getArea())) {
 			return true;
 		}
 
@@ -641,8 +635,6 @@ public class Mundo {
 	public ArrayList<Ente> getEnteIntersectados(final Shape area, final boolean tenerEnCuentaJugador) {
 		final ArrayList<Ente> lista = new ArrayList<>();
 		this.paraCadaEnteEn(area, tenerEnCuentaJugador, lista::add);
-
-		// REEMPLAZAR el bucle de PROYECTILES por:
 		this.GESTOR_PROYECTILES.agregarIntersecciones(area.getBounds(), lista);
 		return lista;
 	}
@@ -791,7 +783,7 @@ public class Mundo {
 			return;
 		}
 
-		if (incluirJugador && Globales.JUGADOR.getArea().intersects(x, y, w, h)) {
+		if (incluirJugador && !Globales.JUGADOR.estaEliminado() && Globales.JUGADOR.getArea().intersects(x, y, w, h)) {
 			accion.ejecutar(Globales.JUGADOR);
 		}
 
@@ -811,10 +803,11 @@ public class Mundo {
 		}
 	}
 
-//Sobrecarga de conveniencia Zero-GC recibiendo Rectangle existente:
 	public void paraCadaCriaturaEn(final Rectangle r, final boolean incluirJugador,
 			final AccionEntidad<Criatura> accion) {
-		this.paraCadaCriaturaEn(r.x, r.y, r.width, r.height, incluirJugador, accion);
+		if (r != null) {
+			this.paraCadaCriaturaEn(r.x, r.y, r.width, r.height, incluirJugador, accion);
+		}
 	}
 
 	public void updateNextCodAct() {
@@ -861,7 +854,7 @@ public class Mundo {
 		final Iterator<Ente> it = this.ENTES_REGISTRADOS.iterator();
 		while (it.hasNext()) {
 			final Ente e = it.next();
-			if (e instanceof Criatura) {
+			if ((e instanceof Criatura) && !(e instanceof Jugador)) {
 				e.eliminar();
 				it.remove();
 			}
@@ -882,8 +875,15 @@ public class Mundo {
 	}
 
 	public void eliminarEntidad(final Ente e) {
-		if ((e != null) && this.ENTES_REGISTRADOS.remove(e)) {
+		if (e != null) {
+			this.ENTES_REGISTRADOS.remove(e);
 			e.eliminar();
+		}
+	}
+
+	public void eliminarEntidadRegistro(final Ente e) {
+		if (e != null) {
+			this.ENTES_REGISTRADOS.remove(e);
 		}
 	}
 

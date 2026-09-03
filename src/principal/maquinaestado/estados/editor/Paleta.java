@@ -31,7 +31,7 @@ public abstract class Paleta {
 		this.LADO_SLOT = Math.max(16, ladoSlot);
 
 		final int espacioUtilAncho = ancho - (this.MARGEN * 2);
-		final int espacioUtilAlto = alto - (this.MARGEN * 2) - 18; // Reserva 18 px para barra de paginación
+		final int espacioUtilAlto = alto - (this.MARGEN * 2) - 18;
 
 		this.COLUMNAS = Math.max(1, espacioUtilAncho / (this.LADO_SLOT + this.MARGEN));
 		this.FILAS = Math.max(1, espacioUtilAlto / (this.LADO_SLOT + this.MARGEN));
@@ -60,7 +60,7 @@ public abstract class Paleta {
 			return;
 		}
 
-		// 2. Selección de elemento en la cuadrícula en O(1)
+		// 2. Selección de elemento en O(1)
 		if (pClick.intersects(this.AREA)) {
 			final int relX = pClick.x - (this.AREA.x + this.MARGEN);
 			final int relY = pClick.y - (this.AREA.y + this.MARGEN);
@@ -73,8 +73,6 @@ public abstract class Paleta {
 			final int col = relX / paso;
 			final int fila = relY / paso;
 
-			// Valida que el clic haya caído dentro del recuadro del slot (no en el margen
-			// vacío)
 			if ((col >= 0) && (col < this.COLUMNAS) && (fila >= 0) && (fila < this.FILAS)) {
 				final int xEnSlot = relX % paso;
 				final int yEnSlot = relY % paso;
@@ -101,7 +99,6 @@ public abstract class Paleta {
 
 		final int paso = this.LADO_SLOT + this.MARGEN;
 
-		// Renderizado de slots de la página activa
 		for (int i = inicio; i < fin; i++) {
 			final int indiceEnPagina = i - inicio;
 			final int col = indiceEnPagina % this.COLUMNAS;
@@ -115,7 +112,6 @@ public abstract class Paleta {
 
 			this.pintarElementoEnSlot(g, i, slotX, slotY);
 
-			// Resaltado si es el elemento actualmente seleccionado
 			if (i == this.indiceSeleccionado) {
 				Render2D.dibujarRectanguloContorno(g, slotX, slotY, this.LADO_SLOT, this.LADO_SLOT, Color.YELLOW);
 				Render2D.dibujarRectanguloContorno(g, slotX - 1, slotY - 1, this.LADO_SLOT + 2, this.LADO_SLOT + 2,

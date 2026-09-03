@@ -13,6 +13,12 @@ import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
+/**
+ * Base abstracta para armas de disparo automático y ráfaga continua con
+ * dispersión angular procedural y retroceso (Zero-GC / Fast Math).
+ * 
+ * @version 2.0 (Vanilla Java 8)
+ */
 public abstract class ArmaAutomatica extends Arma {
 
 	private static final long serialVersionUID = 781920391209381L;
@@ -52,7 +58,7 @@ public abstract class ArmaAutomatica extends Arma {
 		if (this.consumirDisparo(causante)) {
 			final double dx = xDestino - xOrigen;
 			final double dy = yDestino - yOrigen;
-			final double dist = Math.hypot(dx, dy);
+			final double dist = Math.sqrt((dx * dx) + (dy * dy));
 
 			if (escenario != null) {
 				final double spawnX = (dist > 0.001) ? xOrigen + ((dx / dist) * 12.0) : xOrigen;

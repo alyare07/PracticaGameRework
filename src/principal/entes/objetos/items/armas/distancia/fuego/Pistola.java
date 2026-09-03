@@ -46,7 +46,7 @@ public class Pistola extends Arma {
 		if (this.consumirDisparo(causante)) {
 			final double dx = xDestino - xOrigen;
 			final double dy = yDestino - yOrigen;
-			final double dist = Math.hypot(dx, dy);
+			final double dist = Math.sqrt((dx * dx) + (dy * dy));
 
 			if (escenario != null) {
 				final double spawnX = (dist > 0.001) ? xOrigen + ((dx / dist) * 12.0) : xOrigen;

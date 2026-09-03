@@ -15,6 +15,13 @@ import principal.mapa.escenario.tps.ZonaTP;
 import principal.utilidades.AccionEntidad;
 import principal.utilidades.Globales;
 
+/**
+ * Celda espacial de indexación de entidades (64x64 px). Realiza barrido
+ * continuo y purga activa de entidades muertas para prevenir fugas de memoria
+ * (Zero-GC / O(1)).
+ * 
+ * @version 2.1 (Vanilla Java 8 - Auto-Purge Lifecycle)
+ */
 public class ZoneBox extends Ente {
 
 	protected final Rectangle AREA;
@@ -39,36 +46,56 @@ public class ZoneBox extends Ente {
 
 		final int codAct = this.mundo.getCodAct();
 
-		// Actualización de Objetos
-		for (int i = 0; i < this.OBJETOS.size(); i++) {
+		// 1. Actualización y Purgado de Objetos
+		for (int i = this.OBJETOS.size() - 1; i >= 0; i--) {
 			final Objeto o = this.OBJETOS.get(i);
+			if (o.estaEliminado()) {
+				this.OBJETOS.remove(i);
+				this.mundo.eliminarEntidadRegistro(o);
+				continue;
+			}
 			if (!o.estaActualizado(codAct)) {
 				o.actualizar();
 				o.marcarActualizado(codAct);
 			}
 		}
 
-		// Actualización de Criaturas
-		for (int i = 0; i < this.CRIATURAS.size(); i++) {
+		// 2. Actualización y Purgado de Criaturas
+		for (int i = this.CRIATURAS.size() - 1; i >= 0; i--) {
 			final Criatura c = this.CRIATURAS.get(i);
+			if (c.estaEliminado()) {
+				this.CRIATURAS.remove(i);
+				this.mundo.eliminarEntidadRegistro(c);
+				continue;
+			}
 			if (!c.estaActualizado(codAct)) {
 				c.actualizar();
 				c.marcarActualizado(codAct);
 			}
 		}
 
-		// Actualización de Items
-		for (int i = 0; i < this.ITEMS.size(); i++) {
+		// 3. Actualización y Purgado de Items
+		for (int i = this.ITEMS.size() - 1; i >= 0; i--) {
 			final Item item = this.ITEMS.get(i);
+			if (item.estaEliminado()) {
+				this.ITEMS.remove(i);
+				this.mundo.eliminarEntidadRegistro(item);
+				continue;
+			}
 			if (!item.estaActualizado(codAct)) {
 				item.actualizar();
 				item.marcarActualizado(codAct);
 			}
 		}
 
-		// Actualización de Zonas TP
-		for (int i = 0; i < this.ZONAS_TP.size(); i++) {
+		// 4. Actualización y Purgado de Zonas TP
+		for (int i = this.ZONAS_TP.size() - 1; i >= 0; i--) {
 			final ZonaTP tp = this.ZONAS_TP.get(i);
+			if (tp.estaEliminado()) {
+				this.ZONAS_TP.remove(i);
+				this.mundo.eliminarEntidadRegistro(tp);
+				continue;
+			}
 			if (!tp.estaActualizado(codAct)) {
 				tp.actualizar();
 				tp.marcarActualizado(codAct);
@@ -79,32 +106,56 @@ public class ZoneBox extends Ente {
 	public void recolectarEntidadesParaRender(final Mundo mundo) {
 		final int codPaint = mundo.getCodPintado();
 
-		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
+		// Complementos
+		for (int i = this.COMPLEMENTOS.size() - 1; i >= 0; i--) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
+			if (c.estaEliminado()) {
+				this.COMPLEMENTOS.remove(i);
+				mundo.eliminarEntidadRegistro(c);
+				continue;
+			}
 			if (!c.estaPintado(codPaint)) {
 				mundo.agregarAColaRender(c);
 				c.marcarPintado(codPaint);
 			}
 		}
 
-		for (int i = 0; i < this.OBJETOS.size(); i++) {
+		// Objetos
+		for (int i = this.OBJETOS.size() - 1; i >= 0; i--) {
 			final Objeto o = this.OBJETOS.get(i);
+			if (o.estaEliminado()) {
+				this.OBJETOS.remove(i);
+				mundo.eliminarEntidadRegistro(o);
+				continue;
+			}
 			if (!o.estaPintado(codPaint)) {
 				mundo.agregarAColaRender(o);
 				o.marcarPintado(codPaint);
 			}
 		}
 
-		for (int i = 0; i < this.CRIATURAS.size(); i++) {
+		// Criaturas
+		for (int i = this.CRIATURAS.size() - 1; i >= 0; i--) {
 			final Criatura c = this.CRIATURAS.get(i);
+			if (c.estaEliminado()) {
+				this.CRIATURAS.remove(i);
+				mundo.eliminarEntidadRegistro(c);
+				continue;
+			}
 			if (!c.estaPintado(codPaint)) {
 				mundo.agregarAColaRender(c);
 				c.marcarPintado(codPaint);
 			}
 		}
 
-		for (int i = 0; i < this.ZONAS_TP.size(); i++) {
+		// Zonas TP
+		for (int i = this.ZONAS_TP.size() - 1; i >= 0; i--) {
 			final ZonaTP tp = this.ZONAS_TP.get(i);
+			if (tp.estaEliminado()) {
+				this.ZONAS_TP.remove(i);
+				mundo.eliminarEntidadRegistro(tp);
+				continue;
+			}
 			if (!tp.estaPintado(codPaint)) {
 				mundo.agregarAColaRender(tp);
 				tp.marcarPintado(codPaint);
@@ -117,7 +168,7 @@ public class ZoneBox extends Ente {
 		final int codPaint = this.mundo.getCodPintado();
 		for (int i = 0; i < this.ITEMS.size(); i++) {
 			final Item item = this.ITEMS.get(i);
-			if (!item.estaPintado(codPaint)) {
+			if (!item.estaEliminado() && !item.estaPintado(codPaint)) {
 				item.pintar(g);
 				item.marcarPintado(codPaint);
 			}
@@ -125,6 +176,10 @@ public class ZoneBox extends Ente {
 	}
 
 	public void addEntidad(final Ente e) {
+		if ((e == null) || e.estaEliminado()) {
+			return;
+		}
+
 		if (e instanceof Criatura) {
 			if (!this.CRIATURAS.contains(e)) {
 				this.CRIATURAS.add((Criatura) e);
@@ -166,12 +221,7 @@ public class ZoneBox extends Ente {
 	// === EVALUACIÓN DE RAYCASTING / LÍNEA DE TIRO (ZERO-GC / O(1))
 	// =========================================================================
 
-	/**
-	 * Evalúa si una línea de tiro (x0,y0 -> x1,y1) es bloqueada por árboles, rocas,
-	 * casas o muros sólidos dentro de esta ZoneBox.
-	 */
 	public boolean intersectaLineaSolida(final double x0, final double y0, final double x1, final double y1) {
-		// 1. Comprobar árboles cosechables, rocas, cofres y estructuras construidas
 		final int totalObj = this.OBJETOS.size();
 		for (int i = 0; i < totalObj; i++) {
 			final Objeto o = this.OBJETOS.get(i);
@@ -180,7 +230,6 @@ public class ZoneBox extends Ente {
 			}
 		}
 
-		// 2. Comprobar complementos y casas
 		final int totalComp = this.COMPLEMENTOS.size();
 		for (int i = 0; i < totalComp; i++) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
@@ -202,7 +251,7 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.CRIATURAS.size(); i++) {
 			final Criatura c = this.CRIATURAS.get(i);
-			if (area.intersects(c.getArea())) {
+			if (!c.estaEliminado() && area.intersects(c.getArea())) {
 				accion.ejecutar(c);
 			}
 		}
@@ -214,7 +263,7 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.ITEMS.size(); i++) {
 			final Item item = this.ITEMS.get(i);
-			if (area.intersects(item.getArea())) {
+			if (!item.estaEliminado() && area.intersects(item.getArea())) {
 				accion.ejecutar(item);
 			}
 		}
@@ -226,7 +275,7 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.OBJETOS.size(); i++) {
 			final Objeto o = this.OBJETOS.get(i);
-			if (area.intersects(o.getArea())) {
+			if (!o.estaEliminado() && area.intersects(o.getArea())) {
 				accion.ejecutar(o);
 			}
 		}
@@ -238,7 +287,7 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
-			if (area.intersects(c.getArea())) {
+			if (!c.estaEliminado() && area.intersects(c.getArea())) {
 				accion.ejecutar(c);
 			}
 		}
@@ -250,25 +299,25 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.CRIATURAS.size(); i++) {
 			final Criatura c = this.CRIATURAS.get(i);
-			if (area.intersects(c.getArea())) {
+			if (!c.estaEliminado() && area.intersects(c.getArea())) {
 				accion.ejecutar(c);
 			}
 		}
 		for (int i = 0; i < this.ITEMS.size(); i++) {
 			final Item item = this.ITEMS.get(i);
-			if (area.intersects(item.getArea())) {
+			if (!item.estaEliminado() && area.intersects(item.getArea())) {
 				accion.ejecutar(item);
 			}
 		}
 		for (int i = 0; i < this.OBJETOS.size(); i++) {
 			final Objeto o = this.OBJETOS.get(i);
-			if (area.intersects(o.getArea())) {
+			if (!o.estaEliminado() && area.intersects(o.getArea())) {
 				accion.ejecutar(o);
 			}
 		}
 		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
-			if (area.intersects(c.getArea())) {
+			if (!c.estaEliminado() && area.intersects(c.getArea())) {
 				accion.ejecutar(c);
 			}
 		}
@@ -284,13 +333,13 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
-			if (c.esSolido() && c.intersecta(area)) {
+			if (!c.estaEliminado() && c.esSolido() && c.intersecta(area)) {
 				return true;
 			}
 		}
 		for (int i = 0; i < this.OBJETOS.size(); i++) {
 			final Objeto o = this.OBJETOS.get(i);
-			if (o.esSolido() && area.intersects(o.getArea())) {
+			if (!o.estaEliminado() && o.esSolido() && area.intersects(o.getArea())) {
 				return true;
 			}
 		}
@@ -307,7 +356,7 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
-			if (c.esSolido() && c.intersectaAreaNoSolida(area)) {
+			if (!c.estaEliminado() && c.esSolido() && c.intersectaAreaNoSolida(area)) {
 				return true;
 			}
 		}
@@ -320,7 +369,7 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.CRIATURAS.size(); i++) {
 			final Criatura c = this.CRIATURAS.get(i);
-			if (area.intersects(c.getArea())) {
+			if (!c.estaEliminado() && area.intersects(c.getArea())) {
 				return true;
 			}
 		}
@@ -333,7 +382,7 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.ITEMS.size(); i++) {
 			final Item item = this.ITEMS.get(i);
-			if (area.intersects(item.getArea())) {
+			if (!item.estaEliminado() && area.intersects(item.getArea())) {
 				return true;
 			}
 		}
@@ -346,19 +395,17 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
-			if (area.intersects(c.getArea())) {
+			if (!c.estaEliminado() && area.intersects(c.getArea())) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	// Comprobación de solapamiento con la ZoneBox en O(1) con primitivos
 	public boolean intersectaZona(final int x, final int y, final int w, final int h) {
 		return this.AREA.intersects(x, y, w, h);
 	}
 
-	// Sobrecarga de alto rendimiento para criaturas
 	public void paraCadaCriatura(final int x, final int y, final int w, final int h,
 			final AccionEntidad<Criatura> accion) {
 		if (!this.intersectaZona(x, y, w, h)) {
@@ -367,7 +414,7 @@ public class ZoneBox extends Ente {
 		final int total = this.CRIATURAS.size();
 		for (int i = 0; i < total; i++) {
 			final Criatura c = this.CRIATURAS.get(i);
-			if (c.getArea().intersects(x, y, w, h)) {
+			if (!c.estaEliminado() && c.getArea().intersects(x, y, w, h)) {
 				accion.ejecutar(c);
 			}
 		}

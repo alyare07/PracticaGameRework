@@ -40,6 +40,12 @@ import principal.utilidades.Render2D;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
+/**
+ * Representa al personaje jugable con física diagonal normalizada, redondeo
+ * simétrico con la cámara, gestión de equipamiento y estamina (Zero-GC).
+ * 
+ * @version 4.0 (Vanilla Java 8 - Anti-Jitter Subpixel Physics)
+ */
 public class Jugador extends Criatura {
 
 	private static final String NOMBRE = "Alyare";
@@ -491,7 +497,7 @@ public class Jugador extends Criatura {
 		}
 
 		if (arr) {
-			if ((((int) (this.getPosicionY() - paso)) >= 0)
+			if ((((int) Math.round(this.getPosicionY() - paso)) >= 0)
 					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(paso, 2))) {
 				this.modificarPosicionY(-paso);
 			}
@@ -608,7 +614,8 @@ public class Jugador extends Criatura {
 			armaEquipada.disparar(xOrigen, yOrigen, pRaton.x, pRaton.y, mundo, this);
 
 		} else {
-			this.ataqueMele((int) this.getPosicionX() + 8, (int) this.getPosicionY() + 8, this.direccion, mundo);
+			this.ataqueMele((int) Math.round(this.getPosicionX()) + 8, (int) Math.round(this.getPosicionY()) + 8,
+					this.direccion, mundo);
 		}
 	}
 
@@ -923,14 +930,14 @@ public class Jugador extends Criatura {
 	}
 
 	public Rectangle getAreaInterseccionMovimiento() {
-		this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds((int) this.getPosicionX() + 2,
-				(int) this.getPosicionY() + 12, 8, 8);
+		this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds((int) Math.round(this.getPosicionX()) + 2,
+				(int) Math.round(this.getPosicionY()) + 12, 8, 8);
 		return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 	}
 
 	public Rectangle getAreaInterseccionMovimiento(final double desplazamiento, final int direccion) {
-		final int xBase = (int) this.getPosicionX() + 2;
-		final int yBase = (int) this.getPosicionY() + 12;
+		final int xBase = (int) Math.round(this.getPosicionX()) + 2;
+		final int yBase = (int) Math.round(this.getPosicionY()) + 12;
 		final int despInt = (int) Math.round(desplazamiento);
 
 		switch (direccion) {
@@ -1056,8 +1063,8 @@ public class Jugador extends Criatura {
 	}
 
 	public Point getPosicionTileParado() {
-		this.PUNTO_AUXILIAR.setLocation((this.getPosicionXInt() + 3) / Constantes.LADO_TILE,
-				((this.getPosicionYInt() + this.ALTO) - 1) / Constantes.LADO_TILE);
+		this.PUNTO_AUXILIAR.setLocation(Math.floorDiv(this.getPosicionXInt() + 3, Constantes.LADO_TILE),
+				Math.floorDiv((this.getPosicionYInt() + this.ALTO) - 1, Constantes.LADO_TILE));
 		return this.PUNTO_AUXILIAR;
 	}
 
@@ -1076,8 +1083,8 @@ public class Jugador extends Criatura {
 
 	@Override
 	public Point getPosicionTile() {
-		this.PUNTO_AUXILIAR.setLocation(this.getPosicionXInt() / Constantes.LADO_TILE,
-				this.getPosicionYInt() / Constantes.LADO_TILE);
+		this.PUNTO_AUXILIAR.setLocation(Math.floorDiv(this.getPosicionXInt(), Constantes.LADO_TILE),
+				Math.floorDiv(this.getPosicionYInt(), Constantes.LADO_TILE));
 		return this.PUNTO_AUXILIAR;
 	}
 

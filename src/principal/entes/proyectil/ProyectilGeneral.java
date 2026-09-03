@@ -12,11 +12,10 @@ import principal.mapa.Mundo;
 import principal.utilidades.AccionEntidad;
 
 /**
- * Proyectil estándar con resolución de impacto Zero-GC. Implementa
- * AccionEntidad directamente para evitar la creación de lambdas capturadoras en
- * el bucle caliente de colisiones.
+ * Proyectil estándar con resolución de impacto Zero-GC mediante visitor directo
+ * (AccionEntidad).
  * 
- * @version 2.0 (Vanilla Java 8 - Zero-GC)
+ * @version 2.3 (Vanilla Java 8 - Defensive Lifecycle)
  */
 public class ProyectilGeneral extends Proyectil implements Serializable, AccionEntidad<Criatura> {
 
@@ -60,7 +59,9 @@ public class ProyectilGeneral extends Proyectil implements Serializable, AccionE
 			final int ancho, final int alto, final Ente causante) {
 		super.reiniciar(damage, velocidad, penetrante, alcance, mundo, xOrigen, yOrigen, xDestino, yDestino, ancho,
 				alto, causante);
-		this.perforados.clear(); // Limpia entidades ya impactadas en el disparo anterior
+		if (this.perforados != null) {
+			this.perforados.clear();
+		}
 	}
 
 	protected void verificarImpacto() {
@@ -70,7 +71,7 @@ public class ProyectilGeneral extends Proyectil implements Serializable, AccionE
 
 		final Rectangle area = this.getArea();
 
-		// 1. Evaluación directa pasando 'this' como visitor (CERO asignaciones en Heap)
+		// 1. Evaluación directa pasando 'this' como visitor (0 asignaciones en Heap)
 		this.mundo.paraCadaCriaturaEn(area, true, this);
 
 		if (this.eliminado) {
@@ -83,10 +84,6 @@ public class ProyectilGeneral extends Proyectil implements Serializable, AccionE
 		}
 	}
 
-	/**
-	 * Callback ejecutado por ZoneBox / Mundo para cada criatura que intersecta el
-	 * proyectil.
-	 */
 	@Override
 	public void ejecutar(final Criatura victima) {
 		if (this.eliminado || (victima == this.CAUSANTE) || this.perforados.contains(victima)

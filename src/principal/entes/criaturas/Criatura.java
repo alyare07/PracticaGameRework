@@ -25,10 +25,10 @@ import principal.utilidades.Render2D;
 
 /**
  * Base abstracta para todas las criaturas con soporte de Atributos RPG,
- * Facciones, Barras de Salud Multicapa, Knockback y Física de Manadas Blindada
- * (Zero-GC / O(1)).
+ * Facciones, Barras de Salud Multicapa, Knockback, Física de Manadas y
+ * renderizado sub-píxel libre de vibración (Zero-GC / O(1)).
  * 
- * @version 6.5 (Vanilla Java 8)
+ * @version 6.7 (Vanilla Java 8 - Subpixel Jitter Fix)
  */
 public abstract class Criatura extends Ente {
 
@@ -98,8 +98,6 @@ public abstract class Criatura extends Ente {
 
 	protected final Rectangle AREA_COLISION_MOVIMIENTO_AUX = new Rectangle();
 
-	// Scratchpad estático para deduplicar vecinos en fronteras sin alocar memoria
-	// (Zero-GC)
 	private static final Criatura[] EVALUADOS_SEPARACION = new Criatura[32];
 	private static int cantEvaluados = 0;
 
@@ -278,7 +276,6 @@ public abstract class Criatura extends Ente {
 					continue;
 				}
 
-				// Deduplicacion Zero-GC entre celdas espaciales contiguas
 				boolean yaProcesada = false;
 				for (int e = 0; e < cantEvaluados; e++) {
 					if (EVALUADOS_SEPARACION[e] == otra) {
@@ -317,15 +314,14 @@ public abstract class Criatura extends Ente {
 			return;
 		}
 
-		// Clamping de empuje maximo para evitar saltos violentos
-		final double distEmpuje = Math.hypot(acumuladoEmpujeX, acumuladoEmpujeY);
+		final double distEmpuje = Math
+				.sqrt((acumuladoEmpujeX * acumuladoEmpujeX) + (acumuladoEmpujeY * acumuladoEmpujeY));
 		final double maxEmpujePorTick = 2.0;
 		if (distEmpuje > maxEmpujePorTick) {
 			acumuladoEmpujeX = (acumuladoEmpujeX / distEmpuje) * maxEmpujePorTick;
 			acumuladoEmpujeY = (acumuladoEmpujeY / distEmpuje) * maxEmpujePorTick;
 		}
 
-		// Desplazamiento validado contra muros en los pies
 		if ((this.mundo != null) && (Math.abs(acumuladoEmpujeX) > 0.0001)) {
 			if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(acumuladoEmpujeX, 0.0))) {
 				this.modificarPosicionX(acumuladoEmpujeX);
@@ -372,21 +368,29 @@ public abstract class Criatura extends Ente {
 
 	public void recibirAtaque(final double damage, final Ente causante) {
 		if (this.modoDios) {
+			this.activarFlashDanio();
+			final double dx = (causante != null) ? (this.getCentroX() - causante.getCentroX()) : 0.0;
+			final double dy = (causante != null) ? (this.getCentroY() - causante.getCentroY()) : 0.0;
+			final double dist = Math.sqrt((dx * dx) + (dy * dy));
+			final double dirSangreX = (dist > 0.001) ? (dx / dist) : 0.0;
+			final double dirSangreY = (dist > 0.001) ? (dy / dist) : 0.0;
+
+			Globales.GESTOR_PARTICULAS.emitirSangre(this.getCentroX(), this.getCentroY(), dirSangreX, dirSangreY, 15);
+			Globales.GESTOR_TEXTOS.agregarDanio((int) damage, this.getPosicionX(), this.getPosicionY(), false);
 			return;
 		}
 		this.reducirVida(damage);
 		this.activarFlashDanio();
 
-		if ((this.vidaMaxima >= 1000.0) && (Globales.MOTOR_IGU != null)) {
+		if ((this.vidaMaxima >= 1000.0) && (Globales.MOTOR_IGU != null) && !(this instanceof Jugador)) {
 			Globales.MOTOR_IGU.fijarJefe(this);
 		}
 
 		if (this.mundo != null) {
 			final double dx = (causante != null) ? (this.getCentroX() - causante.getCentroX()) : 0.0;
 			final double dy = (causante != null) ? (this.getCentroY() - causante.getCentroY()) : 0.0;
-			final double dist = Math.hypot(dx, dy);
+			final double dist = Math.sqrt((dx * dx) + (dy * dy));
 
-			// Knockback con super-armadura para jefes y respeto a los muros
 			if ((dist > 0.001) && (this.vidaMaxima < 1000.0)) {
 				final double fuerzaKnockback = Math.min(8.0, 2.0 + (damage * 0.12));
 				final double pushX = (dx / dist) * fuerzaKnockback;
@@ -417,10 +421,7 @@ public abstract class Criatura extends Ente {
 		this.pintarIndicadorVida(g);
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
-			// 1. Hitbox de Daño (Cian)
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.CYAN);
-
-			// 2. Colision de Pies de Movimiento (Magenta)
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.getAreaColisionMovimiento(0.0, 0.0), Color.MAGENTA);
 		}
 
@@ -547,7 +548,7 @@ public abstract class Criatura extends Ente {
 
 		double diffX = targetX - pieX;
 		double diffY = targetY - pieY;
-		double distAlNodo = Math.hypot(diffX, diffY);
+		double distAlNodo = Math.sqrt((diffX * diffX) + (diffY * diffY));
 
 		NodoA siguienteNodo = this.recorridoA.peek();
 		boolean avanzarNodo = (distAlNodo <= Math.max(RADIO_LLEGADA_WAYPOINT, this.velocidad));
@@ -579,7 +580,7 @@ public abstract class Criatura extends Ente {
 			targetY = this.nodoADestino.getYMundo() + (this.nodoADestino.getAlto() / 2.0);
 			diffX = targetX - pieX;
 			diffY = targetY - pieY;
-			distAlNodo = Math.hypot(diffX, diffY);
+			distAlNodo = Math.sqrt((diffX * diffX) + (diffY * diffY));
 			siguienteNodo = this.recorridoA.peek();
 		}
 
@@ -593,7 +594,7 @@ public abstract class Criatura extends Ente {
 
 			diffX = targetX - pieX;
 			diffY = targetY - pieY;
-			distAlNodo = Math.hypot(diffX, diffY);
+			distAlNodo = Math.sqrt((diffX * diffX) + (diffY * diffY));
 		}
 
 		if (distAlNodo > 0.001) {
@@ -804,11 +805,12 @@ public abstract class Criatura extends Ente {
 	}
 
 	public Point getPosicion() {
-		return new Point((int) this.x, (int) this.y);
+		return new Point((int) Math.round(this.x), (int) Math.round(this.y));
 	}
 
 	public Point getPosicionTile() {
-		return new Point((int) this.x / Constantes.LADO_TILE, (int) this.y / Constantes.LADO_TILE);
+		return new Point(Math.floorDiv((int) Math.round(this.x), Constantes.LADO_TILE),
+				Math.floorDiv((int) Math.round(this.y), Constantes.LADO_TILE));
 	}
 
 	public Direccion getDireccion() {
@@ -837,12 +839,16 @@ public abstract class Criatura extends Ente {
 		this.x = x;
 	}
 
+	// =========================================================================
+	// === POSICIÓN DIBUJADA CON REDONDEO SUB-PÍXEL COHERENTE (ANTI-JITTER)
+	// =========================================================================
+
 	protected int getPosicionXIntDibujado() {
-		return (int) this.x - this.margenXInicialSprite;
+		return (int) Math.round(this.x) - this.margenXInicialSprite;
 	}
 
 	protected int getPosicionYIntDibujado() {
-		return (int) this.y - this.margenYInicialSprite;
+		return (int) Math.round(this.y) - this.margenYInicialSprite;
 	}
 
 	public int getMargenXSprite() {
@@ -868,12 +874,12 @@ public abstract class Criatura extends Ente {
 
 	@Override
 	public int getPosicionXInt() {
-		return (int) this.x;
+		return (int) Math.round(this.x);
 	}
 
 	@Override
 	public int getPosicionYInt() {
-		return (int) this.y;
+		return (int) Math.round(this.y);
 	}
 
 	@Override

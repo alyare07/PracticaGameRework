@@ -6,20 +6,19 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Transparency;
+import java.awt.image.BufferedImage;
 import java.awt.image.VolatileImage;
 
-import principal.entes.modelos.tile.ListaModeloTile;
-import principal.entes.modelos.tile.ModeloTile;
-import principal.utilidades.Constantes;
+import principal.recursos.SetTerreno;
+import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
-import principal.utilidades.Textura;
 
 /**
- * Macro-bloque de terreno pre-horneado en VRAM (Zero-GC / O(1)).
- * Reduce drásticamente las llamadas de dibujo del suelo al consolidar
- * cuadrículas de 16x16 tiles en una única VolatileImage.
+ * Macro-bloque de terreno pre-horneado en VRAM (Zero-GC / O(1)). Reduce
+ * drásticamente las llamadas de dibujo del suelo al consolidar cuadrículas de
+ * 16x16 tiles en una única VolatileImage acelerada por hardware.
  * 
- * @version 1.0 (Vanilla Java 8)
+ * @version 2.0 (Vanilla Java 8 - Type-Safe Pipeline)
  */
 public class ChunkTerreno {
 
@@ -52,8 +51,8 @@ public class ChunkTerreno {
 			return;
 		}
 
-		final GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment()
-				.getDefaultScreenDevice().getDefaultConfiguration();
+		final GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
+				.getDefaultConfiguration();
 
 		if ((this.bufferVRAM == null) || (this.bufferVRAM.validate(gc) == VolatileImage.IMAGE_INCOMPATIBLE)) {
 			if (this.bufferVRAM != null) {
@@ -65,7 +64,8 @@ public class ChunkTerreno {
 		final Graphics2D gChunk = this.bufferVRAM.createGraphics();
 		try {
 			gChunk.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-			gChunk.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+			gChunk.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+					RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
 			final int ladoTile = terreno.ladoTile();
 			final int tilesPorFila = this.ladoPixeles / ladoTile;
@@ -74,6 +74,8 @@ public class ChunkTerreno {
 			final int startTileY = this.chunkY * tilesPorFila;
 
 			this.contieneAnimacion = false;
+
+			final int frameAgua = (Globales.animacion / 20) % 3;
 
 			for (int ty = 0; ty < tilesPorFila; ty++) {
 				for (int tx = 0; tx < tilesPorFila; tx++) {
@@ -88,36 +90,33 @@ public class ChunkTerreno {
 					final int localX = tx * ladoTile;
 					final int localY = ty * ladoTile;
 
-					// 1. Dibujar capa de fondo si existe (ej. costas o transiciones)
-					if (tile.getCodigoModeloFondo() != 0) {
-						final ModeloTile modeloFondo = ListaModeloTile.getModelo(tile.getCodigoModeloFondo());
-						if (modeloFondo != null) {
-							final int texFondo = modeloFondo.getCodTextura(tile.getMascaraBit(), tile.getVariacionPropia());
-							gChunk.drawImage(Textura.getTextura(texFondo), localX, localY, null);
-							if (modeloFondo.getCantFramesAnimacion() > 1) {
+					// 1. Dibujar capa de fondo si existe
+					if (tile.getTipoFondo() != null) {
+						final SetTerreno setFondo = Globales.GESTOR_TEXTURAS.getSetTerreno(tile.getTipoFondo());
+						if (setFondo != null) {
+							final BufferedImage imgFondo = setFondo.getSprite(tile.getMascaraBit(),
+									tile.getVariacionPropia(), frameAgua);
+							gChunk.drawImage(imgFondo, localX, localY, null);
+							if (setFondo.getCantFrames() > 1) {
 								this.contieneAnimacion = true;
 							}
 						}
 					}
 
 					// 2. Dibujar capa de terreno principal
-					final ModeloTile modelo = ListaModeloTile.getModelo(tile.getCodModelo());
-					if (modelo != null) {
-						final int texFinal = modelo.getCodTextura(tile.getMascaraBit(), tile.getVariacionPropia());
-						gChunk.drawImage(Textura.getTextura(texFinal), localX, localY, null);
-						if (modelo.getCantFramesAnimacion() > 1) {
+					final SetTerreno set = Globales.GESTOR_TEXTURAS.getSetTerreno(tile.getTipoTerreno());
+					if (set != null) {
+						final BufferedImage imgTile = set.getSprite(tile.getMascaraBit(), tile.getVariacionPropia(),
+								frameAgua);
+						gChunk.drawImage(imgTile, localX, localY, null);
+						if (set.getCantFrames() > 1) {
 							this.contieneAnimacion = true;
 						}
 					}
 				}
 			}
 
-			// Registra el frame en el que fue horneado
-			final ModeloTile modeloAgua = ListaModeloTile.getModelo(ListaModeloTile.COD_AGUA);
-			if ((modeloAgua != null) && modeloAgua.contieneAnimacion()) {
-				this.lastFrameAnimacion = modeloAgua.getAnimacion().getSpritePosicion();
-			}
-
+			this.lastFrameAnimacion = frameAgua;
 			this.sucio = false;
 
 		} finally {
@@ -129,25 +128,19 @@ public class ChunkTerreno {
 	 * Renderiza el chunk completo con 1 sola llamada a drawImage().
 	 */
 	public void pintar(final Graphics2D g, final Terreno terreno) {
-		// 1. Si contiene agua animada, verificar si cambió el fotograma global
 		if (this.contieneAnimacion) {
-			final ModeloTile modeloAgua = ListaModeloTile.getModelo(ListaModeloTile.COD_AGUA);
-			if ((modeloAgua != null) && modeloAgua.contieneAnimacion()) {
-				final int currentFrame = modeloAgua.getAnimacion().getSpritePosicion();
-				if (currentFrame != this.lastFrameAnimacion) {
-					this.sucio = true;
-				}
+			final int currentFrame = (Globales.animacion / 20) % 3;
+			if (currentFrame != this.lastFrameAnimacion) {
+				this.sucio = true;
 			}
 		}
 
 		final GraphicsConfiguration gc = g.getDeviceConfiguration();
 
-		// 2. Validar pérdida de contexto en VRAM o estado sucio
 		if (this.sucio || (this.bufferVRAM == null) || (this.bufferVRAM.validate(gc) != VolatileImage.IMAGE_OK)) {
 			this.bake(terreno);
 		}
 
-		// 3. Dibujar la imagen completa del chunk proyectada con la cámara
 		Render2D.dibujarImagenRefCamara(g, this.bufferVRAM, this.mundoX, this.mundoY);
 	}
 

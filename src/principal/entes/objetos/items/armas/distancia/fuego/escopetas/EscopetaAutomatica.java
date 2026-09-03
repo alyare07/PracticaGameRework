@@ -2,29 +2,22 @@ package principal.entes.objetos.items.armas.distancia.fuego.escopetas;
 
 import org.json.simple.JSONObject;
 
-import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.Objeto;
 
-/**
- * Escopeta de combate automática de tambor (Tier 3). Capacidad de 12 cartuchos,
- * cadencia rápida de 350 ms, recarga de 2.8 s y perdigones penetrantes.
- * 
- * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
- */
 public class EscopetaAutomatica extends Escopeta {
 
 	private static final long serialVersionUID = 681920391209381L;
 
 	public EscopetaAutomatica() {
-		super(ListaModelosItem.COD_ARMA_ESCOPETA_AUTOMATICA, 5, 240, true, 12, 2800, 350, 10, 18.0, 5.2);
+		super(Escopeta.COD_AUTOMATICA, 5, 240, true, 12, 2800, 350, 10, 18.0, 5.2);
 	}
 
 	public EscopetaAutomatica(final int x, final int y) {
-		super(x, y, ListaModelosItem.COD_ARMA_ESCOPETA_AUTOMATICA, 5, 240, true, 12, 2800, 350, 10, 18.0, 5.2);
+		super(x, y, Escopeta.COD_AUTOMATICA, 5, 240, true, 12, 2800, 350, 10, 18.0, 5.2);
 	}
 
 	public EscopetaAutomatica(final int x, final int y, final int balasCargador) {
-		super(x, y, ListaModelosItem.COD_ARMA_ESCOPETA_AUTOMATICA, 5, 240, true, 12, 2800, 350, 10, 18.0, 5.2);
+		super(x, y, Escopeta.COD_AUTOMATICA, 5, 240, true, 12, 2800, 350, 10, 18.0, 5.2);
 		this.balasCargador = Math.max(0, Math.min(this.capacidadCargador, balasCargador));
 	}
 

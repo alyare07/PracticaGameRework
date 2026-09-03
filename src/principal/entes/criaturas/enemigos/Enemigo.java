@@ -171,6 +171,9 @@ public abstract class Enemigo extends Criatura {
 			Criatura blancoMasCercano = null;
 			double menorDistSq = Double.MAX_VALUE;
 			final double rangoVision = this.areaDeteccionAncho / 2.0;
+			final double rangoVisionSq = rangoVision * rangoVision;
+			final double miCentroX = this.getCentroX();
+			final double miCentroY = this.getCentroY();
 
 			final int cantZonas = this.zonasOcupadas.size();
 			for (int z = 0; z < cantZonas; z++) {
@@ -184,15 +187,21 @@ public abstract class Enemigo extends Criatura {
 						continue;
 					}
 
-					if (CalculadorSigilo.puedeDetectar(this, candidata, rangoVision)) {
-						final double dx = this.getCentroX() - candidata.getCentroX();
-						final double dy = this.getCentroY() - candidata.getCentroY();
-						final double distSq = (dx * dx) + (dy * dy);
+					final double dx = miCentroX - candidata.getCentroX();
+					final double dy = miCentroY - candidata.getCentroY();
+					final double distSq = (dx * dx) + (dy * dy);
 
-						if (distSq < menorDistSq) {
-							menorDistSq = distSq;
-							blancoMasCercano = candidata;
-						}
+					// PODA TEMPRANA: Si ya encontramos a alguien más cerca, o si está fuera del
+					// cono visual,
+					// descartamos de inmediato sin evaluar sigilo ni luces
+					if ((distSq >= menorDistSq) || (distSq > rangoVisionSq)) {
+						continue;
+					}
+
+					// Solo si es el más cercano hasta ahora evaluamos iluminación
+					if (CalculadorSigilo.puedeDetectar(distSq, candidata, rangoVision)) {
+						menorDistSq = distSq;
+						blancoMasCercano = candidata;
 					}
 				}
 			}
@@ -306,10 +315,11 @@ public abstract class Enemigo extends Criatura {
 			d.aumentarEntidadesPendientes();
 		}
 
-		final double centroX = this.getPosicionX() + (this.ANCHO / 2.0);
-		final double centroY = this.getPosicionY() + (this.ALTO / 2.0);
+		// POR (Anclaje exacto en los pies para evitar solape de 2 px):
+		final double pieX = this.getPosicionX() + (this.ANCHO / 2.0);
+		final double pieY = (this.getPosicionY() + this.ALTO) - 3.0; // Centro vertical de la caja de pies
 
-		final NodoD n = d.getNodoCercano((int) centroX, (int) centroY);
+		final NodoD n = d.getNodoCercano((int) pieX, (int) pieY);
 
 		if (this.ant != n) {
 			this.ant = n;
@@ -322,13 +332,14 @@ public abstract class Enemigo extends Criatura {
 
 		final int readBuf = d.getBufferLecturaIndex();
 
-		final double offsetManadaX = ((this.hashCode() % 9) - 4.0);
-		final double offsetManadaY = (((this.hashCode() / 9) % 9) - 4.0);
+		final double offsetManadaX = ((this.hashCode() % 9) - 4.0) * 0.3; // Offset atenuado para no empujar a paredes
+		final double offsetManadaY = (((this.hashCode() / 9) % 9) - 4.0) * 0.3;
 
+		// El objetivo es alinear los pies del enemigo con el centro del nodo
 		double targetX = n.getXMundo() + (n.getAncho() / 2.0) + offsetManadaX;
 		double targetY = n.getYMundo() + (n.getAlto() / 2.0) + offsetManadaY;
 
-		final double distAlNodoActual = Math.hypot(targetX - centroX, targetY - centroY);
+		final double distAlNodoActual = Math.hypot(targetX - pieX, targetY - pieY);
 		final NodoD siguienteNodo = n.getNodoProcedente(readBuf);
 
 		if ((siguienteNodo != null) && (distAlNodoActual < Criatura.RADIO_ANTICIPACION_ESQUINA)) {
@@ -340,8 +351,8 @@ public abstract class Enemigo extends Criatura {
 			targetY = targetY + ((sigY - targetY) * t);
 		}
 
-		final double diffX = targetX - centroX;
-		final double diffY = targetY - centroY;
+		final double diffX = targetX - pieX;
+		final double diffY = targetY - pieY;
 		final double distanciaTotal = Math.hypot(diffX, diffY);
 
 		if (distanciaTotal > 0.001) {
@@ -352,10 +363,20 @@ public abstract class Enemigo extends Criatura {
 			this.velActualY += (dirDeseadaY - this.velActualY) * this.agilidadGiro;
 
 			if (Math.abs(this.velActualX) > 0.001) {
-				this.modificarPosicionX(this.velActualX);
+				if ((this.mundo != null) && !this.mundo
+						.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(this.velActualX, 0.0))) {
+					this.modificarPosicionX(this.velActualX);
+				} else {
+					this.velActualX = 0.0;
+				}
 			}
 			if (Math.abs(this.velActualY) > 0.001) {
-				this.modificarPosicionY(this.velActualY);
+				if ((this.mundo != null) && !this.mundo
+						.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(0.0, this.velActualY))) {
+					this.modificarPosicionY(this.velActualY);
+				} else {
+					this.velActualY = 0.0;
+				}
 			}
 
 			if (Math.abs(this.velActualX) > Math.abs(this.velActualY)) {

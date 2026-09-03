@@ -6,7 +6,6 @@ import java.awt.Graphics2D;
 import principal.animaciones.criaturas.AnimacionesBandido;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Jugador;
-import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.mapa.Mundo;
 import principal.utilidades.Globales;
@@ -20,7 +19,7 @@ public class BandidoPistolero extends Bandido {
 	public BandidoPistolero(final double x, final double y, final double vida, final double vidaMaxima,
 			final Mundo mundo) {
 		super(x, y, vida, vidaMaxima, mundo);
-		this.pistola = new Pistola(ListaModelosItem.COD_EQUIPABLE_ARMA);
+		this.pistola = new Pistola(Pistola.COD_PISTOLA);
 		this.areaDeteccionAncho = this.rangoDisparo * 2;
 		this.areaDeteccionAlto = this.rangoDisparo * 2;
 	}
@@ -59,10 +58,6 @@ public class BandidoPistolero extends Bandido {
 		}
 	}
 
-	/**
-	 * Verifica si hay línea de tiro directa considerando distancia, terreno y
-	 * obstáculos físicos (árboles/muros).
-	 */
 	private boolean tieneLineaDeTiroLimpia(final Criatura objetivo) {
 		if ((objetivo == null) || objetivo.estaEliminado() || (this.mundo == null)) {
 			return false;
@@ -81,7 +76,6 @@ public class BandidoPistolero extends Bandido {
 			return false;
 		}
 
-		// Raycasting híbrido completo en el Mundo
 		return this.mundo.hayLineaDeTiroLimpia(origenX, origenY, destX, destY);
 	}
 
@@ -174,7 +168,7 @@ public class BandidoPistolero extends Bandido {
 	}
 
 	@Override
-	protected String obtenerClaveAnimacionActiva() {
+	protected int obtenerClaveAnimacionActiva() {
 		return this.estaEstadoCaminando() ? AnimacionesBandido.PISTOLA_CAMINANDO : AnimacionesBandido.PISTOLA_ESTANDAR;
 	}
 

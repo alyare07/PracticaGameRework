@@ -104,16 +104,22 @@ public class GestorEstados {
 		this.estadoActual = this.estados[2];
 	}
 
-	public void editorMapa(final int cantAncho, final int cantAlto, final int idModeloTile) {
+	public void editorMapa(final int cantAncho, final int cantAlto, final principal.recursos.TipoTerreno tipoInicial) {
 		Globales.estadoJuego = false;
-		this.estados[2] = new EditorMapa(Constantes.LADO_TILE, cantAncho, cantAlto, idModeloTile, this);
+		this.estados[2] = new EditorMapa(Constantes.LADO_TILE, cantAncho, cantAlto, tipoInicial, this);
 		this.estadoActual = this.estados[2];
 	}
 
+	// ESTE ES EL QUE FALTABA PARA ABRIR MAPAS EXISTENTES:
 	public void editorMapa(final Terreno mapa) {
 		Globales.estadoJuego = false;
 		this.estados[2] = new EditorMapa(mapa, this);
 		this.estadoActual = this.estados[2];
+	}
+
+	@Deprecated
+	public void editorMapa(final int cantAncho, final int cantAlto, final int idModeloTile) {
+		this.editorMapa(cantAncho, cantAlto, principal.recursos.TipoTerreno.TIERRA);
 	}
 
 	public void editorMapaNuevoMenu() {

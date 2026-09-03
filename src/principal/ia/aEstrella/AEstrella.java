@@ -254,6 +254,31 @@ public class AEstrella {
 		}
 	}
 
+	/**
+	 * Recalcula en O(W x H) la holgura espacial (Clearance) de cada celda ante
+	 * cambios dinámicos en el mapa (muros construidos o destruidos).
+	 */
+	public void calcularMatrizClearance() {
+		for (int y = this.altoMatriz - 1; y >= 0; y--) {
+			for (int x = this.anchoMatriz - 1; x >= 0; x--) {
+				final NodoA n = this.nodos[x][y];
+
+				if (n.isInmodificable() || this.colisiona(n)) {
+					n.setClearance((byte) 0);
+				} else if ((x == (this.anchoMatriz - 1)) || (y == (this.altoMatriz - 1))) {
+					n.setClearance((byte) 1);
+				} else {
+					final int der = this.nodos[x + 1][y].getClearance();
+					final int aba = this.nodos[x][y + 1].getClearance();
+					final int diag = this.nodos[x + 1][y + 1].getClearance();
+
+					final int minVecinos = Math.min(der, Math.min(aba, diag));
+					n.setClearance((byte) Math.min(15, minVecinos + 1));
+				}
+			}
+		}
+	}
+
 	private boolean verificarSiEsPermaSolido(final int xMatriz, final int yMatriz) {
 		final int xPx = xMatriz * this.dimensionNodo.width;
 		final int yPx = yMatriz * this.dimensionNodo.height;

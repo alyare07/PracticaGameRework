@@ -54,6 +54,15 @@ public class ProyectilGeneral extends Proyectil implements Serializable, AccionE
 		super.pintar(g);
 	}
 
+	@Override
+	public void reiniciar(final double damage, final double velocidad, final boolean penetrante, final double alcance,
+			final Mundo mundo, final double xOrigen, final double yOrigen, final double xDestino, final double yDestino,
+			final int ancho, final int alto, final Ente causante) {
+		super.reiniciar(damage, velocidad, penetrante, alcance, mundo, xOrigen, yOrigen, xDestino, yDestino, ancho,
+				alto, causante);
+		this.perforados.clear(); // Limpia entidades ya impactadas en el disparo anterior
+	}
+
 	protected void verificarImpacto() {
 		if (this.mundo == null) {
 			return;

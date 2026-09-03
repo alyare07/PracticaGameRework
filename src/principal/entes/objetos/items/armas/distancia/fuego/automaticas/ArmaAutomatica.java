@@ -6,8 +6,8 @@ import org.json.simple.JSONObject;
 
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
+import principal.entes.criaturas.Jugador;
 import principal.entes.objetos.items.armas.Arma;
-import principal.entes.proyectil.ProyectilBala;
 import principal.mapa.Mundo;
 import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
@@ -16,6 +16,10 @@ import principal.utilidades.audio.sonido.IDSonido;
 public abstract class ArmaAutomatica extends Arma {
 
 	private static final long serialVersionUID = 781920391209381L;
+
+	public static final String COD_SUBFUSIL = "Subfusil Ligero";
+	public static final String COD_RIFLE = "Rifle de Asalto";
+	public static final String COD_AMETRALLADORA = "Ametralladora Pesada";
 
 	protected final double dispersionRad;
 	protected final double velocidadBala;
@@ -46,20 +50,28 @@ public abstract class ArmaAutomatica extends Arma {
 			final Mundo escenario, final Criatura causante) {
 
 		if (this.consumirDisparo(causante)) {
-			if (escenario != null) {
-				final double dx = xDestino - xOrigen;
-				final double dy = yDestino - yOrigen;
-				final double anguloCentral = Math.atan2(dy, dx);
+			final double dx = xDestino - xOrigen;
+			final double dy = yDestino - yOrigen;
+			final double dist = Math.hypot(dx, dy);
 
+			if (escenario != null) {
+				final double spawnX = (dist > 0.001) ? xOrigen + ((dx / dist) * 12.0) : xOrigen;
+				final double spawnY = (dist > 0.001) ? yOrigen + ((dy / dist) * 12.0) : yOrigen;
+
+				final double anguloCentral = Math.atan2(dy, dx);
 				final double desviacion = (Math.random() - 0.5) * 2.0 * this.dispersionRad;
 				final double anguloFinal = anguloCentral + desviacion;
 
-				final double targetX = xOrigen + (Math.cos(anguloFinal) * 1000.0);
-				final double targetY = yOrigen + (Math.sin(anguloFinal) * 1000.0);
+				final double targetX = spawnX + (Math.cos(anguloFinal) * 1000.0);
+				final double targetY = spawnY + (Math.sin(anguloFinal) * 1000.0);
 
-				escenario.crearProyectil(
-						new ProyectilBala(this.damage, this.velocidadBala, this.penetrante, this.alcance, escenario,
-								xOrigen, yOrigen, targetX, targetY, this.tamanoBala, this.tamanoBala, causante));
+				escenario.getGestorProyectiles().dispararBala(this.damage, this.velocidadBala, this.penetrante,
+						this.alcance, escenario, spawnX, spawnY, targetX, targetY, this.tamanoBala, this.tamanoBala,
+						causante);
+			}
+
+			if ((causante instanceof Jugador) && (Globales.CAMARA != null) && (dist > 0.001)) {
+				Globales.CAMARA.aplicarRetroceso(-dx, -dy, 1.8, 75.0);
 			}
 
 			if ((Globales.CAMARA != null) && (Globales.CAMARA.getEntidadEnfocada() != null)) {
@@ -99,19 +111,19 @@ public abstract class ArmaAutomatica extends Arma {
 	@Override
 	protected JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", this.getPosicionXInt());
-		json.put("y", this.getPosicionYInt());
-		json.put("codModelo", this.CODIGO_MODELO);
-		json.put("balasCargador", this.balasCargador);
-		json.put("capacidadCargador", this.capacidadCargador);
+		json.put("x", Integer.valueOf(this.getPosicionXInt()));
+		json.put("y", Integer.valueOf(this.getPosicionYInt()));
+		json.put("codModelo", this.codigoModelo);
+		json.put("balasCargador", Integer.valueOf(this.balasCargador));
+		json.put("capacidadCargador", Integer.valueOf(this.capacidadCargador));
 		return json;
 	}
 
 	@Override
 	protected void rellenarInfo(final ArrayList<String> listaInfo) {
+		listaInfo.clear();
 		listaInfo.add("Daño por bala: " + this.damage + " pts.");
-		listaInfo.add(
-				"Cargador: " + this.getMunicion().getCantidad() + "/" + this.getMunicion().getLimite() + " balas.");
+		listaInfo.add("Cargador: " + this.balasCargador + "/" + this.capacidadCargador + " balas.");
 		listaInfo.add("Cadencia: " + this.cadenciaMs + " ms.");
 		listaInfo.add("Tiempo de recarga: " + (this.tiempoRecargaMs / 1000.0) + " s.");
 		listaInfo.add("Dispersión: ±" + String.format("%.1f", Math.toDegrees(this.dispersionRad)) + "°.");

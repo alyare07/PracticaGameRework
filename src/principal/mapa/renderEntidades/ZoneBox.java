@@ -353,6 +353,26 @@ public class ZoneBox extends Ente {
 		return false;
 	}
 
+	// Comprobación de solapamiento con la ZoneBox en O(1) con primitivos
+	public boolean intersectaZona(final int x, final int y, final int w, final int h) {
+		return this.AREA.intersects(x, y, w, h);
+	}
+
+	// Sobrecarga de alto rendimiento para criaturas
+	public void paraCadaCriatura(final int x, final int y, final int w, final int h,
+			final AccionEntidad<Criatura> accion) {
+		if (!this.intersectaZona(x, y, w, h)) {
+			return;
+		}
+		final int total = this.CRIATURAS.size();
+		for (int i = 0; i < total; i++) {
+			final Criatura c = this.CRIATURAS.get(i);
+			if (c.getArea().intersects(x, y, w, h)) {
+				accion.ejecutar(c);
+			}
+		}
+	}
+
 	public boolean intersectaZona(final Shape area) {
 		return (area != null) && area.intersects(this.AREA);
 	}

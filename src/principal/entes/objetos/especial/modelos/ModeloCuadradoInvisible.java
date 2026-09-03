@@ -3,7 +3,7 @@ package principal.entes.objetos.especial.modelos;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 
-import principal.utilidades.Textura;
+import principal.utilidades.Globales;
 
 public class ModeloCuadradoInvisible {
 	private final int lado;
@@ -25,11 +25,10 @@ public class ModeloCuadradoInvisible {
 	}
 
 	public BufferedImage getImagen() {
-		return Textura.getTextura(Textura.TEXTURA_TRANSPARENTE);
+		return Globales.GESTOR_TEXTURAS.getTexturaTransparente();
 	}
 
 	public Color getColor() {
 		return this.color;
 	}
-
 }

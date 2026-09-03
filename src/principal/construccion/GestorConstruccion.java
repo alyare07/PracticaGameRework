@@ -11,7 +11,6 @@ import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
-import principal.utilidades.Textura;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
@@ -36,7 +35,8 @@ public class GestorConstruccion {
 			return;
 		}
 
-		// 1. Proyección de ratón a coordenadas continuas y Snapping a la grilla de 16x16
+		// 1. Proyección de ratón a coordenadas continuas y Snapping a la grilla de
+		// 16x16
 		final Point pMouse = raton.getPuntoPosicionEscaladoConDesplazamientoCamara();
 		final int snapX = Math.floorDiv(pMouse.x, Constantes.LADO_TILE) * Constantes.LADO_TILE;
 		final int snapY = Math.floorDiv(pMouse.y, Constantes.LADO_TILE) * Constantes.LADO_TILE;
@@ -78,7 +78,7 @@ public class GestorConstruccion {
 			mundo.meterEntidad(nuevaEstructura);
 
 			// Actualiza el grafo de navegación de los enemigos
-			mundo.forzarActDijkstra();
+			mundo.notificarModificacionEstructura();
 
 			GestorSonido.reproducirEnPosicion(IDSonido.GOLPE_1, snapX, snapY,
 					Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
@@ -96,9 +96,7 @@ public class GestorConstruccion {
 		final int w = this.areaPreview.width;
 		final int h = this.areaPreview.height;
 
-		// 1. Textura translúcida de previsualización
-		Render2D.dibujarImagenConTransparenciaRefCamara(g,
-				Textura.getTextura(this.estructuraSeleccionada.getCodTextura()), x, y, 0.60f);
+		Render2D.dibujarImagenConTransparenciaRefCamara(g, this.estructuraSeleccionada.getTextura(), x, y, 0.60f);
 
 		// 2. Borde de validación (Verde = Válido / Rojo = Bloqueado)
 		final Color colorBorde = this.posicionValida ? new Color(60, 255, 60, 200) : new Color(255, 60, 60, 200);

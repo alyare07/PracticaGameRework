@@ -9,7 +9,6 @@ import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.pociones.PocionVidaMenor;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
-import principal.utilidades.Textura;
 
 public class EstructuraConstruible extends Objeto {
 
@@ -41,19 +40,19 @@ public class EstructuraConstruible extends Objeto {
 
 	public void destruir() {
 		if (this.mundo != null) {
-			// Devuelve el 50% de los materiales al destruirse
 			final int dropCant = Math.max(1, this.tipo.getCantidadMaterialRequerido() / 2);
 			this.mundo.meterEntidad(new PocionVidaMenor(this.getCentroX() - 4, this.getCentroY() - 4, dropCant));
 			Globales.GESTOR_PARTICULAS.emitirPolvoPaso(this.getCentroX(), this.getCentroY(), 15);
-			this.mundo.forzarActDijkstra();
+			this.mundo.notificarModificacionEstructura();
 		}
 		this.eliminar();
 	}
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		if (this.getTextura() != null) {
-			Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(), this.getPosicionYInt());
+		final BufferedImage img = this.getTextura();
+		if (img != null) {
+			Render2D.dibujarImagenRefCamara(g, img, this.getPosicionXInt(), this.getPosicionYInt());
 		}
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
@@ -63,7 +62,7 @@ public class EstructuraConstruible extends Objeto {
 
 	@Override
 	public BufferedImage getTextura() {
-		return (this.tipo != null) ? Textura.getTextura(this.tipo.getCodTextura()) : null;
+		return (this.tipo != null) ? this.tipo.getTextura() : Globales.GESTOR_TEXTURAS.getTexturaError();
 	}
 
 	@Override

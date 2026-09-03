@@ -8,10 +8,7 @@ import java.util.Random;
 import org.json.simple.JSONObject;
 
 import principal.entes.criaturas.enemigos.bandido.Bandido;
-import principal.entes.criaturas.enemigos.bandido.BandidoGarrote;
-import principal.entes.criaturas.enemigos.bandido.BandidoGranadero;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
-import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.items.armas.distancia.fuego.automaticas.AmetralladoraPesada;
 import principal.entes.objetos.items.armas.distancia.fuego.automaticas.RifleAsalto;
@@ -19,6 +16,8 @@ import principal.entes.objetos.items.armas.distancia.fuego.automaticas.SubfusilL
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaAutomatica;
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaRecortada;
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaTactica;
+import principal.entes.objetos.items.equipamiento.PiezaEquipo;
+import principal.entes.objetos.items.equipamiento.TipoEquipo;
 import principal.entes.objetos.items.herramientas.Herramienta;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
 import principal.entes.objetos.items.municiones.CajaMunicion;
@@ -32,8 +31,8 @@ import principal.mapa.escenario.tps.ZonaTP;
 import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
+import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
-import principal.utilidades.Textura;
 
 public class Mapa1 extends Mapa {
 	public static final String NOMBRE_MAPA = "Mapa1";
@@ -56,7 +55,7 @@ public class Mapa1 extends Mapa {
 
 		gc.setDetalleCarga("Generando mundo " + EXTERIOR);
 		this.MUNDOS.put(EXTERIOR,
-				new Mundo(this.cargarEscenario(gc, porcentajeCargaEscenario, new File("escenario1.json")),
+				new Mundo(this.cargarEscenario(gc, porcentajeCargaEscenario, new File("mundos/escenario1.json")),
 						new Point(697, 437), gc, porcentajeCargaMundo));
 	}
 
@@ -78,23 +77,23 @@ public class Mapa1 extends Mapa {
 		jg.meterEvento(new EventoJugadorZonaTP(zonaTP2, jg, true));
 
 		// Enemigos iniciales
-		this.mundoActual.meterEntidad(new BandidoGarrote(890, 220, 50, 50, this.mundoActual));
-		this.mundoActual.meterEntidad(new BandidoGarrote(897, 220, 75, 75, this.mundoActual));
-		this.mundoActual.meterEntidad(new BandidoGarrote(876, 220, 125, 125, this.mundoActual));
-		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 1500, 1500, this.mundoActual));
-		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 250, 250, this.mundoActual));
+//		this.mundoActual.meterEntidad(new BandidoGarrote(890, 220, 50, 50, this.mundoActual));
+//		this.mundoActual.meterEntidad(new BandidoGarrote(897, 220, 75, 75, this.mundoActual));
+//		this.mundoActual.meterEntidad(new BandidoGarrote(876, 220, 125, 125, this.mundoActual));
+//		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 1500, 1500, this.mundoActual));
+//		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 250, 250, this.mundoActual));
 
 		// Recursos Cosechables de prueba cerca del spawn
-		this.mundoActual.meterEntidad(new ArbolCosechable(720, 420, Textura.TEXTURA_x32_ARBOL_1));
-		this.mundoActual.meterEntidad(new ArbolCosechable(750, 400, Textura.TEXTURA_x32_ARBOL_2));
-		this.mundoActual.meterEntidad(new RocaCosechable(710, 460, Textura.TEXTURA_x16_MURO_PIEDRA_NEGRA));
+		this.mundoActual.meterEntidad(new ArbolCosechable(720, 420, ClaveHoja.ARBOLES_32, 0));
+		this.mundoActual.meterEntidad(new ArbolCosechable(750, 400, ClaveHoja.ARBOLES_32, 1));
+		this.mundoActual.meterEntidad(new RocaCosechable(710, 460, ClaveHoja.DUNGEON_16, 813));
 
 		// Cofre con herramientas y armamento
 		final ArbolCofre arbolcofre1 = new ArbolCofre(767, 424);
-		arbolcofre1.getInventario().agregarItem(
-				new Herramienta(ListaModelosItem.COD_HERRAMIENTA_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
-		arbolcofre1.getInventario().agregarItem(
-				new Herramienta(ListaModelosItem.COD_HERRAMIENTA_PICO, 6, 14, 400, TipoHerramienta.PICO, 30.0));
+		arbolcofre1.getInventario()
+				.agregarItem(new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
+		arbolcofre1.getInventario()
+				.agregarItem(new Herramienta(Herramienta.COD_PICO, 6, 14, 400, TipoHerramienta.PICO, 30.0));
 		arbolcofre1.getInventario().agregarItem(new EscopetaAutomatica());
 		arbolcofre1.getInventario().agregarItem(new EscopetaRecortada());
 		arbolcofre1.getInventario().agregarItem(new EscopetaTactica());
@@ -105,33 +104,21 @@ public class Mapa1 extends Mapa {
 		arbolcofre1.getInventario().agregarItem(CajaMunicion.crear762mm(0, 0, 100));
 		arbolcofre1.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 100));
 		arbolcofre1.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 100));
+
+		arbolcofre1.getInventario()
+				.agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5));
+		arbolcofre1.getInventario()
+				.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15));
+		arbolcofre1.getInventario()
+				.agregarItem(new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3));
+		arbolcofre1.getInventario()
+				.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ANILLO_ORO, TipoEquipo.ANILLO, 2, 2, 2, 0));
+
 		this.mundoActual.meterEntidad(arbolcofre1);
 		this.generarEnemigosParaPrueba(5);
 		Globales.JUGADOR.setModoDios(true);
 
-		arbolcofre1.getInventario()
-				.agregarItem(new principal.entes.objetos.items.equipamiento.PiezaEquipo(
-						ListaModelosItem.COD_EQUIPABLE_CASCO_LIGERA,
-						principal.entes.objetos.items.equipamiento.TipoEquipo.CASCO, 0, 0, 3, 5)); // Casco: +3 INT, +5
-																									// DEF
-
-		arbolcofre1.getInventario()
-				.agregarItem(new principal.entes.objetos.items.equipamiento.PiezaEquipo(
-						ListaModelosItem.COD_EQUIPABLE_ARMADURA_LIGERA,
-						principal.entes.objetos.items.equipamiento.TipoEquipo.TORSO, 4, 0, 0, 15)); // Armadura: +4 FUE,
-																									// +15 DEF
-
-		arbolcofre1.getInventario()
-				.agregarItem(new principal.entes.objetos.items.equipamiento.PiezaEquipo(
-						ListaModelosItem.COD_PORTABLE_BOTAS_CUERO,
-						principal.entes.objetos.items.equipamiento.TipoEquipo.BOTAS, 0, 6, 0, 3)); // Botas: +6 AGI, +3
-																									// DEF
-
-		arbolcofre1.getInventario()
-				.agregarItem(new principal.entes.objetos.items.equipamiento.PiezaEquipo(
-						ListaModelosItem.COD_EQUIPABLE_ANILLO_ORO,
-						principal.entes.objetos.items.equipamiento.TipoEquipo.ANILLO, 2, 2, 2, 0)); // Anillo Oro: +2 a
-																									// todo
+		this.mundoActual.notificarModificacionEstructura();
 	}
 
 	public void generarEnemigosParaPrueba(final int cantidadDeseada) {

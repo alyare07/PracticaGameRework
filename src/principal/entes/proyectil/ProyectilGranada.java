@@ -3,29 +3,22 @@ package principal.entes.proyectil;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Ellipse2D;
-import java.awt.image.BufferedImage;
 
 import org.json.simple.JSONObject;
 
 import principal.animaciones.Animacion;
 import principal.entes.Ente;
-import principal.entes.modelos.item.ListaModelosItem;
-import principal.entes.modelos.item.ModeloGranada;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.arrojadizos.granadas.Granada;
 import principal.mapa.Mundo;
+import principal.recursos.ClaveHoja;
+import principal.recursos.TexturaItem;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 import principal.utilidades.Render2D;
-import principal.utilidades.Textura;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
-/**
- * Granada con física parabólica Bézier y daño de área radial Zero-GC.
- * 
- * @version 2.0 (Vanilla Java 8 - Zero-GC)
- */
 public class ProyectilGranada extends ProyectilGeneral {
 
 	private static final long serialVersionUID = 9083899449947637545L;
@@ -49,16 +42,8 @@ public class ProyectilGranada extends ProyectilGeneral {
 				yDestino - (granada.getDiamentroAreaCaida() / 2.0), granada.getDiamentroAreaCaida(),
 				granada.getDiamentroAreaCaida());
 
-		final ModeloGranada modelo = (ModeloGranada) ListaModelosItem
-				.getModeloConsumible(this.GRANADA.getCodigoModelo());
-
-		final BufferedImage imgCompleta = modelo.getTexturaExplosion();
-		final BufferedImage tiraExplosion = (imgCompleta.getHeight() > 50)
-				? imgCompleta.getSubimage(0, 0, Math.min(imgCompleta.getWidth(), 500), 50)
-				: imgCompleta;
-
-		this.ANIMACION_EXPLOSION = new Animacion(new HojaSprite(tiraExplosion, 50, false), false,
-				TIEMPO_MS_FRAMES_EXPLOSION);
+		final HojaSprite hojaExplosion = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.EXPLOSION_GRANADA);
+		this.ANIMACION_EXPLOSION = new Animacion(hojaExplosion, false, TIEMPO_MS_FRAMES_EXPLOSION);
 
 		this.generarTrayectoria();
 	}
@@ -83,16 +68,8 @@ public class ProyectilGranada extends ProyectilGeneral {
 		};
 
 		this.AREA_DESTINO = areaDestino;
-		final ModeloGranada modelo = (ModeloGranada) ListaModelosItem
-				.getModeloConsumible(this.GRANADA.getCodigoModelo());
-
-		final BufferedImage imgCompleta = modelo.getTexturaExplosion();
-		final BufferedImage tiraExplosion = (imgCompleta.getHeight() > 50)
-				? imgCompleta.getSubimage(0, 0, Math.min(imgCompleta.getWidth(), 500), 50)
-				: imgCompleta;
-
-		this.ANIMACION_EXPLOSION = new Animacion(new HojaSprite(tiraExplosion, 50, false), false,
-				TIEMPO_MS_FRAMES_EXPLOSION);
+		final HojaSprite hojaExplosion = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.EXPLOSION_GRANADA);
+		this.ANIMACION_EXPLOSION = new Animacion(hojaExplosion, false, TIEMPO_MS_FRAMES_EXPLOSION);
 
 		this.generarTrayectoria();
 	}
@@ -119,7 +96,7 @@ public class ProyectilGranada extends ProyectilGeneral {
 		if (this.realizoImpacto) {
 			this.ANIMACION_EXPLOSION.pintar(g, this.AREA_DESTINO.getX(), this.AREA_DESTINO.getY() - 20, true);
 		} else {
-			Render2D.dibujarImagenRefCamara(g, Textura.getTextura(Textura.TEXTURA_X10_GRANADA_1), (int) this.x,
+			Render2D.dibujarImagenRefCamara(g, Globales.GESTOR_TEXTURAS.get(TexturaItem.GRANADA_T1_MAPA), (int) this.x,
 					(int) this.y);
 			Render2D.dibujarFiguraEllipseRefCamara(g, this.AREA_DESTINO.getBounds(), Color.CYAN);
 			super.pintar(g);
@@ -146,7 +123,6 @@ public class ProyectilGranada extends ProyectilGeneral {
 	protected void verificarImpacto() {
 		if (!this.realizoImpacto && (this.trayectoria != null) && (this.posTrayectoria >= this.trayectoria[0].length)) {
 			if (this.mundo != null) {
-				// Daño de área radial pasando 'this' como visitor (Zero-GC)
 				this.mundo.paraCadaCriaturaEn(this.AREA_DESTINO, true, this);
 			}
 

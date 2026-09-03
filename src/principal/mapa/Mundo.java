@@ -27,6 +27,7 @@ import principal.entes.objetos.Objeto;
 import principal.entes.objetos.cofres.Cofre;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.particulas.Particula;
+import principal.entes.proyectil.GestorProyectiles;
 import principal.entes.proyectil.Proyectil;
 import principal.entes.proyectil.ProyectilGeneral;
 import principal.ia.aEstrella.AEstrella;
@@ -59,7 +60,7 @@ public class Mundo {
 
 	protected final Set<Ente> ENTES_REGISTRADOS = Collections.newSetFromMap(new IdentityHashMap<Ente, Boolean>());
 	protected final ArrayList<Particula> PARTICULAS = new ArrayList<Particula>();
-	protected final ArrayList<Proyectil> PROYECTILES = new ArrayList<Proyectil>();
+	protected final GestorProyectiles GESTOR_PROYECTILES = new GestorProyectiles();
 
 	protected final DijkstraRework dijkstra;
 	protected final AEstrella AESTRELLA_X12X20;
@@ -85,7 +86,7 @@ public class Mundo {
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
 		this.dijkstra.actualizar(new Point(this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getX(),
 				this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getY()));
-		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(12, 20));
+		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
 	}
 
 	public Mundo(final Escenario esc, final Point comienzo, final GestorCarga gc, final int porcentajeCarga) {
@@ -121,14 +122,14 @@ public class Mundo {
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
 		this.dijkstra.actualizar(new Point(this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getX(),
 				this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getY()));
-		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(12, 20));
+		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
 	}
 
 	public Mundo(final Terreno terrenoSoloParaEDITOR) {
 		this.ESCENARIO = new Escenario(terrenoSoloParaEDITOR, "[]", "[]", "[]", "[]");
 		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(new Point(), CLAVE_PUNTO_SPAWN_COMIENZO));
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
-		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(12, 20));
+		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
 		this.generarZonas();
 	}
 
@@ -386,6 +387,16 @@ public class Mundo {
 		return true;
 	}
 
+	public void notificarModificacionEstructura() {
+		if (this.dijkstra != null) {
+			this.dijkstra.calcularMatrizClearance();
+			this.forzarActDijkstra();
+		}
+		if (this.AESTRELLA_X12X20 != null) {
+			this.AESTRELLA_X12X20.calcularMatrizClearance();
+		}
+	}
+
 	// =========================================================================
 	// === MÉTODOS VISITOR Y ACCIONES ESPACIALES
 	// =========================================================================
@@ -488,7 +499,7 @@ public class Mundo {
 	}
 
 	public boolean colisionaConZonaUObjetoSolido(final Shape area) {
-		return this.getTerreno().intersectaTileSolido(area) || this.colisionaConObjetoSolido(area);
+		return this.getTerreno().intersectaAlgoSolido(area) || this.colisionaConObjetoSolido(area);
 	}
 
 	public boolean colisionaConObjetoSolido(final Shape area) {
@@ -518,7 +529,7 @@ public class Mundo {
 		if (area == null) {
 			return false;
 		}
-		if (this.getTerreno().intersectaTileSolido(area)) {
+		if (this.getTerreno().intersectaAlgoSolido(area)) {
 			return true;
 		}
 		return this.colisionaConObjetoSolido(area);
@@ -631,12 +642,8 @@ public class Mundo {
 		final ArrayList<Ente> lista = new ArrayList<>();
 		this.paraCadaEnteEn(area, tenerEnCuentaJugador, lista::add);
 
-		for (int i = 0; i < this.PROYECTILES.size(); i++) {
-			final Proyectil p = this.PROYECTILES.get(i);
-			if (area.intersects(p.getArea())) {
-				lista.add(p);
-			}
-		}
+		// REEMPLAZAR el bucle de PROYECTILES por:
+		this.GESTOR_PROYECTILES.agregarIntersecciones(area.getBounds(), lista);
 		return lista;
 	}
 
@@ -664,26 +671,28 @@ public class Mundo {
 		}
 	}
 
-	private void actualizarProyectiles() {
-		for (int i = this.PROYECTILES.size() - 1; i >= 0; i--) {
-			final Proyectil p = this.PROYECTILES.get(i);
-			p.actualizar();
-			if (p.estaEliminado()) {
-				this.PROYECTILES.remove(i);
-			}
-		}
-	}
-
 	private void pintarParticulas(final Graphics2D g) {
 		for (int i = 0; i < this.PARTICULAS.size(); i++) {
 			this.PARTICULAS.get(i).pintar(g);
 		}
 	}
 
+	private void actualizarProyectiles() {
+		this.GESTOR_PROYECTILES.actualizar();
+	}
+
 	private void pintarProyectiles(final Graphics2D g) {
-		for (int i = 0; i < this.PROYECTILES.size(); i++) {
-			this.PROYECTILES.get(i).pintar(g);
+		this.GESTOR_PROYECTILES.pintar(g);
+	}
+
+	public void crearProyectil(final Proyectil proyectil) {
+		if (proyectil != null) {
+			this.GESTOR_PROYECTILES.agregarProyectil(proyectil);
 		}
+	}
+
+	public GestorProyectiles getGestorProyectiles() {
+		return this.GESTOR_PROYECTILES;
 	}
 
 	public void agregarParticula(final Particula p) {
@@ -695,14 +704,8 @@ public class Mundo {
 	public void crearProyectil(final int damage, final double velocidad, final boolean penetrante, final int alcance,
 			final double x, final double y, final int ancho, final int alto, final Direccion direccion,
 			final Criatura causante) {
-		this.PROYECTILES.add(new ProyectilGeneral(damage, velocidad, penetrante, alcance, this, x, y, ancho, alto,
-				direccion, causante));
-	}
-
-	public void crearProyectil(final Proyectil proyectil) {
-		if (proyectil != null) {
-			this.PROYECTILES.add(proyectil);
-		}
+		this.GESTOR_PROYECTILES.agregarProyectil((new ProyectilGeneral(damage, velocidad, penetrante, alcance, this, x,
+				y, ancho, alto, direccion, causante)));
 	}
 
 	private static final Font FUENTE_DEBUG_NODOS = new Font(Font.SANS_SERIF, Font.PLAIN, 6);
@@ -780,6 +783,38 @@ public class Mundo {
 		if (!this.forzarUnaActualizacionDijkstra) {
 			this.forzarUnaActualizacionDijkstra = true;
 		}
+	}
+
+	public void paraCadaCriaturaEn(final int x, final int y, final int w, final int h, final boolean incluirJugador,
+			final AccionEntidad<Criatura> accion) {
+		if (accion == null) {
+			return;
+		}
+
+		if (incluirJugador && Globales.JUGADOR.getArea().intersects(x, y, w, h)) {
+			accion.ejecutar(Globales.JUGADOR);
+		}
+
+		final int minGX = Math.max(0, Math.floorDiv(x, this.LADO_ZONEBOX));
+		final int maxGX = Math.min(this.cantZonasX - 1, Math.floorDiv((x + w) - 1, this.LADO_ZONEBOX));
+		final int minGY = Math.max(0, Math.floorDiv(y, this.LADO_ZONEBOX));
+		final int maxGY = Math.min(this.cantZonasY - 1, Math.floorDiv((y + h) - 1, this.LADO_ZONEBOX));
+
+		for (int gy = minGY; gy <= maxGY; gy++) {
+			final int offset = gy * this.cantZonasX;
+			for (int gx = minGX; gx <= maxGX; gx++) {
+				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
+				if (zb != null) {
+					zb.paraCadaCriatura(x, y, w, h, accion);
+				}
+			}
+		}
+	}
+
+//Sobrecarga de conveniencia Zero-GC recibiendo Rectangle existente:
+	public void paraCadaCriaturaEn(final Rectangle r, final boolean incluirJugador,
+			final AccionEntidad<Criatura> accion) {
+		this.paraCadaCriaturaEn(r.x, r.y, r.width, r.height, incluirJugador, accion);
 	}
 
 	public void updateNextCodAct() {

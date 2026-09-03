@@ -7,11 +7,13 @@ import java.awt.image.BufferedImage;
 import principal.entes.Ente;
 import principal.inventario.Contenedor;
 import principal.inventario.vault.InventarioVault;
-import principal.utilidades.Render2D;
+import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
-import principal.utilidades.Textura;
+import principal.utilidades.HojaSprite;
+import principal.utilidades.Render2D;
 
 public class ArbolCofre extends Objeto implements Contenedor {
+
 	private static final long serialVersionUID = 651599209121613328L;
 	private final InventarioVault INVENTARIO;
 
@@ -28,8 +30,7 @@ public class ArbolCofre extends Objeto implements Contenedor {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt() - 14,
-				this.getPosicionYInt() - 18);
+		Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt() - 14, this.getPosicionYInt() - 18);
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
 		}
@@ -57,13 +58,13 @@ public class ArbolCofre extends Objeto implements Contenedor {
 
 	@Override
 	public int getAlto() {
-		// TODO Auto-generated method stub
 		return 12;
 	}
 
 	@Override
 	public BufferedImage getTextura() {
-		return Textura.getTextura(Textura.TEXTURA_x32_ARBOL_2);
+		final HojaSprite h = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.ARBOLES_32);
+		return (h != null) ? h.getSprite(1) : Globales.GESTOR_TEXTURAS.getTexturaError();
 	}
 
 	@Override
@@ -95,5 +96,4 @@ public class ArbolCofre extends Objeto implements Contenedor {
 	public boolean estaEliminado() {
 		return this.eliminado;
 	}
-
 }

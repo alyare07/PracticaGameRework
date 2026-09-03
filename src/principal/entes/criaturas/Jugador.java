@@ -7,7 +7,6 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
-import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.HashSet;
 
@@ -16,7 +15,6 @@ import org.json.simple.JSONObject;
 import principal.animaciones.Animaciones;
 import principal.entes.Ente;
 import principal.entes.facciones.GestorFacciones;
-import principal.entes.modelos.tile.ListaModeloTile;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Consumible;
 import principal.entes.objetos.items.Item;
@@ -43,6 +41,7 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 public class Jugador extends Criatura {
+
 	private static final String NOMBRE = "Alyare";
 	protected final int MARGENX;
 	protected final int MARGENY;
@@ -64,7 +63,6 @@ public class Jugador extends Criatura {
 	protected final double PTS_VIDAMAX_BASE = 20;
 	protected final double PTS_DAMAGE_BASE = 5;
 
-	// Modificadores de Atributos por Equipamiento
 	protected int modFuerzaEquipo = 0;
 	protected int modAgilidadEquipo = 0;
 	protected int modInteligenciaEquipo = 0;
@@ -85,7 +83,7 @@ public class Jugador extends Criatura {
 	private boolean moviendoPorRecorrido;
 
 	private final HashSet<Ente> CHECK_LIST_DEBUG = new HashSet<Ente>();
-	private final Rectangle2D AREA_INTERSECCION_MOVIMIENTO_AUXILIAR = new Rectangle2D.Double(0, 0, 0, 0);
+	private final Rectangle AREA_INTERSECCION_MOVIMIENTO_AUXILIAR = new Rectangle(0, 0, 8, 8);
 	private final Rectangle RECTANGLE_AUXILIAR = new Rectangle();
 	private final Point PUNTO_AUXILIAR = new Point();
 
@@ -124,10 +122,6 @@ public class Jugador extends Criatura {
 		this.ALTO_INTERACCION_COFRE = this.ALTO + 2;
 	}
 
-	// =========================================================================
-	// === MATEMÁTICA Y RECÁLCULO DE ATRIBUTOS DERIVADOS (O(1))
-	// =========================================================================
-
 	public void recalcularAtributos() {
 		int f = 0;
 		int a = 0;
@@ -155,21 +149,17 @@ public class Jugador extends Criatura {
 		this.modInteligenciaEquipo = i;
 		this.defensaTotal = def;
 
-		// 1. Vida Máxima = Base (20) + (Fuerza Total * 2)
 		final double nuevaVidaMax = this.PTS_VIDAMAX_BASE + (this.getFuerzaTotal() * 2.0);
 		final double ratioVida = (this.vidaMaxima > 0) ? (this.vida / this.vidaMaxima) : 1.0;
 		this.vidaMaxima = nuevaVidaMax;
 		this.vida = Math.min(this.vidaMaxima, nuevaVidaMax * ratioVida);
 		this.vidaLag = this.vida;
 
-		// 2. Daño Melee = Base (5) + (Fuerza Total * 0.5)
 		this.damage = this.PTS_DAMAGE_BASE + (this.getFuerzaTotal() * 0.5);
 
-		// 3. Velocidad Base = 0.40 + (Agilidad Total * 0.01)
-		this.velocidadEstandar = 0.40 + (this.getAgilidadTotal() * 0.01);
+		this.velocidadEstandar = 1 + (this.getAgilidadTotal() * 0.01);
 		this.establecerVelocidadStardar();
 
-		// 4. Estamina Máxima = 20 + (Agilidad * 0.5) + (Inteligencia * 0.5)
 		this.maxEstamina = 20.0 + (this.getAgilidadTotal() * 0.5) + (this.getInteligenciaTotal() * 0.5);
 		this.estamina = Math.min(this.maxEstamina, this.estamina);
 	}
@@ -195,16 +185,11 @@ public class Jugador extends Criatura {
 
 	@Override
 	public void recibirAtaque(final double damageRecibido, final Ente causante) {
-		// Mitigación por Armadura / Defensa: dañoNeto = daño * (100 / (100 + Defensa))
 		final double factorReduccion = 100.0 / (100.0 + Math.max(0, this.defensaTotal));
 		final double danioEfectivo = Math.max(1.0, damageRecibido * factorReduccion);
 
 		super.recibirAtaque(danioEfectivo, causante);
 	}
-
-	// =========================================================================
-	// === CICLO LÓGICO
-	// =========================================================================
 
 	@Override
 	public void actualizar() {
@@ -228,9 +213,8 @@ public class Jugador extends Criatura {
 
 		if (this.mundo != null) {
 			final Terreno terreno = this.mundo.getTerreno();
-			final Shape s = this.getAreaInterseccionMovimiento();
-			this.tilePisado = terreno.getTileReferenciado(s.getBounds().x + (s.getBounds().width / 2),
-					s.getBounds().y + s.getBounds().height);
+			final Rectangle s = this.getAreaInterseccionMovimiento();
+			this.tilePisado = terreno.getTileReferenciado(s.x + (s.width / 2), s.y + s.height);
 		}
 
 		this.actualizarMovimientoMouseDijkstra();
@@ -338,8 +322,7 @@ public class Jugador extends Criatura {
 			}
 
 			if (this.tilePisado != null) {
-				this.velocidad = Math.max(0, this.velocidad
-						+ ListaModeloTile.getModelo(this.tilePisado.getCodModelo()).getAlteracionVelocidad());
+				this.velocidad = Math.max(0, this.velocidad + this.tilePisado.getAlteracionVelocidad());
 			}
 
 			this.moverANodoDDestino();
@@ -412,8 +395,7 @@ public class Jugador extends Criatura {
 			}
 
 			if (this.tilePisado != null) {
-				this.velocidad = Math.max(0, this.velocidad
-						+ ListaModeloTile.getModelo(this.tilePisado.getCodModelo()).getAlteracionVelocidad());
+				this.velocidad = Math.max(0, this.velocidad + this.tilePisado.getAlteracionVelocidad());
 			}
 
 			this.moverANodoADestino();
@@ -477,11 +459,15 @@ public class Jugador extends Criatura {
 
 		this.establecerVelocidadStardar();
 
+		final boolean arr = Globales.TECLADO.TECLA_ARRIBA.presionado();
+		final boolean abj = Globales.TECLADO.TECLA_ABAJO.presionado();
+		final boolean izq = Globales.TECLADO.TECLA_IZQUIERDA.presionado();
+		final boolean der = Globales.TECLADO.TECLA_DERECHA.presionado();
+
 		if (Globales.TECLADO.TECLA_CORRIENDO.presionado()) {
-			if (Globales.TECLADO.TECLA_ARRIBA.presionado() || Globales.TECLADO.TECLA_ABAJO.presionado()
-					|| Globales.TECLADO.TECLA_DERECHA.presionado() || Globales.TECLADO.TECLA_IZQUIERDA.presionado()) {
+			if (arr || abj || der || izq) {
 				if (this.gastarEstamina()) {
-					this.velocidad = this.velocidadEstandar * 3.5;
+					this.velocidad = this.velocidadEstandar * 1.5;
 					corriendo = true;
 				}
 			}
@@ -490,43 +476,51 @@ public class Jugador extends Criatura {
 		}
 
 		if (this.tilePisado != null) {
-			this.velocidad = Math.max(0, this.velocidad
-					+ ListaModeloTile.getModelo(this.tilePisado.getCodModelo()).getAlteracionVelocidad());
+			this.velocidad = Math.max(0, this.velocidad + this.tilePisado.getAlteracionVelocidad());
 		}
 
-		if (Globales.TECLADO.TECLA_ARRIBA.presionado()) {
-			if ((((int) (this.getPosicionY() - this.velocidad)) >= 0) && !this.mundo
-					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 2))) {
-				this.modificarPosicionY(-this.velocidad);
+		// =====================================================================
+		// NORMALIZACIÓN DE VELOCIDAD DIAGONAL (1 / sqrt(2) ≈ 0.70710678)
+		// =====================================================================
+		final boolean movVertical = arr ^ abj;
+		final boolean movHorizontal = izq ^ der;
+
+		double paso = this.velocidad;
+		if (movVertical && movHorizontal) {
+			paso *= 0.7071067811865475;
+		}
+
+		if (arr) {
+			if ((((int) (this.getPosicionY() - paso)) >= 0)
+					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(paso, 2))) {
+				this.modificarPosicionY(-paso);
 			}
 			enMovimiento = true;
 			this.direccion = Direccion.NORTE;
 		}
 
-		if (Globales.TECLADO.TECLA_ABAJO.presionado()) {
-			if (((this.getPosicionY() + this.velocidad) <= (this.mundo.getTerreno().getAlto() - this.ALTO))
-					&& !this.mundo
-							.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 3))) {
-				this.modificarPosicionY(this.velocidad);
+		if (abj) {
+			if (((this.getPosicionY() + paso) <= (this.mundo.getTerreno().getAlto() - this.ALTO))
+					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(paso, 3))) {
+				this.modificarPosicionY(paso);
 			}
 			enMovimiento = true;
 			this.direccion = Direccion.SUR;
 		}
 
-		if (Globales.TECLADO.TECLA_IZQUIERDA.presionado()) {
-			if (((this.getPosicionX() - this.velocidad) >= 0) && !this.mundo
-					.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, -1))) {
-				this.modificarPosicionX(-this.velocidad);
+		if (izq) {
+			if (((this.getPosicionX() - paso) >= 0)
+					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(paso, -1))) {
+				this.modificarPosicionX(-paso);
 			}
 			enMovimiento = true;
 			this.direccion = Direccion.OESTE;
 		}
 
-		if (Globales.TECLADO.TECLA_DERECHA.presionado()) {
-			if (((this.getPosicionX() + this.velocidad) <= (this.mundo.getTerreno().getAncho() - this.ANCHO))
-					&& !this.mundo
-							.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(this.velocidad, 1))) {
-				this.modificarPosicionX(this.velocidad);
+		if (der) {
+			if (((this.getPosicionX() + paso) <= (this.mundo.getTerreno().getAncho() - this.ANCHO))
+					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(paso, 1))) {
+				this.modificarPosicionX(paso);
 			}
 			enMovimiento = true;
 			this.direccion = Direccion.ESTE;
@@ -780,7 +774,7 @@ public class Jugador extends Criatura {
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
 			g.setColor(Color.BLUE);
-			Render2D.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionMovimiento().getBounds());
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionMovimiento());
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.getPosicionXIntDibujado(),
 					this.getPosicionYIntDibujado(), 32, 32, Color.RED);
@@ -928,33 +922,32 @@ public class Jugador extends Criatura {
 		return this.areaRecoleccion;
 	}
 
-	public Shape getAreaInterseccionMovimiento() {
-		this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.getPosicionX() + 2.0, this.getPosicionY() + 12.0, 8.0,
-				8.0);
+	public Rectangle getAreaInterseccionMovimiento() {
+		this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds((int) this.getPosicionX() + 2,
+				(int) this.getPosicionY() + 12, 8, 8);
 		return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 	}
 
-	public Shape getAreaInterseccionMovimiento(final double desplazamiento, final int direccion) {
+	public Rectangle getAreaInterseccionMovimiento(final double desplazamiento, final int direccion) {
+		final int xBase = (int) this.getPosicionX() + 2;
+		final int yBase = (int) this.getPosicionY() + 12;
+		final int despInt = (int) Math.round(desplazamiento);
+
 		switch (direccion) {
 		case -1:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((this.getPosicionX() + 2.0) - desplazamiento,
-					this.getPosicionY() + 12.0, 8.0, 8.0);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase - despInt, yBase, 8, 8);
 			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		case 1:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect((this.getPosicionX() + 2.0) + desplazamiento,
-					this.getPosicionY() + 12.0, 8.0, 8.0);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase + despInt, yBase, 8, 8);
 			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		case 2:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.getPosicionX() + 2.0,
-					(this.getPosicionY() + 12.0) - desplazamiento, 8.0, 8.0);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase, yBase - despInt, 8, 8);
 			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		case 3:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.getPosicionX() + 2.0,
-					(this.getPosicionY() + 12.0) + desplazamiento, 8.0, 8.0);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase, yBase + despInt, 8, 8);
 			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		default:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setRect(this.getPosicionX() + 2.0, this.getPosicionY() + 12.0,
-					8.0, 8.0);
+			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase, yBase, 8, 8);
 			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 		}
 	}

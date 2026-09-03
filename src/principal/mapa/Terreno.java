@@ -12,7 +12,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import principal.entes.modelos.tile.ListaModeloTile;
+import principal.recursos.TipoTerreno;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 
@@ -30,16 +30,16 @@ public class Terreno implements Serializable {
 	protected final long CANT_TILES;
 	protected final Tile[] TILES;
 
-	// Sistema de Chunks en VRAM
 	protected transient ChunkTerreno[] chunks;
 	protected transient int cantChunksX;
 	protected transient int cantChunksY;
 
 	public Terreno(final int cantTilesAncho, final int cantTilesAlto, final int ladoTile) {
-		this(cantTilesAncho, cantTilesAlto, ladoTile, ListaModeloTile.COD_TIERRA);
+		this(cantTilesAncho, cantTilesAlto, ladoTile, TipoTerreno.TIERRA);
 	}
 
-	public Terreno(final int cantTilesAncho, final int cantTilesAlto, final int ladoTile, final int idModeloTile) {
+	public Terreno(final int cantTilesAncho, final int cantTilesAlto, final int ladoTile,
+			final TipoTerreno tipoInicial) {
 		this.LADO_TILE = ladoTile;
 		this.CANTIDAD_TILES_X = cantTilesAncho;
 		this.CANTIDAD_TILES_Y = cantTilesAlto;
@@ -48,7 +48,7 @@ public class Terreno implements Serializable {
 		this.CANT_TILES = (long) cantTilesAncho * cantTilesAlto;
 
 		this.TILES = new Tile[cantTilesAncho * cantTilesAlto];
-		this.llenarVacioTerreno(idModeloTile);
+		this.llenarVacioTerreno(tipoInicial);
 		this.calcularAutotiles();
 		this.inicializarChunks();
 	}
@@ -112,18 +112,13 @@ public class Terreno implements Serializable {
 			if (this.TILES[i] == null) {
 				final int tx = i % this.CANTIDAD_TILES_X;
 				final int ty = i / this.CANTIDAD_TILES_X;
-				this.TILES[i] = new Tile(tx * this.LADO_TILE, ty * this.LADO_TILE, this.LADO_TILE,
-						ListaModeloTile.COD_TIERRA);
+				this.TILES[i] = new Tile(tx * this.LADO_TILE, ty * this.LADO_TILE, this.LADO_TILE, TipoTerreno.TIERRA);
 			}
 		}
 
 		this.calcularAutotiles();
 		this.inicializarChunks();
 	}
-
-	// =========================================================================
-	// === SISTEMA DE CHUNKS PRE-HORNEADOS (ZERO-GC)
-	// =========================================================================
 
 	public void inicializarChunks() {
 		this.cantChunksX = Math.max(1, (int) Math.ceil((double) this.ANCHO / LADO_CHUNK));
@@ -162,10 +157,6 @@ public class Terreno implements Serializable {
 		}
 	}
 
-	// =========================================================================
-	// === RENDERIZADO OPTIMIZADO POR CHUNKS (BAJO OPF)
-	// =========================================================================
-
 	public void pintar(final Graphics2D g) {
 		if (this.chunks == null) {
 			this.inicializarChunks();
@@ -179,7 +170,6 @@ public class Terreno implements Serializable {
 		final double cos = Math.cos(rotAbs);
 		final double sin = Math.sin(rotAbs);
 
-		// Margen de seguridad con soporte para rotación y temblor
 		final int radioVisibleX = (int) Math
 				.ceil(((Constantes.CENTROX * cos) + (Constantes.CENTROY * sin)) / zoomActivo) + (int) shakeX
 				+ LADO_CHUNK;
@@ -190,7 +180,6 @@ public class Terreno implements Serializable {
 		final int camX = Globales.CAMARA.getPosicionXInt();
 		final int camY = Globales.CAMARA.getPosicionYInt();
 
-		// Rango de chunks visibles en el frustum de la cámara
 		final int startChunkX = Math.max(0, Math.floorDiv(camX - radioVisibleX, LADO_CHUNK));
 		final int endChunkX = Math.min(this.cantChunksX - 1, Math.floorDiv(camX + radioVisibleX, LADO_CHUNK));
 		final int startChunkY = Math.max(0, Math.floorDiv(camY - radioVisibleY, LADO_CHUNK));
@@ -206,10 +195,6 @@ public class Terreno implements Serializable {
 			}
 		}
 	}
-
-	// =========================================================================
-	// === AUTOTILING Y LÓGICA ESPACIAL
-	// =========================================================================
 
 	@SuppressWarnings("unchecked")
 	public JSONObject getTilesJson() {
@@ -229,8 +214,8 @@ public class Terreno implements Serializable {
 		return terreno;
 	}
 
-	private byte calcularVariacionDeterminista(final int gridX, final int gridY, final int idModelo) {
-		int h = (gridX * 374761393) ^ (gridY * 668265263) ^ (idModelo * 3571);
+	private byte calcularVariacionDeterminista(final int gridX, final int gridY, final TipoTerreno tipo) {
+		int h = (gridX * 374761393) ^ (gridY * 668265263) ^ (tipo.ordinal() * 3571);
 		h = (h ^ (h >>> 13)) * 1274126177;
 		final int roll = (h & 0x7FFFFFFF) % 100;
 
@@ -255,25 +240,25 @@ public class Terreno implements Serializable {
 					continue;
 				}
 
-				final int modelo = tileActual.getCodModelo();
+				final TipoTerreno tipo = tileActual.getTipoTerreno();
 				byte mascara = 0;
 
-				if ((ty > 0) && (this.TILES[((ty - 1) * this.CANTIDAD_TILES_X) + tx].getCodModelo() == modelo)) {
+				if ((ty > 0) && (this.TILES[((ty - 1) * this.CANTIDAD_TILES_X) + tx].getTipoTerreno() == tipo)) {
 					mascara += 1;
 				}
-				if ((tx < (this.CANTIDAD_TILES_X - 1)) && (this.TILES[fila + tx + 1].getCodModelo() == modelo)) {
+				if ((tx < (this.CANTIDAD_TILES_X - 1)) && (this.TILES[fila + tx + 1].getTipoTerreno() == tipo)) {
 					mascara += 2;
 				}
 				if ((ty < (this.CANTIDAD_TILES_Y - 1))
-						&& (this.TILES[((ty + 1) * this.CANTIDAD_TILES_X) + tx].getCodModelo() == modelo)) {
+						&& (this.TILES[((ty + 1) * this.CANTIDAD_TILES_X) + tx].getTipoTerreno() == tipo)) {
 					mascara += 4;
 				}
-				if ((tx > 0) && (this.TILES[(fila + tx) - 1].getCodModelo() == modelo)) {
+				if ((tx > 0) && (this.TILES[(fila + tx) - 1].getTipoTerreno() == tipo)) {
 					mascara += 8;
 				}
 
 				tileActual.setMascaraBit(mascara);
-				tileActual.setVariacionPropia(this.calcularVariacionDeterminista(tx, ty, modelo));
+				tileActual.setVariacionPropia(this.calcularVariacionDeterminista(tx, ty, tipo));
 			}
 		}
 		this.marcarTodosLosChunksSucios();
@@ -291,28 +276,28 @@ public class Terreno implements Serializable {
 			return;
 		}
 
-		final int modelo = tileActual.getCodModelo();
+		final TipoTerreno tipo = tileActual.getTipoTerreno();
 		byte mascara = 0;
 
 		final Tile tN = this.getTileGrid(tx, ty - 1);
-		if ((tN != null) && (tN.getCodModelo() == modelo)) {
+		if ((tN != null) && (tN.getTipoTerreno() == tipo)) {
 			mascara += 1;
 		}
 		final Tile tE = this.getTileGrid(tx + 1, ty);
-		if ((tE != null) && (tE.getCodModelo() == modelo)) {
+		if ((tE != null) && (tE.getTipoTerreno() == tipo)) {
 			mascara += 2;
 		}
 		final Tile tS = this.getTileGrid(tx, ty + 1);
-		if ((tS != null) && (tS.getCodModelo() == modelo)) {
+		if ((tS != null) && (tS.getTipoTerreno() == tipo)) {
 			mascara += 4;
 		}
 		final Tile tO = this.getTileGrid(tx - 1, ty);
-		if ((tO != null) && (tO.getCodModelo() == modelo)) {
+		if ((tO != null) && (tO.getTipoTerreno() == tipo)) {
 			mascara += 8;
 		}
 
 		tileActual.setMascaraBit(mascara);
-		tileActual.setVariacionPropia(this.calcularVariacionDeterminista(tx, ty, modelo));
+		tileActual.setVariacionPropia(this.calcularVariacionDeterminista(tx, ty, tipo));
 		this.marcarChunkSucio(worldX, worldY);
 	}
 
@@ -339,12 +324,12 @@ public class Terreno implements Serializable {
 		return (p != null) ? this.getTileReferenciado(p.x, p.y) : null;
 	}
 
-	public void llenarVacioTerreno(final int idModeloTile) {
+	public void llenarVacioTerreno(final TipoTerreno tipo) {
+		final TipoTerreno tipoFinal = (tipo != null) ? tipo : TipoTerreno.TIERRA;
 		for (int ty = 0; ty < this.CANTIDAD_TILES_Y; ty++) {
 			final int fila = ty * this.CANTIDAD_TILES_X;
 			for (int tx = 0; tx < this.CANTIDAD_TILES_X; tx++) {
-				this.TILES[fila + tx] = new Tile(tx * this.LADO_TILE, ty * this.LADO_TILE, this.LADO_TILE,
-						idModeloTile);
+				this.TILES[fila + tx] = new Tile(tx * this.LADO_TILE, ty * this.LADO_TILE, this.LADO_TILE, tipoFinal);
 			}
 		}
 		this.marcarTodosLosChunksSucios();
@@ -358,7 +343,7 @@ public class Terreno implements Serializable {
 		final int ty = Math.floorDiv(y, this.LADO_TILE);
 		if ((tx >= 0) && (tx < this.CANTIDAD_TILES_X) && (ty >= 0) && (ty < this.CANTIDAD_TILES_Y)) {
 			this.TILES[(ty * this.CANTIDAD_TILES_X) + tx] = new Tile(tx * this.LADO_TILE, ty * this.LADO_TILE,
-					this.LADO_TILE, tile.getCodModelo());
+					this.LADO_TILE, tile.getTipoTerreno());
 			this.actualizarAutotileLocal(x, y);
 		}
 	}
@@ -472,35 +457,58 @@ public class Terreno implements Serializable {
 		return false;
 	}
 
+	public boolean intersectaSolidoDijkstra(final int x, final int y, final int w, final int h) {
+		return this.intersectaTileSolido(x, y, w, h);
+	}
+
+	public boolean intersectaSolidoDijkstra(final Rectangle r) {
+		return (r != null) && this.intersectaTileSolido(r.x, r.y, r.width, r.height);
+	}
+
+	public boolean intersectaAlgoSolido(final int x, final int y, final int w, final int h) {
+		return this.intersectaTileSolido(x, y, w, h);
+	}
+
+	public boolean intersectaAlgoSolido(final Rectangle r) {
+		return (r != null) && this.intersectaTileSolido(r.x, r.y, r.width, r.height);
+	}
+
 	public boolean intersectaSolidoDijkstra(final Shape area) {
-		return this.intersectaTileSolido(area);
-	}
-
-	public boolean intersectaAlgoSolido(final Shape area) {
-		return this.intersectaTileSolido(area);
-	}
-
-	public boolean intersectaTileSolido(final Shape area) {
 		if (area == null) {
 			return false;
 		}
+		if (area instanceof Rectangle) {
+			final Rectangle r = (Rectangle) area;
+			return this.intersectaTileSolido(r.x, r.y, r.width, r.height);
+		}
 		final Rectangle b = area.getBounds();
+		return this.intersectaTileSolido(b.x, b.y, b.width, b.height);
+	}
 
-		final int minTileX = Math.max(0, Math.floorDiv(b.x, this.LADO_TILE));
-		final int maxTileX = Math.min(this.CANTIDAD_TILES_X - 1, Math.floorDiv((b.x + b.width) - 1, this.LADO_TILE));
-		final int minTileY = Math.max(0, Math.floorDiv(b.y, this.LADO_TILE));
-		final int maxTileY = Math.min(this.CANTIDAD_TILES_Y - 1, Math.floorDiv((b.y + b.height) - 1, this.LADO_TILE));
+	public boolean intersectaAlgoSolido(final Shape area) {
+		return this.intersectaSolidoDijkstra(area);
+	}
+
+	public boolean intersectaTileSolido(final int x, final int y, final int w, final int h) {
+		final int minTileX = Math.max(0, Math.floorDiv(x, this.LADO_TILE));
+		final int maxTileX = Math.min(this.CANTIDAD_TILES_X - 1, Math.floorDiv((x + w) - 1, this.LADO_TILE));
+		final int minTileY = Math.max(0, Math.floorDiv(y, this.LADO_TILE));
+		final int maxTileY = Math.min(this.CANTIDAD_TILES_Y - 1, Math.floorDiv((y + h) - 1, this.LADO_TILE));
 
 		for (int ty = minTileY; ty <= maxTileY; ty++) {
 			final int fila = ty * this.CANTIDAD_TILES_X;
 			for (int tx = minTileX; tx <= maxTileX; tx++) {
 				final Tile t = this.TILES[fila + tx];
-				if ((t != null) && t.esSolido() && area.intersects(t.getArea())) {
+				if ((t != null) && t.esSolido() && t.getArea().intersects(x, y, w, h)) {
 					return true;
 				}
 			}
 		}
 		return false;
+	}
+
+	public boolean intersectaTileSolido(final Rectangle r) {
+		return (r != null) && this.intersectaTileSolido(r.x, r.y, r.width, r.height);
 	}
 
 	public boolean areaDentroDelTerreno(final Rectangle r) {

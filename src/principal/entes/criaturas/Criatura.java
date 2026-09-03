@@ -25,9 +25,10 @@ import principal.utilidades.Render2D;
 
 /**
  * Base abstracta para todas las criaturas con soporte de Atributos RPG,
- * Facciones y Barras de Salud Multicapa (Zero-GC / O(1)).
+ * Facciones, Barras de Salud Multicapa, Knockback y Física de Manadas Blindada
+ * (Zero-GC / O(1)).
  * 
- * @version 5.0 (Vanilla Java 8)
+ * @version 6.5 (Vanilla Java 8)
  */
 public abstract class Criatura extends Ente {
 
@@ -68,16 +69,10 @@ public abstract class Criatura extends Ente {
 	private static final double HP_POR_CAPA = 50.0;
 
 	private static final Color COLOR_FONDO_BARRA = Color.BLACK;
-	private static final Color COLOR_BARRA_LAG = new Color(255, 205, 40); // Amarillo rastro
+	private static final Color COLOR_BARRA_LAG = new Color(255, 205, 40);
 
-	private static final Color[] COLORES_CAPAS_VIDA = { new Color(235, 30, 30), // Capa 1 (0-50 HP): Rojo clásico
-			// (Peligro crítico)
-			new Color(255, 120, 0), // Capa 2 (51-100 HP): Naranja fuego (Advertencia)
-			new Color(40, 235, 100), // Capa 3 (101-150 HP): Verde esmeralda (Salud base normal)
-			new Color(16, 109, 54), // Capa 4 (151-200 HP): Cian mágico (Salud extra / Escudo)
-			new Color(150, 20, 200), // Capa 5 (201-250 HP): Púrpura arcano (Nivel Épico)
-			new Color(255, 200, 40) // Capa 6+ (>250 HP): Dorado solar (Nivel Máximo / Divino)
-	};
+	private static final Color[] COLORES_CAPAS_VIDA = { new Color(235, 30, 30), new Color(255, 120, 0),
+			new Color(40, 235, 100), new Color(16, 109, 54), new Color(150, 20, 200), new Color(255, 200, 40) };
 
 	// =========================================================================
 	// === 1. ATRIBUTOS RPG FUNDAMENTALES (ZERO-GC)
@@ -93,13 +88,20 @@ public abstract class Criatura extends Ente {
 	protected int mascaraHostilidad = 0;
 
 	// =========================================================================
-	// === 3. CINEMÁTICA Y WAYPOINTS
+	// === 3. CINEMÁTICA Y FÍSICA DE MANADAS
 	// =========================================================================
 	protected double velActualX = 0.0;
 	protected double velActualY = 0.0;
 	protected double agilidadGiro = 0.25;
 	protected static final double RADIO_ANTICIPACION_ESQUINA = 12.0;
 	protected static final double RADIO_LLEGADA_WAYPOINT = 4.0;
+
+	protected final Rectangle AREA_COLISION_MOVIMIENTO_AUX = new Rectangle();
+
+	// Scratchpad estático para deduplicar vecinos en fronteras sin alocar memoria
+	// (Zero-GC)
+	private static final Criatura[] EVALUADOS_SEPARACION = new Criatura[32];
+	private static int cantEvaluados = 0;
 
 	private final Set<Estado> estados = EnumSet.noneOf(Estado.class);
 	protected final int ANCHO;
@@ -182,6 +184,16 @@ public abstract class Criatura extends Ente {
 
 	public abstract String getNombre();
 
+	public Rectangle getAreaColisionMovimiento(final double desplazamientoX, final double desplazamientoY) {
+		final int anchoPies = Math.min(10, this.ANCHO);
+		final int altoPies = 6;
+		final int pieX = (int) Math.round(this.x + ((this.ANCHO - anchoPies) / 2.0) + desplazamientoX);
+		final int pieY = (int) Math.round(((this.y + this.ALTO) - altoPies) + desplazamientoY);
+
+		this.AREA_COLISION_MOVIMIENTO_AUX.setBounds(pieX, pieY, anchoPies, altoPies);
+		return this.AREA_COLISION_MOVIMIENTO_AUX;
+	}
+
 	public int getFuerzaTotal() {
 		return this.fuerzaBase;
 	}
@@ -245,9 +257,14 @@ public abstract class Criatura extends Ente {
 			return;
 		}
 
+		cantEvaluados = 0;
+
 		final double miCentroX = this.x + (this.ANCHO / 2.0);
 		final double miCentroY = this.y + (this.ALTO / 2.0);
 		final double miRadio = (this.ANCHO + this.ALTO) / 4.0;
+
+		double acumuladoEmpujeX = 0.0;
+		double acumuladoEmpujeY = 0.0;
 
 		final int cantZonas = this.zonasOcupadas.size();
 		for (int z = 0; z < cantZonas; z++) {
@@ -259,6 +276,21 @@ public abstract class Criatura extends Ente {
 				final Criatura otra = lista.get(i);
 				if ((otra == this) || otra.estaEliminado()) {
 					continue;
+				}
+
+				// Deduplicacion Zero-GC entre celdas espaciales contiguas
+				boolean yaProcesada = false;
+				for (int e = 0; e < cantEvaluados; e++) {
+					if (EVALUADOS_SEPARACION[e] == otra) {
+						yaProcesada = true;
+						break;
+					}
+				}
+				if (yaProcesada) {
+					continue;
+				}
+				if (cantEvaluados < EVALUADOS_SEPARACION.length) {
+					EVALUADOS_SEPARACION[cantEvaluados++] = otra;
 				}
 
 				final double otroCentroX = otra.x + (otra.ANCHO / 2.0);
@@ -273,14 +305,35 @@ public abstract class Criatura extends Ente {
 				if ((distSq < (radioMin * radioMin)) && (distSq > 0.0001)) {
 					final double dist = Math.sqrt(distSq);
 					final double penetracion = radioMin - dist;
-					final double factorEmpuje = (penetracion / radioMin) * 0.25;
+					final double factorEmpuje = (penetracion / radioMin) * 0.35;
 
-					final double empujeX = (dx / dist) * factorEmpuje;
-					final double empujeY = (dy / dist) * factorEmpuje;
-
-					this.modificarPosicionX(empujeX);
-					this.modificarPosicionY(empujeY);
+					acumuladoEmpujeX += (dx / dist) * factorEmpuje;
+					acumuladoEmpujeY += (dy / dist) * factorEmpuje;
 				}
+			}
+		}
+
+		if ((Math.abs(acumuladoEmpujeX) < 0.0001) && (Math.abs(acumuladoEmpujeY) < 0.0001)) {
+			return;
+		}
+
+		// Clamping de empuje maximo para evitar saltos violentos
+		final double distEmpuje = Math.hypot(acumuladoEmpujeX, acumuladoEmpujeY);
+		final double maxEmpujePorTick = 2.0;
+		if (distEmpuje > maxEmpujePorTick) {
+			acumuladoEmpujeX = (acumuladoEmpujeX / distEmpuje) * maxEmpujePorTick;
+			acumuladoEmpujeY = (acumuladoEmpujeY / distEmpuje) * maxEmpujePorTick;
+		}
+
+		// Desplazamiento validado contra muros en los pies
+		if ((this.mundo != null) && (Math.abs(acumuladoEmpujeX) > 0.0001)) {
+			if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(acumuladoEmpujeX, 0.0))) {
+				this.modificarPosicionX(acumuladoEmpujeX);
+			}
+		}
+		if ((this.mundo != null) && (Math.abs(acumuladoEmpujeY) > 0.0001)) {
+			if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(0.0, acumuladoEmpujeY))) {
+				this.modificarPosicionY(acumuladoEmpujeY);
 			}
 		}
 	}
@@ -329,10 +382,28 @@ public abstract class Criatura extends Ente {
 		}
 
 		if (this.mundo != null) {
-			final double dirX = (causante != null) ? Math.signum(this.x - causante.getPosicionX()) : 0.0;
-			final double dirY = (causante != null) ? Math.signum(this.y - causante.getPosicionY()) : 0.0;
+			final double dx = (causante != null) ? (this.getCentroX() - causante.getCentroX()) : 0.0;
+			final double dy = (causante != null) ? (this.getCentroY() - causante.getCentroY()) : 0.0;
+			final double dist = Math.hypot(dx, dy);
 
-			Globales.GESTOR_PARTICULAS.emitirSangre(this.getCentroX(), this.getCentroY(), dirX, dirY, 15);
+			// Knockback con super-armadura para jefes y respeto a los muros
+			if ((dist > 0.001) && (this.vidaMaxima < 1000.0)) {
+				final double fuerzaKnockback = Math.min(8.0, 2.0 + (damage * 0.12));
+				final double pushX = (dx / dist) * fuerzaKnockback;
+				final double pushY = (dy / dist) * fuerzaKnockback;
+
+				if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(pushX, 0.0))) {
+					this.modificarPosicionX(pushX);
+				}
+				if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(0.0, pushY))) {
+					this.modificarPosicionY(pushY);
+				}
+			}
+
+			final double dirSangreX = (dist > 0.001) ? (dx / dist) : 0.0;
+			final double dirSangreY = (dist > 0.001) ? (dy / dist) : 0.0;
+
+			Globales.GESTOR_PARTICULAS.emitirSangre(this.getCentroX(), this.getCentroY(), dirSangreX, dirSangreY, 15);
 			Globales.GESTOR_TEXTOS.agregarDanio((int) damage, this.getPosicionX(), this.getPosicionY(), false);
 		}
 	}
@@ -346,7 +417,11 @@ public abstract class Criatura extends Ente {
 		this.pintarIndicadorVida(g);
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
+			// 1. Hitbox de Daño (Cian)
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.CYAN);
+
+			// 2. Colision de Pies de Movimiento (Magenta)
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getAreaColisionMovimiento(0.0, 0.0), Color.MAGENTA);
 		}
 
 		if ((Globales.CAMARA.getEntidadEnfocada() == this)
@@ -384,7 +459,7 @@ public abstract class Criatura extends Ente {
 
 	protected void pintarIndicadorVida(final Graphics2D g) {
 		if (this.vidaMaxima >= 1000.0) {
-			return; // Jefes renderizados por BarraJefe en el HUD
+			return;
 		}
 
 		if (this.estaEstadoPersiguiendo() || this.estaEstadoAtacando()
@@ -392,10 +467,6 @@ public abstract class Criatura extends Ente {
 			this.pintarRectanguloBarraVida(g);
 		}
 	}
-
-	// =========================================================================
-	// === RENDERIZADO MULTICAPA DE SALUD (ZERO-GC / O(1))
-	// =========================================================================
 
 	private void pintarRectanguloBarraVida(final Graphics2D g) {
 		final int posX = this.getPosicionXInt();
@@ -408,25 +479,20 @@ public abstract class Criatura extends Ente {
 
 		final int capaMaxima = this.obtenerIndiceCapa(vidaMax);
 
-		// 1. Cálculo de capa activa y progreso adaptativo en O(1)
 		final int capaActual = Math.min(capaMaxima, this.obtenerIndiceCapa(vidaAct));
 		final double progresoActual = this.obtenerProgresoCapa(vidaAct, capaActual, capaMaxima, vidaMax);
 
-		// 2. Cálculo de lag sobre la capa actual
 		final int capaLag = Math.min(capaMaxima, this.obtenerIndiceCapa(vidaLagVal));
 		final double progresoLag = (capaLag > capaActual) ? 1.0
 				: this.obtenerProgresoCapa(vidaLagVal, capaActual, capaMaxima, vidaMax);
 
-		// A. Fondo y borde negro exterior (1 px alrededor)
 		Render2D.dibujarRectanguloRellenoRefCamara(g, posX - 1, posY - 5, anchoBarra + 2, 4, COLOR_FONDO_BARRA);
 
-		// B. Capa de fondo subyacente (Color de la capa anterior si existe)
 		if (capaActual > 0) {
 			final Color colorFondoCapa = COLORES_CAPAS_VIDA[capaActual - 1];
 			Render2D.dibujarRectanguloRellenoRefCamara(g, posX, posY - 4, anchoBarra, 2, colorFondoCapa);
 		}
 
-		// C. Barra fantasma de daño amarillo (Lag)
 		if (progresoLag > progresoActual) {
 			final int anchoAmarillo = (int) Math.round(progresoLag * anchoBarra);
 			if (anchoAmarillo > 0) {
@@ -434,7 +500,6 @@ public abstract class Criatura extends Ente {
 			}
 		}
 
-		// D. Barra frontal de salud de la capa actual
 		final int anchoFrontal = (int) Math.round(progresoActual * anchoBarra);
 		if (anchoFrontal > 0) {
 			final Color colorCapaActual = COLORES_CAPAS_VIDA[capaActual];
@@ -474,14 +539,14 @@ public abstract class Criatura extends Ente {
 			}
 		}
 
-		final double centroX = this.x + (this.ANCHO / 2.0);
-		final double centroY = this.y + (this.ALTO / 2.0);
+		final double pieX = this.x + (this.ANCHO / 2.0);
+		final double pieY = (this.y + this.ALTO) - 3.0;
 
 		double targetX = this.nodoADestino.getXMundo() + (this.nodoADestino.getAncho() / 2.0);
 		double targetY = this.nodoADestino.getYMundo() + (this.nodoADestino.getAlto() / 2.0);
 
-		double diffX = targetX - centroX;
-		double diffY = targetY - centroY;
+		double diffX = targetX - pieX;
+		double diffY = targetY - pieY;
 		double distAlNodo = Math.hypot(diffX, diffY);
 
 		NodoA siguienteNodo = this.recorridoA.peek();
@@ -493,8 +558,8 @@ public abstract class Criatura extends Ente {
 
 			final double segX = sigX - targetX;
 			final double segY = sigY - targetY;
-			final double posRelX = centroX - targetX;
-			final double posRelY = centroY - targetY;
+			final double posRelX = pieX - targetX;
+			final double posRelY = pieY - targetY;
 
 			final double dot = (segX * posRelX) + (segY * posRelY);
 			if (dot > 0) {
@@ -512,8 +577,8 @@ public abstract class Criatura extends Ente {
 
 			targetX = this.nodoADestino.getXMundo() + (this.nodoADestino.getAncho() / 2.0);
 			targetY = this.nodoADestino.getYMundo() + (this.nodoADestino.getAlto() / 2.0);
-			diffX = targetX - centroX;
-			diffY = targetY - centroY;
+			diffX = targetX - pieX;
+			diffY = targetY - pieY;
 			distAlNodo = Math.hypot(diffX, diffY);
 			siguienteNodo = this.recorridoA.peek();
 		}
@@ -526,8 +591,8 @@ public abstract class Criatura extends Ente {
 			targetX = targetX + ((sigX - targetX) * t);
 			targetY = targetY + ((sigY - targetY) * t);
 
-			diffX = targetX - centroX;
-			diffY = targetY - centroY;
+			diffX = targetX - pieX;
+			diffY = targetY - pieY;
 			distAlNodo = Math.hypot(diffX, diffY);
 		}
 
@@ -540,10 +605,20 @@ public abstract class Criatura extends Ente {
 			this.velActualY += (dirDeseadaY - this.velActualY) * this.agilidadGiro;
 
 			if (Math.abs(this.velActualX) > 0.001) {
-				this.modificarPosicionX(this.velActualX);
+				if ((this.mundo != null) && !this.mundo
+						.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(this.velActualX, 0.0))) {
+					this.modificarPosicionX(this.velActualX);
+				} else {
+					this.velActualX = 0.0;
+				}
 			}
 			if (Math.abs(this.velActualY) > 0.001) {
-				this.modificarPosicionY(this.velActualY);
+				if ((this.mundo != null) && !this.mundo
+						.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(0.0, this.velActualY))) {
+					this.modificarPosicionY(this.velActualY);
+				} else {
+					this.velActualY = 0.0;
+				}
 			}
 
 			if (Math.abs(this.velActualX) > Math.abs(this.velActualY)) {

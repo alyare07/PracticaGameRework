@@ -25,11 +25,11 @@ public abstract class Bandido extends Enemigo {
 	}
 
 	protected void actualizarAnimacion() {
-		final String tipo = this.obtenerClaveAnimacionActiva();
+		final int tipo = this.obtenerClaveAnimacionActiva();
 		this.ANIMACION.actualizar(this.direccion, tipo);
 	}
 
-	protected String obtenerClaveAnimacionActiva() {
+	protected int obtenerClaveAnimacionActiva() {
 		return this.estaEstadoCaminando() ? AnimacionesBandido.CAMINANDO : AnimacionesBandido.ESTANDAR;
 	}
 

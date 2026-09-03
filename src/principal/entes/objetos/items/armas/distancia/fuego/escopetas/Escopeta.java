@@ -6,9 +6,9 @@ import org.json.simple.JSONObject;
 
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
-import principal.entes.modelos.item.ListaModelosItem;
+import principal.entes.criaturas.Jugador;
 import principal.entes.objetos.items.armas.Arma;
-import principal.entes.proyectil.ProyectilPerdigon;
+import principal.entes.objetos.items.municiones.CajaMunicion;
 import principal.mapa.Mundo;
 import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
@@ -18,6 +18,10 @@ public abstract class Escopeta extends Arma {
 
 	private static final long serialVersionUID = 581920391203912L;
 
+	public static final String COD_RECORTADA = "Escopeta Recortada";
+	public static final String COD_TACTICA = "Escopeta Tactica";
+	public static final String COD_AUTOMATICA = "Escopeta Automatica";
+
 	protected final int cantidadPerdigones;
 	protected final double anguloAperturaRad;
 	protected final double velocidadPerdigon;
@@ -26,7 +30,7 @@ public abstract class Escopeta extends Arma {
 			final int capacidadCargador, final int tiempoRecargaMs, final int cadenciaMs, final int cantidadPerdigones,
 			final double aperturaGrados, final double velocidadPerdigon) {
 		super(codModelo, damagePorPerdigon, alcance, penetrante, capacidadCargador, tiempoRecargaMs, cadenciaMs,
-				ListaModelosItem.COD_CONSUMIBLE_MUNICION_ESCOPETA);
+				CajaMunicion.COD_12CAL);
 		this.cantidadPerdigones = Math.max(2, cantidadPerdigones);
 		this.anguloAperturaRad = Math.toRadians(aperturaGrados);
 		this.velocidadPerdigon = velocidadPerdigon;
@@ -37,7 +41,7 @@ public abstract class Escopeta extends Arma {
 			final boolean penetrante, final int capacidadCargador, final int tiempoRecargaMs, final int cadenciaMs,
 			final int cantidadPerdigones, final double aperturaGrados, final double velocidadPerdigon) {
 		super(x, y, codModelo, damagePorPerdigon, alcance, penetrante, capacidadCargador, tiempoRecargaMs, cadenciaMs,
-				ListaModelosItem.COD_CONSUMIBLE_MUNICION_ESCOPETA);
+				CajaMunicion.COD_12CAL);
 		this.cantidadPerdigones = Math.max(2, cantidadPerdigones);
 		this.anguloAperturaRad = Math.toRadians(aperturaGrados);
 		this.velocidadPerdigon = velocidadPerdigon;
@@ -49,21 +53,30 @@ public abstract class Escopeta extends Arma {
 			final Mundo escenario, final Criatura causante) {
 
 		if (this.consumirDisparo(causante)) {
+			final double dx = xDestino - xOrigen;
+			final double dy = yDestino - yOrigen;
+			final double dist = Math.hypot(dx, dy);
+
 			if (escenario != null) {
-				final double dx = xDestino - xOrigen;
-				final double dy = yDestino - yOrigen;
+				final double spawnX = (dist > 0.001) ? xOrigen + ((dx / dist) * 12.0) : xOrigen;
+				final double spawnY = (dist > 0.001) ? yOrigen + ((dy / dist) * 12.0) : yOrigen;
+
 				final double anguloCentral = Math.atan2(dy, dx);
 				final double pasoAngular = this.anguloAperturaRad / (this.cantidadPerdigones - 1);
 				final double anguloInicial = anguloCentral - (this.anguloAperturaRad / 2.0);
 
 				for (int i = 0; i < this.cantidadPerdigones; i++) {
 					final double anguloActual = anguloInicial + (i * pasoAngular);
-					final double targetX = xOrigen + (Math.cos(anguloActual) * 1000.0);
-					final double targetY = yOrigen + (Math.sin(anguloActual) * 1000.0);
+					final double targetX = spawnX + (Math.cos(anguloActual) * 1000.0);
+					final double targetY = spawnY + (Math.sin(anguloActual) * 1000.0);
 
-					escenario.crearProyectil(new ProyectilPerdigon(this.damage, this.velocidadPerdigon, this.penetrante,
-							this.alcance, escenario, xOrigen, yOrigen, targetX, targetY, causante));
+					escenario.getGestorProyectiles().dispararPerdigon(this.damage, this.velocidadPerdigon,
+							this.penetrante, this.alcance, escenario, spawnX, spawnY, targetX, targetY, causante);
 				}
+			}
+
+			if ((causante instanceof Jugador) && (Globales.CAMARA != null) && (dist > 0.001)) {
+				Globales.CAMARA.aplicarRetroceso(-dx, -dy, 8.5, 160.0);
 			}
 
 			if ((Globales.CAMARA != null) && (Globales.CAMARA.getEntidadEnfocada() != null)) {
@@ -107,19 +120,19 @@ public abstract class Escopeta extends Arma {
 	@Override
 	protected JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", this.getPosicionXInt());
-		json.put("y", this.getPosicionYInt());
-		json.put("codModelo", this.CODIGO_MODELO);
-		json.put("balasCargador", this.balasCargador);
-		json.put("capacidadCargador", this.capacidadCargador);
+		json.put("x", Integer.valueOf(this.getPosicionXInt()));
+		json.put("y", Integer.valueOf(this.getPosicionYInt()));
+		json.put("codModelo", this.codigoModelo);
+		json.put("balasCargador", Integer.valueOf(this.balasCargador));
+		json.put("capacidadCargador", Integer.valueOf(this.capacidadCargador));
 		return json;
 	}
 
 	@Override
 	protected void rellenarInfo(final ArrayList<String> listaInfo) {
+		listaInfo.clear();
 		listaInfo.add("Daño: " + this.damage + " pts x " + this.cantidadPerdigones + " perdigones.");
-		listaInfo.add(
-				"Cargador: " + this.getMunicion().getCantidad() + "/" + this.getMunicion().getLimite() + " balas.");
+		listaInfo.add("Cargador: " + this.balasCargador + "/" + this.capacidadCargador + " balas.");
 		listaInfo.add("Cadencia: " + this.cadenciaMs + " ms.");
 		listaInfo.add("Tiempo de recarga: " + (this.tiempoRecargaMs / 1000.0) + " s.");
 		listaInfo.add("Apertura: " + (int) Math.toDegrees(this.anguloAperturaRad) + "°.");

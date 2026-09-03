@@ -4,13 +4,15 @@ import java.util.ArrayList;
 
 import org.json.simple.JSONObject;
 
-import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.armas.Arma;
 
 public class Herramienta extends Arma {
 
 	private static final long serialVersionUID = 1L;
+
+	public static final String COD_HACHA = "Hacha de Tala";
+	public static final String COD_PICO = "Pico de Minería";
 
 	protected final TipoHerramienta tipoHerramienta;
 	protected final double potenciaCosecha;
@@ -43,7 +45,7 @@ public class Herramienta extends Arma {
 
 	@Override
 	public Objeto copiar() {
-		return new Herramienta(this.getPosicionXInt(), this.getPosicionYInt(), this.CODIGO_MODELO, this.damage,
+		return new Herramienta(this.getPosicionXInt(), this.getPosicionYInt(), this.codigoModelo, this.damage,
 				this.alcance, this.cadenciaMs, this.tipoHerramienta, this.potenciaCosecha);
 	}
 
@@ -51,26 +53,25 @@ public class Herramienta extends Arma {
 	@Override
 	protected JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", this.getPosicionXInt());
-		json.put("y", this.getPosicionYInt());
-		json.put("codModelo", this.CODIGO_MODELO);
-		json.put("damage", this.damage);
-		json.put("alcance", this.alcance);
-		json.put("cadencia", this.cadenciaMs);
+		json.put("x", Integer.valueOf(this.getPosicionXInt()));
+		json.put("y", Integer.valueOf(this.getPosicionYInt()));
+		json.put("codModelo", this.codigoModelo);
+		json.put("damage", Integer.valueOf(this.damage));
+		json.put("alcance", Integer.valueOf(this.alcance));
+		json.put("cadencia", Integer.valueOf(this.cadenciaMs));
 		json.put("tipoHerramienta", this.tipoHerramienta.name());
-		json.put("potencia", this.potenciaCosecha);
+		json.put("potencia", Double.valueOf(this.potenciaCosecha));
 		return json;
 	}
 
 	public static Herramienta crearDesdeJson(final JSONObject json) {
 		if (json == null) {
-			return new Herramienta(ListaModelosItem.COD_HERRAMIENTA_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0);
+			return new Herramienta(COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0);
 		}
 
 		final int x = (json.get("x") != null) ? ((Number) json.get("x")).intValue() : 0;
 		final int y = (json.get("y") != null) ? ((Number) json.get("y")).intValue() : 0;
-		final String codModelo = (json.get("codModelo") != null) ? json.get("codModelo").toString()
-				: ListaModelosItem.COD_HERRAMIENTA_HACHA;
+		final String codModelo = (json.get("codModelo") != null) ? json.get("codModelo").toString() : COD_HACHA;
 		final int damage = (json.get("damage") != null) ? ((Number) json.get("damage")).intValue() : 8;
 		final int alcance = (json.get("alcance") != null) ? ((Number) json.get("alcance")).intValue() : 14;
 		final int cadencia = (json.get("cadencia") != null) ? ((Number) json.get("cadencia")).intValue() : 350;

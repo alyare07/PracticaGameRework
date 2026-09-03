@@ -4,19 +4,18 @@ import java.util.ArrayList;
 
 import org.json.simple.JSONObject;
 
-import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Portable;
 
-/**
- * Representa cualquier pieza de equipo armable (Casco, Torso, Botas, Anillo)
- * con bonificadores de atributos RPG.
- * 
- * @version 1.0 (Vanilla Java 8)
- */
 public class PiezaEquipo extends Portable {
 
 	private static final long serialVersionUID = 1L;
+
+	public static final String COD_CASCO_BASE = "Casco Ligero";
+	public static final String COD_ARMADURA_BASE = "Armadura Ligera";
+	public static final String COD_BOTAS_CUERO = "Botas Cuero";
+	public static final String COD_ANILLO_ORO = "Anillo de Oro";
+	public static final String COD_ANILLO_PLATA = "Anillo de Plata";
 
 	protected final TipoEquipo tipoEquipo;
 	protected final int bonifFuerza;
@@ -75,6 +74,7 @@ public class PiezaEquipo extends Portable {
 
 	@Override
 	protected void rellenarInfo(final ArrayList<String> listaInfo) {
+		listaInfo.clear();
 		listaInfo.add("Tipo: " + this.tipoEquipo.getNombreVisible());
 		if (this.armaduraDefensa > 0) {
 			listaInfo.add("Defensa: +" + this.armaduraDefensa + " pts.");
@@ -92,7 +92,7 @@ public class PiezaEquipo extends Portable {
 
 	@Override
 	public Objeto copiar() {
-		return new PiezaEquipo(this.getPosicionXInt(), this.getPosicionYInt(), this.CODIGO_MODELO, this.tipoEquipo,
+		return new PiezaEquipo(this.getPosicionXInt(), this.getPosicionYInt(), this.codigoModelo, this.tipoEquipo,
 				this.bonifFuerza, this.bonifAgilidad, this.bonifInteligencia, this.armaduraDefensa);
 	}
 
@@ -100,14 +100,14 @@ public class PiezaEquipo extends Portable {
 	@Override
 	protected JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", this.getPosicionXInt());
-		json.put("y", this.getPosicionYInt());
-		json.put("codModelo", this.CODIGO_MODELO);
+		json.put("x", Integer.valueOf(this.getPosicionXInt()));
+		json.put("y", Integer.valueOf(this.getPosicionYInt()));
+		json.put("codModelo", this.codigoModelo);
 		json.put("tipoEquipo", this.tipoEquipo.name());
-		json.put("fuerza", this.bonifFuerza);
-		json.put("agilidad", this.bonifAgilidad);
-		json.put("inteligencia", this.bonifInteligencia);
-		json.put("defensa", this.armaduraDefensa);
+		json.put("fuerza", Integer.valueOf(this.bonifFuerza));
+		json.put("agilidad", Integer.valueOf(this.bonifAgilidad));
+		json.put("inteligencia", Integer.valueOf(this.bonifInteligencia));
+		json.put("defensa", Integer.valueOf(this.armaduraDefensa));
 		return json;
 	}
 
@@ -118,7 +118,7 @@ public class PiezaEquipo extends Portable {
 
 		final int x = (json.get("x") != null) ? ((Number) json.get("x")).intValue() : 0;
 		final int y = (json.get("y") != null) ? ((Number) json.get("y")).intValue() : 0;
-		final String codModelo = (json.get("codModelo") != null) ? json.get("codModelo").toString() : "";
+		final String codModelo = (json.get("codModelo") != null) ? json.get("codModelo").toString() : COD_CASCO_BASE;
 		final String tipoStr = (json.get("tipoEquipo") != null) ? json.get("tipoEquipo").toString() : "CASCO";
 
 		TipoEquipo tipo = TipoEquipo.CASCO;

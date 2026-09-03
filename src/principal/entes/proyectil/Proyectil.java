@@ -16,12 +16,12 @@ public abstract class Proyectil extends Ente implements Serializable {
 
 	private static final long serialVersionUID = -5309717278363977059L;
 
-	protected final double DAMAGE;
-	protected final double VELOCIDAD;
-	protected final boolean PENETRANTE;
-	protected final double ALCANCE;
-	protected final Direccion DIRECCION;
-	protected final Ente CAUSANTE;
+	protected double DAMAGE;
+	protected double VELOCIDAD;
+	protected boolean PENETRANTE;
+	protected double ALCANCE;
+	protected Direccion DIRECCION;
+	protected Ente CAUSANTE;
 
 	protected double velX;
 	protected double velY;
@@ -119,6 +119,42 @@ public abstract class Proyectil extends Ente implements Serializable {
 	public void setPosicion(final double x, final double y) {
 		this.x = x;
 		this.y = y;
+	}
+
+	// AGREGAR este método al final de la clase:
+	public void reiniciar(final double damage, final double velocidad, final boolean penetrante, final double alcance,
+			final Mundo mundo, final double xOrigen, final double yOrigen, final double xDestino, final double yDestino,
+			final int ancho, final int alto, final Ente causante) {
+		this.DAMAGE = damage;
+		this.VELOCIDAD = velocidad;
+		this.PENETRANTE = penetrante;
+		this.ALCANCE = alcance;
+		this.mundo = mundo;
+		this.distanciaRecorrida = 0.0;
+		this.eliminado = false;
+		this.x = xOrigen;
+		this.y = yOrigen;
+		this.ancho = ancho;
+		this.alto = alto;
+		this.CAUSANTE = causante;
+
+		final double dx = xDestino - xOrigen;
+		final double dy = yDestino - yOrigen;
+		final double dist = Math.hypot(dx, dy);
+
+		if (dist > 0.0001) {
+			this.velX = (dx / dist) * velocidad;
+			this.velY = (dy / dist) * velocidad;
+		} else {
+			this.velX = velocidad;
+			this.velY = 0.0;
+		}
+
+		if (Math.abs(dx) > Math.abs(dy)) {
+			this.DIRECCION = (dx > 0) ? Direccion.ESTE : Direccion.OESTE;
+		} else {
+			this.DIRECCION = (dy > 0) ? Direccion.SUR : Direccion.NORTE;
+		}
 	}
 
 	public Direccion getDireccion() {

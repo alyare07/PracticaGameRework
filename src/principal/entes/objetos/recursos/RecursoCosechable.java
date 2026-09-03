@@ -104,6 +104,7 @@ public abstract class RecursoCosechable extends Objeto implements Cosechable {
 				final DeltaMundo delta = Globales.GESTOR_DELTAS.obtenerOCrearDelta(clave, 0);
 				delta.registrarDestruccion(this.getPosicionXInt(), this.getPosicionYInt());
 			}
+			this.mundo.notificarModificacionEstructura();
 		}
 		this.eliminar();
 	}

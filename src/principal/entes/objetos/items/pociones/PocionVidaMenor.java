@@ -4,23 +4,24 @@ import java.util.ArrayList;
 
 import org.json.simple.JSONObject;
 
-import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.Objeto;
+import principal.recursos.TexturaItem;
 
 public class PocionVidaMenor extends PocionVida {
 
 	private static final long serialVersionUID = 604669784500287669L;
-	protected static final double puntosRest = 20;
-
-	protected static final String codModelo = ListaModelosItem.COD_CONSUMIBLE_POCION_VIDA_MENOR;
+	protected static final double PUNTOS_REST = 20.0;
+	public static final String COD_MODELO = "Pocion Vida Menor";
 
 	public PocionVidaMenor(final int cantidad) {
-		super(cantidad, codModelo, puntosRest);
+		super(cantidad, COD_MODELO, "Poción de Vida Menor", TexturaItem.POCION_ROJA_INV, TexturaItem.POCION_ROJA_MAPA,
+				99, PUNTOS_REST);
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
 	public PocionVidaMenor(final int x, final int y, final int cantidad) {
-		super(x, y, cantidad, codModelo, puntosRest);
+		super(x, y, cantidad, COD_MODELO, "Poción de Vida Menor", TexturaItem.POCION_ROJA_INV,
+				TexturaItem.POCION_ROJA_MAPA, 99, PUNTOS_REST);
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
@@ -33,10 +34,10 @@ public class PocionVidaMenor extends PocionVida {
 	@Override
 	protected JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", this.getPosicionXInt());
-		json.put("y", this.getPosicionYInt());
+		json.put("x", Integer.valueOf(this.getPosicionXInt()));
+		json.put("y", Integer.valueOf(this.getPosicionYInt()));
 		json.put("codModelo", this.getCodigoModelo());
-		json.put("cant", this.getCantidad());
+		json.put("cant", Integer.valueOf(this.getCantidad()));
 		return json;
 	}
 
@@ -49,7 +50,7 @@ public class PocionVidaMenor extends PocionVida {
 
 	@Override
 	protected void rellenarInfo(final ArrayList<String> listaInfo) {
-		listaInfo.add("Regenera " + puntosRest + "pts de vida.");
+		listaInfo.clear();
+		listaInfo.add("Regenera " + (int) PUNTOS_REST + " pts de vida.");
 	}
-
 }

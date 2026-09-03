@@ -1,24 +1,44 @@
 package principal.entes.objetos.recursos;
 
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 
 import principal.entes.Ente;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
 import principal.entes.objetos.items.materiales.RecursoMaterial;
+import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
-import principal.utilidades.Textura;
+import principal.utilidades.HojaSprite;
 
 public class ArbolCosechable extends RecursoCosechable {
 
 	private static final long serialVersionUID = 1L;
 
 	private boolean esTocon = false;
-	private final int codTexturaArbol;
+	private final ClaveHoja hoja;
+	private final int spriteIndex;
 
-	public ArbolCosechable(final int x, final int y, final int codTexturaArbol) {
+	public ArbolCosechable(final int x, final int y, final ClaveHoja hoja, final int spriteIndex) {
 		super(x, y, 100.0, TipoHerramienta.HACHA);
-		this.codTexturaArbol = codTexturaArbol;
+		this.hoja = (hoja != null) ? hoja : ClaveHoja.ARBOLES_32;
+		this.spriteIndex = Math.max(0, spriteIndex);
+	}
+
+	public ArbolCosechable(final int x, final int y) {
+		this(x, y, ClaveHoja.ARBOLES_32, 0);
+	}
+
+	// Sobrecarga de compatibilidad transitoria
+	@Deprecated
+	public ArbolCosechable(final int x, final int y, final int codViejo) {
+		this(x, y, ClaveHoja.ARBOLES_32, 0);
+	}
+
+	@Override
+	public Rectangle getArea() {
+		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt() + 10, this.getPosicionYInt() + 18, 12, 14);
+		return this.AREA_ENTE_RETORNO;
 	}
 
 	@Override
@@ -44,7 +64,6 @@ public class ArbolCosechable extends RecursoCosechable {
 		final int dropX = this.getCentroX() - 4;
 		final int dropY = this.getPosicionYInt() + (this.getAlto() / 2);
 
-		// Drop de Madera real
 		final int cantidadMadera = this.esTocon ? 2 : 5;
 		this.mundo.meterEntidad(RecursoMaterial.crearMadera(dropX, dropY, cantidadMadera));
 		Globales.GESTOR_PARTICULAS.emitirPolvoPaso(this.getCentroX(), this.getCentroY(), 18);
@@ -57,7 +76,8 @@ public class ArbolCosechable extends RecursoCosechable {
 
 	@Override
 	public BufferedImage getTextura() {
-		return Textura.getTextura(this.codTexturaArbol);
+		final HojaSprite h = Globales.GESTOR_TEXTURAS.getHoja(this.hoja);
+		return (h != null) ? h.getSprite(this.spriteIndex) : Globales.GESTOR_TEXTURAS.getTexturaError();
 	}
 
 	@Override
@@ -72,7 +92,7 @@ public class ArbolCosechable extends RecursoCosechable {
 
 	@Override
 	public Objeto copiar() {
-		return new ArbolCosechable(this.getPosicionXInt(), this.getPosicionYInt(), this.codTexturaArbol);
+		return new ArbolCosechable(this.getPosicionXInt(), this.getPosicionYInt(), this.hoja, this.spriteIndex);
 	}
 
 	public boolean isEsTocon() {

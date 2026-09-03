@@ -11,7 +11,9 @@ import principal.entes.criaturas.enemigos.bandido.BandidoGarrote;
 import principal.entes.criaturas.enemigos.bandido.BandidoGranadero;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
 import principal.mapa.Tile;
+import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
+import principal.utilidades.HojaSprite;
 import principal.utilidades.Render2D;
 
 public class PaletaCriaturas extends Paleta {
@@ -42,20 +44,19 @@ public class PaletaCriaturas extends Paleta {
 	}
 
 	private void cargarCriaturas() {
-		// 1. Bandido Pistolero
-		final BufferedImage iconPistolero = Globales.LISTA_HOJAS_SPRITES.BANDIDO.PISTOLA_ESTANDAR_ABAJO.getSprite(0);
-		this.agregarEntrada("Bandido Pistolero", iconPistolero,
-				(x, y) -> new BandidoPistolero(x, y, 50, 50, null));
+		final HojaSprite hojaBandido = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.BANDIDO);
 
-		// 2. Bandido Garrote
-		final BufferedImage iconGarrote = Globales.LISTA_HOJAS_SPRITES.BANDIDO.GARROTE_ESTANDAR_ABAJO.getSprite(0);
-		this.agregarEntrada("Bandido Garrote", iconGarrote,
-				(x, y) -> new BandidoGarrote(x, y, 50, 50, null));
+		// 1. Bandido Pistolero (Fila 6, frame 0 = índice 24)
+		final BufferedImage iconPistolero = (hojaBandido != null) ? hojaBandido.getSprite(24) : null;
+		this.agregarEntrada("Bandido Pistolero", iconPistolero, (x, y) -> new BandidoPistolero(x, y, 50, 50, null));
 
-		// 3. Bandido Granadero
-		final BufferedImage iconGranadero = Globales.LISTA_HOJAS_SPRITES.BANDIDO.ESTANDAR_ABAJO.getSprite(0);
-		this.agregarEntrada("Bandido Granadero", iconGranadero,
-				(x, y) -> new BandidoGranadero(x, y, 50, 50, null));
+		// 2. Bandido Garrote (Fila 12, frame 0 = índice 48)
+		final BufferedImage iconGarrote = (hojaBandido != null) ? hojaBandido.getSprite(48) : null;
+		this.agregarEntrada("Bandido Garrote", iconGarrote, (x, y) -> new BandidoGarrote(x, y, 50, 50, null));
+
+		// 3. Bandido Granadero (Fila 0, frame 0 = índice 0)
+		final BufferedImage iconGranadero = (hojaBandido != null) ? hojaBandido.getSprite(0) : null;
+		this.agregarEntrada("Bandido Granadero", iconGranadero, (x, y) -> new BandidoGranadero(x, y, 50, 50, null));
 	}
 
 	public void agregarEntrada(final String nombre, final BufferedImage icono, final CreadorCriatura creador) {
@@ -76,7 +77,6 @@ public class PaletaCriaturas extends Paleta {
 			Render2D.dibujarImagen(g, entrada.icono, slotX, slotY);
 		}
 
-		// Insignia [C] Roja para identificar criaturas / entidades vivas
 		final Font fontPrevia = g.getFont();
 		g.setFont(FUENTE_BADGE);
 		Render2D.dibujarRectanguloRelleno(g, slotX + 1, slotY + 1, 6, 6, Color.BLACK);
@@ -100,7 +100,7 @@ public class PaletaCriaturas extends Paleta {
 
 	@Override
 	public String getNombreElemento(final int index) {
-		return (index >= 0) && (index < this.ENTRADAS.size()) ? this.ENTRADAS.get(index).nombre : "";
+		return ((index >= 0) && (index < this.ENTRADAS.size())) ? this.ENTRADAS.get(index).nombre : "";
 	}
 
 	@Override

@@ -6,7 +6,6 @@ import java.awt.Rectangle;
 import org.json.simple.JSONObject;
 
 import principal.entes.modelos.complemento.ListaModeloComplemento;
-import principal.entes.modelos.tile.ListaModeloTile;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.cofres.CofreMediano;
 import principal.eventos.EventoJugadorZonaTP;
@@ -18,6 +17,7 @@ import principal.mapa.escenario.tps.ZonaTP;
 import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
+import principal.recursos.TipoTerreno;
 
 public class MapaPlano extends Mapa {
 	public static final String NOMBRE_MAPA = "Mapa Plano";
@@ -35,7 +35,7 @@ public class MapaPlano extends Mapa {
 	@Override
 	protected void establecerMundos(final GestorCarga gc, final int porcentajeCarga) {
 		gc.setDetalleCarga("Generando terreno");
-		final Terreno t = new Terreno(1500, 1500, 16, ListaModeloTile.COD_CESPED_2);
+		final Terreno t = new Terreno(1500, 1500, 16, TipoTerreno.CESPED_2);
 		this.MUNDOS.put(EXTERIOR, new Mundo(new Escenario(t, "[]", "[]", "[]", "[]"), new Point(326, 268)));
 	}
 
@@ -66,5 +66,4 @@ public class MapaPlano extends Mapa {
 	public String getNombre() {
 		return NOMBRE_MAPA;
 	}
-
 }

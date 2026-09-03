@@ -27,6 +27,7 @@ import principal.mapa.escenario.Escenario;
 import principal.mapa.escenario.EscenarioLoader;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.EstadoJuego;
+import principal.recursos.TipoTerreno;
 import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -66,13 +67,13 @@ public class EditorMapa implements EstadoJuego {
 	private static final Font FUENTE_INFO = new Font(Font.SANS_SERIF, Font.PLAIN, 6);
 	private VolatileImage bufferEditor;
 
-	public EditorMapa(final int ladoTile, final int anchoTiles, final int altoTiles, final int idModeloTile,
+	public EditorMapa(final int ladoTile, final int anchoTiles, final int altoTiles, final TipoTerreno tipoInicial,
 			final GestorEstados ge) {
 		this.GE = ge;
 		this.LADO_TILE = ladoTile;
 		this.ANCHO = anchoTiles * ladoTile;
 		this.ALTO = altoTiles * ladoTile;
-		this.TERRENO = new Terreno(anchoTiles, altoTiles, this.LADO_TILE, idModeloTile);
+		this.TERRENO = new Terreno(anchoTiles, altoTiles, this.LADO_TILE, tipoInicial);
 
 		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
 				Constantes.ALTO_JUEGO);
@@ -82,6 +83,13 @@ public class EditorMapa implements EstadoJuego {
 		this.asistenteCamara = new AsistenteCamara(0, 0, 16, 16);
 
 		this.inicializarCamara();
+	}
+
+	// SOBRECARGA DE COMPATIBILIDAD TRANSITORIA:
+	@Deprecated
+	public EditorMapa(final int ladoTile, final int anchoTiles, final int altoTiles, final int idModeloTile,
+			final GestorEstados ge) {
+		this(ladoTile, anchoTiles, altoTiles, TipoTerreno.TIERRA, ge);
 	}
 
 	public EditorMapa(final Terreno terreno, final GestorEstados ge) {

@@ -2,79 +2,68 @@ package principal.entes.modelos.complemento;
 
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+
 import principal.entes.objetos.Complemento;
 import principal.utilidades.Animacion;
-import principal.utilidades.Textura;
+import principal.utilidades.Globales;
 
 public abstract class ModeloComplemento {
+
 	private final boolean SOLIDO;
-	private final int COD_IMAGEN;
+	private final BufferedImage textura;
 	private final int ALTO;
 	private final int ANCHO;
 	private boolean animar;
 	private final Animacion ANIMACION;
 	private final boolean CONTIENE_ZONA_NO_SOLIDA;
 
-	public ModeloComplemento(final int ancho, final int alto, final int codImagen, final boolean solido, final boolean ContieneZonaNoSolida) {
+	public ModeloComplemento(final int ancho, final int alto, final BufferedImage textura, final boolean solido,
+			final boolean contieneZonaNoSolida) {
 		this.SOLIDO = solido;
-		this.CONTIENE_ZONA_NO_SOLIDA = solido? ContieneZonaNoSolida : false;
-		this.COD_IMAGEN = codImagen;
+		this.CONTIENE_ZONA_NO_SOLIDA = solido && contieneZonaNoSolida;
+		this.textura = textura;
 		this.ANCHO = ancho;
 		this.ALTO = alto;
-		this.ANIMACION = ((G, X, Y) -> {
+		this.ANIMACION = ((g, x, y) -> {
 		});
 	}
 
-	public ModeloComplemento(final int lado, final int codImagen, final boolean solido, final boolean ContieneZonaNoSolida) {
-		this.SOLIDO = solido;
-		this.CONTIENE_ZONA_NO_SOLIDA = solido? ContieneZonaNoSolida : false;
-		this.COD_IMAGEN = codImagen;
-		this.ANCHO = lado;
-		this.ALTO = lado;
-		this.ANIMACION = ((G, X, Y) -> {
-		});
+	public ModeloComplemento(final int lado, final BufferedImage textura, final boolean solido,
+			final boolean contieneZonaNoSolida) {
+		this(lado, lado, textura, solido, contieneZonaNoSolida);
 	}
 
-	public ModeloComplemento(final int ancho, final int alto, final int codImagen, final boolean solido, final boolean ContieneZonaNoSolida, final Animacion animacion) {
+	public ModeloComplemento(final int ancho, final int alto, final BufferedImage textura, final boolean solido,
+			final boolean contieneZonaNoSolida, final Animacion animacion) {
 		this.SOLIDO = solido;
-		this.CONTIENE_ZONA_NO_SOLIDA = solido? ContieneZonaNoSolida : false;
-		this.COD_IMAGEN = codImagen;
+		this.CONTIENE_ZONA_NO_SOLIDA = solido && contieneZonaNoSolida;
+		this.textura = textura;
 		this.ANCHO = ancho;
 		this.ALTO = alto;
 		if (animacion != null) {
 			this.animar = true;
 			this.ANIMACION = animacion;
 		} else {
-			this.ANIMACION = ((G, X, Y) -> {
+			this.ANIMACION = ((g, x, y) -> {
 			});
 		}
 	}
 
-	public ModeloComplemento(final int lado, final int codImagen, final boolean solido, final boolean ContieneZonaNoSolida, final Animacion animacion) {
-		this.SOLIDO = solido;
-		this.CONTIENE_ZONA_NO_SOLIDA = solido? ContieneZonaNoSolida : false;
-		this.COD_IMAGEN = codImagen;
-		this.ANCHO = lado;
-		this.ALTO = lado;
-		if (animacion != null) {
-			this.animar = true;
-			this.ANIMACION = animacion;
-		} else {
-			this.ANIMACION = ((G, X, Y) -> {
-			});
-		}
+	public ModeloComplemento(final int lado, final BufferedImage textura, final boolean solido,
+			final boolean contieneZonaNoSolida, final Animacion animacion) {
+		this(lado, lado, textura, solido, contieneZonaNoSolida, animacion);
 	}
 
 	public boolean esSolido() {
-		return SOLIDO;
+		return this.SOLIDO;
 	}
-	
+
 	public boolean contieneZonaNoSolida() {
 		return this.CONTIENE_ZONA_NO_SOLIDA;
 	}
 
 	public BufferedImage getTextura() {
-		return Textura.getTextura(COD_IMAGEN);
+		return (this.textura != null) ? this.textura : Globales.GESTOR_TEXTURAS.getTexturaError();
 	}
 
 	public int getAncho() {
@@ -96,6 +85,6 @@ public abstract class ModeloComplemento {
 	public Animacion getAnimacion() {
 		return this.ANIMACION;
 	}
-	
+
 	public abstract boolean intersecta(final Shape area, final Complemento cPropietario);
 }

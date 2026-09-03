@@ -2,32 +2,23 @@ package principal.entes.objetos.items.armas.distancia.fuego.automaticas;
 
 import org.json.simple.JSONObject;
 
-import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.Objeto;
+import principal.entes.objetos.items.municiones.CajaMunicion;
 
-/**
- * Rifle de asalto militar de 7.62mm (Tier 2). Alta precisión de largo alcance,
- * cadencia de 160 ms y recarga táctica de 1.8 s.
- * 
- * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
- */
 public class RifleAsalto extends ArmaAutomatica {
 
 	private static final long serialVersionUID = 981920391209381L;
 
 	public RifleAsalto() {
-		super(ListaModelosItem.COD_ARMA_RIFLE_ASALTO, 8, 320, false, 30, 1800, 160,
-				ListaModelosItem.COD_CONSUMIBLE_MUNICION_FUSIL, 2.0, 5.5);
+		super(ArmaAutomatica.COD_RIFLE, 8, 320, false, 30, 1800, 160, CajaMunicion.COD_762MM, 2.0, 5.5);
 	}
 
 	public RifleAsalto(final int x, final int y) {
-		super(x, y, ListaModelosItem.COD_ARMA_RIFLE_ASALTO, 8, 320, false, 30, 1800, 160,
-				ListaModelosItem.COD_CONSUMIBLE_MUNICION_FUSIL, 2.0, 5.5);
+		super(x, y, ArmaAutomatica.COD_RIFLE, 8, 320, false, 30, 1800, 160, CajaMunicion.COD_762MM, 2.0, 5.5);
 	}
 
 	public RifleAsalto(final int x, final int y, final int balasCargador) {
-		super(x, y, ListaModelosItem.COD_ARMA_RIFLE_ASALTO, 8, 320, false, 30, 1800, 160,
-				ListaModelosItem.COD_CONSUMIBLE_MUNICION_FUSIL, 2.0, 5.5);
+		super(x, y, ArmaAutomatica.COD_RIFLE, 8, 320, false, 30, 1800, 160, CajaMunicion.COD_762MM, 2.0, 5.5);
 		this.balasCargador = Math.max(0, Math.min(this.capacidadCargador, balasCargador));
 	}
 

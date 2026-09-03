@@ -2,32 +2,23 @@ package principal.entes.objetos.items.armas.distancia.fuego.automaticas;
 
 import org.json.simple.JSONObject;
 
-import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.Objeto;
+import principal.entes.objetos.items.municiones.CajaMunicion;
 
-/**
- * Subfusil automático compacto de 9mm (Tier 1). Cadencia ultra-rápida de 110
- * ms, cargador de 30 balas y recarga ágil de 1.4 s.
- * 
- * @version 2.0 (Java 8 Compatible - Zero-GC Architecture)
- */
 public class SubfusilLigero extends ArmaAutomatica {
 
 	private static final long serialVersionUID = 881920391209381L;
 
 	public SubfusilLigero() {
-		super(ListaModelosItem.COD_ARMA_SUBFUSIL_LIGERO, 4, 220, false, 30, 1400, 110,
-				ListaModelosItem.COD_CONSUMIBLE_MUNICION_PISTOLA, 4.5, 4.5);
+		super(ArmaAutomatica.COD_SUBFUSIL, 4, 220, false, 30, 1400, 110, CajaMunicion.COD_9MM, 4.5, 4.5);
 	}
 
 	public SubfusilLigero(final int x, final int y) {
-		super(x, y, ListaModelosItem.COD_ARMA_SUBFUSIL_LIGERO, 4, 220, false, 30, 1400, 110,
-				ListaModelosItem.COD_CONSUMIBLE_MUNICION_PISTOLA, 4.5, 4.5);
+		super(x, y, ArmaAutomatica.COD_SUBFUSIL, 4, 220, false, 30, 1400, 110, CajaMunicion.COD_9MM, 4.5, 4.5);
 	}
 
 	public SubfusilLigero(final int x, final int y, final int balasCargador) {
-		super(x, y, ListaModelosItem.COD_ARMA_SUBFUSIL_LIGERO, 4, 220, false, 30, 1400, 110,
-				ListaModelosItem.COD_CONSUMIBLE_MUNICION_PISTOLA, 4.5, 4.5);
+		super(x, y, ArmaAutomatica.COD_SUBFUSIL, 4, 220, false, 30, 1400, 110, CajaMunicion.COD_9MM, 4.5, 4.5);
 		this.balasCargador = Math.max(0, Math.min(this.capacidadCargador, balasCargador));
 	}
 

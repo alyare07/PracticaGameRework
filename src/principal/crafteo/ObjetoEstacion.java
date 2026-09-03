@@ -5,34 +5,40 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
 import principal.entes.objetos.Objeto;
+import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
+import principal.utilidades.HojaSprite;
 import principal.utilidades.Render2D;
-import principal.utilidades.Textura;
 
 /**
  * Objeto físico del mapa que implementa EstacionInteractiva para habilitar
  * recetas de crafteo avanzadas cuando el jugador está en su rango.
  * 
- * @version 1.0 (Vanilla Java 8)
+ * @version 2.0 (Vanilla Java 8 - GestorTexturas Pipeline)
  */
 public class ObjetoEstacion extends Objeto implements EstacionInteractiva {
 
 	private static final long serialVersionUID = 1L;
 
 	private final EstacionCrafteo tipoEstacion;
-	private final int codTextura;
+	private final BufferedImage textura;
 	private final int ancho;
 	private final int alto;
 	private final boolean solido;
 
-	public ObjetoEstacion(final int x, final int y, final EstacionCrafteo tipoEstacion, final int codTextura,
+	public ObjetoEstacion(final int x, final int y, final EstacionCrafteo tipoEstacion, final BufferedImage textura,
 			final int ancho, final int alto, final boolean solido) {
 		super(x, y);
 		this.tipoEstacion = (tipoEstacion != null) ? tipoEstacion : EstacionCrafteo.MESA_TRABAJO;
-		this.codTextura = codTextura;
+		this.textura = textura;
 		this.ancho = Math.max(8, ancho);
 		this.alto = Math.max(8, alto);
 		this.solido = solido;
+	}
+
+	public ObjetoEstacion(final int x, final int y, final EstacionCrafteo tipoEstacion, final ClaveHoja hoja,
+			final int spriteIndex, final int ancho, final int alto, final boolean solido) {
+		this(x, y, tipoEstacion, resolverTextura(hoja, spriteIndex), ancho, alto, solido);
 	}
 
 	@Override
@@ -54,7 +60,7 @@ public class ObjetoEstacion extends Objeto implements EstacionInteractiva {
 
 	@Override
 	public BufferedImage getTextura() {
-		return Textura.getTextura(this.codTextura);
+		return (this.textura != null) ? this.textura : Globales.GESTOR_TEXTURAS.getTexturaError();
 	}
 
 	@Override
@@ -74,7 +80,12 @@ public class ObjetoEstacion extends Objeto implements EstacionInteractiva {
 
 	@Override
 	public Objeto copiar() {
-		return new ObjetoEstacion(this.getPosicionXInt(), this.getPosicionYInt(), this.tipoEstacion, this.codTextura,
+		return new ObjetoEstacion(this.getPosicionXInt(), this.getPosicionYInt(), this.tipoEstacion, this.textura,
 				this.ancho, this.alto, this.solido);
+	}
+
+	private static BufferedImage resolverTextura(final ClaveHoja hoja, final int index) {
+		final HojaSprite h = Globales.GESTOR_TEXTURAS.getHoja(hoja);
+		return (h != null) ? h.getSprite(index) : Globales.GESTOR_TEXTURAS.getTexturaError();
 	}
 }

@@ -4,20 +4,20 @@ import java.util.ArrayList;
 
 import org.json.simple.JSONObject;
 
-import principal.entes.modelos.item.ListaModelosItem;
 import principal.entes.objetos.Objeto;
 
 public class GranadaT1 extends Granada {
 
 	private static final long serialVersionUID = -6468671785650283188L;
+	public static final String COD_MODELO = "Granada T1";
 
 	public GranadaT1(final int cantidad) {
-		super(0, 0, cantidad, 50, 20.0, ListaModelosItem.COD_CONSUMIBLE_GRANADAT1);
+		super(0, 0, cantidad, 50, 20.0, COD_MODELO);
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
 	public GranadaT1(final int x, final int y, final int cantidad) {
-		super(x, y, cantidad, 50, 20.0, ListaModelosItem.COD_CONSUMIBLE_GRANADAT1);
+		super(x, y, cantidad, 50, 20.0, COD_MODELO);
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
@@ -25,10 +25,10 @@ public class GranadaT1 extends Granada {
 	@Override
 	protected JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", this.getPosicionXInt());
-		json.put("y", this.getPosicionYInt());
+		json.put("x", Integer.valueOf(this.getPosicionXInt()));
+		json.put("y", Integer.valueOf(this.getPosicionYInt()));
 		json.put("codModelo", this.getCodigoModelo());
-		json.put("cant", this.getCantidad());
+		json.put("cant", Integer.valueOf(this.getCantidad()));
 		return json;
 	}
 

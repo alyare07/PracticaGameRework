@@ -10,7 +10,9 @@ import org.json.simple.parser.ParseException;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
 import principal.inventario.vault.InventarioVault.EstadoInventario;
+import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
+import principal.utilidades.HojaSprite;
 
 public class CofrePequeño extends Cofre {
 
@@ -24,10 +26,15 @@ public class CofrePequeño extends Cofre {
 
 	@Override
 	public BufferedImage getTextura() {
-		if (this.getInventario().getEstadoInventario() == EstadoInventario.CERRADO) {
-			return Globales.LISTA_HOJAS_SPRITES.COFRES.getCofreCerrado();
+		final HojaSprite hoja = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.COFRES_16);
+		if (hoja == null) {
+			return Globales.GESTOR_TEXTURAS.getTexturaError();
 		}
-		return Globales.LISTA_HOJAS_SPRITES.COFRES.getCofreAbierto();
+
+		if (this.getInventario().getEstadoInventario() == EstadoInventario.CERRADO) {
+			return hoja.getSprite(1);
+		}
+		return hoja.getSprite(0);
 	}
 
 	@Override
@@ -42,7 +49,7 @@ public class CofrePequeño extends Cofre {
 
 	@Override
 	public Objeto copiar() {
-		return new CofrePequeño(this.getPosicionXInt(), this.getPosicionYInt()); // COPIAR TAMBIEN EL INVENTARIO
+		return new CofrePequeño(this.getPosicionXInt(), this.getPosicionYInt());
 	}
 
 	@Override
@@ -67,10 +74,9 @@ public class CofrePequeño extends Cofre {
 			listaItemsJson = new JSONArray();
 		}
 		final CofrePequeño cofre = new CofrePequeño(x, y);
-		Item i = null;
 		for (final Object obj : listaItemsJson) {
 			if (obj instanceof JSONObject) {
-				i = Item.crearItemDesdeJson((JSONObject) obj);
+				final Item i = Item.crearItemDesdeJson((JSONObject) obj);
 				if (i == null) {
 					continue;
 				}
@@ -79,5 +85,4 @@ public class CofrePequeño extends Cofre {
 		}
 		return cofre;
 	}
-
 }

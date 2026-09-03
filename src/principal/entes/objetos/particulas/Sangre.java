@@ -3,9 +3,11 @@ package principal.entes.objetos.particulas;
 import java.awt.image.BufferedImage;
 
 import principal.entes.objetos.Objeto;
-import principal.utilidades.Textura;
+import principal.recursos.TexturaItem;
+import principal.utilidades.Globales;
 
 public final class Sangre extends Particula {
+
 	private static final long serialVersionUID = 7303537108026422687L;
 	public static final int TIEMPO_VIDA_MS = 4500;
 
@@ -20,13 +22,12 @@ public final class Sangre extends Particula {
 
 	@Override
 	public int getAlto() {
-		// TODO Auto-generated method stub
 		return 8;
 	}
 
 	@Override
 	public BufferedImage getTextura() {
-		return Textura.getTextura(Textura.TEXTURA_X8_PARTICULA_SANGRE);
+		return Globales.GESTOR_TEXTURAS.get(TexturaItem.PARTICULA_SANGRE_8);
 	}
 
 	@Override
@@ -58,5 +59,4 @@ public final class Sangre extends Particula {
 	public boolean estaEliminado() {
 		return this.eliminado;
 	}
-
 }

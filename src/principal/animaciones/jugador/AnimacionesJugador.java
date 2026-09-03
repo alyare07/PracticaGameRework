@@ -9,6 +9,7 @@ import principal.animaciones.AnimacionDireccionada;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.criaturas.Criatura.Estado;
 import principal.entes.criaturas.Jugador;
+import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 
@@ -24,125 +25,46 @@ public class AnimacionesJugador {
 	private final int TIEMPO_MS_POR_FRAME = 150;
 
 	public AnimacionesJugador() {
-		final int lado = 32;
-		final boolean opaca = false;
-
 		this.ANIMACIONES = new HashMap<String, AnimacionDireccionada>();
-		this.ANIMACIONES
-				.put(ESTANDAR,
-						new AnimacionDireccionada(
-								new Animacion(
-										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-												.cargarImagenCompatibleTranslucida(
-														"/imagenes/sprites/player_sprites.png")
-												.getSubimage(0, lado, lado * 4, lado), lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME),
-								new Animacion(new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-										.cargarImagenCompatibleTranslucida("/imagenes/sprites/player_sprites.png")
-										.getSubimage(0, 0, lado * 4, lado), lado, opaca), true,
-										this.TIEMPO_MS_POR_FRAME),
-								new Animacion(
-										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-												.cargarImagenCompatibleTranslucida(
-														"/imagenes/sprites/player_sprites.png")
-												.getSubimage(0, 2 * lado, lado * 4, lado), lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME),
-								new Animacion(
-										new HojaSprite(
-												Globales.FUNCIONES.TEXTURAS_TOOLS
-														.voltearImagenH(Globales.FUNCIONES.CARGADOR_RECURSOS
-																.cargarImagenCompatibleTranslucida(
-																		"/imagenes/sprites/player_sprites.png")
-																.getSubimage(0, 2 * lado, lado * 4, lado)),
-												lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME)));
 
-		this.ANIMACIONES
-				.put(CAMINANDO,
-						new AnimacionDireccionada(
-								new Animacion(
-										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-												.cargarImagenCompatibleTranslucida(
-														"/imagenes/sprites/player_sprites.png")
-												.getSubimage(0, 4 * lado, lado * 4, lado), lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME - 50),
-								new Animacion(new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-										.cargarImagenCompatibleTranslucida("/imagenes/sprites/player_sprites.png")
-										.getSubimage(0, 3 * lado, lado * 4, lado), lado, opaca), true,
-										this.TIEMPO_MS_POR_FRAME - 50),
-								new Animacion(
-										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-												.cargarImagenCompatibleTranslucida(
-														"/imagenes/sprites/player_sprites.png")
-												.getSubimage(0, 5 * lado, lado * 4, lado), lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME - 50),
-								new Animacion(
-										new HojaSprite(
-												Globales.FUNCIONES.TEXTURAS_TOOLS
-														.voltearImagenH(Globales.FUNCIONES.CARGADOR_RECURSOS
-																.cargarImagenCompatibleTranslucida(
-																		"/imagenes/sprites/player_sprites.png")
-																.getSubimage(0, 5 * lado, lado * 4, lado)),
-												lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME)));
+		// 1. Obtener la hoja normal y la hoja invertida desde GestorTexturas (0
+		// lecturas de disco)
+		final HojaSprite hojaNormal = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.JUGADOR);
+		final HojaSprite hojaVolteada = Globales.GESTOR_TEXTURAS.getHojaVolteadaH(ClaveHoja.JUGADOR);
 
-		this.ANIMACIONES
-				.put(ARMADO_ESTANDAR,
-						new AnimacionDireccionada(
-								new Animacion(
-										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-												.cargarImagenCompatibleTranslucida(
-														"/imagenes/sprites/player_sprites.png")
-												.getSubimage(0, 7 * lado, lado * 4, lado), lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME),
-								new Animacion(new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-										.cargarImagenCompatibleTranslucida("/imagenes/sprites/player_sprites.png")
-										.getSubimage(0, 6 * lado, lado * 4, lado), lado, opaca), true,
-										this.TIEMPO_MS_POR_FRAME),
-								new Animacion(
-										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-												.cargarImagenCompatibleTranslucida(
-														"/imagenes/sprites/player_sprites.png")
-												.getSubimage(0, 8 * lado, lado * 4, lado), lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME),
-								new Animacion(
-										new HojaSprite(
-												Globales.FUNCIONES.TEXTURAS_TOOLS
-														.voltearImagenH(Globales.FUNCIONES.CARGADOR_RECURSOS
-																.cargarImagenCompatibleTranslucida(
-																		"/imagenes/sprites/player_sprites.png")
-																.getSubimage(0, 8 * lado, lado * 4, lado)),
-												lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME)));
+		final int framesPorFila = 4;
 
-		this.ANIMACIONES
-				.put(ARMADO_CAMINANDO,
-						new AnimacionDireccionada(
-								new Animacion(
-										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-												.cargarImagenCompatibleTranslucida(
-														"/imagenes/sprites/player_sprites.png")
-												.getSubimage(0, 10 * lado, lado * 4, lado), lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME),
-								new Animacion(new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-										.cargarImagenCompatibleTranslucida("/imagenes/sprites/player_sprites.png")
-										.getSubimage(0, 9 * lado, lado * 4, lado), lado, opaca), true,
-										this.TIEMPO_MS_POR_FRAME),
-								new Animacion(
-										new HojaSprite(Globales.FUNCIONES.CARGADOR_RECURSOS
-												.cargarImagenCompatibleTranslucida(
-														"/imagenes/sprites/player_sprites.png")
-												.getSubimage(0, 11 * lado, lado * 4, lado), lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME),
-								new Animacion(
-										new HojaSprite(
-												Globales.FUNCIONES.TEXTURAS_TOOLS
-														.voltearImagenH(Globales.FUNCIONES.CARGADOR_RECURSOS
-																.cargarImagenCompatibleTranslucida(
-																		"/imagenes/sprites/player_sprites.png")
-																.getSubimage(0, 11 * lado, lado * 4, lado)),
-												lado, opaca),
-										true, this.TIEMPO_MS_POR_FRAME)));
+		// --- ESTÁNDAR (Filas 0, 1, 2) ---
+		this.ANIMACIONES.put(ESTANDAR,
+				new AnimacionDireccionada(
+						new Animacion(hojaNormal.recortarRango(4, framesPorFila), true, this.TIEMPO_MS_POR_FRAME), // Norte
+						new Animacion(hojaNormal.recortarRango(0, framesPorFila), true, this.TIEMPO_MS_POR_FRAME), // Sur
+						new Animacion(hojaNormal.recortarRango(8, framesPorFila), true, this.TIEMPO_MS_POR_FRAME), // Este
+						new Animacion(hojaVolteada.recortarRango(8, framesPorFila), true, this.TIEMPO_MS_POR_FRAME) // Oeste
+																													// (Volteado)
+				));
+
+		// --- CAMINANDO (Filas 3, 4, 5) ---
+		this.ANIMACIONES.put(CAMINANDO, new AnimacionDireccionada(
+				new Animacion(hojaNormal.recortarRango(16, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50),
+				new Animacion(hojaNormal.recortarRango(12, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50),
+				new Animacion(hojaNormal.recortarRango(20, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50),
+				new Animacion(hojaVolteada.recortarRango(20, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50)));
+
+		// --- ARMADO ESTÁNDAR (Filas 6, 7, 8) ---
+		this.ANIMACIONES.put(ARMADO_ESTANDAR,
+				new AnimacionDireccionada(
+						new Animacion(hojaNormal.recortarRango(28, framesPorFila), true, this.TIEMPO_MS_POR_FRAME),
+						new Animacion(hojaNormal.recortarRango(24, framesPorFila), true, this.TIEMPO_MS_POR_FRAME),
+						new Animacion(hojaNormal.recortarRango(32, framesPorFila), true, this.TIEMPO_MS_POR_FRAME),
+						new Animacion(hojaVolteada.recortarRango(32, framesPorFila), true, this.TIEMPO_MS_POR_FRAME)));
+
+		// --- ARMADO CAMINANDO (Filas 9, 10, 11) ---
+		this.ANIMACIONES.put(ARMADO_CAMINANDO, new AnimacionDireccionada(
+				new Animacion(hojaNormal.recortarRango(40, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50),
+				new Animacion(hojaNormal.recortarRango(36, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50),
+				new Animacion(hojaNormal.recortarRango(44, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50),
+				new Animacion(hojaVolteada.recortarRango(44, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50)));
 	}
 
 	public void actualizar(final Jugador jugador) {

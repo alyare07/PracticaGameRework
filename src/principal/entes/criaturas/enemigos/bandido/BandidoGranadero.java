@@ -54,7 +54,6 @@ public class BandidoGranadero extends Bandido {
 			return;
 		}
 
-		// --- FASE 1: Lanzamiento al culminar carga ---
 		if (this.realizandoAtaque) {
 			if (this.GT_CARGA_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaAtaqueInicial())) {
 				this.enAccion = false;
@@ -75,18 +74,16 @@ public class BandidoGranadero extends Bandido {
 			return;
 		}
 
-		// Cooldown tras lanzamiento
+		final double rangoVision = this.areaDeteccionAncho / 2.0;
+		final boolean objetivoEnVision = CalculadorSigilo.puedeDetectar(this, this.objetivoActual, rangoVision);
+
 		if (!this.GT_RETOMAR_ATAQUE.transcurrioMiliSegundos(this.getTiempoMsEsperaRetomarAtaque())) {
-			final double rangoVision = this.areaDeteccionAncho / 2.0;
-			if (!CalculadorSigilo.puedeDetectar(this, this.objetivoActual, rangoVision)) {
+			if (!objetivoEnVision) {
 				this.reposicionarseHaciaObjetivo();
 			}
 			return;
 		}
 
-		// --- FASE 2: Detección y aproximación ---
-		final double rangoVision = this.areaDeteccionAncho / 2.0;
-		final boolean objetivoEnVision = CalculadorSigilo.puedeDetectar(this, this.objetivoActual, rangoVision);
 		final boolean dentroTiempoBusqueda = !this.GE_FUERA_DE_RANGO
 				.transcurrioMiliSegundos(this.getTiempoMsBusquedaFueraRango());
 

@@ -56,7 +56,7 @@ public class Mapa1 extends Mapa {
 		gc.setDetalleCarga("Generando mundo " + EXTERIOR);
 		this.MUNDOS.put(EXTERIOR,
 				new Mundo(this.cargarEscenario(gc, porcentajeCargaEscenario, new File("mundos/escenario1.json")),
-						new Point(697, 437), gc, porcentajeCargaMundo));
+						new Point(1878, 1796), gc, porcentajeCargaMundo));
 	}
 
 	@Override
@@ -84,12 +84,12 @@ public class Mapa1 extends Mapa {
 //		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 250, 250, this.mundoActual));
 
 		// Recursos Cosechables de prueba cerca del spawn
-		this.mundoActual.meterEntidad(new ArbolCosechable(720, 420, ClaveHoja.ARBOLES_32, 0));
-		this.mundoActual.meterEntidad(new ArbolCosechable(750, 400, ClaveHoja.ARBOLES_32, 1));
-		this.mundoActual.meterEntidad(new RocaCosechable(710, 460, ClaveHoja.DUNGEON_16, 813));
+		this.mundoActual.meterEntidad(new ArbolCosechable(1789, 1854, ClaveHoja.ARBOLES_32, 0));
+		this.mundoActual.meterEntidad(new ArbolCosechable(1777, 1854, ClaveHoja.ARBOLES_32, 1));
+		this.mundoActual.meterEntidad(new RocaCosechable(1954, 1777, ClaveHoja.DUNGEON_16, 813));
 
 		// Cofre con herramientas y armamento
-		final ArbolCofre arbolcofre1 = new ArbolCofre(767, 424);
+		final ArbolCofre arbolcofre1 = new ArbolCofre(1800, 1900);
 		arbolcofre1.getInventario()
 				.agregarItem(new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
 		arbolcofre1.getInventario()

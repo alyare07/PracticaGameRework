@@ -97,6 +97,8 @@ public class GestorTexturas {
 			if ((clave == ClaveHoja.DUNGEON_16) && (imagenBase != null)) {
 				imagenBase = Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(imagenBase, imagenBase.getWidth() / 2,
 						imagenBase.getHeight() / 2);
+			} else if ((clave == ClaveHoja.CASA_1) && (imagenBase != null)) {
+				imagenBase = Globales.FUNCIONES.TEXTURAS_TOOLS.redimensionar(imagenBase, 64, 64);
 			}
 
 			final HojaSprite hoja = new HojaSprite(imagenBase, clave.getAnchoFrame(), clave.getAltoFrame(), false);

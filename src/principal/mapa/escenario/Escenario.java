@@ -21,6 +21,7 @@ import principal.entes.objetos.recursos.ArbolCosechable;
 import principal.entes.objetos.recursos.RocaCosechable;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
+import principal.mapa.mapas.Spawn;
 import principal.utilidades.Globales;
 
 public class Escenario implements Serializable {
@@ -31,14 +32,42 @@ public class Escenario implements Serializable {
 	protected final String LISTA_CREACION_ITEMS_JSON;
 	protected final String LISTA_CREACION_COMPLEMENTOS_JSON;
 	protected final String LISTA_CREACION_OBJETOS_JSON;
+	protected final String LISTA_CREACION_SPAWNS_JSON;
 
 	public Escenario(final Terreno mapa, final String criaturasJSON, final String itemsJSON,
-			final String complementosJSON, final String objetosJSON) {
+			final String complementosJSON, final String objetosJSON, final String spawnsJSON) {
 		this.TERRENO = mapa;
 		this.LISTA_CREACION_CRIATURAS_JSON = (criaturasJSON != null) ? criaturasJSON : "[]";
 		this.LISTA_CREACION_ITEMS_JSON = (itemsJSON != null) ? itemsJSON : "[]";
 		this.LISTA_CREACION_COMPLEMENTOS_JSON = (complementosJSON != null) ? complementosJSON : "[]";
 		this.LISTA_CREACION_OBJETOS_JSON = (objetosJSON != null) ? objetosJSON : "[]";
+		this.LISTA_CREACION_SPAWNS_JSON = (spawnsJSON != null) ? spawnsJSON : "[]";
+	}
+
+	public Escenario(final Terreno mapa, final String criaturasJSON, final String itemsJSON,
+			final String complementosJSON, final String objetosJSON) {
+		this(mapa, criaturasJSON, itemsJSON, complementosJSON, objetosJSON, "[]");
+	}
+
+	public ArrayList<Spawn> generarSpawns() {
+		final ArrayList<Spawn> spawns = new ArrayList<Spawn>();
+		final JSONParser parse = new JSONParser();
+		JSONArray lista = null;
+		try {
+			lista = (JSONArray) parse.parse(this.LISTA_CREACION_SPAWNS_JSON);
+		} catch (final ParseException e) {
+			lista = new JSONArray();
+		}
+
+		for (final Object obj : lista) {
+			if (obj instanceof JSONObject) {
+				final Spawn s = Spawn.crearDesdeJson((JSONObject) obj);
+				if (s != null) {
+					spawns.add(s);
+				}
+			}
+		}
+		return spawns;
 	}
 
 	public ArrayList<Criatura> generarListaCriaturas(final Mundo mundo) {
@@ -99,7 +128,15 @@ public class Escenario implements Serializable {
 
 		for (final Object obj : lista) {
 			if (obj instanceof JSONObject) {
-				final Complemento c = Complemento.crearDesdeJson((JSONObject) obj);
+				final JSONObject json = (JSONObject) obj;
+				Complemento c = null;
+
+				if ((json.get("esEspecial") != null) && Boolean.parseBoolean(json.get("esEspecial").toString())) {
+					c = principal.entes.objetos.especial.CuadradoInvisible.crearDesdeJson(json);
+				} else {
+					c = Complemento.crearDesdeJson(json);
+				}
+
 				if (c != null) {
 					complementos.add(c);
 				}
@@ -154,7 +191,6 @@ public class Escenario implements Serializable {
 
 				Objeto obj = null;
 
-				// Deserialización Polimórfica de Objetos
 				if (tipo.equals(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Cofre.class))
 						|| tipo.equals("Cofre")) {
 					obj = Cofre.crearDesdeJSON(entiti);
@@ -177,5 +213,9 @@ public class Escenario implements Serializable {
 
 	public Terreno getTerreno() {
 		return this.TERRENO;
+	}
+
+	public String getListaCreacionSpawnsJson() {
+		return this.LISTA_CREACION_SPAWNS_JSON;
 	}
 }

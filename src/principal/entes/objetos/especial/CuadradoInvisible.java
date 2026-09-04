@@ -3,11 +3,14 @@ package principal.entes.objetos.especial;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
+import org.json.simple.JSONObject;
+
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.utilidades.Render2D;
 
 public class CuadradoInvisible extends Complemento {
+	private static final long serialVersionUID = -8572826474094657688L;
 	private final int CODIGO_MODELO;
 
 	public CuadradoInvisible(final int x, final int y, final int codModelo) {
@@ -27,7 +30,23 @@ public class CuadradoInvisible extends Complemento {
 				ListaObjetosEspeciales.getModeloCuadrado(this.CODIGO_MODELO).getColor());
 	}
 
-	private static final long serialVersionUID = -8572826474094657688L;
+	@SuppressWarnings("unchecked")
+	@Override
+	public JSONObject exportarParaJSON() {
+		final JSONObject json = new JSONObject();
+		json.put("x", Integer.valueOf(this.getPosicionXInt()));
+		json.put("y", Integer.valueOf(this.getPosicionYInt()));
+		json.put("codModelo", Integer.valueOf(this.getCodigoModelo()));
+		json.put("esEspecial", Boolean.TRUE);
+		return json;
+	}
+
+	public static CuadradoInvisible crearDesdeJson(final JSONObject json) {
+		final int x = Integer.parseInt(json.get("x").toString());
+		final int y = Integer.parseInt(json.get("y").toString());
+		final int codModelo = Integer.parseInt(json.get("codModelo").toString());
+		return new CuadradoInvisible(x, y, codModelo);
+	}
 
 	@Override
 	public int getCodigoModelo() {

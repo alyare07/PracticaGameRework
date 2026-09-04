@@ -32,15 +32,22 @@ public class GrupoPaleta {
 	protected final Rectangle AREA;
 	protected final Rectangle AREA_CABECERA;
 	private int indiceActivo = 0;
+	private final EditorMapa editor;
 
-	private static final Font FUENTE_PESTANAS = new Font(Font.SANS_SERIF, Font.BOLD, 6);
+	private static final Font FUENTE_PESTANAS = new Font(Font.SANS_SERIF, Font.BOLD, 5);
 
-	public GrupoPaleta(final int x, final int y, final int ancho, final int alto) {
+	public GrupoPaleta(final int x, final int y, final int ancho, final int alto, final EditorMapa editor) {
 		this.AREA = new Rectangle(x, y, ancho, alto);
 		this.AREA_CABECERA = new Rectangle(x, y, ancho, 20);
+		this.editor = editor;
 
 		this.iniciarPaletas();
 		this.recalcularAreasPestanas();
+	}
+
+	@Deprecated
+	public GrupoPaleta(final int x, final int y, final int ancho, final int alto) {
+		this(x, y, ancho, alto, null);
 	}
 
 	private void iniciarPaletas() {
@@ -72,7 +79,7 @@ public class GrupoPaleta {
 				(x, y) -> new RocaCosechable(x, y, ClaveHoja.DUNGEON_16, 813));
 		this.registrarPaleta("Recursos", paletaRecursos);
 
-		// 3. PESTAÑA: OBJETOS Y COMPLEMENTOS (Iconos reales desde COFRES_16)
+		// 3. PESTAÑA: OBJETOS Y COMPLEMENTOS
 		final PaletaComplento paletaObjetos = new PaletaComplento(this.AREA.x, yPaleta, this.AREA.width, altoPaleta,
 				32);
 		paletaObjetos.agregarEntrada("Casa Grande", casa.getSprite(0), false,
@@ -97,6 +104,15 @@ public class GrupoPaleta {
 		final PaletaCriaturas paletaCriaturas = new PaletaCriaturas(this.AREA.x, yPaleta, this.AREA.width, altoPaleta,
 				32);
 		this.registrarPaleta("Criaturas", paletaCriaturas);
+
+		// 5. PESTAÑA: ÍTEMS Y EQUIPAMIENTO (Para llenar cofres)
+		final PaletaItems paletaItems = new PaletaItems(this.AREA.x, yPaleta, this.AREA.width, altoPaleta, 32,
+				this.editor);
+		this.registrarPaleta("Items", paletaItems);
+
+		// 6. PESTAÑA: SPAWNS Y PUNTOS DE APARICIÓN
+		final PaletaSpawns paletaSpawns = new PaletaSpawns(this.AREA.x, yPaleta, this.AREA.width, altoPaleta, 32);
+		this.registrarPaleta("Spawns", paletaSpawns);
 	}
 
 	public void registrarPaleta(final String nombrePestana, final Paleta paleta) {

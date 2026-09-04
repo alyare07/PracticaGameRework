@@ -36,20 +36,20 @@ public abstract class Comerciante extends Criatura implements Contenedor {
 		this.margenYFinalSprite = 3;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	protected JSONObject exportarParaJSON() {
-		return null;
+		final JSONObject json = new JSONObject();
+		json.put("x", Integer.valueOf(this.getPosicionXInt()));
+		json.put("y", Integer.valueOf(this.getPosicionYInt()));
+		json.put("ancho", Integer.valueOf(this.getAncho()));
+		json.put("alto", Integer.valueOf(this.getAlto()));
+		json.put("vidaMaxima", Double.valueOf(this.vidaMaxima));
+		return json;
 	}
 
 	@Override
 	public String exportarTipoCriatura() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public String getNombreContenedor() {
-		// TODO Auto-generated method stub
 		return "Comerciante";
 	}
 

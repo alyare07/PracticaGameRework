@@ -19,6 +19,14 @@ public final class ItemPuntero {
 	}
 
 	/**
+	 * Asigna directamente un ítem al puntero (usado por el editor de mapas).
+	 */
+	public void setItemDirecto(final Item item) {
+		this.item = item;
+		this.slotOrigen = null;
+	}
+
+	/**
 	 * Extrae el ítem de un slot y lo pone en el cursor.
 	 */
 	public boolean agarrarItem(final Slot slot) {

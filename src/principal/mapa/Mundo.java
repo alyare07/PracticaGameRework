@@ -8,6 +8,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,10 +47,10 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Gestor maestro del mapa activo, flujo de navegación, zonas de indexación y
- * ciclo de vida de entidades.
+ * Gestor maestro del mapa activo, flujo de navegación, zonas de indexación,
+ * puntos de Spawn y ciclo de vida de entidades.
  * 
- * @version 5.1 (Vanilla Java 8 - Universal JSON Object Serialization)
+ * @version 5.2 (Vanilla Java 8 - Spawn Integration)
  */
 public class Mundo {
 
@@ -91,10 +92,19 @@ public class Mundo {
 		this.generarCriaturas(esc.generarListaCriaturas(this));
 		this.ESCENARIO.generarObjetosEnTerreno(this);
 
-		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(comienzo, CLAVE_PUNTO_SPAWN_COMIENZO));
+		// Carga de Spawns guardados en el Escenario
+		for (final Spawn s : esc.generarSpawns()) {
+			this.PUNTOS_SPAWN_JUGADOR.put(s.getNombre(), s);
+		}
+
+		if (!this.PUNTOS_SPAWN_JUGADOR.containsKey(CLAVE_PUNTO_SPAWN_COMIENZO)) {
+			final Point pComienzo = (comienzo != null) ? comienzo : new Point(0, 0);
+			this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(pComienzo, CLAVE_PUNTO_SPAWN_COMIENZO));
+		}
+
+		final Spawn spawnBase = this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO);
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
-		this.dijkstra.actualizar(new Point(this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getX(),
-				this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getY()));
+		this.dijkstra.actualizar(new Point(spawnBase.getX(), spawnBase.getY()));
 		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
 	}
 
@@ -127,19 +137,61 @@ public class Mundo {
 		this.ESCENARIO.generarObjetosEnTerreno(this);
 		gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
 
-		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(comienzo, CLAVE_PUNTO_SPAWN_COMIENZO));
+		for (final Spawn s : esc.generarSpawns()) {
+			this.PUNTOS_SPAWN_JUGADOR.put(s.getNombre(), s);
+		}
+
+		if (!this.PUNTOS_SPAWN_JUGADOR.containsKey(CLAVE_PUNTO_SPAWN_COMIENZO)) {
+			final Point pComienzo = (comienzo != null) ? comienzo : new Point(0, 0);
+			this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(pComienzo, CLAVE_PUNTO_SPAWN_COMIENZO));
+		}
+
+		final Spawn spawnBase = this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO);
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
-		this.dijkstra.actualizar(new Point(this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getX(),
-				this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO).getY()));
+		this.dijkstra.actualizar(new Point(spawnBase.getX(), spawnBase.getY()));
 		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
 	}
 
 	public Mundo(final Terreno terrenoSoloParaEDITOR) {
-		this.ESCENARIO = new Escenario(terrenoSoloParaEDITOR, "[]", "[]", "[]", "[]");
-		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(new Point(), CLAVE_PUNTO_SPAWN_COMIENZO));
+		this.ESCENARIO = new Escenario(terrenoSoloParaEDITOR, "[]", "[]", "[]", "[]", "[]");
+		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO,
+				new Spawn(new Point(0, 0), CLAVE_PUNTO_SPAWN_COMIENZO));
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
 		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
 		this.generarZonas();
+	}
+
+	public void agregarSpawn(final Spawn s) {
+		if (s != null) {
+			this.PUNTOS_SPAWN_JUGADOR.put(s.getNombre(), s);
+		}
+	}
+
+	public void eliminarSpawn(final String nombre) {
+		if (nombre != null) {
+			this.PUNTOS_SPAWN_JUGADOR.remove(nombre);
+		}
+	}
+
+	public Spawn eliminarSpawnEn(final int x, final int y, final int tolerancia) {
+		final Rectangle rect = new Rectangle(x - tolerancia, y - tolerancia, tolerancia * 2, tolerancia * 2);
+		String claveAEliminar = null;
+
+		for (final Spawn s : this.PUNTOS_SPAWN_JUGADOR.values()) {
+			if (rect.contains(s.getX(), s.getY())) {
+				claveAEliminar = s.getNombre();
+				break;
+			}
+		}
+
+		if (claveAEliminar != null) {
+			return this.PUNTOS_SPAWN_JUGADOR.remove(claveAEliminar);
+		}
+		return null;
+	}
+
+	public Collection<Spawn> getPuntosSpawn() {
+		return this.PUNTOS_SPAWN_JUGADOR.values();
 	}
 
 	public String getNombreMundo() {
@@ -910,6 +962,15 @@ public class Mundo {
 	}
 
 	@SuppressWarnings("unchecked")
+	public JSONArray getSpawnsInJson() {
+		final JSONArray listaPuntosSpawn = new JSONArray();
+		for (final Spawn s : this.PUNTOS_SPAWN_JUGADOR.values()) {
+			listaPuntosSpawn.add(s.exportarParaJSON());
+		}
+		return listaPuntosSpawn;
+	}
+
+	@SuppressWarnings("unchecked")
 	public JSONObject getEntesInJson() {
 		final JSONObject listas = new JSONObject();
 		final JSONArray listaComplementos = new JSONArray();
@@ -950,6 +1011,7 @@ public class Mundo {
 		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class), listaCriaturas);
 		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class), listaItems);
 		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class), listaObjetos);
+		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class), this.getSpawnsInJson());
 		return listas;
 	}
 
@@ -958,17 +1020,6 @@ public class Mundo {
 		final JSONObject jsonMundo = this.getEntesInJson();
 		jsonMundo.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class),
 				this.ESCENARIO.getTerreno().getTilesJson());
-
-		final JSONArray listaPuntosSpawn = new JSONArray();
-		for (final Spawn s : this.PUNTOS_SPAWN_JUGADOR.values()) {
-			final JSONObject jsonSpawn = new JSONObject();
-			jsonSpawn.put("x", Integer.valueOf(s.getX()));
-			jsonSpawn.put("y", Integer.valueOf(s.getY()));
-			jsonSpawn.put("nombre", s.getNombre());
-			listaPuntosSpawn.add(jsonSpawn);
-		}
-
-		jsonMundo.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class), listaPuntosSpawn);
 		return jsonMundo;
 	}
 }

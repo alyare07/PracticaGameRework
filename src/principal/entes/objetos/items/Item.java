@@ -108,8 +108,6 @@ public abstract class Item extends Objeto {
 		final Object tipoObj = json.get("tipo");
 		final String tipoStr = (tipoObj != null) ? tipoObj.toString() : "";
 
-		// Extrae el objeto interno de forma segura o usa el objeto raíz si no viene
-		// envuelto
 		JSONObject entiti = null;
 		if (json.get("entiti") instanceof JSONObject) {
 			entiti = (JSONObject) json.get("entiti");
@@ -117,7 +115,7 @@ public abstract class Item extends Objeto {
 			entiti = json;
 		}
 
-		// Armas de fuego
+		// 1. Armas de fuego
 		if (tipoStr.equals("Pistola")) {
 			return Pistola.crearDesdeJson(entiti);
 		}
@@ -140,23 +138,27 @@ public abstract class Item extends Objeto {
 			return AmetralladoraPesada.crearDesdeJson(entiti);
 		}
 
-		// Arrojadizos / Granadas
+		// 2. Equipamiento (Cascos, Armaduras, Botas, Anillos)
+		if (tipoStr.equals("PiezaEquipo")) {
+			return principal.entes.objetos.items.equipamiento.PiezaEquipo.crearDesdeJson(entiti);
+		}
+
+		// 3. Arrojadizos / Granadas
 		if (tipoStr.equals("GranadaT1") || tipoStr.equals("Granada")) {
 			return GranadaT1.crearDesdeJson(entiti);
 		}
 
-		// Herramientas (Hachas / Picos)
+		// 4. Herramientas (Hachas / Picos)
 		if (tipoStr.equals("Herramienta")) {
 			return Herramienta.crearDesdeJson(entiti);
 		}
 
-		// Consumibles y Materiales (Madera, Piedra, Pociones, Cajas de Munición)
+		// 5. Consumibles, Pociones, Materiales y Cajas de Munición
 		if (tipoStr.equals("Consumible") || tipoStr.equals("RecursoMaterial") || tipoStr.equals("CajaMunicion")
 				|| tipoStr.equals("PocionVidaMenor")) {
 			return Consumible.crearConsumible(entiti);
 		}
 
-		// Intento final de fallback por consumibles
 		return Consumible.crearConsumible(entiti);
 	}
 }

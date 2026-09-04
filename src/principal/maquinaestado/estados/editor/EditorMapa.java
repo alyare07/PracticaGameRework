@@ -11,11 +11,13 @@ import java.awt.event.KeyEvent;
 import java.awt.image.VolatileImage;
 import java.io.File;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 import org.json.simple.JSONObject;
 
 import principal.controles.Raton;
 import principal.entes.AsistenteCamara;
+import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
@@ -28,6 +30,7 @@ import principal.mapa.escenario.EscenarioLoader;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.EstadoJuego;
 import principal.recursos.TipoTerreno;
+import principal.utilidades.AccionEntidad;
 import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -35,9 +38,10 @@ import principal.utilidades.Render2D;
 
 /**
  * Editor de escenarios y mapas integrado en tiempo real con soporte de pinceles
- * multiforma, proyección de cámara y guardado JSON encriptado.
+ * multiforma, proyección de cámara, borrado táctico, alineación de sprites y
+ * re-edición de mapas completos existentes.
  * 
- * @version 2.1 (Vanilla Java 8 - Math & Viewport Optimization)
+ * @version 2.4 (Vanilla Java 8 - Full Re-editing Support)
  */
 public class EditorMapa implements EstadoJuego {
 
@@ -68,6 +72,8 @@ public class EditorMapa implements EstadoJuego {
 
 	private final MundoEditor MUNDO_EDITOR;
 	private final Rectangle AREA_MOUSE_APUNTADO = new Rectangle(-1, -1, 1, 1);
+	private final Rectangle AREA_BORRADO_AUX = new Rectangle();
+	private final ArrayList<Ente> listaEntesABorrar = new ArrayList<Ente>(8);
 
 	private static final Font FUENTE_INFO = new Font(Font.SANS_SERIF, Font.PLAIN, 6);
 	private VolatileImage bufferEditor;
@@ -90,44 +96,29 @@ public class EditorMapa implements EstadoJuego {
 		this.inicializarCamara();
 	}
 
-	@Deprecated
-	public EditorMapa(final int ladoTile, final int anchoTiles, final int altoTiles, final int idModeloTile,
-			final GestorEstados ge) {
-		this(ladoTile, anchoTiles, altoTiles, TipoTerreno.TIERRA, ge);
+	public EditorMapa(final Escenario esc, final GestorEstados ge) {
+		this.GE = ge;
+		this.TERRENO = (esc != null) ? esc.getTerreno() : new Terreno(50, 50, Constantes.LADO_TILE, TipoTerreno.TIERRA);
+		this.ANCHO = this.TERRENO.getAncho();
+		this.ALTO = this.TERRENO.getAlto();
+		this.LADO_TILE = this.TERRENO.ladoTile();
+
+		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
+				Constantes.ALTO_JUEGO);
+		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
+				this.PALETA_MAPA.height);
+		this.MUNDO_EDITOR = (esc != null) ? new MundoEditor(esc) : new MundoEditor(this.TERRENO);
+		this.asistenteCamara = new AsistenteCamara(0, 0, 16, 16);
+
+		this.inicializarCamara();
 	}
 
 	public EditorMapa(final Terreno terreno, final GestorEstados ge) {
-		this.GE = ge;
-		this.TERRENO = terreno;
-		this.ANCHO = this.TERRENO.getAncho();
-		this.ALTO = this.TERRENO.getAlto();
-		this.LADO_TILE = this.TERRENO.ladoTile();
-
-		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
-				Constantes.ALTO_JUEGO);
-		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
-				this.PALETA_MAPA.height);
-		this.MUNDO_EDITOR = new MundoEditor(this.TERRENO);
-		this.asistenteCamara = new AsistenteCamara(0, 0, 16, 16);
-
-		this.inicializarCamara();
+		this(new Escenario(terreno, "[]", "[]", "[]", "[]"), ge);
 	}
 
 	public EditorMapa(final String rutaMapa, final GestorEstados ge) {
-		this.GE = ge;
-		this.TERRENO = EscenarioLoader.importarEscenario(new File(rutaMapa)).getTerreno();
-		this.ANCHO = this.TERRENO.getAncho();
-		this.ALTO = this.TERRENO.getAlto();
-		this.LADO_TILE = this.TERRENO.ladoTile();
-
-		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
-				Constantes.ALTO_JUEGO);
-		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
-				this.PALETA_MAPA.height);
-		this.MUNDO_EDITOR = new MundoEditor(this.TERRENO);
-		this.asistenteCamara = new AsistenteCamara(0, 0, 16, 16);
-
-		this.inicializarCamara();
+		this(EscenarioLoader.importarEscenario(new File(rutaMapa)), ge);
 	}
 
 	private void inicializarCamara() {
@@ -141,8 +132,6 @@ public class EditorMapa implements EstadoJuego {
 
 	@Override
 	public void actualizar() {
-		this.RATON.actualizar(SuperficieDibujo.obtenerSuperficieDibujo());
-
 		this.actualizarZoom();
 		this.mover();
 		this.actualizarProyeccionRaton();
@@ -238,9 +227,9 @@ public class EditorMapa implements EstadoJuego {
 	}
 
 	private void alterarElementoSeleccionado() {
-		if (this.RATON.presionadoClickIzq() && this.PALETA_MAPA.intersects(this.RATON.getPuntoPresionado())) {
+		if (this.RATON.presionadoClickIzq() && this.tileApuntadoValido) {
 			final Paleta paleta = this.PALETAS.getPaletaActual();
-			if (!this.tileApuntadoValido || (paleta == null)) {
+			if (paleta == null) {
 				return;
 			}
 
@@ -300,7 +289,7 @@ public class EditorMapa implements EstadoJuego {
 					}
 				}
 			}
-			// 3. Colocación de Criaturas
+			// 3. Colocación de Criaturas con Compensación de Márgenes
 			else if (paleta instanceof PaletaCriaturas) {
 				final PaletaCriaturas paletaCriat = (PaletaCriaturas) paleta;
 				if (!this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
@@ -310,10 +299,13 @@ public class EditorMapa implements EstadoJuego {
 
 				final PaletaCriaturas.EntradaCriatura entrada = paletaCriat.getEntradaSeleccionada();
 				if ((entrada != null) && (entrada.icono != null)) {
-					final int posX = this.AREA_MOUSE_APUNTADO.x - (entrada.icono.getWidth() / 2);
-					final int posY = this.AREA_MOUSE_APUNTADO.y - (entrada.icono.getHeight() / 2);
+					final int spriteX = this.AREA_MOUSE_APUNTADO.x - (entrada.icono.getWidth() / 2);
+					final int spriteY = this.AREA_MOUSE_APUNTADO.y - (entrada.icono.getHeight() / 2);
 
-					final Criatura nuevaCriat = paletaCriat.crearCriaturaSeleccionada(posX, posY);
+					final int hitboxX = spriteX + entrada.margenX;
+					final int hitboxY = spriteY + entrada.margenY;
+
+					final Criatura nuevaCriat = entrada.creador.crear(hitboxX, hitboxY);
 					if (nuevaCriat != null) {
 						this.MUNDO_EDITOR.meterEntidad(nuevaCriat);
 					}
@@ -323,13 +315,29 @@ public class EditorMapa implements EstadoJuego {
 	}
 
 	private void borrarElemento() {
-		if (this.RATON.presionadoClickDerUnicaAct() && this.PALETA_MAPA.intersects(this.RATON.getPuntoPresionado())) {
-			final Rectangle areaCursor = new Rectangle(this.AREA_MOUSE_APUNTADO.x - 6, this.AREA_MOUSE_APUNTADO.y - 6,
-					12, 12);
+		final boolean clickDer = this.RATON.presionadoClickDer() || this.RATON.presionadoClickDerUnicaAct();
 
-			this.MUNDO_EDITOR.paraCadaEnteEn(areaCursor, false, ente -> {
-				this.MUNDO_EDITOR.eliminarEntidad(ente);
+		if (clickDer && this.tileApuntadoValido) {
+			final int radioBorrado = Math.max(8, this.LADO_TILE / 2);
+			this.AREA_BORRADO_AUX.setBounds(this.AREA_MOUSE_APUNTADO.x - radioBorrado,
+					this.AREA_MOUSE_APUNTADO.y - radioBorrado, radioBorrado * 2, radioBorrado * 2);
+
+			this.listaEntesABorrar.clear();
+
+			this.MUNDO_EDITOR.paraCadaEnteEn(this.AREA_BORRADO_AUX, false, new AccionEntidad<Ente>() {
+				@Override
+				public void ejecutar(final Ente ente) {
+					if ((ente != null) && !ente.estaEliminado()) {
+						EditorMapa.this.listaEntesABorrar.add(ente);
+					}
+				}
 			});
+
+			for (int i = 0; i < this.listaEntesABorrar.size(); i++) {
+				this.MUNDO_EDITOR.eliminarEntidad(this.listaEntesABorrar.get(i));
+			}
+
+			this.listaEntesABorrar.clear();
 		}
 	}
 
@@ -445,12 +453,12 @@ public class EditorMapa implements EstadoJuego {
 			final PaletaCriaturas.EntradaCriatura entrada = p.getEntradaSeleccionada();
 
 			if ((entrada != null) && (entrada.icono != null)) {
-				final int posX = this.AREA_MOUSE_APUNTADO.x - (entrada.icono.getWidth() / 2);
-				final int posY = this.AREA_MOUSE_APUNTADO.y - (entrada.icono.getHeight() / 2);
+				final int spriteX = this.AREA_MOUSE_APUNTADO.x - (entrada.icono.getWidth() / 2);
+				final int spriteY = this.AREA_MOUSE_APUNTADO.y - (entrada.icono.getHeight() / 2);
 
-				Render2D.dibujarImagenConTransparenciaRefCamara(g, entrada.icono, posX, posY, 0.65f);
-				Render2D.dibujarRectanguloContornoRefCamara(g, posX, posY, entrada.icono.getWidth(),
-						entrada.icono.getHeight(), Color.RED);
+				Render2D.dibujarImagenConTransparenciaRefCamara(g, entrada.icono, spriteX, spriteY, 0.65f);
+				Render2D.dibujarRectanguloContornoRefCamara(g, spriteX + entrada.margenX, spriteY + entrada.margenY,
+						entrada.anchoHitbox, entrada.altoHitbox, Color.RED);
 			}
 		}
 	}

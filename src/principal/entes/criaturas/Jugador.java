@@ -32,6 +32,7 @@ import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.Tile;
 import principal.mapa.renderEntidades.ZoneBox;
+import principal.recursos.TexturaItem;
 import principal.utilidades.AccionEntidad;
 import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
@@ -805,6 +806,10 @@ public class Jugador extends Criatura {
 		this.pintarDebugCaminos(g);
 		this.pintarAreaDeteccion(g);
 		this.pintarAreaArrojar(g);
+		if (this.modoDios) {
+			Render2D.dibujarImagenRefCamara(g, Globales.GESTOR_TEXTURAS.get(TexturaItem.CORONA_MAPA),
+					this.getCentroX() - 5, this.getPosicionYInt() - 12);
+		}
 	}
 
 	private void pintarDebugCaminos(final Graphics2D g) {

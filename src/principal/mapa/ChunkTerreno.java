@@ -1,5 +1,6 @@
 package principal.mapa;
 
+import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
 import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsEnvironment;
@@ -13,13 +14,6 @@ import principal.recursos.SetTerreno;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
-/**
- * Macro-bloque de terreno pre-horneado en VRAM (Zero-GC / O(1)). Reduce
- * drásticamente las llamadas de dibujo del suelo al consolidar cuadrículas de
- * 16x16 tiles en una única VolatileImage acelerada por hardware.
- * 
- * @version 2.0 (Vanilla Java 8 - Type-Safe Pipeline)
- */
 public class ChunkTerreno {
 
 	private final int chunkX;
@@ -44,7 +38,8 @@ public class ChunkTerreno {
 	}
 
 	/**
-	 * Hornea todos los tiles pertenecientes a este chunk en la VolatileImage local.
+	 * Hornea todos los tiles pertenecientes a este chunk en la VolatileImage local
+	 * limpiando la memoria VRAM residual (Zero-Artifacts / Zero-GC).
 	 */
 	public void bake(final Terreno terreno) {
 		if (terreno == null) {
@@ -54,11 +49,14 @@ public class ChunkTerreno {
 		final GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
 				.getDefaultConfiguration();
 
+		// 1. Crear con soporte de transparencia TRANSLUCENT para evitar artefactos en
+		// bordes
 		if ((this.bufferVRAM == null) || (this.bufferVRAM.validate(gc) == VolatileImage.IMAGE_INCOMPATIBLE)) {
 			if (this.bufferVRAM != null) {
 				this.bufferVRAM.flush();
 			}
-			this.bufferVRAM = gc.createCompatibleVolatileImage(this.ladoPixeles, this.ladoPixeles, Transparency.OPAQUE);
+			this.bufferVRAM = gc.createCompatibleVolatileImage(this.ladoPixeles, this.ladoPixeles,
+					Transparency.TRANSLUCENT);
 		}
 
 		final Graphics2D gChunk = this.bufferVRAM.createGraphics();
@@ -66,6 +64,12 @@ public class ChunkTerreno {
 			gChunk.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 			gChunk.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
 					RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+
+			// 2. Limpieza total de la superficie VRAM con AlphaComposite.Clear (Elimina el
+			// fondo blanco)
+			gChunk.setComposite(AlphaComposite.Clear);
+			gChunk.fillRect(0, 0, this.ladoPixeles, this.ladoPixeles);
+			gChunk.setComposite(AlphaComposite.SrcOver);
 
 			final int ladoTile = terreno.ladoTile();
 			final int tilesPorFila = this.ladoPixeles / ladoTile;
@@ -124,9 +128,6 @@ public class ChunkTerreno {
 		}
 	}
 
-	/**
-	 * Renderiza el chunk completo con 1 sola llamada a drawImage().
-	 */
 	public void pintar(final Graphics2D g, final Terreno terreno) {
 		if (this.contieneAnimacion) {
 			final int currentFrame = (Globales.animacion / 20) % 3;

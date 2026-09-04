@@ -22,11 +22,14 @@ import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.criaturas.Jugador;
+import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.cofres.Cofre;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.particulas.Particula;
+import principal.entes.objetos.recursos.ArbolCosechable;
+import principal.entes.objetos.recursos.RocaCosechable;
 import principal.entes.proyectil.GestorProyectiles;
 import principal.entes.proyectil.Proyectil;
 import principal.entes.proyectil.ProyectilGeneral;
@@ -46,19 +49,19 @@ import principal.utilidades.Render2D;
  * Gestor maestro del mapa activo, flujo de navegación, zonas de indexación y
  * ciclo de vida de entidades.
  * 
- * @version 5.0 (Vanilla Java 8 - Memory Safe Lifecycle)
+ * @version 5.1 (Vanilla Java 8 - Universal JSON Object Serialization)
  */
 public class Mundo {
 
 	protected String nombreMundo = "Exterior";
 	protected final Escenario ESCENARIO;
 	protected final HashMap<String, Spawn> PUNTOS_SPAWN_JUGADOR = new HashMap<String, Spawn>();
-	protected final int LADO_ZONEBOX = 64;
 	private boolean forzarUnaActualizacionDijkstra;
 
 	protected ZoneBox[] ZONAS_ARRAY;
 	protected int cantZonasX;
 	protected int cantZonasY;
+	protected final int LADO_ZONEBOX = 64;
 
 	private static final int CAPACIDAD_INICIAL_COLA = 512;
 	private Ente[] colaRenderEntidades = new Ente[CAPACIDAD_INICIAL_COLA];
@@ -349,10 +352,6 @@ public class Mundo {
 		return true;
 	}
 
-	// =========================================================================
-	// === RAYCASTING HÍBRIDO DE COMBATE / LÍNEA DE TIRO LIMPIA (ZERO-GC)
-	// =========================================================================
-
 	public boolean hayLineaDeTiroLimpia(final double x0, final double y0, final double x1, final double y1) {
 		if (!this.getTerreno().hayLineaDeVisionLimpia(x0, y0, x1, y1)) {
 			return false;
@@ -390,10 +389,6 @@ public class Mundo {
 			this.AESTRELLA_X12X20.calcularMatrizClearance();
 		}
 	}
-
-	// =========================================================================
-	// === MÉTODOS VISITOR Y ACCIONES ESPACIALES
-	// =========================================================================
 
 	public void paraCadaCriaturaEn(final Shape area, final boolean incluirJugador,
 			final AccionEntidad<Criatura> accion) {
@@ -936,6 +931,18 @@ public class Mundo {
 				listaItems.add(((Item) e).getJsonItem());
 			} else if (e instanceof Cofre) {
 				listaObjetos.add(((Cofre) e).exportarParaJson());
+			} else if (e instanceof ArbolCofre) {
+				listaObjetos.add(((ArbolCofre) e).exportarParaJson());
+			} else if (e instanceof ArbolCosechable) {
+				final JSONObject wrapper = new JSONObject();
+				wrapper.put("tipoObjeto", "ArbolCosechable");
+				wrapper.put("entiti", ((ArbolCosechable) e).exportarParaJSON());
+				listaObjetos.add(wrapper);
+			} else if (e instanceof RocaCosechable) {
+				final JSONObject wrapper = new JSONObject();
+				wrapper.put("tipoObjeto", "RocaCosechable");
+				wrapper.put("entiti", ((RocaCosechable) e).exportarParaJSON());
+				listaObjetos.add(wrapper);
 			}
 		}
 

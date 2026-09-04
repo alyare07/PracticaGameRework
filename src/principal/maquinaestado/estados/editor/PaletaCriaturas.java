@@ -26,11 +26,20 @@ public class PaletaCriaturas extends Paleta {
 	public static class EntradaCriatura {
 		public final String nombre;
 		public final BufferedImage icono;
+		public final int margenX;
+		public final int margenY;
+		public final int anchoHitbox;
+		public final int altoHitbox;
 		public final CreadorCriatura creador;
 
-		public EntradaCriatura(final String nombre, final BufferedImage icono, final CreadorCriatura creador) {
+		public EntradaCriatura(final String nombre, final BufferedImage icono, final int margenX, final int margenY,
+				final int anchoHitbox, final int altoHitbox, final CreadorCriatura creador) {
 			this.nombre = nombre;
 			this.icono = icono;
+			this.margenX = margenX;
+			this.margenY = margenY;
+			this.anchoHitbox = anchoHitbox;
+			this.altoHitbox = altoHitbox;
 			this.creador = creador;
 		}
 	}
@@ -46,22 +55,25 @@ public class PaletaCriaturas extends Paleta {
 	private void cargarCriaturas() {
 		final HojaSprite hojaBandido = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.BANDIDO);
 
-		// 1. Bandido Pistolero (Fila 6, frame 0 = índice 24)
+		// Márgenes estándar del Bandido: margenX = 10, margenY = 6, anchoHitbox = 12,
+		// altoHitbox = 20
 		final BufferedImage iconPistolero = (hojaBandido != null) ? hojaBandido.getSprite(24) : null;
-		this.agregarEntrada("Bandido Pistolero", iconPistolero, (x, y) -> new BandidoPistolero(x, y, 50, 50, null));
+		this.agregarEntrada("Bandido Pistolero", iconPistolero, 10, 6, 12, 20,
+				(x, y) -> new BandidoPistolero(x, y, 50, 50, null));
 
-		// 2. Bandido Garrote (Fila 12, frame 0 = índice 48)
 		final BufferedImage iconGarrote = (hojaBandido != null) ? hojaBandido.getSprite(48) : null;
-		this.agregarEntrada("Bandido Garrote", iconGarrote, (x, y) -> new BandidoGarrote(x, y, 50, 50, null));
+		this.agregarEntrada("Bandido Garrote", iconGarrote, 10, 6, 12, 20,
+				(x, y) -> new BandidoGarrote(x, y, 50, 50, null));
 
-		// 3. Bandido Granadero (Fila 0, frame 0 = índice 0)
 		final BufferedImage iconGranadero = (hojaBandido != null) ? hojaBandido.getSprite(0) : null;
-		this.agregarEntrada("Bandido Granadero", iconGranadero, (x, y) -> new BandidoGranadero(x, y, 50, 50, null));
+		this.agregarEntrada("Bandido Granadero", iconGranadero, 10, 6, 12, 20,
+				(x, y) -> new BandidoGranadero(x, y, 50, 50, null));
 	}
 
-	public void agregarEntrada(final String nombre, final BufferedImage icono, final CreadorCriatura creador) {
+	public void agregarEntrada(final String nombre, final BufferedImage icono, final int margenX, final int margenY,
+			final int anchoHitbox, final int altoHitbox, final CreadorCriatura creador) {
 		if ((nombre != null) && (icono != null) && (creador != null)) {
-			this.ENTRADAS.add(new EntradaCriatura(nombre, icono, creador));
+			this.ENTRADAS.add(new EntradaCriatura(nombre, icono, margenX, margenY, anchoHitbox, altoHitbox, creador));
 		}
 	}
 

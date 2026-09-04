@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 
 import principal.controles.Raton;
 import principal.mapa.Tile;
@@ -120,6 +121,39 @@ public abstract class Paleta {
 		}
 
 		this.pintarControlesPaginacion(g);
+	}
+
+	/**
+	 * Dibuja un icono centrando y escalando proporcionalmente cualquier sprite que
+	 * supere las dimensiones del slot (ej: Casa 64x64 en slot de 32x32) sin
+	 * desbordar.
+	 */
+	protected void dibujarIconoAjustadoAlSlot(final Graphics2D g, final BufferedImage img, final int slotX,
+			final int slotY) {
+		if (img == null) {
+			return;
+		}
+
+		final int imgW = img.getWidth();
+		final int imgH = img.getHeight();
+
+		// Si entra sin desbordar, se centra
+		if ((imgW <= this.LADO_SLOT) && (imgH <= this.LADO_SLOT)) {
+			final int x = slotX + ((this.LADO_SLOT - imgW) / 2);
+			final int y = slotY + ((this.LADO_SLOT - imgH) / 2);
+			Render2D.dibujarImagen(g, img, x, y);
+		} else {
+			// Si es más grande, se escala manteniendo el Aspect Ratio
+			final double factor = Math.min((double) this.LADO_SLOT / imgW, (double) this.LADO_SLOT / imgH);
+			final int drawW = Math.max(1, (int) Math.round(imgW * factor));
+			final int drawH = Math.max(1, (int) Math.round(imgH * factor));
+
+			final int drawX = slotX + ((this.LADO_SLOT - drawW) / 2);
+			final int drawY = slotY + ((this.LADO_SLOT - drawH) / 2);
+
+			g.drawImage(img, drawX, drawY, drawW, drawH, null);
+			Render2D.registrarLlamadas(1);
+		}
 	}
 
 	private void pintarControlesPaginacion(final Graphics2D g) {

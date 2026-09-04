@@ -20,6 +20,7 @@ import principal.entes.facciones.GestorFacciones;
 import principal.ia.aEstrella.NodoA;
 import principal.mapa.Mundo;
 import principal.mapa.renderEntidades.ZoneBox;
+import principal.recursos.TexturaItem;
 import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -516,6 +517,10 @@ public abstract class Criatura extends Ente {
 
 	@Override
 	public void pintar(final Graphics2D g) {
+		if (this.modoDios) {
+			Render2D.dibujarImagenRefCamara(g, Globales.GESTOR_TEXTURAS.get(TexturaItem.CORONA_INV),
+					this.getCentroX() - 5, this.getPosicionYInt() - 12);
+		}
 		this.pintarIndicadorVida(g);
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {

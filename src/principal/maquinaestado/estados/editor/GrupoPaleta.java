@@ -51,7 +51,7 @@ public class GrupoPaleta {
 		final HojaSprite arbolesNevados = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.ARBOLES_NEVADOS_32);
 		final HojaSprite dungeon = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.DUNGEON_16);
 		final HojaSprite casa = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.CASA_1);
-		final HojaSprite items16 = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.ITEMS_16);
+		final HojaSprite cofres = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.COFRES_16);
 		final BufferedImage transparente = Globales.GESTOR_TEXTURAS.getTexturaTransparente();
 
 		// 1. PESTAÑA: SUELOS
@@ -72,7 +72,7 @@ public class GrupoPaleta {
 				(x, y) -> new RocaCosechable(x, y, ClaveHoja.DUNGEON_16, 813));
 		this.registrarPaleta("Recursos", paletaRecursos);
 
-		// 3. PESTAÑA: OBJETOS Y COMPLEMENTOS
+		// 3. PESTAÑA: OBJETOS Y COMPLEMENTOS (Iconos reales desde COFRES_16)
 		final PaletaComplento paletaObjetos = new PaletaComplento(this.AREA.x, yPaleta, this.AREA.width, altoPaleta,
 				32);
 		paletaObjetos.agregarEntrada("Casa Grande", casa.getSprite(0), false,
@@ -81,8 +81,10 @@ public class GrupoPaleta {
 				(x, y) -> new Complemento(x, y, ListaModeloComplemento.COD_ARBOL_1));
 		paletaObjetos.agregarEntrada("Árbol Decorativo 2", arboles.getSprite(1), false,
 				(x, y) -> new Complemento(x, y, ListaModeloComplemento.COD_ARBOL_2));
-		paletaObjetos.agregarEntrada("Cofre Mediano", items16.getSprite(19), false, (x, y) -> new CofreMediano(x, y));
-		paletaObjetos.agregarEntrada("Cofre Pequeño", items16.getSprite(6), false, (x, y) -> new CofrePequeño(x, y));
+		paletaObjetos.agregarEntrada("Cofre Mediano", (cofres != null ? cofres.getSprite(1) : null), false,
+				(x, y) -> new CofreMediano(x, y));
+		paletaObjetos.agregarEntrada("Cofre Pequeño", (cofres != null ? cofres.getSprite(1) : null), false,
+				(x, y) -> new CofrePequeño(x, y));
 		paletaObjetos.agregarEntrada("Árbol Cofre Secreto", arboles.getSprite(1), false,
 				(x, y) -> new ArbolCofre(x, y));
 		paletaObjetos.agregarEntrada("Barrera Invisible", transparente, false,

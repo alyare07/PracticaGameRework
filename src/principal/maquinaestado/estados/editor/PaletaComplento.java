@@ -55,7 +55,8 @@ public class PaletaComplento extends Paleta {
 	protected void pintarElementoEnSlot(final Graphics2D g, final int index, final int slotX, final int slotY) {
 		final EntradaPaleta entrada = this.ENTRADAS.get(index);
 		if (entrada.icono != null) {
-			Render2D.dibujarImagen(g, entrada.icono, slotX, slotY);
+			// Ajuste automático sin desbordar el slot
+			this.dibujarIconoAjustadoAlSlot(g, entrada.icono, slotX, slotY);
 		}
 
 		// Insignia: [T] Verde para Cosechables/Talables, [E] Azul para Estáticos/Cofres

@@ -12,10 +12,13 @@ import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.enemigos.bandido.BandidoGarrote;
 import principal.entes.criaturas.enemigos.bandido.BandidoGranadero;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
+import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.cofres.Cofre;
 import principal.entes.objetos.items.Item;
+import principal.entes.objetos.recursos.ArbolCosechable;
+import principal.entes.objetos.recursos.RocaCosechable;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.utilidades.Globales;
@@ -144,11 +147,23 @@ public class Escenario implements Serializable {
 		for (final Object object : lista) {
 			if (object instanceof JSONObject) {
 				final JSONObject json = (JSONObject) object;
-				final String tipo = (json.get("tipoObjeto") != null) ? json.get("tipoObjeto").toString() : "";
+				final String tipo = (json.get("tipoObjeto") != null) ? json.get("tipoObjeto").toString()
+						: (json.get("tipo") != null ? json.get("tipo").toString() : "");
+				final JSONObject entiti = (json.get("entiti") instanceof JSONObject) ? (JSONObject) json.get("entiti")
+						: json;
 
 				Objeto obj = null;
-				if (tipo.equals(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Cofre.class))) {
-					obj = Cofre.crearDesdeJSON((JSONObject) json.get("entiti"));
+
+				// Deserialización Polimórfica de Objetos
+				if (tipo.equals(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Cofre.class))
+						|| tipo.equals("Cofre")) {
+					obj = Cofre.crearDesdeJSON(entiti);
+				} else if (tipo.equals("ArbolCofre")) {
+					obj = ArbolCofre.crearDesdeJson(entiti);
+				} else if (tipo.equals("ArbolCosechable")) {
+					obj = ArbolCosechable.crearDesdeJson(entiti);
+				} else if (tipo.equals("RocaCosechable")) {
+					obj = RocaCosechable.crearDesdeJson(entiti);
 				}
 
 				if (obj != null) {

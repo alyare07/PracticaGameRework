@@ -3,6 +3,8 @@ package principal.entes.objetos.recursos;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 
+import org.json.simple.JSONObject;
+
 import principal.entes.Ente;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
@@ -29,7 +31,6 @@ public class ArbolCosechable extends RecursoCosechable {
 		this(x, y, ClaveHoja.ARBOLES_32, 0);
 	}
 
-	// Sobrecarga de compatibilidad transitoria
 	@Deprecated
 	public ArbolCosechable(final int x, final int y, final int codViejo) {
 		this(x, y, ClaveHoja.ARBOLES_32, 0);
@@ -97,5 +98,43 @@ public class ArbolCosechable extends RecursoCosechable {
 
 	public boolean isEsTocon() {
 		return this.esTocon;
+	}
+
+	public ClaveHoja getHoja() {
+		return this.hoja;
+	}
+
+	public int getSpriteIndex() {
+		return this.spriteIndex;
+	}
+
+	@SuppressWarnings("unchecked")
+	public JSONObject exportarParaJSON() {
+		final JSONObject json = new JSONObject();
+		json.put("x", Integer.valueOf(this.getPosicionXInt()));
+		json.put("y", Integer.valueOf(this.getPosicionYInt()));
+		json.put("hoja", this.hoja.name());
+		json.put("spriteIndex", Integer.valueOf(this.spriteIndex));
+		return json;
+	}
+
+	public static ArbolCosechable crearDesdeJson(final JSONObject json) {
+		if (json == null) {
+			return new ArbolCosechable(0, 0, ClaveHoja.ARBOLES_32, 0);
+		}
+
+		final int x = (json.get("x") != null) ? ((Number) json.get("x")).intValue() : 0;
+		final int y = (json.get("y") != null) ? ((Number) json.get("y")).intValue() : 0;
+
+		ClaveHoja hoja = ClaveHoja.ARBOLES_32;
+		if (json.get("hoja") != null) {
+			try {
+				hoja = ClaveHoja.valueOf(json.get("hoja").toString());
+			} catch (final Exception ignored) {
+			}
+		}
+
+		final int spriteIndex = (json.get("spriteIndex") != null) ? ((Number) json.get("spriteIndex")).intValue() : 0;
+		return new ArbolCosechable(x, y, hoja, spriteIndex);
 	}
 }

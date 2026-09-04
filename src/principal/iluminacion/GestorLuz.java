@@ -432,9 +432,11 @@ public class GestorLuz {
 
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
 
-		if (!this.modoAmbienteFijo) {
-			this.ciclo.actualizar(dt);
-		} else if (this.transicionActiva) {
+		// 1. El reloj solar y calendario global SIEMPRE avanzan en segundo plano
+		this.ciclo.actualizar(dt);
+
+		// 2. Transición suave de color si entramos/salimos de un interior
+		if (this.modoAmbienteFijo && this.transicionActiva) {
 			this.tiempoTransicionActual += dt;
 			final double factor = Math.min(1.0, this.tiempoTransicionActual / this.tiempoTransicionTotal);
 

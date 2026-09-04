@@ -7,6 +7,7 @@ import principal.comandos.ComandoCamara;
 import principal.comandos.ComandoClima;
 import principal.comandos.ComandoCrafteo;
 import principal.comandos.ComandoCurar;
+import principal.comandos.ComandoEfecto;
 import principal.comandos.ComandoHora;
 import principal.comandos.ComandoInfo;
 import principal.comandos.ComandoJugador;
@@ -255,5 +256,6 @@ public class GestorPrincipal {
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoInfo());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoJugador());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoCrafteo());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoEfecto());
 	}
 }

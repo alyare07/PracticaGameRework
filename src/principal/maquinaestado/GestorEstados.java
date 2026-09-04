@@ -8,6 +8,7 @@ import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import principal.mapa.Terreno;
+import principal.mapa.escenario.Escenario;
 import principal.maquinaestado.estados.EstadoJuego;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.editor.EditorMapa;
@@ -33,10 +34,6 @@ public class GestorEstados {
 	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES = 4;
 	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA = 5;
 
-	/**
-	 * Estado nulo/vacío reutilizable para evitar instanciaciones efímeras en la
-	 * recolección de basura
-	 */
 	private static final EstadoJuego ESTADO_VACIO = new EstadoJuego() {
 		@Override
 		public void pintar(final Graphics2D g) {
@@ -70,7 +67,6 @@ public class GestorEstados {
 	}
 
 	public void establecerEstadoActual(final int numeroEstado) {
-		// Sincronizar el flag global de estado de partida
 		Globales.estadoJuego = (numeroEstado == NUMERO_ESTADO_PARTIDA);
 
 		switch (numeroEstado) {
@@ -110,7 +106,12 @@ public class GestorEstados {
 		this.estadoActual = this.estados[2];
 	}
 
-	// ESTE ES EL QUE FALTABA PARA ABRIR MAPAS EXISTENTES:
+	public void editorMapa(final Escenario esc) {
+		Globales.estadoJuego = false;
+		this.estados[2] = new EditorMapa(esc, this);
+		this.estadoActual = this.estados[2];
+	}
+
 	public void editorMapa(final Terreno mapa) {
 		Globales.estadoJuego = false;
 		this.estados[2] = new EditorMapa(mapa, this);
@@ -144,7 +145,6 @@ public class GestorEstados {
 	}
 
 	public void seleccionarMundo() {
-		// Ruta compatible entre todos los sistemas operativos (Windows, Linux, macOS)
 		final File directorio = new File("mundos");
 		if (!directorio.exists()) {
 			directorio.mkdirs();

@@ -5,6 +5,7 @@ import java.io.File;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import principal.mapa.escenario.Escenario;
 import principal.mapa.escenario.EscenarioLoader;
 import principal.maquinaestado.GestorEstados;
 
@@ -50,7 +51,10 @@ public class MenuEdirorSeleccion extends Menu {
 		if ((resultado == JFileChooser.APPROVE_OPTION) && (selector.getSelectedFile() != null)) {
 			final File archivo = selector.getSelectedFile();
 			final Thread hilo = new Thread(() -> {
-				this.GE.editorMapa(EscenarioLoader.importarEscenario(archivo).getTerreno());
+				final Escenario esc = EscenarioLoader.importarEscenario(archivo);
+				if (esc != null) {
+					this.GE.editorMapa(esc);
+				}
 			});
 			hilo.start();
 		}

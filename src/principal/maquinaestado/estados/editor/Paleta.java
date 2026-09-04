@@ -21,7 +21,7 @@ public abstract class Paleta {
 	protected final int ELEMENTOS_POR_PAGINA;
 
 	protected int paginaActual = 0;
-	protected int indiceSeleccionado = 0;
+	protected int indiceSeleccionado = -1; // -1 = Ninguno seleccionado (Puntero limpio)
 
 	protected final Rectangle botonPaginaAnterior;
 	protected final Rectangle botonPaginaSiguiente;
@@ -113,7 +113,7 @@ public abstract class Paleta {
 
 			this.pintarElementoEnSlot(g, i, slotX, slotY);
 
-			if (i == this.indiceSeleccionado) {
+			if ((i == this.indiceSeleccionado) && (this.indiceSeleccionado >= 0)) {
 				Render2D.dibujarRectanguloContorno(g, slotX, slotY, this.LADO_SLOT, this.LADO_SLOT, Color.YELLOW);
 				Render2D.dibujarRectanguloContorno(g, slotX - 1, slotY - 1, this.LADO_SLOT + 2, this.LADO_SLOT + 2,
 						Color.WHITE);
@@ -123,11 +123,6 @@ public abstract class Paleta {
 		this.pintarControlesPaginacion(g);
 	}
 
-	/**
-	 * Dibuja un icono centrando y escalando proporcionalmente cualquier sprite que
-	 * supere las dimensiones del slot (ej: Casa 64x64 en slot de 32x32) sin
-	 * desbordar.
-	 */
 	protected void dibujarIconoAjustadoAlSlot(final Graphics2D g, final BufferedImage img, final int slotX,
 			final int slotY) {
 		if (img == null) {
@@ -137,13 +132,11 @@ public abstract class Paleta {
 		final int imgW = img.getWidth();
 		final int imgH = img.getHeight();
 
-		// Si entra sin desbordar, se centra
 		if ((imgW <= this.LADO_SLOT) && (imgH <= this.LADO_SLOT)) {
 			final int x = slotX + ((this.LADO_SLOT - imgW) / 2);
 			final int y = slotY + ((this.LADO_SLOT - imgH) / 2);
 			Render2D.dibujarImagen(g, img, x, y);
 		} else {
-			// Si es más grande, se escala manteniendo el Aspect Ratio
 			final double factor = Math.min((double) this.LADO_SLOT / imgW, (double) this.LADO_SLOT / imgH);
 			final int drawW = Math.max(1, (int) Math.round(imgW * factor));
 			final int drawH = Math.max(1, (int) Math.round(imgH * factor));
@@ -160,26 +153,31 @@ public abstract class Paleta {
 		final Font fuentePrevia = g.getFont();
 		g.setFont(FUENTE_PAGINACION);
 
-		// Botón Anterior
 		Render2D.dibujarRectanguloRelleno(g, this.botonPaginaAnterior,
 				(this.paginaActual > 0) ? Color.GRAY : Color.DARK_GRAY);
 		Render2D.dibujarRectanguloContorno(g, this.botonPaginaAnterior, Color.BLACK);
 		Render2D.dibujarString(g, "<", this.botonPaginaAnterior.x + 6, this.botonPaginaAnterior.y + 9, Color.WHITE);
 
-		// Botón Siguiente
 		final int totalPaginas = this.getTotalPaginas();
 		Render2D.dibujarRectanguloRelleno(g, this.botonPaginaSiguiente,
 				(this.paginaActual < (totalPaginas - 1)) ? Color.GRAY : Color.DARK_GRAY);
 		Render2D.dibujarRectanguloContorno(g, this.botonPaginaSiguiente, Color.BLACK);
 		Render2D.dibujarString(g, ">", this.botonPaginaSiguiente.x + 6, this.botonPaginaSiguiente.y + 9, Color.WHITE);
 
-		// Texto de página actual
 		final String textoPag = "Pag " + (this.paginaActual + 1) + "/" + totalPaginas;
 		final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, textoPag);
 		final int centroX = (this.AREA.x + (this.AREA.width / 2)) - (anchoTexto / 2);
 		Render2D.dibujarString(g, textoPag, centroX, this.botonPaginaAnterior.y + 9, Color.WHITE);
 
 		g.setFont(fuentePrevia);
+	}
+
+	public void deseleccionar() {
+		this.indiceSeleccionado = -1;
+	}
+
+	public boolean haySeleccion() {
+		return (this.indiceSeleccionado >= 0) && (this.indiceSeleccionado < this.getCantidadTotalElementos());
 	}
 
 	public void siguientePagina() {
@@ -205,6 +203,8 @@ public abstract class Paleta {
 	public void setIndiceSeleccionado(final int indice) {
 		if ((indice >= 0) && (indice < this.getCantidadTotalElementos())) {
 			this.indiceSeleccionado = indice;
+		} else {
+			this.indiceSeleccionado = -1;
 		}
 	}
 

@@ -7,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.stream.Stream;
 
-import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -19,141 +18,138 @@ import principal.entes.objetos.items.Item;
 import principal.mapa.Terreno;
 import principal.mapa.Tile;
 import principal.mapa.mapas.Spawn;
+import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.utilidades.Globales;
 
+/**
+ * Gestor de importación y exportación de escenarios con serialización unificada
+ * para Terreno, Entidades, Spawns, Triggers, Zonas y Metadatos.
+ * 
+ * @version 3.0 (Vanilla Java 8)
+ */
 public abstract class EscenarioLoader {
+
 	private EscenarioLoader() {
 	}
 
 	@SuppressWarnings("unchecked")
 	public static void exportarEscenario(final Escenario esc, final File ruta) {
-		final String criaturas = esc.LISTA_CREACION_CRIATURAS_JSON;
-		final String items = esc.LISTA_CREACION_ITEMS_JSON;
-		final String objetos = esc.LISTA_CREACION_OBJETOS_JSON;
-		final String complementos = esc.LISTA_CREACION_COMPLEMENTOS_JSON;
-		final String spawns = esc.LISTA_CREACION_SPAWNS_JSON;
-
 		final JSONObject jsonExp = new JSONObject();
-		JSONArray jsonCriatura = null;
-		JSONArray jsonItems = null;
-		JSONArray jsonObjetos = null;
-		JSONArray jsonComplementos = null;
-		JSONArray jsonSpawns = null;
 
 		try {
-			jsonCriatura = (JSONArray) new JSONParser().parse(criaturas);
-			jsonItems = (JSONArray) new JSONParser().parse(items);
-			jsonObjetos = (JSONArray) new JSONParser().parse(objetos);
-			jsonComplementos = (JSONArray) new JSONParser().parse(complementos);
-			jsonSpawns = (JSONArray) new JSONParser().parse(spawns);
-		} catch (final ParseException e1) {
-			e1.printStackTrace();
+			final JSONParser parser = new JSONParser();
+			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class),
+					parser.parse(esc.LISTA_CREACION_CRIATURAS_JSON));
+			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class),
+					parser.parse(esc.LISTA_CREACION_ITEMS_JSON));
+			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class),
+					parser.parse(esc.LISTA_CREACION_OBJETOS_JSON));
+			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class),
+					parser.parse(esc.LISTA_CREACION_COMPLEMENTOS_JSON));
+			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class),
+					parser.parse(esc.LISTA_CREACION_SPAWNS_JSON));
+
+			jsonExp.put("triggers", parser.parse(esc.LISTA_CREACION_TRIGGERS_JSON));
+			jsonExp.put("zonasAmbiente", parser.parse(esc.LISTA_CREACION_ZONAS_AMBIENTE_JSON));
+			jsonExp.put("luces", parser.parse(esc.LISTA_CREACION_LUCES_JSON));
+
+			jsonExp.put("metadatos", esc.getMetadatos().exportarJSON());
+			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class), esc.getTerreno().getTilesJson());
+
+		} catch (final ParseException e) {
+			e.printStackTrace();
 		}
 
-		jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class), jsonCriatura);
-		jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class), jsonItems);
-		jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class), jsonObjetos);
-		jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class), jsonComplementos);
-		jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class), jsonSpawns);
-		jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class), esc.getTerreno().getTilesJson());
-
-		final String jsonExpEncriptado = Globales.FUNCIONES.ENCRIPTADOR_STRING.encriptar(jsonExp.toJSONString());
+		final String jsonEncriptado = Globales.FUNCIONES.ENCRIPTADOR_STRING.encriptar(jsonExp.toJSONString());
 
 		try (final PrintWriter pw = new PrintWriter(ruta)) {
-			pw.print(jsonExpEncriptado);
+			pw.print(jsonEncriptado);
 			pw.flush();
-			System.out.println("Mundo exportado en: " + ruta.getAbsolutePath());
+			System.out.println("[EscenarioLoader] Escenario exportado en: " + ruta.getAbsolutePath());
 		} catch (final IOException e) {
-			System.err.println("Error al exportar escenario: " + e.getMessage());
+			System.err.println("[EscenarioLoader] Error al exportar escenario: " + e.getMessage());
 		}
 	}
 
 	public static Escenario importarEscenario(final File ruta) {
-		Escenario esc = null;
-		try {
-			final StringBuilder contentBuilder = new StringBuilder();
-
-			try (Stream<String> stream = Files.lines(ruta.toPath(), StandardCharsets.UTF_8)) {
-				stream.forEach(s -> contentBuilder.append(s).append("\n"));
-			} catch (final IOException e) {
-				System.err.println("Error al importar escenario: " + e.getMessage());
-			}
-
-			final String jsonImpEncriptado = contentBuilder.toString();
-			final JSONObject jsonImp = (JSONObject) new JSONParser()
-					.parse(Globales.FUNCIONES.ENCRIPTADOR_STRING.desencriptar(jsonImpEncriptado));
-
-			final String jsonCriaturas = jsonImp.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class))
-					.toString();
-			final String jsonItems = jsonImp.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class))
-					.toString();
-			final String jsonObjetos = jsonImp.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class))
-					.toString();
-			final String jsonComplementos = jsonImp
-					.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class)).toString();
-
-			final String claveSpawns = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class);
-			final String jsonSpawns = (jsonImp.get(claveSpawns) != null) ? jsonImp.get(claveSpawns).toString() : "[]";
-
-			final JSONObject jsonTerreno = (JSONObject) (new JSONParser())
-					.parse(jsonImp.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class)).toString());
-
-			final Terreno terreno = new Terreno(jsonTerreno);
-			esc = new Escenario(terreno, jsonCriaturas, jsonItems, jsonComplementos, jsonObjetos, jsonSpawns);
-
-		} catch (final Exception e) {
-			System.err.println("Error al importar escenario: " + e.getMessage());
-			e.printStackTrace();
-		}
-		return esc;
+		return importarEscenario(ruta, null, 100);
 	}
 
 	public static Escenario importarEscenario(final File ruta, final GestorCarga gc, final int porcentajeCarga) {
 		Escenario esc = null;
 		int pesoCarga = 20;
+
 		try {
-			gc.setDetalleCarga("Cargando archivos");
-			final StringBuilder contentBuilder = new StringBuilder();
-			try (Stream<String> stream = Files.lines(ruta.toPath(), StandardCharsets.UTF_8)) {
-				stream.forEach(s -> contentBuilder.append(s).append("\n"));
-			} catch (final IOException e) {
-				System.err.println("Error al importar escenario: " + e.getMessage());
+			if (gc != null) {
+				gc.setDetalleCarga("Leyendo archivo de mapa");
 			}
-			gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
+
+			final StringBuilder sb = new StringBuilder();
+			try (Stream<String> stream = Files.lines(ruta.toPath(), StandardCharsets.UTF_8)) {
+				stream.forEach(s -> sb.append(s).append("\n"));
+			}
+
+			if (gc != null) {
+				gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
+			}
 
 			pesoCarga = 20;
-			gc.setDetalleCarga("Leyendo datos");
-			final String jsonImpEncriptado = contentBuilder.toString();
+			final String jsonImpEncriptado = sb.toString();
 			final JSONObject jsonImp = (JSONObject) new JSONParser()
 					.parse(Globales.FUNCIONES.ENCRIPTADOR_STRING.desencriptar(jsonImpEncriptado));
 
-			final String jsonCriaturas = jsonImp.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class))
-					.toString();
-			final String jsonItems = jsonImp.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class))
-					.toString();
-			final String jsonObjetos = jsonImp.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class))
-					.toString();
-			final String jsonComplementos = jsonImp
-					.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class)).toString();
+			final String jsonCriaturas = obtenerArrayStringSeguro(jsonImp,
+					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class));
+			final String jsonItems = obtenerArrayStringSeguro(jsonImp,
+					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class));
+			final String jsonObjetos = obtenerArrayStringSeguro(jsonImp,
+					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class));
+			final String jsonComplementos = obtenerArrayStringSeguro(jsonImp,
+					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class));
+			final String jsonSpawns = obtenerArrayStringSeguro(jsonImp,
+					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class));
 
-			final String claveSpawns = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class);
-			final String jsonSpawns = (jsonImp.get(claveSpawns) != null) ? jsonImp.get(claveSpawns).toString() : "[]";
+			final String jsonTriggers = obtenerArrayStringSeguro(jsonImp, "triggers");
+			final String jsonZonas = obtenerArrayStringSeguro(jsonImp, "zonasAmbiente");
+			final String jsonLuces = obtenerArrayStringSeguro(jsonImp, "luces");
+
+			MetadatosEscenario meta = new MetadatosEscenario();
+			if (jsonImp.get("metadatos") instanceof JSONObject) {
+				meta = MetadatosEscenario.crearDesdeJSON((JSONObject) jsonImp.get("metadatos"));
+			}
+
+			if (gc != null) {
+				gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
+			}
+
+			pesoCarga = 60;
+			if (gc != null) {
+				gc.setDetalleCarga("Construyendo terreno y chunks");
+			}
 
 			final JSONObject jsonTerreno = (JSONObject) (new JSONParser())
 					.parse(jsonImp.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class)).toString());
-			gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
 
-			pesoCarga = 60;
-			gc.setDetalleCarga("Generando terreno");
 			final Terreno terreno = new Terreno(jsonTerreno);
-			esc = new Escenario(terreno, jsonCriaturas, jsonItems, jsonComplementos, jsonObjetos, jsonSpawns);
-			gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
+			esc = new Escenario(terreno, jsonCriaturas, jsonItems, jsonComplementos, jsonObjetos, jsonSpawns,
+					jsonTriggers, jsonZonas, jsonLuces, meta);
+
+			if (gc != null) {
+				gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
+			}
 
 		} catch (final Exception e) {
-			System.err.println("Error al importar escenario: " + e.getMessage());
+			System.err.println("[EscenarioLoader] Error al importar escenario desde " + ruta.getAbsolutePath());
 			e.printStackTrace();
 		}
 		return esc;
+	}
+
+	private static String obtenerArrayStringSeguro(final JSONObject json, final String clave) {
+		if ((json != null) && (clave != null) && json.containsKey(clave) && (json.get(clave) != null)) {
+			return json.get(clave).toString();
+		}
+		return "[]";
 	}
 }

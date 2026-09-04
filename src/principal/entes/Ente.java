@@ -41,6 +41,15 @@ public abstract class Ente {
 		this.desvincularDeZonas();
 	}
 
+	/**
+	 * Reactiva la entidad permitiendo que vuelva a ser registrada en el mundo
+	 * (utilizado por Undo/Redo).
+	 */
+	public void restaurar() {
+		this.eliminado = false;
+		this.posicionModificada = true;
+	}
+
 	public abstract int getPosicionXInt();
 
 	public abstract int getPosicionYInt();

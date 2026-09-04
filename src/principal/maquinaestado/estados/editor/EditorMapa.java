@@ -12,9 +12,12 @@ import java.awt.image.VolatileImage;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.json.simple.JSONObject;
 
+import principal.clima.TipoClima;
 import principal.controles.Raton;
 import principal.entes.AsistenteCamara;
 import principal.entes.Ente;
@@ -23,6 +26,11 @@ import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
 import principal.graficos.SuperficieDibujo;
+import principal.iluminacion.CicloDiaNoche.FaseDia;
+import principal.iluminacion.FuenteLuz;
+import principal.iluminacion.IntensidadNiebla;
+import principal.iluminacion.TipoLuz;
+import principal.iluminacion.ZonaAmbiente;
 import principal.inventario.Contenedor;
 import principal.inventario.slot.Slot;
 import principal.inventario.vault.InventarioVault;
@@ -31,9 +39,24 @@ import principal.mapa.Terreno;
 import principal.mapa.Tile;
 import principal.mapa.escenario.Escenario;
 import principal.mapa.escenario.EscenarioLoader;
+import principal.mapa.escenario.tps.PuertaMapa;
+import principal.mapa.escenario.tps.ZonaTP;
 import principal.mapa.mapas.Spawn;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.EstadoJuego;
+import principal.maquinaestado.estados.editor.herramientas.FloodFillTerreno;
+import principal.maquinaestado.estados.editor.herramientas.TipoHerramientaDibujo;
+import principal.maquinaestado.estados.editor.historial.AccionHistorialEntidad;
+import principal.maquinaestado.estados.editor.historial.AccionHistorialTerreno;
+import principal.maquinaestado.estados.editor.historial.AccionHistorialTrigger;
+import principal.maquinaestado.estados.editor.historial.HistorialEditor;
+import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
+import principal.maquinaestado.estados.editor.modal.VentanaModalAmbiente;
+import principal.maquinaestado.estados.editor.modal.VentanaModalConfirmarSalir;
+import principal.maquinaestado.estados.editor.modal.VentanaModalLuz;
+import principal.maquinaestado.estados.editor.modal.VentanaModalMundo;
+import principal.maquinaestado.estados.editor.modal.VentanaModalTrigger;
+import principal.maquinaestado.estados.menu.herramientas.BotonPixel;
 import principal.recursos.TipoTerreno;
 import principal.utilidades.AccionEntidad;
 import principal.utilidades.Constantes;
@@ -45,11 +68,11 @@ import principal.utilidades.audio.sonido.IDSonido;
 import principal.utilidades.inventario.ItemPuntero;
 
 /**
- * Editor de escenarios y mapas integrado en tiempo real con soporte de pinceles
- * multiforma, proyección de cámara, borrado táctico, edición de contenedores y
- * colocación de Spawns con identificadores dinámicos.
+ * Editor maestro de mapas con inspectores dedicados con 'E' (Trigger, Ambiente,
+ * Luz, Cofre), limpieza de puntero con Clic Derecho, previsualización en vivo
+ * de clima y botones superiores.
  * 
- * @version 2.6 (Vanilla Java 8 - In-Editor Spawns Management)
+ * @version 7.0 (Vanilla Java 8)
  */
 public class EditorMapa implements EstadoJuego {
 
@@ -70,20 +93,50 @@ public class EditorMapa implements EstadoJuego {
 
 	private final Rectangle PALETA_MAPA;
 	private final GrupoPaleta PALETAS;
+	private final HistorialEditor HISTORIAL = new HistorialEditor();
+	private final FloodFillTerreno FLOOD_FILL = new FloodFillTerreno();
+
+	// Modales interactivos
+	private final VentanaModalMundo modalMundo = new VentanaModalMundo();
+	private final VentanaModalTrigger modalTrigger = new VentanaModalTrigger();
+	private final VentanaModalAmbiente modalAmbiente = new VentanaModalAmbiente();
+	private final VentanaModalLuz modalLuz = new VentanaModalLuz();
+	private final VentanaModalConfirmarSalir modalConfirmarSalir;
+
+	// Botones superiores
+	private final BotonPixel btnGuardar;
+	private final BotonPixel btnConfigMundo;
+	private final BotonPixel btnSalir;
+
+	// Captura de trazo para Undo/Redo
+	private final Map<Integer, TipoTerreno> trazoTilesPrevios = new HashMap<Integer, TipoTerreno>();
+	private boolean grabandoTrazo = false;
 
 	private int tamanoPincel = 1;
 	private boolean pincelCircular = false;
+	private boolean mostrarGrid = false;
+	private boolean modoPreviewLuz = false;
 
-	private final GestorTiempo GT = new GestorTiempo();
+	// Trazado de rectángulos
+	private boolean arrastrandoRectangulo = false;
+	private int startRectTileX = 0;
+	private int startRectTileY = 0;
+
+	// Clima y Hora
+	private int idxClimaTest = 0;
+	private int idxHoraTest = 0;
+
 	private final GestorTiempo GT_COLOCACION = new GestorTiempo();
 	private static final int TIEMPO_ESPERA_MS_COLOCACION = 180;
 
 	private final MundoEditor MUNDO_EDITOR;
+	private MetadatosEscenario metadatos = new MetadatosEscenario();
+
 	private final Rectangle AREA_MOUSE_APUNTADO = new Rectangle(-1, -1, 1, 1);
 	private final Rectangle AREA_BORRADO_AUX = new Rectangle();
 	private final ArrayList<Ente> listaEntesABorrar = new ArrayList<Ente>(8);
 
-	// Gestión de Contenedores e Ítems en el Editor
+	// Gestión de Contenedores
 	private InventarioVault cofreAbierto = null;
 	private final ItemPuntero itemPuntero = new ItemPuntero();
 	private Ente contenedorEncontrado = null;
@@ -105,7 +158,25 @@ public class EditorMapa implements EstadoJuego {
 		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
 				this.PALETA_MAPA.height, this);
 		this.MUNDO_EDITOR = new MundoEditor(this.TERRENO);
-		this.asistenteCamara = new AsistenteCamara(0, 0, 16, 16);
+		this.asistenteCamara = new AsistenteCamara(0, 0, 0, 0);
+
+		this.modalConfirmarSalir = new VentanaModalConfirmarSalir(() -> {
+			this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
+			this.salirAlMenu();
+		}, () -> this.salirAlMenu());
+
+		this.btnGuardar = new BotonPixel("Guardar", new Rectangle(this.PALETA_MAPA.width - 165, 2, 50, 14), () -> {
+			this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		});
+
+		this.btnConfigMundo = new BotonPixel("Mundo", new Rectangle(this.PALETA_MAPA.width - 110, 2, 50, 14), () -> {
+			this.modalMundo.abrir(this.metadatos);
+		});
+
+		this.btnSalir = new BotonPixel("Salir", new Rectangle(this.PALETA_MAPA.width - 55, 2, 50, 14), () -> {
+			this.modalConfirmarSalir.abrir();
+		});
 
 		this.inicializarCamara();
 	}
@@ -116,19 +187,38 @@ public class EditorMapa implements EstadoJuego {
 		this.ANCHO = this.TERRENO.getAncho();
 		this.ALTO = this.TERRENO.getAlto();
 		this.LADO_TILE = this.TERRENO.ladoTile();
+		this.metadatos = (esc != null) ? esc.getMetadatos() : new MetadatosEscenario();
 
 		this.PALETA_MAPA = new Rectangle(0, 0, Constantes.ANCHO_JUEGO - (Constantes.ANCHO_JUEGO / 4),
 				Constantes.ALTO_JUEGO);
 		this.PALETAS = new GrupoPaleta(this.PALETA_MAPA.width, 0, Constantes.ANCHO_JUEGO - this.PALETA_MAPA.width,
 				this.PALETA_MAPA.height, this);
 		this.MUNDO_EDITOR = (esc != null) ? new MundoEditor(esc) : new MundoEditor(this.TERRENO);
-		this.asistenteCamara = new AsistenteCamara(0, 0, 16, 16);
+		this.asistenteCamara = new AsistenteCamara(0, 0, 0, 0);
+
+		this.modalConfirmarSalir = new VentanaModalConfirmarSalir(() -> {
+			this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
+			this.salirAlMenu();
+		}, () -> this.salirAlMenu());
+
+		this.btnGuardar = new BotonPixel("Guardar", new Rectangle(this.PALETA_MAPA.width - 165, 2, 50, 14), () -> {
+			this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		});
+
+		this.btnConfigMundo = new BotonPixel("Mundo", new Rectangle(this.PALETA_MAPA.width - 110, 2, 50, 14), () -> {
+			this.modalMundo.abrir(this.metadatos);
+		});
+
+		this.btnSalir = new BotonPixel("Salir", new Rectangle(this.PALETA_MAPA.width - 55, 2, 50, 14), () -> {
+			this.modalConfirmarSalir.abrir();
+		});
 
 		this.inicializarCamara();
 	}
 
 	public EditorMapa(final Terreno terreno, final GestorEstados ge) {
-		this(new Escenario(terreno, "[]", "[]", "[]", "[]"), ge);
+		this(new Escenario(terreno, "[]", "[]", "[]", "[]", "[]", "[]", "[]", "[]", new MetadatosEscenario()), ge);
 	}
 
 	public EditorMapa(final String rutaMapa, final GestorEstados ge) {
@@ -144,84 +234,203 @@ public class EditorMapa implements EstadoJuego {
 		Globales.CAMARA.reiniciarZoom();
 	}
 
+	private void salirAlMenu() {
+		this.itemPuntero.limpiar();
+		this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
+		this.GE.disposeEditor();
+	}
+
 	@Override
 	public void actualizar() {
+		// 1. Modales (Prioridad absoluta y bloqueo de foco)
+		if (this.modalConfirmarSalir.isAbierta()) {
+			this.modalConfirmarSalir.actualizar(this.RATON);
+			return;
+		}
+		if (this.modalMundo.isAbierta()) {
+			this.modalMundo.actualizar(this.RATON);
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
+				this.modalMundo.cerrar();
+			}
+			return;
+		}
+		if (this.modalTrigger.isAbierta()) {
+			this.modalTrigger.actualizar(this.RATON);
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
+				this.modalTrigger.cerrar();
+			}
+			return;
+		}
+		if (this.modalAmbiente.isAbierta()) {
+			this.modalAmbiente.actualizar(this.RATON);
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
+				this.modalAmbiente.cerrar();
+			}
+			return;
+		}
+		if (this.modalLuz.isAbierta()) {
+			this.modalLuz.actualizar(this.RATON);
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
+				this.modalLuz.cerrar();
+			}
+			return;
+		}
+
+		// 2. Cofre Abierto
+		if (this.cofreAbierto != null) {
+			this.actualizarCofreAbierto();
+			return;
+		}
+
+		// 3. Botones Superiores
+		this.btnGuardar.actualizar(this.RATON);
+		this.btnConfigMundo.actualizar(this.RATON);
+		this.btnSalir.actualizar(this.RATON);
+
+		// 4. Clima y Luces en el editor
+		if (Globales.GESTOR_CLIMA != null) {
+			Globales.GESTOR_CLIMA.actualizar();
+		}
+		if (Globales.GESTOR_LUZ != null) {
+			Globales.GESTOR_LUZ.actualizar();
+		}
+
+		// 5. Entorno, Navegación y Pintura
 		this.actualizarZoom();
 		this.mover();
 		this.actualizarProyeccionRaton();
-		this.actualizarAtajosPinceles();
+		this.actualizarAtajosTeclado();
 		this.actualizarTileApuntado();
 		this.PALETAS.actualizar(this.RATON);
 
-		if (this.cofreAbierto != null) {
-			this.actualizarCofreAbierto();
-		} else {
-			this.actualizarAperturaContenedor();
-			this.alterarElementoSeleccionado();
-			this.borrarElemento();
-		}
+		this.actualizarInspeccionConTeclaE();
+		this.alterarElementoSeleccionado();
+		this.borrarElemento();
 
 		this.MUNDO_EDITOR.actualizar();
 
-		if (Globales.TECLADO.TECLA_GUARDAR_MAPA.presionadoUnicaActualizacion()) {
-			if (this.GT.transcurrioSegundos(1)) {
-				this.GT.establecerReferenciaTiempoActual();
-				this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
-			}
-		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)
-				|| Globales.TECLADO.TECLA_ESCAPE.presionado()) {
-			if (this.cofreAbierto != null) {
-				this.cerrarCofre();
-			} else {
-				this.itemPuntero.limpiar();
-				this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
-				this.GE.disposeEditor();
-			}
+		// Salida segura con ESC
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
+			this.modalConfirmarSalir.abrir();
 		}
 	}
 
-	private void actualizarAperturaContenedor() {
-		final boolean teclaInteraccion = Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_E);
-		final boolean shiftClick = Globales.TECLADO.TECLA_CORRIENDO.presionado()
-				&& this.RATON.presionadoClickIzqUnicaAct();
+	private void actualizarAtajosTeclado() {
+		// Pinceles
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_1)) {
+			this.tamanoPincel = 1;
+		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_2)) {
+			this.tamanoPincel = 2;
+		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_3)) {
+			this.tamanoPincel = 3;
+		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_4)) {
+			this.tamanoPincel = 4;
+		}
 
-		if ((teclaInteraccion || shiftClick) && this.tileApuntadoValido) {
-			final Rectangle areaCursor = new Rectangle(this.AREA_MOUSE_APUNTADO.x - 4, this.AREA_MOUSE_APUNTADO.y - 4,
-					8, 8);
-			this.contenedorEncontrado = null;
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_C)) {
+			this.pincelCircular = !this.pincelCircular;
+		}
 
-			this.MUNDO_EDITOR.paraCadaObjetoEn(areaCursor, new AccionEntidad<Objeto>() {
-				@Override
-				public void ejecutar(final Objeto obj) {
-					if ((EditorMapa.this.contenedorEncontrado == null) && (obj instanceof Contenedor)) {
-						EditorMapa.this.contenedorEncontrado = obj;
-					}
-				}
-			});
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_G)) {
+			this.mostrarGrid = !this.mostrarGrid;
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}
 
-			if (this.contenedorEncontrado != null) {
-				this.cofreAbierto = ((Contenedor) this.contenedorEncontrado).getInventario();
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_L)) {
+			this.modoPreviewLuz = !this.modoPreviewLuz;
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}
+
+		// Ciclar Clima (K)
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_K) && (Globales.GESTOR_CLIMA != null)) {
+			final TipoClima[] climas = TipoClima.values();
+			this.idxClimaTest = (this.idxClimaTest + 1) % climas.length;
+			Globales.GESTOR_CLIMA.setClima(climas[this.idxClimaTest], 0.0);
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}
+
+		// Ciclar Hora (H)
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_H) && (Globales.GESTOR_LUZ != null)
+				&& (Globales.GESTOR_LUZ.getCiclo() != null)) {
+			final FaseDia[] fases = FaseDia.values();
+			this.idxHoraTest = (this.idxHoraTest + 1) % fases.length;
+			Globales.GESTOR_LUZ.getCiclo().setHora(fases[this.idxHoraTest]);
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}
+
+		// Undo (Ctrl+Z) y Redo (Ctrl+Y)
+		final boolean ctrl = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_CONTROL);
+		if (ctrl && Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_Z)) {
+			if (this.HISTORIAL.puedeDeshacer()) {
+				this.HISTORIAL.deshacer();
+				GestorSonido.reproducir(IDSonido.GOLPE_1);
+			}
+		} else if (ctrl && Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_Y)) {
+			if (this.HISTORIAL.puedeRehacer()) {
+				this.HISTORIAL.rehacer();
 				GestorSonido.reproducir(IDSonido.GOLPE_1);
 			}
 		}
 	}
 
+	private void actualizarInspeccionConTeclaE() {
+		final boolean teclaE = Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_E);
+		if (!teclaE || !this.tileApuntadoValido) {
+			return;
+		}
+
+		final Rectangle areaCursor = new Rectangle(this.AREA_MOUSE_APUNTADO.x - 8, this.AREA_MOUSE_APUNTADO.y - 8, 16,
+				16);
+
+		// 1. Triggers (ZonaTP)
+		for (final ZonaTP tp : this.MUNDO_EDITOR.getTriggersEditor()) {
+			if (tp.getArea().intersects(areaCursor)) {
+				this.modalTrigger.abrir(tp);
+				return;
+			}
+		}
+
+		// 2. Zonas de Ambiente (Bioma/Cueva)
+		for (final ZonaAmbiente z : this.MUNDO_EDITOR.getZonasAmbienteEditor()) {
+			if (z.getLimites().intersects(areaCursor)) {
+				this.modalAmbiente.abrir(z);
+				return;
+			}
+		}
+
+		// 3. Luces Estáticas (Antorcha / Fogata)
+		final FuenteLuz luz = this.MUNDO_EDITOR.getLuzEn(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y, 16);
+		if (luz != null) {
+			this.modalLuz.abrir(luz);
+			return;
+		}
+
+		// 4. Contenedores / Cofres
+		this.contenedorEncontrado = null;
+		this.MUNDO_EDITOR.paraCadaObjetoEn(areaCursor, new AccionEntidad<Objeto>() {
+			@Override
+			public void ejecutar(final Objeto obj) {
+				if ((EditorMapa.this.contenedorEncontrado == null) && (obj instanceof Contenedor)) {
+					EditorMapa.this.contenedorEncontrado = obj;
+				}
+			}
+		});
+
+		if (this.contenedorEncontrado != null) {
+			this.cofreAbierto = ((Contenedor) this.contenedorEncontrado).getInventario();
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}
+	}
+
 	private void actualizarCofreAbierto() {
-		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_E)) {
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_E)
+				|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
 			this.cerrarCofre();
 			GestorSonido.reproducir(IDSonido.GOLPE_1);
 			return;
 		}
 
 		final Point pMouse = this.RATON.getPuntoPosicionEscalado();
-		final boolean shiftClick = Globales.TECLADO.TECLA_CORRIENDO.presionado()
-				&& this.RATON.presionadoClickIzqUnicaAct();
-		if (shiftClick && !this.cofreAbierto.getArea().contains(pMouse)) {
-			this.cerrarCofre();
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
-			return;
-		}
-
 		this.cofreAbierto.actualizar(this.RATON, this.itemPuntero, null);
 
 		if (this.RATON.presionadoClickDerUnicaAct()) {
@@ -268,8 +477,8 @@ public class EditorMapa implements EstadoJuego {
 
 	private void actualizarProyeccionRaton() {
 		final int viewW = this.PALETA_MAPA.width;
-		final int centroVX = viewW / 2;
-		final int centroVY = Constantes.ALTO_JUEGO / 2;
+		final double centroVX = viewW / 2.0;
+		final double centroVY = Constantes.ALTO_JUEGO / 2.0;
 
 		final double z = Math.max(0.2, Globales.CAMARA.getZoom());
 		final int mouseX = this.RATON.getPosicionXEscalada();
@@ -279,27 +488,11 @@ public class EditorMapa implements EstadoJuego {
 			final double dx = (mouseX - centroVX) / z;
 			final double dy = (mouseY - centroVY) / z;
 
-			this.AREA_MOUSE_APUNTADO.x = (int) Math.round(this.x + dx);
-			this.AREA_MOUSE_APUNTADO.y = (int) Math.round(this.y + dy);
+			this.AREA_MOUSE_APUNTADO.x = (int) Math.floor(this.x + dx);
+			this.AREA_MOUSE_APUNTADO.y = (int) Math.floor(this.y + dy);
 			this.tileApuntadoValido = true;
 		} else {
 			this.tileApuntadoValido = false;
-		}
-	}
-
-	private void actualizarAtajosPinceles() {
-		if (Globales.TECLADO.TECLA_NUM_1.presionadoUnicaActualizacion()) {
-			this.tamanoPincel = 1;
-		} else if (Globales.TECLADO.TECLA_NUM_2.presionadoUnicaActualizacion()) {
-			this.tamanoPincel = 2;
-		} else if (Globales.TECLADO.TECLA_NUM_3.presionadoUnicaActualizacion()) {
-			this.tamanoPincel = 3;
-		} else if (Globales.TECLADO.TECLA_NUM_4.presionadoUnicaActualizacion()) {
-			this.tamanoPincel = 4;
-		}
-
-		if (Globales.TECLADO.TECLA_DEBUG_TILE.presionadoUnicaActualizacion()) {
-			this.pincelCircular = !this.pincelCircular;
 		}
 	}
 
@@ -325,55 +518,95 @@ public class EditorMapa implements EstadoJuego {
 			return;
 		}
 
-		if (this.RATON.presionadoClickIzq() && this.tileApuntadoValido) {
-			final Paleta paleta = this.PALETAS.getPaletaActual();
-			if (paleta == null) {
+		final Paleta paleta = this.PALETAS.getPaletaActual();
+		if ((paleta == null) || !this.tileApuntadoValido) {
+			return;
+		}
+
+		final int mouseTileX = Math.floorDiv(this.AREA_MOUSE_APUNTADO.x, this.LADO_TILE);
+		final int mouseTileY = Math.floorDiv(this.AREA_MOUSE_APUNTADO.y, this.LADO_TILE);
+		final int cantTilesX = this.TERRENO.getAncho() / this.LADO_TILE;
+
+		// 1. SUELOS
+		if (paleta instanceof PaletaTile) {
+			final PaletaTile pTile = (PaletaTile) paleta;
+			final Tile tilePaleta = pTile.getTileSeleccionado();
+			if (tilePaleta == null) {
 				return;
 			}
 
-			// 1. Pincel de Suelos
-			if (paleta instanceof PaletaTile) {
-				final PaletaTile paletaTile = (PaletaTile) paleta;
-				final Tile tilePaleta = paletaTile.getTileSeleccionado();
-				if (tilePaleta == null) {
-					return;
-				}
+			final TipoHerramientaDibujo tool = pTile.getHerramientaSeleccionada();
 
-				if (this.areaTileSelected.equals(this.ultimaAreaTileAlterado)) {
-					return;
-				}
-				this.ultimaAreaTileAlterado.setBounds(this.areaTileSelected);
+			// PINCEL
+			if (tool == TipoHerramientaDibujo.PINCEL) {
+				if (this.RATON.presionadoClickIzq()) {
+					if (!this.grabandoTrazo) {
+						this.grabandoTrazo = true;
+						this.trazoTilesPrevios.clear();
+					}
 
-				final int startTX = this.areaTileSelected.x / this.LADO_TILE;
-				final int startTY = this.areaTileSelected.y / this.LADO_TILE;
+					final int startTX = this.areaTileSelected.x / this.LADO_TILE;
+					final int startTY = this.areaTileSelected.y / this.LADO_TILE;
 
-				for (int dy = 0; dy < this.tamanoPincel; dy++) {
-					for (int dx = 0; dx < this.tamanoPincel; dx++) {
-						final int curTX = startTX + dx;
-						final int curTY = startTY + dy;
+					for (int dy = 0; dy < this.tamanoPincel; dy++) {
+						for (int dx = 0; dx < this.tamanoPincel; dx++) {
+							final int curTX = startTX + dx;
+							final int curTY = startTY + dy;
+							final int idx = (curTY * cantTilesX) + curTX;
 
-						if (this.pincelCircular && (this.tamanoPincel > 2)) {
-							final double centroRel = (this.tamanoPincel - 1) / 2.0;
-							final double dxRel = dx - centroRel;
-							final double dyRel = dy - centroRel;
-							final double distSq = (dxRel * dxRel) + (dyRel * dyRel);
-							final double maxRadioSq = (this.tamanoPincel / 2.0) * (this.tamanoPincel / 2.0);
-							if (distSq > maxRadioSq) {
-								continue;
+							final Tile tilePrevio = this.TERRENO.getTileGrid(curTX, curTY);
+							if ((tilePrevio != null) && !this.trazoTilesPrevios.containsKey(idx)) {
+								this.trazoTilesPrevios.put(idx, tilePrevio.getTipoTerreno());
 							}
-						}
 
-						this.TERRENO.establecerTileReferenciado(curTX * this.LADO_TILE, curTY * this.LADO_TILE,
-								tilePaleta);
+							this.TERRENO.establecerTileReferenciado(curTX * this.LADO_TILE, curTY * this.LADO_TILE,
+									tilePaleta);
+						}
+					}
+				} else if (this.grabandoTrazo && !this.RATON.presionadoClickIzq()) {
+					this.grabandoTrazo = false;
+					this.registrarAccionHistorialPincel(tilePaleta.getTipoTerreno());
+				}
+			}
+			// FLOOD FILL
+			else if (tool == TipoHerramientaDibujo.BOTE_RELLENO) {
+				if (this.RATON.presionadoClickIzqUnicaAct()) {
+					this.FLOOD_FILL.ejecutar(this.TERRENO, mouseTileX, mouseTileY, tilePaleta.getTipoTerreno());
+					GestorSonido.reproducir(IDSonido.GOLPE_1);
+				}
+			}
+			// RECTÁNGULOS
+			else if ((tool == TipoHerramientaDibujo.RECTANGULO_HUECO)
+					|| (tool == TipoHerramientaDibujo.RECTANGULO_RELLENO)) {
+				if (this.RATON.presionadoClickIzqUnicaAct()) {
+					this.arrastrandoRectangulo = true;
+					this.startRectTileX = mouseTileX;
+					this.startRectTileY = mouseTileY;
+				} else if (this.arrastrandoRectangulo && !this.RATON.presionadoClickIzq()) {
+					this.arrastrandoRectangulo = false;
+					final boolean relleno = (tool == TipoHerramientaDibujo.RECTANGULO_RELLENO);
+					this.TERRENO.pintarRectanguloTiles(this.startRectTileX, this.startRectTileY, mouseTileX, mouseTileY,
+							tilePaleta.getTipoTerreno(), relleno);
+					GestorSonido.reproducir(IDSonido.GOLPE_1);
+				}
+			}
+			// REEMPLAZAR GLOBAL
+			else if (tool == TipoHerramientaDibujo.REEMPLAZAR_GLOBAL) {
+				if (this.RATON.presionadoClickIzqUnicaAct()) {
+					final Tile tileBajoCursor = this.TERRENO.getTileGrid(mouseTileX, mouseTileY);
+					if (tileBajoCursor != null) {
+						this.TERRENO.reemplazarTipoTerreno(tileBajoCursor.getTipoTerreno(),
+								tilePaleta.getTipoTerreno());
+						GestorSonido.reproducir(IDSonido.GOLPE_1);
 					}
 				}
 			}
-			// 2. Colocación de Recursos y Objetos
-			else if (paleta instanceof PaletaComplento) {
-				final PaletaComplento paletaObj = (PaletaComplento) paleta;
-				if (!this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
-					return;
-				}
+		}
+		// 2. RECURSOS
+		else if (paleta instanceof PaletaComplento) {
+			final PaletaComplento paletaObj = (PaletaComplento) paleta;
+			if (this.RATON.presionadoClickIzq()
+					&& this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
 				this.GT_COLOCACION.establecerReferenciaTiempoActual();
 
 				final PaletaComplento.EntradaPaleta entrada = paletaObj.getEntradaSeleccionada();
@@ -384,15 +617,16 @@ public class EditorMapa implements EstadoJuego {
 					final Objeto nuevoObj = paletaObj.crearInstanciaSeleccionada(posX, posY);
 					if (nuevoObj != null) {
 						this.MUNDO_EDITOR.meterEntidad(nuevoObj);
+						this.HISTORIAL.registrarAccion(new AccionHistorialEntidad(this.MUNDO_EDITOR, nuevoObj, true));
 					}
 				}
 			}
-			// 3. Colocación de Criaturas
-			else if (paleta instanceof PaletaCriaturas) {
-				final PaletaCriaturas paletaCriat = (PaletaCriaturas) paleta;
-				if (!this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
-					return;
-				}
+		}
+		// 3. CRIATURAS
+		else if (paleta instanceof PaletaCriaturas) {
+			final PaletaCriaturas paletaCriat = (PaletaCriaturas) paleta;
+			if (this.RATON.presionadoClickIzq()
+					&& this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
 				this.GT_COLOCACION.establecerReferenciaTiempoActual();
 
 				final PaletaCriaturas.EntradaCriatura entrada = paletaCriat.getEntradaSeleccionada();
@@ -406,31 +640,96 @@ public class EditorMapa implements EstadoJuego {
 					final Criatura nuevaCriat = entrada.creador.crear(hitboxX, hitboxY);
 					if (nuevaCriat != null) {
 						this.MUNDO_EDITOR.meterEntidad(nuevaCriat);
+						this.HISTORIAL.registrarAccion(new AccionHistorialEntidad(this.MUNDO_EDITOR, nuevaCriat, true));
 					}
 				}
 			}
-			// 4. Colocación de Puntos de Spawn
-			else if (paleta instanceof PaletaSpawns) {
-				final PaletaSpawns paletaSpawns = (PaletaSpawns) paleta;
-				if (!this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
-					return;
-				}
+		}
+		// 4. TRIGGERS / VOLÚMENES / LUCES
+		else if (paleta instanceof PaletaTriggers) {
+			final PaletaTriggers pTriggers = (PaletaTriggers) paleta;
+			if (this.RATON.presionadoClickIzq()
+					&& this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
 				this.GT_COLOCACION.establecerReferenciaTiempoActual();
 
-				final String nombreSpawn = paletaSpawns.getNombreSpawnSeleccionado();
-				final int snapX = Math.floorDiv(this.AREA_MOUSE_APUNTADO.x, this.LADO_TILE) * this.LADO_TILE;
-				final int snapY = Math.floorDiv(this.AREA_MOUSE_APUNTADO.y, this.LADO_TILE) * this.LADO_TILE;
+				final PaletaTriggers.EntradaTrigger ent = pTriggers.getEntradaSeleccionada();
+				if (ent != null) {
+					final int snapX = mouseTileX * this.LADO_TILE;
+					final int snapY = mouseTileY * this.LADO_TILE;
 
-				this.MUNDO_EDITOR.agregarSpawn(new Spawn(snapX, snapY, nombreSpawn));
-				GestorSonido.reproducir(IDSonido.GOLPE_1);
+					switch (ent.categoria) {
+					case TELEPORT_PUERTA:
+						final ZonaTP tp = new ZonaTP(new Rectangle(snapX, snapY, 20, 20),
+								new PuertaMapa("Mapa1", "Comienzo", false, null));
+						this.MUNDO_EDITOR.agregarTrigger(tp);
+						this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, tp, true));
+						break;
+					case ZONA_AMBIENTE_BIOMA:
+						final ZonaAmbiente zb = new ZonaAmbiente(snapX, snapY, 128, 128, new Color(60, 220, 120, 80),
+								IntensidadNiebla.LEVE, "Bioma", false);
+						this.MUNDO_EDITOR.agregarZonaAmbiente(zb);
+						this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, zb, true));
+						break;
+					case ZONA_AMBIENTE_CUEVA:
+						final ZonaAmbiente zc = new ZonaAmbiente(snapX, snapY, 128, 128, new Color(0, 0, 0, 255),
+								IntensidadNiebla.DESACTIVADA, "Cueva", true);
+						this.MUNDO_EDITOR.agregarZonaAmbiente(zc);
+						this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, zc, true));
+						break;
+					case LUZ_ANTORCHA:
+						if (Globales.GESTOR_LUZ != null) {
+							final FuenteLuz luz = Globales.GESTOR_LUZ.agregarLuzEstatica(snapX + 8, snapY + 8,
+									TipoLuz.ANTORCHA, 80);
+							this.MUNDO_EDITOR.agregarLuzEstatica(luz);
+							this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, luz, true));
+						}
+						break;
+					case LUZ_FOGATA:
+						if (Globales.GESTOR_LUZ != null) {
+							final FuenteLuz luz = Globales.GESTOR_LUZ.agregarLuzEstatica(snapX + 8, snapY + 8,
+									TipoLuz.FOGATA, 140);
+							this.MUNDO_EDITOR.agregarLuzEstatica(luz);
+							this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, luz, true));
+						}
+						break;
+					default:
+						break;
+					}
+					GestorSonido.reproducir(IDSonido.GOLPE_1);
+				}
 			}
 		}
 	}
 
+	private void registrarAccionHistorialPincel(final TipoTerreno tipoNuevo) {
+		final int total = this.trazoTilesPrevios.size();
+		if (total == 0) {
+			return;
+		}
+
+		final int[] indices = new int[total];
+		final TipoTerreno[] previos = new TipoTerreno[total];
+		final TipoTerreno[] nuevos = new TipoTerreno[total];
+
+		int i = 0;
+		for (final Map.Entry<Integer, TipoTerreno> entry : this.trazoTilesPrevios.entrySet()) {
+			indices[i] = entry.getKey();
+			previos[i] = entry.getValue();
+			nuevos[i] = tipoNuevo;
+			i++;
+		}
+
+		this.HISTORIAL.registrarAccion(new AccionHistorialTerreno(this.TERRENO, indices, previos, nuevos));
+		this.trazoTilesPrevios.clear();
+	}
+
 	private void borrarElemento() {
+		// 1. Si el puntero tiene un ítem sostenido de inventario, clic derecho lo
+		// libera
 		if (this.itemPuntero.contieneItem()) {
 			if (this.RATON.presionadoClickDerUnicaAct()) {
 				this.itemPuntero.limpiar();
+				GestorSonido.reproducir(IDSonido.GOLPE_1);
 			}
 			return;
 		}
@@ -438,11 +737,13 @@ public class EditorMapa implements EstadoJuego {
 		final boolean clickDer = this.RATON.presionadoClickDer() || this.RATON.presionadoClickDerUnicaAct();
 
 		if (clickDer && this.tileApuntadoValido) {
-			final int radioBorrado = Math.max(8, this.LADO_TILE / 2);
+			final int radioBorrado = Math.max(16, this.LADO_TILE);
 			this.AREA_BORRADO_AUX.setBounds(this.AREA_MOUSE_APUNTADO.x - radioBorrado,
 					this.AREA_MOUSE_APUNTADO.y - radioBorrado, radioBorrado * 2, radioBorrado * 2);
 
-			// 1. Borrar Spawn si se hace clic derecho sobre él
+			boolean elementoBorrado = false;
+
+			// A. Borrar Spawns
 			final Spawn spawnBorrado = this.MUNDO_EDITOR.eliminarSpawnEn(this.AREA_MOUSE_APUNTADO.x,
 					this.AREA_MOUSE_APUNTADO.y, radioBorrado);
 			if (spawnBorrado != null) {
@@ -450,9 +751,17 @@ public class EditorMapa implements EstadoJuego {
 				return;
 			}
 
-			// 2. Borrar Entidades y Objetos
-			this.listaEntesABorrar.clear();
+			// B. Borrar Triggers / Zonas / Luces (Antorchas y Fogatas con tolerancia 16px)
+			final Object triggerBorrado = this.MUNDO_EDITOR.eliminarTriggerOAmbienteEn(this.AREA_MOUSE_APUNTADO.x,
+					this.AREA_MOUSE_APUNTADO.y, radioBorrado);
+			if (triggerBorrado != null) {
+				this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, triggerBorrado, false));
+				GestorSonido.reproducir(IDSonido.GOLPE_1);
+				return;
+			}
 
+			// C. Borrar Entidades y Objetos
+			this.listaEntesABorrar.clear();
 			this.MUNDO_EDITOR.paraCadaEnteEn(this.AREA_BORRADO_AUX, false, new AccionEntidad<Ente>() {
 				@Override
 				public void ejecutar(final Ente ente) {
@@ -463,7 +772,22 @@ public class EditorMapa implements EstadoJuego {
 			});
 
 			for (int i = 0; i < this.listaEntesABorrar.size(); i++) {
-				this.MUNDO_EDITOR.eliminarEntidad(this.listaEntesABorrar.get(i));
+				final Ente e = this.listaEntesABorrar.get(i);
+				this.MUNDO_EDITOR.eliminarEntidad(e);
+				this.HISTORIAL.registrarAccion(new AccionHistorialEntidad(this.MUNDO_EDITOR, e, false));
+				elementoBorrado = true;
+			}
+
+			if (elementoBorrado) {
+				GestorSonido.reproducir(IDSonido.GOLPE_1);
+			} else if (this.RATON.presionadoClickDerUnicaAct()) {
+				// D. Si no había nada que borrar, DESELECCIONA el sello/herramienta activa en
+				// la paleta
+				final Paleta p = this.PALETAS.getPaletaActual();
+				if ((p != null) && p.haySeleccion()) {
+					p.deseleccionar();
+					GestorSonido.reproducir(IDSonido.GOLPE_1);
+				}
 			}
 
 			this.listaEntesABorrar.clear();
@@ -526,7 +850,22 @@ public class EditorMapa implements EstadoJuego {
 
 			this.TERRENO.pintar(gBuf);
 			this.MUNDO_EDITOR.pintar(gBuf);
+			this.MUNDO_EDITOR.pintarTriggersYAmbientes(gBuf);
 			this.pintarSpawnsEnMundo(gBuf);
+
+			// Clima en tiempo real proyectado sobre el mundo
+			if (Globales.GESTOR_CLIMA != null) {
+				Globales.GESTOR_CLIMA.pintar(gBuf);
+			}
+
+			if (this.mostrarGrid) {
+				this.pintarGridOverlay(gBuf);
+			}
+
+			if (this.modoPreviewLuz && (Globales.GESTOR_LUZ != null)) {
+				Globales.GESTOR_LUZ.pintar(gBuf);
+			}
+
 			this.pintarPreviewColocacion(gBuf);
 
 		} finally {
@@ -544,19 +883,45 @@ public class EditorMapa implements EstadoJuego {
 			gView.dispose();
 		}
 
-		// 3. Renderizado de Contenedor / Cofre Abierto (HUD 1:1)
+		// 3. Cofre Abierto (HUD 1:1)
 		if (this.cofreAbierto != null) {
 			this.cofreAbierto.pintar(g);
 			this.cofreAbierto.pintarTooltips(g);
 		}
 
-		// 4. Capas de interfaz lateral 1:1 y Tooltips
-		this.pintarCoordenadas(g);
+		// 4. Barra Superior, Botones y Paleta lateral
+		this.pintarBarraEstadoSuperior(g);
+		this.btnGuardar.pintar(g);
+		this.btnConfigMundo.pintar(g);
+		this.btnSalir.pintar(g);
+
 		this.PALETAS.pintar(g);
 		this.pintarTooltipPaleta(g);
 
-		// 5. Ítem flotante arrastrado con el cursor (Capa superior)
+		// 5. Modales (Capa superior absoluta)
+		this.modalMundo.pintar(g);
+		this.modalTrigger.pintar(g);
+		this.modalAmbiente.pintar(g);
+		this.modalLuz.pintar(g);
+		this.modalConfirmarSalir.pintar(g);
+
+		// 6. Ítem flotante
 		this.itemPuntero.pintar(g, this.RATON.getPuntoPosicionEscalado());
+	}
+
+	private void pintarGridOverlay(final Graphics2D g) {
+		final int lado = this.LADO_TILE;
+		final Color cGrid = new Color(255, 255, 255, 35);
+		final Color cChunk = new Color(255, 215, 0, 60);
+
+		for (int gx = 0; gx < this.ANCHO; gx += lado) {
+			final boolean esChunk = ((gx % Terreno.LADO_CHUNK) == 0);
+			Render2D.dibujarLineaRefCamara(g, gx, 0, gx, this.ALTO, esChunk ? cChunk : cGrid);
+		}
+		for (int gy = 0; gy < this.ALTO; gy += lado) {
+			final boolean esChunk = ((gy % Terreno.LADO_CHUNK) == 0);
+			Render2D.dibujarLineaRefCamara(g, 0, gy, this.ANCHO, gy, esChunk ? cChunk : cGrid);
+		}
 	}
 
 	private void pintarSpawnsEnMundo(final Graphics2D g) {
@@ -571,11 +936,9 @@ public class EditorMapa implements EstadoJuego {
 			final Color colorMarco = esComienzo ? new Color(255, 215, 0) : new Color(70, 180, 255);
 			final Color colorFondo = esComienzo ? new Color(255, 215, 0, 90) : new Color(70, 180, 255, 75);
 
-			// Área translúcida y borde
 			Render2D.dibujarRectanguloRellenoRefCamara(g, sx, sy, 16, 16, colorFondo);
 			Render2D.dibujarRectanguloContornoRefCamara(g, sx, sy, 16, 16, colorMarco);
 
-			// Nombre descriptivo flotante sobre el Spawn
 			final String txt = s.getNombre();
 			final int anchoTxt = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt);
 			final int tx = (sx + 8) - (anchoTxt / 2);
@@ -595,10 +958,26 @@ public class EditorMapa implements EstadoJuego {
 		final Paleta paleta = this.PALETAS.getPaletaActual();
 
 		if (paleta instanceof PaletaTile) {
-			if (this.pincelCircular && (this.tamanoPincel > 2)) {
-				Render2D.dibujarFiguraEllipseRefCamara(g, this.areaTileSelected, Color.MAGENTA);
+			final PaletaTile pt = (PaletaTile) paleta;
+			final TipoHerramientaDibujo tool = pt.getHerramientaSeleccionada();
+
+			if (this.arrastrandoRectangulo) {
+				final int curTX = Math.floorDiv(this.AREA_MOUSE_APUNTADO.x, this.LADO_TILE);
+				final int curTY = Math.floorDiv(this.AREA_MOUSE_APUNTADO.y, this.LADO_TILE);
+				final int minX = Math.min(this.startRectTileX, curTX) * this.LADO_TILE;
+				final int minY = Math.min(this.startRectTileY, curTY) * this.LADO_TILE;
+				final int w = (Math.abs(curTX - this.startRectTileX) + 1) * this.LADO_TILE;
+				final int h = (Math.abs(curTY - this.startRectTileY) + 1) * this.LADO_TILE;
+
+				Render2D.dibujarRectanguloContornoRefCamara(g, minX, minY, w, h, Color.YELLOW);
+			} else if (tool == TipoHerramientaDibujo.PINCEL) {
+				if (this.pincelCircular && (this.tamanoPincel > 2)) {
+					Render2D.dibujarFiguraEllipseRefCamara(g, this.areaTileSelected, Color.MAGENTA);
+				} else {
+					Render2D.dibujarRectanguloContornoRefCamara(g, this.areaTileSelected, Color.MAGENTA);
+				}
 			} else {
-				Render2D.dibujarRectanguloContornoRefCamara(g, this.areaTileSelected, Color.MAGENTA);
+				Render2D.dibujarRectanguloContornoRefCamara(g, this.areaTileSelected, Color.CYAN);
 			}
 
 		} else if (paleta instanceof PaletaComplento) {
@@ -627,25 +1006,6 @@ public class EditorMapa implements EstadoJuego {
 				Render2D.dibujarRectanguloContornoRefCamara(g, spriteX + entrada.margenX, spriteY + entrada.margenY,
 						entrada.anchoHitbox, entrada.altoHitbox, Color.RED);
 			}
-		} else if (paleta instanceof PaletaSpawns) {
-			final PaletaSpawns p = (PaletaSpawns) paleta;
-			final String nombre = p.getNombreSpawnSeleccionado();
-			final int snapX = Math.floorDiv(this.AREA_MOUSE_APUNTADO.x, this.LADO_TILE) * this.LADO_TILE;
-			final int snapY = Math.floorDiv(this.AREA_MOUSE_APUNTADO.y, this.LADO_TILE) * this.LADO_TILE;
-
-			final boolean esComienzo = nombre.equalsIgnoreCase(Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
-			final Color colorMarco = esComienzo ? Color.YELLOW : Color.CYAN;
-
-			Render2D.dibujarRectanguloRellenoRefCamara(g, snapX, snapY, 16, 16,
-					new Color(colorMarco.getRed(), colorMarco.getGreen(), colorMarco.getBlue(), 100));
-			Render2D.dibujarRectanguloContornoRefCamara(g, snapX, snapY, 16, 16, colorMarco);
-
-			final Font fontPrevia = g.getFont();
-			g.setFont(FUENTE_SPAWN);
-			final int anchoTxt = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, nombre);
-			Render2D.dibujarStringConSombraRefCamara(g, nombre, (snapX + 8) - (anchoTxt / 2), snapY - 3, colorMarco,
-					Color.BLACK);
-			g.setFont(fontPrevia);
 		}
 	}
 
@@ -671,22 +1031,29 @@ public class EditorMapa implements EstadoJuego {
 		}
 	}
 
-	private void pintarCoordenadas(final Graphics2D g) {
+	private void pintarBarraEstadoSuperior(final Graphics2D g) {
 		final Font fontPrevia = g.getFont();
 		g.setFont(FUENTE_INFO);
 
+		final String toolInfo = (this.PALETAS.getPaletaActual() instanceof PaletaTile)
+				? ((PaletaTile) this.PALETAS.getPaletaActual()).getHerramientaSeleccionada().getNombreVisible()
+				: "Colocación";
+
 		Render2D.dibujarString(g,
-				"Pincel: " + this.tamanoPincel + "x" + this.tamanoPincel + " ("
-						+ (this.pincelCircular ? "Circulo" : "Cuadrado") + ") | Zoom: "
-						+ String.format("%.2f", Globales.CAMARA.getZoom()) + "x",
-				20, 165, Color.CYAN);
+				"Herramienta: " + toolInfo + " | Pincel: " + this.tamanoPincel + "x" + this.tamanoPincel + " ("
+						+ (this.pincelCircular ? "O" : "[]") + ") | Zoom: "
+						+ String.format("%.2f", Globales.CAMARA.getZoom()) + "x | Grilla[G]: "
+						+ (this.mostrarGrid ? "ON" : "OFF") + " | Luz[L]: " + (this.modoPreviewLuz ? "ON" : "OFF")
+						+ " | Clima[K] | Hora[H]",
+				15, 12, Color.CYAN);
+
 		Render2D.dibujarString(g,
-				"Posicion Cursor: (X: " + this.AREA_MOUSE_APUNTADO.x + ", Y: " + this.AREA_MOUSE_APUNTADO.y + ")", 20,
-				175, Color.WHITE);
-		Render2D.dibujarString(g, "Camara Fantasma: (X: " + this.x + ", Y: " + this.y + ")", 20, 185, Color.GREEN);
-		Render2D.dibujarString(g,
-				"Teclas: [E / Shift+Click] Abrir Cofre | [Click Der en Cofre] Borrar Item | [Enter] Guardar | [Rueda] Zoom",
-				20, 195, Color.YELLOW);
+				"Cursor: (" + this.AREA_MOUSE_APUNTADO.x + ", " + this.AREA_MOUSE_APUNTADO.y + ") | Cámara: (" + this.x
+						+ ", " + this.y + ") | Undo/Redo: " + this.HISTORIAL.getCantidadDeshacer() + "/"
+						+ this.HISTORIAL.getCantidadRehacer(),
+				15, 23, Color.WHITE);
+
+		Render2D.dibujarString(g, "[Ctrl+Z] Undo | [Ctrl+Y] Redo | [E] Configurar Elemento", 15, 34, Color.YELLOW);
 
 		g.setFont(fontPrevia);
 	}
@@ -701,14 +1068,20 @@ public class EditorMapa implements EstadoJuego {
 
 		final Escenario esc = new Escenario(this.TERRENO, jsonEntes.get(criaturas).toString(),
 				jsonEntes.get(items).toString(), jsonEntes.get(complementos).toString(),
-				jsonEntes.get(objetos).toString(), jsonEntes.get(spawns).toString());
+				jsonEntes.get(objetos).toString(), jsonEntes.get(spawns).toString(),
+				this.MUNDO_EDITOR.getTriggersEnJson().toString(), this.MUNDO_EDITOR.getZonasAmbienteEnJson().toString(),
+				this.MUNDO_EDITOR.getLucesEnJson().toString(), this.metadatos);
 
 		final File carpetaDestino = new File("mundos" + File.separator + nombre);
 		EscenarioLoader.exportarEscenario(esc, carpetaDestino);
-		System.out.println("Mapa exportado exitosamente con Spawns en: " + carpetaDestino.getAbsolutePath());
+		System.out.println("[EditorMapa] Mapa guardado exitosamente en: " + carpetaDestino.getAbsolutePath());
 	}
 
 	public ItemPuntero getItemPuntero() {
 		return this.itemPuntero;
+	}
+
+	public MetadatosEscenario getMetadatos() {
+		return this.metadatos;
 	}
 }

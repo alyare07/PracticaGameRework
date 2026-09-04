@@ -40,17 +40,20 @@ import principal.ia.dijkstra.NodoD;
 import principal.mapa.escenario.Escenario;
 import principal.mapa.mapas.Spawn;
 import principal.mapa.renderEntidades.ZoneBox;
+import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.utilidades.AccionEntidad;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
+import principal.utilidades.audio.musica.GestorMusica;
 
 /**
  * Gestor maestro del mapa activo, flujo de navegación, zonas de indexación,
- * puntos de Spawn y ciclo de vida de entidades.
+ * puntos de Spawn y ciclo de vida de entidades. Carga de forma autónoma la
+ * música, bioma y atmósfera según los metadatos del escenario.
  * 
- * @version 5.2 (Vanilla Java 8 - Spawn Integration)
+ * @version 6.0 (Vanilla Java 8 - Autonomous World Engine)
  */
 public class Mundo {
 
@@ -81,62 +84,32 @@ public class Mundo {
 	public static final String CLAVE_PUNTO_SPAWN_COMIENZO = "Comienzo";
 
 	public Mundo(final Escenario esc, final Point comienzo) {
-		this.ESCENARIO = esc;
-		this.generarZonas();
-
-		for (final Item i : this.ESCENARIO.generarItemsEnTerreno()) {
-			this.meterEntidad(i);
-		}
-
-		esc.generarListaComplementos(this);
-		this.generarCriaturas(esc.generarListaCriaturas(this));
-		this.ESCENARIO.generarObjetosEnTerreno(this);
-
-		// Carga de Spawns guardados en el Escenario
-		for (final Spawn s : esc.generarSpawns()) {
-			this.PUNTOS_SPAWN_JUGADOR.put(s.getNombre(), s);
-		}
-
-		if (!this.PUNTOS_SPAWN_JUGADOR.containsKey(CLAVE_PUNTO_SPAWN_COMIENZO)) {
-			final Point pComienzo = (comienzo != null) ? comienzo : new Point(0, 0);
-			this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(pComienzo, CLAVE_PUNTO_SPAWN_COMIENZO));
-		}
-
-		final Spawn spawnBase = this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO);
-		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
-		this.dijkstra.actualizar(new Point(spawnBase.getX(), spawnBase.getY()));
-		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
+		this(esc, comienzo, null, 100);
 	}
 
 	public Mundo(final Escenario esc, final Point comienzo, final GestorCarga gc, final int porcentajeCarga) {
 		this.ESCENARIO = esc;
-		int pesoCarga = 25;
-		gc.setDetalleCarga("Generando render zonas");
-		this.generarZonas();
-		gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
 
-		pesoCarga = 15;
-		gc.setDetalleCarga("Generando items");
+		if (gc != null) {
+			gc.setDetalleCarga("Generando zonas de indexacion espacial");
+		}
+		this.generarZonas();
+
+		if (gc != null) {
+			gc.setDetalleCarga("Generando items y complementos");
+		}
 		for (final Item i : this.ESCENARIO.generarItemsEnTerreno()) {
 			this.meterEntidad(i);
 		}
-		gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
-
-		pesoCarga = 35;
-		gc.setDetalleCarga("Generando complementos");
 		esc.generarListaComplementos(this);
-		gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
 
-		pesoCarga = 15;
-		gc.setDetalleCarga("Generando criaturas");
+		if (gc != null) {
+			gc.setDetalleCarga("Generando criaturas y objetos");
+		}
 		this.generarCriaturas(esc.generarListaCriaturas(this));
-		gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
-
-		pesoCarga = 10;
-		gc.setDetalleCarga("Generando objetos");
 		this.ESCENARIO.generarObjetosEnTerreno(this);
-		gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
 
+		// Generación de Spawns, Triggers, Zonas de Ambiente y Luces Estáticas
 		for (final Spawn s : esc.generarSpawns()) {
 			this.PUNTOS_SPAWN_JUGADOR.put(s.getNombre(), s);
 		}
@@ -145,6 +118,13 @@ public class Mundo {
 			final Point pComienzo = (comienzo != null) ? comienzo : new Point(0, 0);
 			this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(pComienzo, CLAVE_PUNTO_SPAWN_COMIENZO));
 		}
+
+		esc.generarTriggers(this);
+		esc.generarZonasAmbiente();
+		esc.generarLucesEstaticas();
+
+		// Inicialización de la atmósfera según los metadatos del mapa
+		this.aplicarMetadatosAtmosfericos(esc.getMetadatos());
 
 		final Spawn spawnBase = this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO);
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
@@ -153,12 +133,43 @@ public class Mundo {
 	}
 
 	public Mundo(final Terreno terrenoSoloParaEDITOR) {
-		this.ESCENARIO = new Escenario(terrenoSoloParaEDITOR, "[]", "[]", "[]", "[]", "[]");
+		this.ESCENARIO = new Escenario(terrenoSoloParaEDITOR, "[]", "[]", "[]", "[]", "[]", "[]", "[]", "[]",
+				new MetadatosEscenario());
 		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO,
 				new Spawn(new Point(0, 0), CLAVE_PUNTO_SPAWN_COMIENZO));
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
 		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
 		this.generarZonas();
+	}
+
+	private void aplicarMetadatosAtmosfericos(final MetadatosEscenario meta) {
+		if (meta == null) {
+			return;
+		}
+
+		// 1. Música de fondo
+		if (meta.getMusicaFondo() != null) {
+			GestorMusica.reproducirMusicaFondoPrincipal(meta.getMusicaFondo());
+		}
+
+		// 2. Bioma y Clima Inicial
+		if (Globales.GESTOR_CLIMA != null) {
+			if (meta.getPerfilBioma() != null) {
+				Globales.GESTOR_CLIMA.setPerfilBioma(meta.getPerfilBioma());
+			}
+			if (meta.getClimaInicial() != null) {
+				Globales.GESTOR_CLIMA.setClima(meta.getClimaInicial(), 0.0);
+			}
+		}
+
+		// 3. Iluminación Interior vs. Exterior
+		if (Globales.GESTOR_LUZ != null) {
+			if (meta.isEsInteriorCueva()) {
+				Globales.GESTOR_LUZ.establecerAmbienteTransicion(meta.getColorLuzInterior(), 0.0);
+			} else {
+				Globales.GESTOR_LUZ.restablecerModoExterior();
+			}
+		}
 	}
 
 	public void agregarSpawn(final Spawn s) {

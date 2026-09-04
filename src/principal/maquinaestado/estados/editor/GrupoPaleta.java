@@ -23,6 +23,12 @@ import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 import principal.utilidades.Render2D;
 
+/**
+ * Gestor maestro de pestañas del panel lateral del editor. Organiza las 6
+ * categorías: Suelos, Recursos, Objetos, Criaturas, Ítems y Triggers/Eventos.
+ * 
+ * @version 2.2 (Vanilla Java 8)
+ */
 public class GrupoPaleta {
 
 	private final ArrayList<Paleta> LISTA = new ArrayList<Paleta>();
@@ -45,11 +51,6 @@ public class GrupoPaleta {
 		this.recalcularAreasPestanas();
 	}
 
-	@Deprecated
-	public GrupoPaleta(final int x, final int y, final int ancho, final int alto) {
-		this(x, y, ancho, alto, null);
-	}
-
 	private void iniciarPaletas() {
 		final int yPaleta = this.AREA_CABECERA.y + this.AREA_CABECERA.height;
 		final int altoPaleta = this.AREA.height - this.AREA_CABECERA.height;
@@ -61,7 +62,7 @@ public class GrupoPaleta {
 		final HojaSprite cofres = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.COFRES_16);
 		final BufferedImage transparente = Globales.GESTOR_TEXTURAS.getTexturaTransparente();
 
-		// 1. PESTAÑA: SUELOS
+		// 1. PESTAÑA: SUELOS & HERRAMIENTAS
 		final PaletaTile paletaSuelos = new PaletaTile(this.AREA.x, yPaleta, this.AREA.width, altoPaleta,
 				Constantes.LADO_TILE);
 		this.registrarPaleta("Suelos", paletaSuelos);
@@ -105,14 +106,14 @@ public class GrupoPaleta {
 				32);
 		this.registrarPaleta("Criaturas", paletaCriaturas);
 
-		// 5. PESTAÑA: ÍTEMS Y EQUIPAMIENTO (Para llenar cofres)
+		// 5. PESTAÑA: ÍTEMS Y EQUIPAMIENTO
 		final PaletaItems paletaItems = new PaletaItems(this.AREA.x, yPaleta, this.AREA.width, altoPaleta, 32,
 				this.editor);
 		this.registrarPaleta("Items", paletaItems);
 
-		// 6. PESTAÑA: SPAWNS Y PUNTOS DE APARICIÓN
-		final PaletaSpawns paletaSpawns = new PaletaSpawns(this.AREA.x, yPaleta, this.AREA.width, altoPaleta, 32);
-		this.registrarPaleta("Spawns", paletaSpawns);
+		// 6. PESTAÑA: TRIGGERS, VOLÚMENES Y LUCES
+		final PaletaTriggers paletaTriggers = new PaletaTriggers(this.AREA.x, yPaleta, this.AREA.width, altoPaleta, 32);
+		this.registrarPaleta("Triggers", paletaTriggers);
 	}
 
 	public void registrarPaleta(final String nombrePestana, final Paleta paleta) {

@@ -16,6 +16,13 @@ import principal.recursos.TipoTerreno;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 
+/**
+ * Representa la matriz bidimensional de celdas (Tiles) del mapa. Gestiona el
+ * renderizado optimizado por Chunks en VRAM, cálculo de autotiles bitwise y
+ * operaciones de pintura en bloque (Líneas, Rectángulos y Reemplazo).
+ * 
+ * @version 2.5 (Vanilla Java 8 - Batch Tile Operations)
+ */
 public class Terreno implements Serializable {
 
 	private static final long serialVersionUID = -230565732234345L;
@@ -352,6 +359,60 @@ public class Terreno implements Serializable {
 		if (punto != null) {
 			this.establecerTileReferenciado(punto.x, punto.y, tile);
 		}
+	}
+
+	// =========================================================================
+	// OPERACIONES EN BLOQUE (GEOMETRÍA Y REEMPLAZO PARA EL EDITOR)
+	// =========================================================================
+
+	/**
+	 * Reemplaza globalmente un tipo de terreno por otro en todo el mapa.
+	 */
+	public int reemplazarTipoTerreno(final TipoTerreno tipoOrigen, final TipoTerreno tipoDestino) {
+		if ((tipoOrigen == null) || (tipoDestino == null) || (tipoOrigen == tipoDestino)) {
+			return 0;
+		}
+
+		int cambiados = 0;
+		for (int i = 0; i < this.TILES.length; i++) {
+			if ((this.TILES[i] != null) && (this.TILES[i].getTipoTerreno() == tipoOrigen)) {
+				final int tx = i % this.CANTIDAD_TILES_X;
+				final int ty = i / this.CANTIDAD_TILES_X;
+				this.TILES[i] = new Tile(tx * this.LADO_TILE, ty * this.LADO_TILE, this.LADO_TILE, tipoDestino);
+				cambiados++;
+			}
+		}
+
+		if (cambiados > 0) {
+			this.calcularAutotiles();
+		}
+		return cambiados;
+	}
+
+	/**
+	 * Pinta un área rectangular de tiles (rellena o hueca).
+	 */
+	public void pintarRectanguloTiles(final int startTileX, final int startTileY, final int endTileX,
+			final int endTileY, final TipoTerreno tipo, final boolean relleno) {
+		if (tipo == null) {
+			return;
+		}
+
+		final int minX = Math.max(0, Math.min(startTileX, endTileX));
+		final int maxX = Math.min(this.CANTIDAD_TILES_X - 1, Math.max(startTileX, endTileX));
+		final int minY = Math.max(0, Math.min(startTileY, endTileY));
+		final int maxY = Math.min(this.CANTIDAD_TILES_Y - 1, Math.max(startTileY, endTileY));
+
+		for (int ty = minY; ty <= maxY; ty++) {
+			for (int tx = minX; tx <= maxX; tx++) {
+				final boolean esBorde = ((tx == minX) || (tx == maxX) || (ty == minY) || (ty == maxY));
+				if (relleno || esBorde) {
+					this.TILES[(ty * this.CANTIDAD_TILES_X) + tx] = new Tile(tx * this.LADO_TILE, ty * this.LADO_TILE,
+							this.LADO_TILE, tipo);
+				}
+			}
+		}
+		this.calcularAutotiles();
 	}
 
 	public boolean contienePuntoTileReferenciado(final int x, final int y) {

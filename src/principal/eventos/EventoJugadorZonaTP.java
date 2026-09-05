@@ -20,8 +20,10 @@ public class EventoJugadorZonaTP extends EventoEnte {
 
 	@Override
 	protected boolean cumpleCondicion() {
-		return (this.ZONA_TP != null) && this.ZONA_TP.disponibleParaTP(Globales.JUGADOR)
+		return (this.ZONA_TP != null)
 				&& Globales.JUGADOR.getAreaInterseccionMovimiento().intersects(this.ZONA_TP.getArea());
+//		return (this.ZONA_TP != null) && this.ZONA_TP.disponibleParaTP(Globales.JUGADOR)
+//				&& Globales.JUGADOR.getAreaInterseccionMovimiento().intersects(this.ZONA_TP.getArea());
 	}
 
 	@Override

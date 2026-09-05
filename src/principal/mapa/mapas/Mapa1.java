@@ -24,11 +24,8 @@ import principal.entes.objetos.items.herramientas.TipoHerramienta;
 import principal.entes.objetos.items.municiones.CajaMunicion;
 import principal.entes.objetos.recursos.ArbolCosechable;
 import principal.entes.objetos.recursos.RocaCosechable;
-import principal.eventos.EventoJugadorZonaTP;
 import principal.mapa.Mundo;
 import principal.mapa.escenario.tps.PuertaArea;
-import principal.mapa.escenario.tps.PuertaMapa;
-import principal.mapa.escenario.tps.ZonaTP;
 import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
@@ -61,22 +58,22 @@ public class Mapa1 extends Mapa {
 	}
 
 	@Override
-	protected void establecerMundoActual() {
-		this.mundoActual = this.MUNDOS.get(EXTERIOR);
+	public void establecerMundoActual(final String nombreMundo) {
+		if ((nombreMundo != null) && this.MUNDOS.containsKey(nombreMundo)) {
+			this.mundoActual = this.MUNDOS.get(nombreMundo);
+		}
+	}
+
+	@Override
+	protected void establecerMundoComienzo() {
+		this.mundoActual = this.getMundo(EXTERIOR);
 	}
 
 	@Override
 	protected void cargarFuncionalidadesPropias() {
 		final GestorJuego jg = this.GP.getGestorJuego();
 		Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
-		final ZonaTP zonaTP2 = new ZonaTP(new Rectangle(684, 215, 20, 20), null);
-		final ZonaTP zonaTP = new ZonaTP(new Rectangle(878, 173, 20, 20),
-				new PuertaArea(new Rectangle(832, 333, 16, 16)));
-		zonaTP2.setPuertaTP(new PuertaMapa(MapaManager.MAPA_0, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, false, this.GP));
-		this.mundoActual.meterEntidad(zonaTP);
-		this.mundoActual.meterEntidad(zonaTP2);
-		jg.meterEvento(new EventoJugadorZonaTP(zonaTP, jg, true));
-		jg.meterEvento(new EventoJugadorZonaTP(zonaTP2, jg, true));
+		new PuertaArea(new Rectangle(832, 333, 16, 16));
 
 		// Enemigos iniciales
 //		this.mundoActual.meterEntidad(new BandidoGarrote(890, 220, 50, 50, this.mundoActual));

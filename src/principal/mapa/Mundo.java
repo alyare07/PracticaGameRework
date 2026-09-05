@@ -83,6 +83,10 @@ public class Mundo {
 
 	public static final String CLAVE_PUNTO_SPAWN_COMIENZO = "Comienzo";
 
+	final ArrayList<Ente> LISTA_ENTES_TEMP = new ArrayList<>();
+	final HashSet<Item> LISTA_ITEMS_TEMP = new HashSet<>();
+	final ArrayList<Criatura> LISTA_CRIATURAS_TEMP = new ArrayList<>();
+
 	public Mundo(final Escenario esc, final Point comienzo) {
 		this(esc, comienzo, null, 100);
 	}
@@ -524,7 +528,8 @@ public class Mundo {
 		}
 	}
 
-	public void paraCadaEnteEn(final Shape area, final boolean incluirJugador, final AccionEntidad<Ente> accion) {
+	public void paraCadaEnteEn(final Shape area, final boolean incluirJugador, final boolean incuirZonasTP,
+			final AccionEntidad<Ente> accion) {
 		if ((area == null) || (accion == null)) {
 			return;
 		}
@@ -544,7 +549,7 @@ public class Mundo {
 			for (int gx = minGX; gx <= maxGX; gx++) {
 				final ZoneBox zb = this.ZONAS_ARRAY[offset + gx];
 				if (zb != null) {
-					zb.paraCadaEnte(area, accion);
+					zb.paraCadaEnte(area, accion, incuirZonasTP);
 				}
 			}
 		}
@@ -667,34 +672,35 @@ public class Mundo {
 	}
 
 	public ArrayList<Criatura> getCriaturasIntersectadas(final Shape area, final boolean tenerEnCuentaJugador) {
-		final ArrayList<Criatura> lista = new ArrayList<>();
-		this.paraCadaCriaturaEn(area, tenerEnCuentaJugador, lista::add);
-		return lista;
+		this.LISTA_CRIATURAS_TEMP.clear();
+		this.paraCadaCriaturaEn(area, tenerEnCuentaJugador, this.LISTA_CRIATURAS_TEMP::add);
+		return this.LISTA_CRIATURAS_TEMP;
 	}
 
 	public ArrayList<Criatura> getCriaturasIntersectadasConEnte(final Ente e) {
-		final ArrayList<Criatura> criaturas = new ArrayList<>();
+		this.LISTA_CRIATURAS_TEMP.clear();
 		if (e != null) {
 			this.paraCadaCriaturaEn(e.getArea(), false, c -> {
-				if (!criaturas.contains(c)) {
-					criaturas.add(c);
+				if (!this.LISTA_CRIATURAS_TEMP.contains(c)) {
+					this.LISTA_CRIATURAS_TEMP.add(c);
 				}
 			});
 		}
-		return criaturas;
+		return this.LISTA_CRIATURAS_TEMP;
 	}
 
 	public HashSet<Item> getItemsIntersectados(final Shape area) {
-		final HashSet<Item> lista = new HashSet<>();
-		this.paraCadaItemEn(area, lista::add);
-		return lista;
+		this.LISTA_ITEMS_TEMP.clear();
+		this.paraCadaItemEn(area, this.LISTA_ITEMS_TEMP::add);
+		return this.LISTA_ITEMS_TEMP;
 	}
 
-	public ArrayList<Ente> getEnteIntersectados(final Shape area, final boolean tenerEnCuentaJugador) {
-		final ArrayList<Ente> lista = new ArrayList<>();
-		this.paraCadaEnteEn(area, tenerEnCuentaJugador, lista::add);
-		this.GESTOR_PROYECTILES.agregarIntersecciones(area.getBounds(), lista);
-		return lista;
+	public ArrayList<Ente> getEnteIntersectados(final Shape area, final boolean tenerEnCuentaJugador,
+			final boolean incuirZonasTP) {
+		this.LISTA_ENTES_TEMP.clear();
+		this.paraCadaEnteEn(area, tenerEnCuentaJugador, incuirZonasTP, this.LISTA_ENTES_TEMP::add);
+		this.GESTOR_PROYECTILES.agregarIntersecciones(area.getBounds(), this.LISTA_ENTES_TEMP);
+		return this.LISTA_ENTES_TEMP;
 	}
 
 	public boolean agregarItemEnPosicionJugador(final Item item, final boolean copiar) {
@@ -865,6 +871,13 @@ public class Mundo {
 			final AccionEntidad<Criatura> accion) {
 		if (r != null) {
 			this.paraCadaCriaturaEn(r.x, r.y, r.width, r.height, incluirJugador, accion);
+		}
+	}
+
+	public void teletransportarJugadorASpawn(final String nombreSpawn) {
+		if (this.PUNTOS_SPAWN_JUGADOR.containsKey(nombreSpawn)) {
+			final Spawn spawn = this.getSpawn(nombreSpawn);
+			Globales.JUGADOR.setPosicion(spawn.getX(), spawn.getY());
 		}
 	}
 

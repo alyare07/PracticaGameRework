@@ -7,6 +7,8 @@ import java.util.ArrayList;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
+import principal.entes.modelos.complemento.ListaModeloComplemento;
+import principal.entes.modelos.complemento.ModeloComplementoT1;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
@@ -292,7 +294,7 @@ public class ZoneBox extends Ente {
 		}
 	}
 
-	public void paraCadaEnte(final Shape area, final AccionEntidad<Ente> accion) {
+	public void paraCadaEnte(final Shape area, final AccionEntidad<Ente> accion, final boolean tenerEncuentaZonaTP) {
 		if (!this.intersectaZona(area)) {
 			return;
 		}
@@ -316,8 +318,19 @@ public class ZoneBox extends Ente {
 		}
 		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
-			if (!c.estaEliminado() && area.intersects(c.getArea())) {
+			if (!c.estaEliminado() && area.intersects(c.getAreaInterseccionEnBaseMargen(
+					((ModeloComplementoT1) ListaModeloComplemento.getModeloComplemento(c.getCodigoModelo()))
+							.getMargenesInterseccion()))) {
 				accion.ejecutar(c);
+			}
+		}
+
+		if (tenerEncuentaZonaTP) {
+			for (int i = 0; i < this.ZONAS_TP.size(); i++) {
+				final ZonaTP z = this.ZONAS_TP.get(i);
+				if (!z.estaEliminado() && area.intersects(z.getArea())) {
+					accion.ejecutar(z);
+				}
 			}
 		}
 	}

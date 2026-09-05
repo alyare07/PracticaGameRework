@@ -23,9 +23,9 @@ public abstract class MapaManager {
 		return mapa;
 	}
 
-	public static Mapa cargarMapa(final String nombre, final GestorCarga gc) {
+	public static Mapa cargarMapa(final String nombreMapa, final GestorCarga gc) {
 		Mapa mapa = null;
-		switch (nombre) {
+		switch (nombreMapa) {
 		case MAPA_1:
 			mapa = cargarMapa1(gc);
 			break;
@@ -37,7 +37,7 @@ public abstract class MapaManager {
 			}
 			break;
 		default:
-			System.err.println("Error: No se encontró la definición para cargar el mapa: " + nombre);
+			System.err.println("Error: No se encontró la definición para cargar el mapa: " + nombreMapa);
 			return null;
 		}
 		return mapa;

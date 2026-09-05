@@ -30,7 +30,6 @@ import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.Tile;
 import principal.mapa.escenario.tps.PuertaArea;
-import principal.mapa.escenario.tps.PuertaMapa;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.mapa.mapas.Mapa;
 import principal.mapa.mapas.MapaManager;
@@ -192,7 +191,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		if (Globales.RATON.presionadoClickIzqUnicaAct() && (this.mapa != null)
 				&& (this.mapa.getMundoActual() != null)) {
 			final Rectangle areaMouseMundo = Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
-			for (final Ente e : this.mapa.getMundoActual().getEnteIntersectados(areaMouseMundo, true)) {
+			for (final Ente e : this.mapa.getMundoActual().getEnteIntersectados(areaMouseMundo, true, true)) {
 				Globales.CAMARA.setEntidadEnfocada(e);
 				Globales.CAMARA.habilitarGestorLimite();
 				break;
@@ -338,8 +337,8 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.pintarDebug(g);
 
 		if (Globales.TECLADO.TECLA_DEBUG.presionado()) {
-			final ArrayList<Ente> entesIntersectadosRaton = this.getMundo()
-					.getEnteIntersectados(Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara(), true);
+			final ArrayList<Ente> entesIntersectadosRaton = this.getMundo().getEnteIntersectados(
+					Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara(), true, true);
 			for (final Ente e : entesIntersectadosRaton) {
 				Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltip(g, e.getClass().getSimpleName(), Color.WHITE,
 						Color.BLACK);
@@ -435,8 +434,8 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	}
 
 	@Override
-	public void cargarMapa(final GestorCarga gc, final String nombreMapa, final boolean reset,
-			final String nombreSpawn) {
+	public void cargarMapa(final GestorCarga gc, final String nombreMapa, final String nombreMundo,
+			final String nombreSpawn, final boolean reset) {
 		if (gc != null) {
 			gc.setPorcentajeCarga(10);
 			gc.setDetalleCarga("Cargando mapa " + nombreMapa);
@@ -461,11 +460,13 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			gc.setPorcentajeCarga(80);
 			gc.setDetalleCarga("Configurando jugador y mundo");
 		}
+		this.mapa.establecerMundoActual(nombreMundo);
 
 		if (reset) {
 			Globales.JUGADOR.restablecerYCambiarMundo(this.mapa.getMundoActual());
 		} else {
 			Globales.JUGADOR.setMundo(this.mapa.getMundoActual());
+			this.mapa.getMundoActual().teletransportarJugadorASpawn(nombreSpawn);
 		}
 
 		if (this.mapa.getMundoActual().getSpawn(nombreSpawn) != null) {
@@ -510,8 +511,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		final ZonaTP zonaTP2 = new ZonaTP(new Rectangle(684, 215, 20, 20), null);
 		final ZonaTP zonaTP = new ZonaTP(new Rectangle(878, 173, 20, 20),
 				new PuertaArea(new Rectangle(832, 333, 16, 16)));
-
-		zonaTP2.setPuertaTP(new PuertaMapa("escenario2.json", Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, false, this.GP));
 
 		mundoActual.meterEntidad(zonaTP);
 		mundoActual.meterEntidad(zonaTP2);

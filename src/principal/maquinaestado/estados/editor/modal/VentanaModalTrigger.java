@@ -45,6 +45,7 @@ public class VentanaModalTrigger extends ComponenteMenu {
 	private final Rectangle areaBtnTipo = new Rectangle();
 	private CajaTextoPixel ctParametro1;
 	private CajaTextoPixel ctParametro2;
+	private CajaTextoPixel ctParametro3;
 
 	private BotonPixel btnAplicar;
 	private BotonPixel btnCerrar;
@@ -61,7 +62,8 @@ public class VentanaModalTrigger extends ComponenteMenu {
 
 		this.areaBtnTipo.setBounds(x + 130, y + 40, 190, 18);
 		this.ctParametro1 = new CajaTextoPixel(new Rectangle(x + 130, y + 68, 190, 16), "Mapa1", 18, false);
-		this.ctParametro2 = new CajaTextoPixel(new Rectangle(x + 130, y + 96, 190, 16), "Comienzo", 18, false);
+		this.ctParametro2 = new CajaTextoPixel(new Rectangle(x + 130, y + 96, 190, 16), "Exterior", 18, false);
+		this.ctParametro3 = new CajaTextoPixel(new Rectangle(x + 130, y + 124, 190, 16), "Comienzo", 18, false);
 
 		this.btnAplicar = new BotonPixel("Guardar", new Rectangle(x + 40, (y + ALTO_MODAL) - 30, 110, 18), () -> {
 			this.guardarCambios();
@@ -80,6 +82,17 @@ public class VentanaModalTrigger extends ComponenteMenu {
 		this.triggerSeleccionado = trigger;
 		this.abierta = true;
 		this.visible = true;
+
+		// Sincronizar el estado del modal con la configuración actual del trigger
+		if (trigger.getPuertaTP() instanceof PuertaMundo) {
+			this.idxTipoPuerta = 1;
+		} else if (trigger.getPuertaTP() instanceof PuertaArea) {
+			this.idxTipoPuerta = 2;
+		} else {
+			this.idxTipoPuerta = 0; // Por defecto PuertaMapa
+		}
+
+		this.actualizarPlaceholders();
 		GestorSonido.reproducir(IDSonido.GOLPE_1);
 	}
 
@@ -96,17 +109,18 @@ public class VentanaModalTrigger extends ComponenteMenu {
 
 		final String p1 = this.ctParametro1.getTexto().trim();
 		final String p2 = this.ctParametro2.getTexto().trim();
+		final String p3 = this.ctParametro3.getTexto().trim();
 
 		switch (this.idxTipoPuerta) {
 		case 0: // PuertaMapa
-			this.triggerSeleccionado.setPuertaTP(new PuertaMapa(p1, p2, false, null));
+			this.triggerSeleccionado.setPuertaTP(new PuertaMapa(p1, p2, p3, false, null));
 			break;
 		case 1: // PuertaMundo
-			this.triggerSeleccionado.setPuertaTP(new PuertaMundo(p1, p2));
+			this.triggerSeleccionado.setPuertaTP(new PuertaMundo(p2, p3));
 			break;
 		case 2: // PuertaArea
-			final int dx = this.ctParametro1.getNumeroEntero(0);
-			final int dy = this.ctParametro2.getNumeroEntero(0);
+			final int dx = this.ctParametro2.getNumeroEntero(0);
+			final int dy = this.ctParametro3.getNumeroEntero(0);
 			this.triggerSeleccionado.setPuertaTP(new PuertaArea(new Rectangle(dx, dy, 16, 16)));
 			break;
 		}
@@ -129,6 +143,7 @@ public class VentanaModalTrigger extends ComponenteMenu {
 
 		this.ctParametro1.actualizar(raton);
 		this.ctParametro2.actualizar(raton);
+		this.ctParametro3.actualizar(raton);
 		this.btnAplicar.actualizar(raton);
 		this.btnCerrar.actualizar(raton);
 	}
@@ -136,16 +151,27 @@ public class VentanaModalTrigger extends ComponenteMenu {
 	private void actualizarPlaceholders() {
 		switch (this.idxTipoPuerta) {
 		case 0:
+			this.ctParametro1.setVisible(true);
+			this.ctParametro2.setVisible(true);
+			this.ctParametro3.setVisible(true);
+
 			this.ctParametro1.setTexto("Mapa1");
-			this.ctParametro2.setTexto("Comienzo");
+			this.ctParametro2.setTexto("Exterior");
+			this.ctParametro3.setTexto("Comienzo");
 			break;
 		case 1:
-			this.ctParametro1.setTexto("Cueva_1");
-			this.ctParametro2.setTexto("Spawn_Entrada");
+			this.ctParametro1.setVisible(false);
+			this.ctParametro2.setVisible(true);
+			this.ctParametro3.setVisible(true);
+			this.ctParametro2.setTexto("Interior_1");
+			this.ctParametro3.setTexto("Spawn_Entrada");
 			break;
 		case 2:
-			this.ctParametro1.setTexto("500");
-			this.ctParametro2.setTexto("350");
+			this.ctParametro1.setVisible(false);
+			this.ctParametro2.setVisible(true);
+			this.ctParametro3.setVisible(true);
+			this.ctParametro2.setTexto("500");
+			this.ctParametro3.setTexto("350");
 			break;
 		}
 	}
@@ -177,18 +203,22 @@ public class VentanaModalTrigger extends ComponenteMenu {
 		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, 14f));
 
 		String lbl1 = "Mapa Destino:";
-		String lbl2 = "Spawn Destino:";
+		String lbl2 = "Mundo Destino:";
+		String lbl3 = "Spawn Destino:";
 		if (this.idxTipoPuerta == 1) {
-			lbl1 = "Mundo Destino:";
-			lbl2 = "Spawn Destino:";
+			lbl1 = "";
+			lbl2 = "Mundo Destino:";
+			lbl3 = "Spawn Destino:";
 		} else if (this.idxTipoPuerta == 2) {
-			lbl1 = "Destino X:";
-			lbl2 = "Destino Y:";
+			lbl1 = "";
+			lbl2 = "Destino X:";
+			lbl3 = "Destino Y:";
 		}
 
 		Render2D.dibujarStringConSombra(g, "Tipo de Puerta:", x + 16, y + 54, Color.WHITE, Color.BLACK);
 		Render2D.dibujarStringConSombra(g, lbl1, x + 16, y + 80, Color.WHITE, Color.BLACK);
 		Render2D.dibujarStringConSombra(g, lbl2, x + 16, y + 108, Color.WHITE, Color.BLACK);
+		Render2D.dibujarStringConSombra(g, lbl3, x + 16, y + 136, Color.WHITE, Color.BLACK);
 
 		// Selector de Tipo de Puerta
 		Render2D.dibujarRectanguloRelleno(g, this.areaBtnTipo, new Color(28, 35, 48));
@@ -200,6 +230,7 @@ public class VentanaModalTrigger extends ComponenteMenu {
 
 		this.ctParametro1.pintar(g);
 		this.ctParametro2.pintar(g);
+		this.ctParametro3.pintar(g);
 		this.btnAplicar.pintar(g);
 		this.btnCerrar.pintar(g);
 

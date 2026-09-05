@@ -12,7 +12,6 @@ import principal.eventos.EventoJugadorZonaTP;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.escenario.Escenario;
-import principal.mapa.escenario.tps.PuertaMapa;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
@@ -40,7 +39,12 @@ public class MapaPlano extends Mapa {
 	}
 
 	@Override
-	protected void establecerMundoActual() {
+	public void establecerMundoActual(final String nombreMundo) {
+		this.mundoActual = this.MUNDOS.get(nombreMundo);
+	}
+
+	@Override
+	protected void establecerMundoComienzo() {
 		this.mundoActual = this.MUNDOS.get(EXTERIOR);
 	}
 
@@ -51,7 +55,6 @@ public class MapaPlano extends Mapa {
 		this.mundoActual.meterEntidad(new Complemento(300, 200, ListaModeloComplemento.COD_CASA_1));
 
 		final ZonaTP zonaTP2 = new ZonaTP(new Rectangle(184, 215, 20, 20), null);
-		zonaTP2.setPuertaTP(new PuertaMapa(MapaManager.MAPA_1, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true, this.GP));
 		this.mundoActual.meterEntidad(zonaTP2);
 		jg.meterEvento(new EventoJugadorZonaTP(zonaTP2, jg, true));
 	}

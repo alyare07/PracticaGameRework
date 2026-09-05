@@ -39,6 +39,7 @@ public class GrupoPaleta {
 	protected final Rectangle AREA_CABECERA;
 	private int indiceActivo = 0;
 	private final EditorMapa editor;
+	private int indicePaletaItem;
 
 	private static final Font FUENTE_PESTANAS = new Font(Font.SANS_SERIF, Font.BOLD, 5);
 
@@ -109,19 +110,21 @@ public class GrupoPaleta {
 		// 5. PESTAÑA: ÍTEMS Y EQUIPAMIENTO
 		final PaletaItems paletaItems = new PaletaItems(this.AREA.x, yPaleta, this.AREA.width, altoPaleta, 32,
 				this.editor);
-		this.registrarPaleta("Items", paletaItems);
+		this.indicePaletaItem = this.registrarPaleta("Items", paletaItems);
 
 		// 6. PESTAÑA: TRIGGERS, VOLÚMENES Y LUCES
 		final PaletaTriggers paletaTriggers = new PaletaTriggers(this.AREA.x, yPaleta, this.AREA.width, altoPaleta, 32);
 		this.registrarPaleta("Triggers", paletaTriggers);
 	}
 
-	public void registrarPaleta(final String nombrePestana, final Paleta paleta) {
+	public int registrarPaleta(final String nombrePestana, final Paleta paleta) {
 		if ((nombrePestana != null) && (paleta != null)) {
 			this.NOMBRES_PESTANAS.add(nombrePestana);
 			this.LISTA.add(paleta);
 			this.recalcularAreasPestanas();
+			return this.LISTA.size() - 1;
 		}
+		return 0;
 	}
 
 	private void recalcularAreasPestanas() {
@@ -203,5 +206,13 @@ public class GrupoPaleta {
 
 	public int getIndiceActivo() {
 		return this.indiceActivo;
+	}
+
+	public void setPaletaItemSelected() {
+		this.indiceActivo = this.indicePaletaItem;
+	}
+
+	public boolean isPaletaItemSelected() {
+		return this.indiceActivo == this.indicePaletaItem;
 	}
 }

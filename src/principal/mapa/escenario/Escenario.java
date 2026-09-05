@@ -28,6 +28,7 @@ import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.escenario.tps.PuertaArea;
 import principal.mapa.escenario.tps.PuertaMapa;
+import principal.mapa.escenario.tps.PuertaMundo;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.mapa.mapas.Spawn;
 import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
@@ -271,12 +272,17 @@ public class Escenario implements Serializable {
 
 				if (tipoPuerta.equals("PuertaMapa")) {
 					final String rutaMapa = json.get("mapa").toString();
+					final String nombreMundo = json.get("mundo").toString();
 					final String spawn = json.get("spawn").toString();
-					zonaTP = new ZonaTP(areaTP, new PuertaMapa(rutaMapa, spawn, false, null));
+					zonaTP = new ZonaTP(areaTP, new PuertaMapa(rutaMapa, nombreMundo, spawn, false, null));
 				} else if (tipoPuerta.equals("PuertaArea")) {
 					final int dx = ((Number) json.get("destX")).intValue();
 					final int dy = ((Number) json.get("destY")).intValue();
 					zonaTP = new ZonaTP(areaTP, new PuertaArea(new Rectangle(dx, dy, 16, 16)));
+				} else if (tipoPuerta.equals("PuertaMundo")) {
+					final String nombreMundo = json.get("mundo").toString();
+					final String spawn = json.get("spawn").toString();
+					zonaTP = new ZonaTP(areaTP, new PuertaMundo(nombreMundo, spawn));
 				}
 
 				if (zonaTP != null) {

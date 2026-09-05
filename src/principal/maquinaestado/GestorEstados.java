@@ -144,6 +144,9 @@ public class GestorEstados {
 		Globales.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
 	}
 
+	/**
+	 * ESTE METODO SELECCIONA UN MUNDO CUANDO EN REALIDAD DEBE SER UN MAPA
+	 */
 	public void seleccionarMundo() {
 		final File directorio = new File("mundos");
 		if (!directorio.exists()) {
@@ -161,7 +164,7 @@ public class GestorEstados {
 			final File seleccion = selector.getSelectedFile();
 			if ((seleccion != null) && seleccion.exists()) {
 				Globales.estadoJuego = true;
-				this.estados[0] = new GestorPartida(this, seleccion.getAbsolutePath(), true);
+				this.estados[0] = new GestorPartida(this, seleccion.getAbsolutePath(), "Exterior", "Comienzo", true);
 				this.estadoActual = this.estados[0];
 				Globales.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
 				Globales.GESTOR_INVENTARIO.getInventarioJugador().ocultar();

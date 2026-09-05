@@ -3,20 +3,16 @@ package principal.mapa.escenario.tps;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
-import principal.entes.criaturas.Jugador;
 import principal.utilidades.Render2D;
 
 public class ZonaTP extends Ente {
 	private boolean eliminado;
 	private final Rectangle AREA;
 	private PuertaTP puertaTP;
-	private final HashMap<Criatura, Criatura> ENTES_TELETRANSPORTADOS_HACIA_ACA = new HashMap<Criatura, Criatura>();
+//	private final HashMap<Criatura, Criatura> ENTES_TELETRANSPORTADOS_HACIA_ACA = new HashMap<Criatura, Criatura>();
 
 	public ZonaTP(final Rectangle area, final PuertaTP puerta) {
 		this.AREA = area;
@@ -25,41 +21,55 @@ public class ZonaTP extends Ente {
 
 	@Override
 	public void actualizar() {
-		if (!this.ENTES_TELETRANSPORTADOS_HACIA_ACA.isEmpty()) {
-			// Iteración segura con Iterator.remove() para prevenir
-			// ConcurrentModificationException
-			final Iterator<Map.Entry<Criatura, Criatura>> it = this.ENTES_TELETRANSPORTADOS_HACIA_ACA.entrySet()
-					.iterator();
-			while (it.hasNext()) {
-				final Criatura c = it.next().getKey();
-				if (c instanceof Jugador) {
-					if (!((Jugador) c).getAreaInterseccionMovimiento().intersects(this.AREA)) {
-						it.remove();
-					}
-				}
-			}
-		}
+//		if (!this.ENTES_TELETRANSPORTADOS_HACIA_ACA.isEmpty()) {
+//			final Iterator<Map.Entry<Criatura, Criatura>> it = this.ENTES_TELETRANSPORTADOS_HACIA_ACA.entrySet()
+//					.iterator();
+//			while (it.hasNext()) {
+//				final Criatura c = it.next().getKey();
+//				if (c instanceof Jugador) {
+//					if (!((Jugador) c).getAreaInterseccionMovimiento().intersects(this.AREA)) {
+//						it.remove();
+//					}
+//				}
+//			}
+//		}
 	}
 
 	@Override
 	public void pintar(final Graphics2D g) {
 		if (this.puertaTP instanceof PuertaArea) {
-			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA,
-					new Color(140 / 255, 134f / 255, 230f / 255, 0.43f));
-		} else if (this.puertaTP instanceof PuertaZona) {
-			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA,
-					new Color(245f / 255, 20f / 255, 243f / 255, 0.43f));
+			// Azul / Violeta para TP Local
+			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA, new Color(140, 134, 230, 110));
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.AREA, new Color(140, 134, 230, 220));
+		} else if ((this.puertaTP instanceof PuertaMundo) || (this.puertaTP instanceof PuertaZona)) {
+			// Magenta / Rosa para TP Entre Mundos
+			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA, new Color(245, 20, 243, 110));
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.AREA, new Color(245, 20, 243, 220));
 		} else if (this.puertaTP instanceof PuertaMapa) {
-			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA,
-					new Color(251f / 255, 20f / 255, 43f / 255, 0.43f));
+			// Rojo para TP A Otro Mapa
+			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA, new Color(251, 20, 43, 110));
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.AREA, new Color(251, 20, 43, 220));
+		} else {
+			// Fallback (amarillo) por si la puerta es null o de otro tipo
+			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA, new Color(255, 220, 0, 110));
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.AREA, new Color(255, 220, 0, 220));
 		}
 	}
 
-	public void meterCriaturaTeletransportadoParaAca(final Criatura c) {
-		if (!this.ENTES_TELETRANSPORTADOS_HACIA_ACA.containsKey(c)) {
-			this.ENTES_TELETRANSPORTADOS_HACIA_ACA.put(c, c);
-		}
+	public PuertaTP getPuertaTP() {
+		return this.puertaTP;
 	}
+
+	@Override
+	public Rectangle getArea() {
+		return this.AREA;
+	}
+
+//	public void meterCriaturaTeletransportadoParaAca(final Criatura c) {
+//		if (!this.ENTES_TELETRANSPORTADOS_HACIA_ACA.containsKey(c)) {
+//			this.ENTES_TELETRANSPORTADOS_HACIA_ACA.put(c, c);
+//		}
+//	}
 
 	public void setPuertaTP(final PuertaTP puertaTP) {
 		this.puertaTP = puertaTP;
@@ -79,17 +89,18 @@ public class ZonaTP extends Ente {
 		return (this.AREA.y + (this.AREA.height / 2)) - (e.getArea().height / 2);
 	}
 
-	public boolean disponibleParaTP(final Criatura c) {
-		if (this.estaHabilitado()) {
-			return !this.ENTES_TELETRANSPORTADOS_HACIA_ACA.containsKey(c);
-		}
-		return false;
-	}
+//	public boolean disponibleParaTP(final Criatura c) {
+//		if (this.estaHabilitado()) {
+//			return !this.ENTES_TELETRANSPORTADOS_HACIA_ACA.containsKey(c);
+//		}
+//		return false;
+//	}
 
 	public boolean estaHabilitado() {
 		return !this.eliminado;
 	}
 
+	@Override
 	public void restaurar() {
 		this.eliminado = false;
 	}

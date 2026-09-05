@@ -278,7 +278,29 @@ public class EditorMapa implements EstadoJuego {
 
 		// 2. Cofre Abierto
 		if (this.cofreAbierto != null) {
+			if (!this.PALETAS.isPaletaItemSelected()) {
+				this.PALETAS.setPaletaItemSelected();
+			}
+			this.actualizarProyeccionRaton();
+			this.PALETAS.actualizar(this.RATON);
 			this.actualizarCofreAbierto();
+			// 1. Si el puntero tiene un ítem sostenido de inventario, clic derecho lo
+			// libera
+			if (this.itemPuntero.contieneItem()) {
+				if (this.RATON.presionadoClickDerUnicaAct()) {
+					this.itemPuntero.limpiar();
+					GestorSonido.reproducir(IDSonido.GOLPE_1);
+
+					// D. Si no había nada que borrar, DESELECCIONA el sello/herramienta activa en
+					// la paleta
+					final Paleta p = this.PALETAS.getPaletaActual();
+					if ((p != null) && p.haySeleccion()) {
+						p.deseleccionar();
+						GestorSonido.reproducir(IDSonido.GOLPE_1);
+					}
+				}
+				return;
+			}
 			return;
 		}
 
@@ -660,7 +682,7 @@ public class EditorMapa implements EstadoJuego {
 					switch (ent.categoria) {
 					case TELEPORT_PUERTA:
 						final ZonaTP tp = new ZonaTP(new Rectangle(snapX, snapY, 20, 20),
-								new PuertaMapa("Mapa1", "Comienzo", false, null));
+								new PuertaMapa("Mapa1", "Exterior", "Comienzo", false, null));
 						this.MUNDO_EDITOR.agregarTrigger(tp);
 						this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, tp, true));
 						break;
@@ -738,8 +760,9 @@ public class EditorMapa implements EstadoJuego {
 
 		if (clickDer && this.tileApuntadoValido) {
 			final int radioBorrado = Math.max(16, this.LADO_TILE);
-			this.AREA_BORRADO_AUX.setBounds(this.AREA_MOUSE_APUNTADO.x - radioBorrado,
-					this.AREA_MOUSE_APUNTADO.y - radioBorrado, radioBorrado * 2, radioBorrado * 2);
+//			this.AREA_BORRADO_AUX.setBounds(this.AREA_MOUSE_APUNTADO.x - radioBorrado,
+//					this.AREA_MOUSE_APUNTADO.y - radioBorrado, radioBorrado * 2, radioBorrado * 2);
+			this.AREA_BORRADO_AUX.setBounds(this.AREA_MOUSE_APUNTADO.x - 1, this.AREA_MOUSE_APUNTADO.y - 1, 2, 2);
 
 			boolean elementoBorrado = false;
 
@@ -762,7 +785,7 @@ public class EditorMapa implements EstadoJuego {
 
 			// C. Borrar Entidades y Objetos
 			this.listaEntesABorrar.clear();
-			this.MUNDO_EDITOR.paraCadaEnteEn(this.AREA_BORRADO_AUX, false, new AccionEntidad<Ente>() {
+			this.MUNDO_EDITOR.paraCadaEnteEn(this.AREA_BORRADO_AUX, false, false, new AccionEntidad<Ente>() {
 				@Override
 				public void ejecutar(final Ente ente) {
 					if ((ente != null) && !ente.estaEliminado()) {

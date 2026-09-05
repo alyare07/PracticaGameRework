@@ -38,7 +38,7 @@ public abstract class Mapa {
 		gc.setPorcentajeCarga(0);
 		gc.setCompleto(false);
 		this.establecerMundos(gc, porcentajeCarga);
-		this.establecerMundoActual();
+		this.establecerMundoComienzo();
 		this.cargarFuncionalidadesPropias();
 		gc.setDetalleCarga("Carga de recursos completa!");
 	}
@@ -85,7 +85,9 @@ public abstract class Mapa {
 
 	protected abstract void establecerMundos(final GestorCarga gc, final int porcentajeCarga);
 
-	protected abstract void establecerMundoActual();
+	public abstract void establecerMundoActual(final String nombreMundo);
+
+	protected abstract void establecerMundoComienzo();
 
 	protected abstract void cargarFuncionalidadesPropias();
 
@@ -108,6 +110,7 @@ public abstract class Mapa {
 		JSONObject jsonSpawn = null;
 		for (final Object obj : (JSONArray) jsonMundo
 				.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class))) {
+			System.out.println();
 			jsonSpawn = (JSONObject) obj;
 			listaSpawn.add(new Spawn(Integer.parseInt(jsonSpawn.get("x").toString()),
 					Integer.parseInt(jsonSpawn.get("y").toString()), jsonSpawn.get("nombre").toString()));

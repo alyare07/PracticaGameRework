@@ -4,6 +4,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
 import principal.mapa.Mundo;
+import principal.mapa.mapas.Mapa1;
 import principal.mapa.mapas.MapaManager;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.menu.MenuPartida;
@@ -25,16 +26,17 @@ public class GestorPartida implements EstadoJuego {
 		this.GE = ge;
 		this.GJ = new GestorJuego(ge, this);
 		MapaManager.setGestorPartida(this);
-		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, true, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
+		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, Mapa1.EXTERIOR, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true);
 //		this.GJ.partidaNueva("escenario1.json");
 		this.MP = new MenuPartida(ge, this);
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 	}
 
-	public GestorPartida(final GestorEstados ge, final String mapa, final boolean reset) {
+	public GestorPartida(final GestorEstados ge, final String mapa, final String mundo, final String spawn,
+			final boolean reset) {
 		this.GE = ge;
 		this.GJ = new GestorJuego(ge, this);
-		this.GCJ.cargar(this.GJ, this.GCJ, mapa, reset, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
+		this.GCJ.cargar(this.GJ, this.GCJ, mapa, mundo, spawn, reset);
 		this.MP = new MenuPartida(ge, this);
 		this.estadoActivo = this.GJ;
 	}
@@ -72,13 +74,13 @@ public class GestorPartida implements EstadoJuego {
 		return this.GJ;
 	}
 
-	public void cambiarMundo(final String nombreMapa, final String nombreSpawn) {
-		this.GCJ.cargar(this.GJ, this.GCJ, nombreMapa, false, nombreSpawn);
+	public void cambiarMundo(final String nombreMapa, final String nombreMundo, final String nombreSpawn) {
+		this.GCJ.cargar(this.GJ, this.GCJ, nombreMapa, nombreMundo, nombreSpawn, false);
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 	}
 
 	public void reiniciar() {
-		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, true, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
+		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, Mapa1.EXTERIOR, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true);
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 		Globales.CAMARA.reiniciarZoom();
 	}

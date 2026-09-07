@@ -201,6 +201,100 @@ public final class GeneradorTooltip {
 		}
 	}
 
+	/**
+	 * Dibuja el tooltip detallado del ítem agregando una línea de precio en renglón
+	 * aparte (Zero-GC).
+	 */
+	/**
+	 * Renderiza el tooltip completo del ítem agregando una línea separada para el
+	 * precio (Zero-GC).
+	 */
+	public void dibujarTooltipItemConPrecio(final Graphics2D g, final Item item, final String textoPrecio,
+			final Color colorPrecio) {
+		if ((g == null) || (item == null)) {
+			return;
+		}
+
+		final Font fuenteOriginal = g.getFont();
+
+		try {
+			final String nombre = item.getNombre();
+			final ArrayList<String> infoLines = item.getInfo();
+
+			final Font fuenteTitulo = Globales.GESTOR_FUENTES.getFuente(Font.BOLD, TAMANIO_TITULO);
+			final Font fuenteInfo = Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, TAMANIO_INFO);
+			final Font fuentePrecio = Globales.GESTOR_FUENTES.getFuente(Font.BOLD, TAMANIO_INFO);
+
+			g.setFont(fuenteTitulo);
+			final int anchoNombre = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, nombre);
+			final int altoNombre = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, nombre);
+
+			g.setFont(fuenteInfo);
+			int maxAnchoInfo = 0;
+			int altoTotalInfo = 0;
+
+			if ((infoLines != null) && !infoLines.isEmpty()) {
+				for (final String linea : infoLines) {
+					if ((linea != null) && !linea.isEmpty()) {
+						final int anchoLinea = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, linea);
+						final int altoLinea = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, linea);
+
+						maxAnchoInfo = Math.max(maxAnchoInfo, anchoLinea);
+						altoTotalInfo += altoLinea + ESPACIADO_LINEAS;
+					}
+				}
+			}
+
+			g.setFont(fuentePrecio);
+			final int anchoPrecio = (textoPrecio != null)
+					? Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, textoPrecio)
+					: 0;
+			final int altoPrecio = (textoPrecio != null)
+					? Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, textoPrecio)
+					: 0;
+
+			final int anchoContenido = Math.max(anchoNombre, Math.max(maxAnchoInfo, anchoPrecio));
+			final int anchoTotal = anchoContenido + (PADDING_INTERNO * 2);
+			final int altoTotal = altoNombre + ESPACIADO_LINEAS + altoTotalInfo
+					+ (altoPrecio > 0 ? (altoPrecio + ESPACIADO_LINEAS + 4) : 0) + (PADDING_INTERNO * 2);
+
+			final Point raton = SuperficieDibujo.obtenerSuperficieDibujo().RATON.getPuntoPosicionEscalado();
+			final int boxX = this.calcularCoordenadaX(raton.x, anchoTotal);
+			final int boxY = this.calcularCoordenadaY(raton.y, altoTotal);
+
+			Render2D.dibujarRectanguloRelleno(g, boxX, boxY, anchoTotal, altoTotal, COLOR_FONDO_DEFECTO);
+			Render2D.dibujarRectanguloContorno(g, boxX, boxY, anchoTotal, altoTotal, COLOR_BORDE_DEFECTO);
+
+			g.setFont(fuenteTitulo);
+			int yCursor = (boxY + PADDING_INTERNO + altoNombre) - 2;
+			Render2D.dibujarString(g, nombre, boxX + PADDING_INTERNO, yCursor, COLOR_TITULO_DEFECTO);
+
+			if ((infoLines != null) && !infoLines.isEmpty()) {
+				g.setFont(fuenteInfo);
+				yCursor += ESPACIADO_LINEAS;
+
+				for (final String linea : infoLines) {
+					if ((linea != null) && !linea.isEmpty()) {
+						final int altoLinea = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, linea);
+						yCursor += altoLinea + ESPACIADO_LINEAS;
+						Render2D.dibujarString(g, linea, boxX + PADDING_INTERNO, yCursor - 2, COLOR_INFO_DEFECTO);
+					}
+				}
+			}
+
+			// Renglón aparte con separación visual para compra o venta
+			if ((textoPrecio != null) && !textoPrecio.isEmpty()) {
+				g.setFont(fuentePrecio);
+				yCursor += altoPrecio + ESPACIADO_LINEAS + 4;
+				final Color cPrecio = (colorPrecio != null) ? colorPrecio : new Color(255, 215, 50);
+				Render2D.dibujarString(g, textoPrecio, boxX + PADDING_INTERNO, yCursor - 2, cPrecio);
+			}
+
+		} finally {
+			g.setFont(fuenteOriginal);
+		}
+	}
+
 	private int calcularCoordenadaX(final int mouseX, final int anchoTotal) {
 		final int x = (mouseX <= Constantes.CENTROX) ? mouseX + MARGEN_CURSOR : mouseX - anchoTotal - MARGEN_CURSOR;
 		return Math.max(2, Math.min(x, Constantes.ANCHO_JUEGO - anchoTotal - 2));

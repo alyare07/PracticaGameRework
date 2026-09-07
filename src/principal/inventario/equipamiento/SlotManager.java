@@ -28,7 +28,7 @@ import principal.utilidades.inventario.ItemPuntero;
  * Gestor maestro de casillas de inventario, equipamiento rápido y transferencia
  * bidireccional (Zero-GC / O(1)).
  * 
- * @version 2.2 (Vanilla Java 8)
+ * @version 2.3 (Vanilla Java 8 - Centered Grid Alignment)
  */
 public class SlotManager {
 
@@ -117,6 +117,17 @@ public class SlotManager {
 					if (slot.contieneItem()) {
 						final Item i = slot.getItem();
 
+						// 1. GANCHO DE COMERCIO: Si hay una tienda abierta, el clic derecho VENDE el
+						// ítem
+						if (Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && (Globales.GESTOR_INVENTARIO
+								.getInventarioTercero() instanceof principal.inventario.tienda.InventarioTienda)) {
+							final principal.inventario.tienda.InventarioTienda tienda = (principal.inventario.tienda.InventarioTienda) Globales.GESTOR_INVENTARIO
+									.getInventarioTercero();
+							tienda.venderItemJugador(slot);
+							return;
+						}
+
+						// 2. Acciones estándar fuera de la tienda
 						if (i instanceof Arrojadizo) {
 							this.INVENTARIO.getSlotArrojadizo().establecerObjeto(i);
 							Globales.GESTOR_INVENTARIO.getInventarioJugador().invertirVisibilidad();
@@ -441,10 +452,13 @@ public class SlotManager {
 	}
 
 	private void llenarSlotsAlmacenamiento() {
+		final int anchoSlotsTotal = (CANTIDAD_SLOTS_FILA * LADO_SLOTS)
+				+ ((CANTIDAD_SLOTS_FILA + 1) * this.MARGEN_GENERAL);
+		final int xOffsetCentrado = (this.INVENTARIO.getAncho() - anchoSlotsTotal) / 2;
 		int y = this.ZONA_SLOTS_ALMACEN.y + this.MARGEN_GENERAL;
 
 		for (int f = 0; f < FILAS_ALMACEN; f++) {
-			int x = this.INVENTARIO.getX();
+			int x = this.INVENTARIO.getX() + xOffsetCentrado;
 			for (int i = 0; i < CANTIDAD_SLOTS_FILA; i++) {
 				x += this.MARGEN_GENERAL;
 				final Slot slot = new Slot(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS));
@@ -458,7 +472,10 @@ public class SlotManager {
 	}
 
 	private void llenarSlotsPrincipales() {
-		int x = this.INVENTARIO.getX();
+		final int anchoSlotsTotal = (CANTIDAD_SLOTS_FILA * LADO_SLOTS)
+				+ ((CANTIDAD_SLOTS_FILA + 1) * this.MARGEN_GENERAL);
+		final int xOffsetCentrado = (this.INVENTARIO.getAncho() - anchoSlotsTotal) / 2;
+		int x = this.INVENTARIO.getX() + xOffsetCentrado;
 		final int y = this.ZONA_SLOTS_PRINCIPALES.y + this.MARGEN_GENERAL;
 
 		for (int i = 0; i < CANTIDAD_SLOTS_FILA; i++) {
@@ -524,10 +541,10 @@ public class SlotManager {
 			this.LISTA_SLOTS_IGU.add(new SlotIGU(slot, slot.getX(), posIguY));
 		}
 
-		if (this.slotArma != null) {
-			this.LISTA_SLOTS_IGU.add(new SlotIGU(this.slotArma,
-					this.ZONA_SLOTS_PRINCIPALES.x - this.slotArma.getAncho() - (2 * this.MARGEN_GENERAL),
-					posIguY - this.MARGEN_GENERAL));
+		if ((this.slotArma != null) && !this.LISTA_SLOTS_PRINCIPALES.isEmpty()) {
+			final Slot primerSlotHotbar = this.LISTA_SLOTS_PRINCIPALES.get(0);
+			final int xSlotArmaIGU = primerSlotHotbar.getX() - this.slotArma.getAncho() - (2 * this.MARGEN_GENERAL);
+			this.LISTA_SLOTS_IGU.add(new SlotIGU(this.slotArma, xSlotArmaIGU, posIguY - this.MARGEN_GENERAL));
 		}
 	}
 

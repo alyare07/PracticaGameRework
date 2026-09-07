@@ -5,6 +5,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 
 import principal.controles.Raton;
@@ -50,15 +51,20 @@ public class InventarioVault {
 	private static final Color COLOR_TEXTO_TITULO = Color.LIGHT_GRAY;
 
 	private final int ladoSlots;
-	private final ArrayList<Slot> slots;
+	protected final ArrayList<Slot> slots;
 	private final Rectangle area;
 	private final Rectangle areaPortada;
 	private final String nombre;
 	private final GestorTiempo gtRatonPresiono;
 	private final Contenedor contenedor;
 
+	// Seguro contra cierres instantáneos provocados por la misma pulsación de tecla
+	private final GestorTiempo gtApertura = new GestorTiempo();
+	private static final int COOLDOWN_CIERRE_MS = 300;
+
 	private EstadoInventario estadoInventario = EstadoInventario.CERRADO;
 	private Slot slotApuntado;
+	private boolean esperandoLiberacionE = false;
 
 	public InventarioVault(final Contenedor contenedor, final int cantSlots, final int cantMaxH, final String nombre) {
 		this.contenedor = contenedor;
@@ -101,10 +107,6 @@ public class InventarioVault {
 		}
 	}
 
-	/**
-	 * Transferencia Rápida con Clic Derecho (Quick-Withdraw): Mueve el ítem
-	 * seleccionado del cofre directamente al inventario del jugador.
-	 */
 	private void actualizarTransferenciaRapida(final Raton raton) {
 		if (raton.presionadoClickDerUnicaAct()) {
 			final Slot apuntado = this.getSlot(raton.getPuntoPosicionEscalado());
@@ -126,25 +128,43 @@ public class InventarioVault {
 		}
 	}
 
+	public void abrir() {
+		this.gtApertura.establecerReferenciaTiempoActual();
+		this.estadoInventario = EstadoInventario.ABIERTO;
+		this.esperandoLiberacionE = true; // Exige soltar la tecla antes de aceptar cierre por [E]
+		Globales.GESTOR_INVENTARIO.abrirInventarioTercero(this);
+		Globales.GESTOR_INVENTARIO.getInventarioJugador().hacerVisible();
+	}
+
 	public void actualizarEstadoCofre() {
 		final Ente propietario = this.getEntePropietario();
 		if (propietario == null) {
 			return;
 		}
 
-		final boolean jugadorEnRango = (Globales.JUGADOR != null)
-				&& Globales.JUGADOR.getAreaInteraccionCofre().intersects(propietario.getArea());
-		final boolean teclaPresionada = (Globales.TECLADO != null)
-				&& Globales.TECLADO.TECLA_RECOGIENDO.presionadoUnicaActualizacion();
-
-		if (this.estadoInventario == EstadoInventario.CERRADO) {
-			if (!Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && jugadorEnRango && teclaPresionada) {
-				this.estadoInventario = EstadoInventario.ABIERTO;
-				Globales.GESTOR_INVENTARIO.abrirInventarioTercero(this);
-				Globales.GESTOR_INVENTARIO.getInventarioJugador().hacerVisible();
+		// 1. Detección de liberación física de la tecla [E]
+		if (this.esperandoLiberacionE) {
+			if (!Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_E)) {
+				this.esperandoLiberacionE = false; // El jugador ya soltó la tecla que abrió el cofre
 			}
-		} else if (this.estadoInventario == EstadoInventario.ABIERTO) {
-			if (!Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible() || teclaPresionada || !jugadorEnRango) {
+		}
+
+		// 2. Comprobación de distancia euclidiana amplia (48 px de radio)
+		boolean jugadorEnRango = false;
+		if (Globales.JUGADOR != null) {
+			final double dx = Globales.JUGADOR.getCentroX() - propietario.getCentroX();
+			final double dy = Globales.JUGADOR.getCentroY() - propietario.getCentroY();
+			jugadorEnRango = ((dx * dx) + (dy * dy)) <= (48.0 * 48.0);
+		}
+
+		// 3. Evaluación de teclas de cierre
+		final boolean teclaEValida = !this.esperandoLiberacionE
+				&& Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_E);
+		final boolean teclaCerrar = teclaEValida || Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)
+				|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_I);
+
+		if (this.estadoInventario == EstadoInventario.ABIERTO) {
+			if (!Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible() || teclaCerrar || !jugadorEnRango) {
 				this.cerrar();
 			}
 		}

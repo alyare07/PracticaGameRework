@@ -11,6 +11,7 @@ public enum ClaveHoja {
 
 	// --- Entidades y Criaturas ---
 	JUGADOR("/imagenes/sprites/player_sprites.png", 32, 32), BANDIDO("/imagenes/sprites/bandido.png", 32, 32),
+	CHARACTER_2("/imagenes/sprites/player2_sprites.png", 32, 32),
 
 	// --- Proyectiles y Habilidades ---
 	BOLA_FUEGO("/imagenes/sprites/firebolt.png", 16, 16),

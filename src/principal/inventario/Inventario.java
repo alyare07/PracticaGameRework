@@ -5,6 +5,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 
 import principal.animaciones.Animaciones;
 import principal.controles.Raton;
@@ -16,6 +17,7 @@ import principal.inventario.equipamiento.SlotManager;
 import principal.inventario.slot.Slot;
 import principal.inventario.slot.SlotArrojadizo;
 import principal.mapa.Mundo;
+import principal.recursos.TexturaItem;
 import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
@@ -24,10 +26,10 @@ import principal.utilidades.inventario.ItemPuntero;
 
 /**
  * Ventana central del inventario del jugador con estética gráfica oscura en
- * relieve. Muestra el héroe, los 7 slots de equipamiento, los 4 atributos RPG y
- * tooltips enriquecidos (Bold + Plain).
+ * relieve. Muestra el héroe, los 7 slots de equipamiento, los 4 atributos RPG,
+ * la billetera (Oro y Plata) y tooltips enriquecidos (Bold + Plain).
  * 
- * @version 3.4 (Vanilla Java 8 - Enhanced Rich Tooltips)
+ * @version 4.0 (Vanilla Java 8 - Currency & Extended Header Integration)
  */
 public class Inventario {
 
@@ -51,6 +53,8 @@ public class Inventario {
 	private static final Color COLOR_TEXTO_AGI = new Color(140, 240, 100);
 	private static final Color COLOR_TEXTO_INT = new Color(100, 215, 255);
 	private static final Color COLOR_TEXTO_DEF = new Color(220, 225, 240);
+	private static final Color COLOR_TEXTO_ORO = new Color(255, 215, 50);
+	private static final Color COLOR_TEXTO_PLATA = new Color(210, 225, 240);
 	private static final Color COLOR_DESC_TOOLTIP = new Color(230, 235, 245);
 
 	private static final String TITULO_FUE = "Fuerza: ";
@@ -82,6 +86,12 @@ public class Inventario {
 	private final Rectangle areaStatsAGI;
 	private final Rectangle areaStatsINT;
 	private final Rectangle areaStatsDEF;
+	private final Rectangle areaBilletera;
+
+	// Dirty-Flags para renderizado numérico sin asignaciones en heap
+	private long lastDineroPlata = -1;
+	private String cachedOro = "0";
+	private String cachedPlata = "0";
 
 	private boolean visible;
 	private Mundo mundo;
@@ -91,7 +101,7 @@ public class Inventario {
 	private final SlotArrojadizo SLOT_ARROJADIZO;
 
 	public Inventario() {
-		this.ANCHO = 202;
+		this.ANCHO = 240;
 		this.ALTO = 110;
 		this.X = Constantes.CENTROX - (this.ANCHO / 2);
 		this.Y = Constantes.CENTROY;
@@ -99,19 +109,24 @@ public class Inventario {
 
 		this.AREA_TOTAL = new Rectangle(this.X, this.Y, this.ANCHO, this.ALTO);
 		this.ZONA_INFO_JUGADOR = new Rectangle(this.X, this.Y, this.ANCHO, 25);
-		this.ZONA_SLOTS_EQUIPAMIENTOS = new Rectangle(this.X + 27, this.Y + 3, 140, 18);
+		this.ZONA_SLOTS_EQUIPAMIENTOS = new Rectangle(this.X + 26, this.Y + 3, 138, 18);
 		this.ZONA_SLOTS_ALMACEN = new Rectangle(this.X, this.ZONA_INFO_JUGADOR.y + this.ZONA_INFO_JUGADOR.height,
 				this.ANCHO, 62);
 		this.ZONA_SLOTS_PRINCIPALES = new Rectangle(this.X, this.ZONA_SLOTS_ALMACEN.y + this.ZONA_SLOTS_ALMACEN.height,
 				this.ANCHO, 22);
 		this.AREA_PERSONAJE = new Rectangle(this.X + 3, this.Y + 3, 20, 20);
 
-		final int xStats = (this.X + this.ANCHO) - 35;
+		// Sub-columna 1: Atributos RPG
+		final int xStats = this.X + 167;
 		final int yBase = this.Y + 5;
 		this.areaStatsFUE = new Rectangle(xStats, yBase - 4, 34, 5);
 		this.areaStatsAGI = new Rectangle(xStats, yBase + 1, 34, 5);
 		this.areaStatsINT = new Rectangle(xStats, yBase + 6, 34, 5);
 		this.areaStatsDEF = new Rectangle(xStats, yBase + 11, 34, 5);
+
+		// Sub-columna 2: Billetera
+		final int xDinero = this.X + 204;
+		this.areaBilletera = new Rectangle(xDinero, yBase - 4, 33, 22);
 
 		this.SLOT_MANAGER = new SlotManager(this, this.MARGEN_GENERAL, this.ZONA_SLOTS_ALMACEN,
 				this.ZONA_SLOTS_PRINCIPALES, this.ZONA_SLOTS_EQUIPAMIENTOS);
@@ -167,6 +182,10 @@ public class Inventario {
 		} else if (this.areaStatsDEF.contains(pMouse)) {
 			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipConCabecera(g, TITULO_DEF, DESC_DEF, COLOR_TEXTO_DEF,
 					COLOR_DESC_TOOLTIP, FONDO_PANEL_OSCURO);
+		} else if (this.areaBilletera.contains(pMouse)) {
+			final String totalDesc = "Fondos: " + this.cachedOro + " Oro, " + this.cachedPlata + " Plata.";
+			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipConCabecera(g, "Billetera: ", totalDesc, COLOR_TEXTO_ORO,
+					COLOR_DESC_TOOLTIP, FONDO_PANEL_OSCURO);
 		}
 	}
 
@@ -194,10 +213,10 @@ public class Inventario {
 			Animaciones.JUGADOR.pintar(g, xAnim, yAnim);
 		}
 
-		this.pintarFichaAtributos(g);
+		this.pintarFichaAtributosYBilletera(g);
 	}
 
-	private void pintarFichaAtributos(final Graphics2D g) {
+	private void pintarFichaAtributosYBilletera(final Graphics2D g) {
 		if (Globales.JUGADOR == null) {
 			return;
 		}
@@ -205,18 +224,43 @@ public class Inventario {
 		final Font fuentePrevia = g.getFont();
 		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 7f));
 
+		// 1. Renderizado de Atributos RPG
 		final int str = Globales.JUGADOR.getFuerzaTotal();
 		final int agi = Globales.JUGADOR.getAgilidadTotal();
 		final int intel = Globales.JUGADOR.getInteligenciaTotal();
 		final int def = Globales.JUGADOR.getDefensaTotal();
 
-		final int xStats = (this.X + this.ANCHO) - 34;
+		final int xStats = this.X + 167;
 		final int yBase = this.Y + 7;
 
 		Render2D.dibujarStringConSombra(g, "FUE: " + str, xStats, yBase, COLOR_TEXTO_FUE, Color.BLACK);
 		Render2D.dibujarStringConSombra(g, "AGI: " + agi, xStats, yBase + 5, COLOR_TEXTO_AGI, Color.BLACK);
 		Render2D.dibujarStringConSombra(g, "INT: " + intel, xStats, yBase + 10, COLOR_TEXTO_INT, Color.BLACK);
 		Render2D.dibujarStringConSombra(g, "DEF: " + def, xStats, yBase + 15, COLOR_TEXTO_DEF, Color.BLACK);
+
+		// 2. Renderizado de Billetera (Dirty-Flag para Zero-GC)
+		final long dineroTotal = Globales.JUGADOR.getDineroPlata();
+		if (dineroTotal != this.lastDineroPlata) {
+			this.lastDineroPlata = dineroTotal;
+			this.cachedOro = String.valueOf(dineroTotal / 100L);
+			this.cachedPlata = String.valueOf(dineroTotal % 100L);
+		}
+
+		final int xDinero = this.X + 204;
+
+		// Fila 1: Oro (Icono 10x10 + Cantidad)
+		final BufferedImage iconOro = Globales.GESTOR_TEXTURAS.get(TexturaItem.ANILLO_ORO_MAPA);
+		if (iconOro != null) {
+			Render2D.dibujarImagen(g, iconOro, xDinero, this.Y + 2);
+		}
+		Render2D.dibujarStringConSombra(g, this.cachedOro, xDinero + 12, this.Y + 10, COLOR_TEXTO_ORO, Color.BLACK);
+
+		// Fila 2: Plata (Icono 10x10 + Cantidad)
+		final BufferedImage iconPlata = Globales.GESTOR_TEXTURAS.get(TexturaItem.ANILLO_PLATA_MAPA);
+		if (iconPlata != null) {
+			Render2D.dibujarImagen(g, iconPlata, xDinero, this.Y + 12);
+		}
+		Render2D.dibujarStringConSombra(g, this.cachedPlata, xDinero + 12, this.Y + 20, COLOR_TEXTO_PLATA, Color.BLACK);
 
 		g.setFont(fuentePrevia);
 	}

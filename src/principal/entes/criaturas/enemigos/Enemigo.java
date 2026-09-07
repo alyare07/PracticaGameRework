@@ -633,6 +633,12 @@ public abstract class Enemigo extends Criatura {
 	public void eliminar() {
 		GestorSonido.reproducir(IDSonido.CRIATURA_MUERTA);
 		this.desactivarModoAgresivo();
+		if (this.mundo != null) {
+			// Arroja entre 5 y 25 monedas de plata al morir
+			final long loot = 5L + (long) (Math.random() * 20.0);
+			this.mundo.meterEntidad(principal.entes.objetos.items.monedas.ItemMoneda.crearPlata(this.getCentroX(),
+					this.getCentroY(), loot));
+		}
 		super.eliminar();
 	}
 }

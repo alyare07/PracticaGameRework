@@ -101,7 +101,17 @@ public class Slot {
 
 	public void pintarTooltip(final Graphics2D g) {
 		if (this.apuntado && this.contieneItem()) {
-			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipItem(g, this.item);
+			// Si una tienda está abierta, muestra el valor de reventa en renglón aparte
+			if (Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && (Globales.GESTOR_INVENTARIO
+					.getInventarioTercero() instanceof principal.inventario.tienda.InventarioTienda)) {
+
+				final long valorVenta = this.item.getPrecioVentaPlata();
+				final String lineaVenta = "Venta: " + Item.formatearMoneda(valorVenta);
+				Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipItemConPrecio(g, this.item, lineaVenta,
+						new Color(220, 180, 50));
+			} else {
+				Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipItem(g, this.item);
+			}
 		}
 	}
 

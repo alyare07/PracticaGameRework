@@ -96,6 +96,11 @@ public class Jugador extends Criatura {
 	private final Rectangle RECTANGLE_AUXILIAR = new Rectangle();
 	private final Point PUNTO_AUXILIAR = new Point();
 
+	// =========================================================================
+	// BILLETERA LÓGICA (1 Oro = 100 Plata) Y RECOGIDA POR CONTACTO (ZERO-GC)
+	// =========================================================================
+	protected long dineroPlata = 0;
+
 	private final AccionEntidad<Item> accionRecogidaItem = new AccionEntidad<Item>() {
 		@Override
 		public void ejecutar(final Item item) {
@@ -222,9 +227,16 @@ public class Jugador extends Criatura {
 			return;
 		}
 
-		if (Globales.RATON.presionadoClickIzqUnicaAct()
-				&& Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())) {
-			this.curar();
+		// Bloqueo total de movimiento, ataques y uso de armas durante conversaciones o
+		// cinemáticas
+		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()) {
+			if (!this.estaEstadoEstandar()) {
+				this.setEstadoEstandar();
+			}
+			if (Animaciones.JUGADOR != null) {
+				Animaciones.JUGADOR.actualizar(this);
+			}
+			return; // Detiene la ejecución aquí: no procesa teclas de ataque ni movimiento
 		}
 
 		if (this.mundo != null) {
@@ -236,6 +248,7 @@ public class Jugador extends Criatura {
 		this.actualizarMovimientoMouseDijkstra();
 		this.actualizarMovimientoMouseAEstrella();
 		this.actualizarMovimientos();
+		this.actualizarAutoRecogidaMonedas();
 		this.actualizarRecogidaItems();
 		this.actualizarArrojar();
 		this.actualizarRecarga();
@@ -429,6 +442,13 @@ public class Jugador extends Criatura {
 		}
 	}
 
+	private final AccionEntidad<Item> accionAutoRecogidaMoneda = new AccionEntidad<Item>() {
+		@Override
+		public void ejecutar(final Item item) {
+			Jugador.this.procesarAutoRecogidaMoneda(item);
+		}
+	};
+
 	protected void moverANodoDDestino() {
 		if (this.nodoDDestino == null) {
 			return;
@@ -470,6 +490,15 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarMovimientos() {
+		// Bloquea el movimiento si el jugador está interactuando con la interfaz o
+		// hablando
+		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()) {
+			if (!this.estaEstadoEstandar()) {
+				this.setEstadoEstandar();
+			}
+			return;
+		}
+
 		boolean enMovimiento = false;
 		boolean corriendo = false;
 
@@ -575,6 +604,17 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarAtaque() {
+		// Bloquea el ataque si hay diálogos, cinemáticas, inventario o tienda abiertos
+		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()
+				|| Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible()
+				|| Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto()) {
+			this.dibujarAtaque = false;
+			if (this.estaEstadoAtacando()) {
+				this.removerEstado(Estado.ATACANDO);
+			}
+			return;
+		}
+
 		final Arma armaEquipada = this.getArmaEquipada();
 		final int tiempoEsperaAtaque = (armaEquipada != null) ? armaEquipada.getCadenciaMs()
 				: TIEMPO_MS_ESPERA_POR_ATAQUE_BASE;
@@ -652,6 +692,80 @@ public class Jugador extends Criatura {
 					anchoAtaque, alcanceAtaque, direccion, this));
 			break;
 		}
+	}
+
+	// =========================================================================
+	// GESTIÓN DE DINERO Y RECOGIDA AUTOMÁTICA POR CONTACTO
+	// =========================================================================
+
+	private void actualizarAutoRecogidaMonedas() {
+		if ((this.mundo == null) || this.eliminado) {
+			return;
+		}
+		// Detección física directa al caminar por encima (Zero-GC)
+		this.mundo.paraCadaItemEn(this.getArea(), this.accionAutoRecogidaMoneda);
+	}
+
+	private void procesarAutoRecogidaMoneda(final Item item) {
+		if ((item instanceof principal.entes.objetos.items.monedas.ItemMoneda) && !item.estaEliminado()) {
+			final principal.entes.objetos.items.monedas.ItemMoneda moneda = (principal.entes.objetos.items.monedas.ItemMoneda) item;
+			final long valor = moneda.getValorPlata();
+
+			this.sumarDinero(valor);
+			moneda.eliminar();
+
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+
+			final String textoMoneda = (moneda.getTipo() == principal.entes.objetos.items.monedas.TipoMoneda.ORO)
+					? ("+" + (valor / 100L) + " Oro")
+					: ("+" + valor + " Plata");
+
+			Globales.GESTOR_TEXTOS.agregarTexto(textoMoneda, this.getCentroX(), this.getPosicionYInt() - 8,
+					principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+
+			// Notificar al delta del mundo para que no reaparezca
+			if ((Globales.GESTOR_DELTAS != null) && (this.mundo != null)) {
+				Globales.GESTOR_DELTAS.obtenerOCrearDelta(this.mundo.getNombreMundo(), 0)
+						.registrarDestruccion(moneda.getPosicionXInt(), moneda.getPosicionYInt());
+			}
+		}
+	}
+
+	public long getDineroPlata() {
+		return this.dineroPlata;
+	}
+
+	public long getDineroEnOro() {
+		return this.dineroPlata / 100L;
+	}
+
+	public long getDineroEnPlataRestante() {
+		return this.dineroPlata % 100L;
+	}
+
+	public void sumarDinero(final long cantidad) {
+		if (cantidad > 0) {
+			this.dineroPlata = Math.min(Long.MAX_VALUE - cantidad, this.dineroPlata + cantidad);
+		}
+	}
+
+	public boolean restarDinero(final long cantidad) {
+		if (cantidad <= 0) {
+			return true;
+		}
+		if (this.dineroPlata >= cantidad) {
+			this.dineroPlata -= cantidad;
+			return true;
+		}
+		return false;
+	}
+
+	public boolean tieneDineroSuficiente(final long cantidad) {
+		return this.dineroPlata >= cantidad;
+	}
+
+	public void setDineroPlata(final long cantidad) {
+		this.dineroPlata = Math.max(0, cantidad);
 	}
 
 	private void actualizarRecogidaItems() {

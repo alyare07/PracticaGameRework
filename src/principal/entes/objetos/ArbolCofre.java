@@ -8,15 +8,20 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import principal.entes.Ente;
+import principal.entes.criaturas.Jugador;
 import principal.entes.objetos.items.Item;
+import principal.interaccion.Interactuable;
 import principal.inventario.Contenedor;
 import principal.inventario.vault.InventarioVault;
+import principal.inventario.vault.InventarioVault.EstadoInventario;
 import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 import principal.utilidades.Render2D;
+import principal.utilidades.audio.sonido.GestorSonido;
+import principal.utilidades.audio.sonido.IDSonido;
 
-public class ArbolCofre extends Objeto implements Contenedor {
+public class ArbolCofre extends Objeto implements Contenedor, Interactuable {
 
 	private static final long serialVersionUID = 651599209121613328L;
 	private final InventarioVault INVENTARIO;
@@ -30,6 +35,24 @@ public class ArbolCofre extends Objeto implements Contenedor {
 	public void actualizar() {
 		super.actualizar();
 		this.INVENTARIO.actualizarEstadoCofre();
+	}
+
+	@Override
+	public String getTextoPrompt() {
+		return "Examinar árbol hueco";
+	}
+
+	@Override
+	public void interactuar(final Jugador jugador) {
+		if (this.INVENTARIO.getEstadoInventario() == EstadoInventario.CERRADO) {
+			this.INVENTARIO.abrir();
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}
+	}
+
+	@Override
+	public boolean puedeInteractuar(final Jugador jugador) {
+		return !this.estaEliminado() && (this.INVENTARIO.getEstadoInventario() == EstadoInventario.CERRADO);
 	}
 
 	@Override

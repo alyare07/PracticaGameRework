@@ -156,7 +156,7 @@ public abstract class Criatura extends Ente {
 		this(x, y, ancho, alto, 100.0, 100.0, velocidad);
 	}
 
-	private Criatura(final double x, final double y, final int ancho, final int alto, final double vida,
+	protected Criatura(final double x, final double y, final int ancho, final int alto, final double vida,
 			final double vidaMaxima, final double velocidadEstandar) {
 
 		// 1. INICIALIZACIÓN INMEDIATA DEL MOTOR DE EFECTOS (Debe ir primero)

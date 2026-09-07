@@ -6,13 +6,18 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import principal.entes.Ente;
+import principal.entes.criaturas.Jugador;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
+import principal.interaccion.Interactuable;
 import principal.inventario.Contenedor;
 import principal.inventario.vault.InventarioVault;
+import principal.inventario.vault.InventarioVault.EstadoInventario;
 import principal.utilidades.Globales;
+import principal.utilidades.audio.sonido.GestorSonido;
+import principal.utilidades.audio.sonido.IDSonido;
 
-public abstract class Cofre extends Objeto implements Contenedor {
+public abstract class Cofre extends Objeto implements Contenedor, Interactuable {
 
 	private static final long serialVersionUID = 2158894619671109923L;
 
@@ -32,9 +37,25 @@ public abstract class Cofre extends Objeto implements Contenedor {
 
 	@Override
 	public void actualizar() {
-
 		this.INVENTARIO.actualizarEstadoCofre();
+	}
 
+	@Override
+	public String getTextoPrompt() {
+		return "Abrir " + this.NOMBRE;
+	}
+
+	@Override
+	public void interactuar(final Jugador jugador) {
+		if (this.INVENTARIO.getEstadoInventario() == EstadoInventario.CERRADO) {
+			this.INVENTARIO.abrir();
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}
+	}
+
+	@Override
+	public boolean puedeInteractuar(final Jugador jugador) {
+		return !this.estaEliminado() && (this.INVENTARIO.getEstadoInventario() == EstadoInventario.CERRADO);
 	}
 
 	public boolean meterItem(final Item i) {

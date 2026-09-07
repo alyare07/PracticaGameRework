@@ -32,7 +32,7 @@ public final class GestorInventario {
 			this.inventarioTercero.actualizar(raton, this.ITEM_PUNTERO, mundo);
 		}
 
-		// 3. Manejo de soltar ítem al mundo si se hace clic fuera de cualquier ventana
+		// 3. Soltar ítem al mundo si se hace clic fuera de las ventanas abiertas
 		if (this.ITEM_PUNTERO.contieneItem() && raton.presionadoClickIzq() && this.INVENTARIO_JUGADOR
 				.getGestorTiempoRaton().transcurrioMiliSegundos(Inventario.TIEMPO_ACTUALIZACION_RATON_PRESIONADO)) {
 
@@ -49,9 +49,6 @@ public final class GestorInventario {
 		}
 	}
 
-	/**
-	 * Capa 1: Fondos y slots de todas las ventanas abiertas.
-	 */
 	public void pintar(final Graphics2D g) {
 		if (this.hayInventarioTerceroAbierto()) {
 			this.inventarioTercero.pintar(g);
@@ -59,17 +56,13 @@ public final class GestorInventario {
 		this.INVENTARIO_JUGADOR.pintar(g);
 	}
 
-	/**
-	 * Capas 2 y 3: Tooltips y renderizado superior del ítem sostenido por el
-	 * puntero.
-	 */
 	public void pintarTooltipsYPuntero(final Graphics2D g, final Point posicionPuntero) {
 		if (this.hayInventarioTerceroAbierto()) {
 			this.inventarioTercero.pintarTooltips(g);
 		}
 		this.INVENTARIO_JUGADOR.pintarTooltips(g);
 
-		// Capa 3: El ítem en tránsito SIEMPRE por encima de todo
+		// El ítem sostenido se dibuja siempre en la capa superior
 		this.ITEM_PUNTERO.pintar(g, posicionPuntero);
 	}
 
@@ -87,8 +80,6 @@ public final class GestorInventario {
 
 	public void eliminarInventarioTercero(final Mundo mundo) {
 		if (this.inventarioTercero != null) {
-			// Si el jugador tenía un ítem tomado de este cofre al cerrarse, hacemos
-			// rollback/drop seguro
 			if (this.ITEM_PUNTERO.contieneItem() && (this.ITEM_PUNTERO.getSlotOrigen() != null)
 					&& this.inventarioTercero.contieneSlot(this.ITEM_PUNTERO.getSlotOrigen())) {
 				this.ITEM_PUNTERO.cancelarItemAgarrado(mundo);

@@ -27,10 +27,12 @@ public abstract class Item extends Objeto {
 
 	public static final int COD_ITEM_PORTABLE = 1;
 	public static final int COD_ITEM_CONSUMIBLE = 2;
+	public static final int COD_ITEM_MONEDA = 3;
 
 	private static final Color COLOR_SOMBRA_SUELO = new Color(0, 0, 0, 75);
 
 	protected final ArrayList<String> LISTA_INFO;
+	protected long precioBasePlata = 10L;
 
 	public Item(final int x, final int y) {
 		super(x, y);
@@ -55,6 +57,36 @@ public abstract class Item extends Objeto {
 	}
 
 	protected void rellenarInfo(final ArrayList<String> listaInfo) {
+	}
+
+	// =========================================================================
+	// SISTEMA DE VALORACIÓN COMERCIAL (1 Oro = 100 Plata)
+	// =========================================================================
+
+	public long getPrecioBasePlata() {
+		return this.precioBasePlata;
+	}
+
+	public void setPrecioBasePlata(final long precioPlata) {
+		this.precioBasePlata = Math.max(1L, precioPlata);
+	}
+
+	public long getPrecioVentaPlata() {
+		// Tasa de reventa estándar de RPG: 50% del precio base (mínimo 1 de Plata)
+		return Math.max(1L, this.precioBasePlata / 2L);
+	}
+
+	public static String formatearMoneda(final long totalPlata) {
+		final long oro = totalPlata / 100L;
+		final long plata = totalPlata % 100L;
+
+		if ((oro > 0L) && (plata > 0L)) {
+			return oro + " Oro " + plata + " Plata";
+		}
+		if (oro > 0L) {
+			return oro + " Oro";
+		}
+		return plata + " Plata";
 	}
 
 	@Override
@@ -151,6 +183,9 @@ public abstract class Item extends Objeto {
 		// 4. Herramientas (Hachas / Picos)
 		if (tipoStr.equals("Herramienta")) {
 			return Herramienta.crearDesdeJson(entiti);
+		}
+		if (tipoStr.equals("ItemMoneda") || tipoStr.equals("Moneda")) {
+			return principal.entes.objetos.items.monedas.ItemMoneda.crearDesdeJson(entiti);
 		}
 
 		// 5. Consumibles, Pociones, Materiales y Cajas de Munición

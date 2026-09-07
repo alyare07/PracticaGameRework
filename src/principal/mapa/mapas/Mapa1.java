@@ -9,6 +9,7 @@ import org.json.simple.JSONObject;
 
 import principal.entes.criaturas.enemigos.bandido.Bandido;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
+import principal.entes.criaturas.neutrales.Comerciante;
 import principal.entes.facciones.GestorFacciones;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.items.armas.distancia.fuego.automaticas.AmetralladoraPesada;
@@ -22,6 +23,7 @@ import principal.entes.objetos.items.equipamiento.TipoEquipo;
 import principal.entes.objetos.items.herramientas.Herramienta;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
 import principal.entes.objetos.items.municiones.CajaMunicion;
+import principal.entes.objetos.items.pociones.PocionVidaMenor;
 import principal.entes.objetos.recursos.ArbolCosechable;
 import principal.entes.objetos.recursos.RocaCosechable;
 import principal.mapa.Mundo;
@@ -128,6 +130,33 @@ public class Mapa1 extends Mapa {
 			mExt.meterEntidad(arbolcofre1);
 			this.generarEnemigosParaPrueba(5);
 			mExt.notificarModificacionEstructura();
+
+			// Creamos al comerciante en el pueblo o cerca de una casa
+			final Comerciante mercader = new Comerciante(1850, 1750, "Mercader Aldeano", 120.0);
+
+			// Le asignamos su inventario inicial de venta
+			mercader.getInventario().agregarItem(new PocionVidaMenor(10));
+			mercader.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 60));
+			mercader.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 30));
+			mercader.getInventario()
+					.agregarItem(new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
+			mercader.getInventario()
+					.agregarItem(new Herramienta(Herramienta.COD_PICO, 6, 14, 400, TipoHerramienta.PICO, 30.0));
+			mercader.getInventario()
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5));
+
+			// Stock finito que se repone automáticamente cada 4 días de juego:
+			mercader.setStockInfinito(false);
+			mercader.setRenovacionAutomatica(true, 4);
+
+			// Registra la mercancía tanto para la venta como para su plantilla de
+			// reposición:
+			mercader.registrarMercanciaInicial(new PocionVidaMenor(10));
+			mercader.registrarMercanciaInicial(CajaMunicion.crear9mm(0, 0, 60));
+
+			// Lo añadimos al mundo exterior
+			this.mundoActual.meterEntidad(mercader);
+
 		}
 
 		Globales.JUGADOR.setModoDios(true);

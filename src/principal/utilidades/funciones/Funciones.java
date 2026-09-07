@@ -12,7 +12,6 @@ public class Funciones {
 	public final CargadorRecursos CARGADOR_RECURSOS = new CargadorRecursos();
 	public final EncriptadorString ENCRIPTADOR_STRING = new EncriptadorString();
 	public final GestorTipoEnCarga GESTOR_TIPOS_EN_CARGA = new GestorTipoEnCarga();
-	public final TempManager TEMP_MANAGER = new TempManager();
 	public final TexturaTools TEXTURAS_TOOLS = new TexturaTools();
 
 	public Funciones() {

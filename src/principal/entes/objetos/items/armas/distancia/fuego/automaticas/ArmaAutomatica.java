@@ -14,10 +14,10 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Base abstracta para armas de disparo automático y ráfaga continua con
- * dispersión angular procedural y retroceso (Zero-GC / Fast Math).
+ * Base abstracta para armas automáticas con dispersión balística y precios
+ * calibrados.
  * 
- * @version 2.0 (Vanilla Java 8)
+ * @version 3.0 (Vanilla Java 8 - Calibrated Pricing)
  */
 public abstract class ArmaAutomatica extends Arma {
 
@@ -38,6 +38,7 @@ public abstract class ArmaAutomatica extends Arma {
 				tipoMunicionRequerida);
 		this.dispersionRad = Math.toRadians(dispersionGrados);
 		this.velocidadBala = velocidadBala;
+		this.asignarPrecioAutomatica(codModelo);
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
@@ -48,7 +49,20 @@ public abstract class ArmaAutomatica extends Arma {
 				tipoMunicionRequerida);
 		this.dispersionRad = Math.toRadians(dispersionGrados);
 		this.velocidadBala = velocidadBala;
+		this.asignarPrecioAutomatica(codModelo);
 		this.rellenarInfo(this.LISTA_INFO);
+	}
+
+	private void asignarPrecioAutomatica(final String cod) {
+		if (COD_SUBFUSIL.equals(cod)) {
+			this.precioBasePlata = 500L; // 5 Oro
+		} else if (COD_RIFLE.equals(cod)) {
+			this.precioBasePlata = 800L; // 8 Oro
+		} else if (COD_AMETRALLADORA.equals(cod)) {
+			this.precioBasePlata = 1200L; // 12 Oro
+		} else {
+			this.precioBasePlata = 500L;
+		}
 	}
 
 	@Override
@@ -122,6 +136,7 @@ public abstract class ArmaAutomatica extends Arma {
 		json.put("codModelo", this.codigoModelo);
 		json.put("balasCargador", Integer.valueOf(this.balasCargador));
 		json.put("capacidadCargador", Integer.valueOf(this.capacidadCargador));
+		json.put("precio", Long.valueOf(this.precioBasePlata));
 		return json;
 	}
 

@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 
 import principal.controles.Raton;
@@ -21,11 +22,11 @@ import principal.utilidades.audio.sonido.IDSonido;
 import principal.utilidades.inventario.ItemPuntero;
 
 /**
- * Inventario comercial para NPCs y tiendas (Zero-GC / O(1)). Transacciones
- * atómicas de compra y venta con avisos visuales en pantalla fija y tooltips
- * enriquecidos con precio en renglón aparte.
+ * Inventario comercial para NPCs y tiendas (Zero-GC / O(1)). Soporta
+ * compra/venta unitaria o por lotes con Shift, venta desde cursor y
+ * notificaciones visuales en pantalla fija.
  * 
- * @version 2.2 (Vanilla Java 8 - Dedicated Price Line Tooltip)
+ * @version 3.0 (Vanilla Java 8 - Bulk Trade & Drag Sell Support)
  */
 public class InventarioTienda extends InventarioVault {
 
@@ -62,17 +63,27 @@ public class InventarioTienda extends InventarioVault {
 			}
 		}
 
-		// 3. Hover sobre las casillas
+		// 3. Venta directa si el jugador hace clic sobre la tienda con un ítem en el
+		// cursor
+		if ((itemPuntero != null) && itemPuntero.contieneItem()) {
+			if (raton.presionadoClickIzqUnicaAct() && this.getArea().contains(raton.getPuntoPosicionEscalado())) {
+				this.venderItemPuntero(itemPuntero);
+				return;
+			}
+		}
+
+		// 4. Hover sobre las casillas
 		final ArrayList<Slot> listaSlots = this.slots;
 		for (int i = 0; i < listaSlots.size(); i++) {
 			listaSlots.get(i).actualizar(raton);
 		}
 
-		// 4. Clic de compra sobre casilla de tienda
+		// 5. Clic de compra sobre casilla de tienda (Shift = comprar lote máximo)
 		if (raton.presionadoClickIzqUnicaAct() || raton.presionadoClickDerUnicaAct()) {
 			final Slot slot = this.getSlot(raton.getPuntoPosicionEscalado());
 			if ((slot != null) && slot.contieneItem()) {
-				this.intentarCompra(slot);
+				final boolean comprarLote = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_SHIFT);
+				this.intentarCompra(slot, comprarLote);
 			}
 		}
 	}
@@ -83,23 +94,39 @@ public class InventarioTienda extends InventarioVault {
 		this.tiempoNotificacionRestante = 2.0;
 	}
 
-	public boolean intentarCompra(final Slot slotTienda) {
+	/**
+	 * Transacción de compra (Unitaria o por lote con Shift).
+	 */
+	public boolean intentarCompra(final Slot slotTienda, final boolean comprarLote) {
 		if ((slotTienda == null) || !slotTienda.contieneItem() || (Globales.JUGADOR == null)) {
 			return false;
 		}
 
 		final Item itemTienda = slotTienda.getItem();
-		final long precio = itemTienda.getPrecioBasePlata();
+		final long precioUnitario = itemTienda.getPrecioBasePlata();
 
-		if (!Globales.JUGADOR.tieneDineroSuficiente(precio)) {
+		// Determinar cantidad a comprar
+		int cantidadDeseada = 1;
+		if (comprarLote && (itemTienda instanceof Consumible)) {
+			final Consumible c = (Consumible) itemTienda;
+			final long dineroDisponible = Globales.JUGADOR.getDineroPlata();
+			final int maxPorDinero = (int) Math.max(1, dineroDisponible / precioUnitario);
+			cantidadDeseada = Math.min(c.getCantidad(), maxPorDinero);
+		}
+
+		final long costoTotal = precioUnitario * cantidadDeseada;
+
+		// 1. Validar fondos
+		if (!Globales.JUGADOR.tieneDineroSuficiente(costoTotal)) {
 			GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 			this.mostrarNotificacion("¡Fondos insuficientes!", new Color(255, 65, 65));
 			return false;
 		}
 
+		// 2. Validar espacio en inventario intentando depositar una copia
 		final Item copiaComprada = (Item) itemTienda.copiar();
 		if (copiaComprada instanceof Consumible) {
-			((Consumible) copiaComprada).establecerCantidad(1);
+			((Consumible) copiaComprada).establecerCantidad(cantidadDeseada);
 		}
 
 		final boolean agregado = Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(copiaComprada);
@@ -109,15 +136,19 @@ public class InventarioTienda extends InventarioVault {
 			return false;
 		}
 
-		Globales.JUGADOR.restarDinero(precio);
+		// 3. Ejecutar cobro
+		Globales.JUGADOR.restarDinero(costoTotal);
 		GestorSonido.reproducir(IDSonido.GOLPE_1);
 
-		this.mostrarNotificacion("Comprado: -" + Item.formatearMoneda(precio), new Color(100, 240, 120));
+		final String textoGasto = "-" + Item.formatearMoneda(costoTotal)
+				+ (cantidadDeseada > 1 ? " (x" + cantidadDeseada + ")" : "");
+		this.mostrarNotificacion("Comprado: " + textoGasto, new Color(100, 240, 120));
 
+		// 4. Reducir stock si no es infinito
 		if (!this.stockInfinito) {
 			if (itemTienda instanceof Consumible) {
 				final Consumible c = (Consumible) itemTienda;
-				c.reducirCantidad(1);
+				c.reducirCantidad(cantidadDeseada);
 				if (c.getCantidad() <= 0) {
 					slotTienda.eliminarObjeto();
 				}
@@ -129,7 +160,11 @@ public class InventarioTienda extends InventarioVault {
 		return true;
 	}
 
-	public boolean venderItemJugador(final Slot slotJugador) {
+	/**
+	 * Transacción de venta desde ranura de inventario (Unitaria o pila completa con
+	 * Shift).
+	 */
+	public boolean venderItemJugador(final Slot slotJugador, final boolean venderTodo) {
 		if ((slotJugador == null) || !slotJugador.contieneItem() || (Globales.JUGADOR == null)) {
 			return false;
 		}
@@ -140,11 +175,13 @@ public class InventarioTienda extends InventarioVault {
 			return false;
 		}
 
-		final long ganancia = itemVenta.getPrecioVentaPlata();
+		final long precioUnitarioVenta = itemVenta.getPrecioVentaPlata();
+		int cantidadAVender = 1;
 
 		if (itemVenta instanceof Consumible) {
 			final Consumible c = (Consumible) itemVenta;
-			c.reducirCantidad(1);
+			cantidadAVender = venderTodo ? c.getCantidad() : 1;
+			c.reducirCantidad(cantidadAVender);
 			if (c.getCantidad() <= 0) {
 				slotJugador.eliminarObjeto();
 			}
@@ -152,16 +189,54 @@ public class InventarioTienda extends InventarioVault {
 			slotJugador.eliminarObjeto();
 		}
 
-		Globales.JUGADOR.sumarDinero(ganancia);
+		final long gananciaTotal = precioUnitarioVenta * cantidadAVender;
+
+		// Sumar dinero
+		Globales.JUGADOR.sumarDinero(gananciaTotal);
 		GestorSonido.reproducir(IDSonido.GOLPE_1);
 
-		this.mostrarNotificacion("Vendido: +" + Item.formatearMoneda(ganancia), new Color(255, 215, 80));
+		final String textoGanancia = "+" + Item.formatearMoneda(gananciaTotal)
+				+ (cantidadAVender > 1 ? " (x" + cantidadAVender + ")" : "");
+		this.mostrarNotificacion("Vendido: " + textoGanancia, new Color(255, 215, 80));
 
+		// Recompra: coloca en la tienda si hay espacio
 		final Item copiaParaTienda = (Item) itemVenta.copiar();
 		if (copiaParaTienda instanceof Consumible) {
-			((Consumible) copiaParaTienda).establecerCantidad(1);
+			((Consumible) copiaParaTienda).establecerCantidad(cantidadAVender);
 		}
 		this.agregarItem(copiaParaTienda);
+
+		return true;
+	}
+
+	/**
+	 * Venta directa de un ítem sostenido en el cursor.
+	 */
+	public boolean venderItemPuntero(final ItemPuntero itemPuntero) {
+		if ((itemPuntero == null) || !itemPuntero.contieneItem() || (Globales.JUGADOR == null)) {
+			return false;
+		}
+
+		final Item itemVenta = itemPuntero.getItem();
+		if (itemVenta instanceof ItemMoneda) {
+			return false;
+		}
+
+		int cantidad = 1;
+		if (itemVenta instanceof Consumible) {
+			cantidad = ((Consumible) itemVenta).getCantidad();
+		}
+
+		final long gananciaTotal = itemVenta.getPrecioVentaPlata() * cantidad;
+		Globales.JUGADOR.sumarDinero(gananciaTotal);
+		GestorSonido.reproducir(IDSonido.GOLPE_1);
+
+		final String texto = "+" + Item.formatearMoneda(gananciaTotal) + (cantidad > 1 ? " (x" + cantidad + ")" : "");
+		this.mostrarNotificacion("Vendido: " + texto, new Color(255, 215, 80));
+
+		final Item copia = (Item) itemVenta.copiar();
+		this.agregarItem(copia);
+		itemPuntero.limpiar();
 
 		return true;
 	}
@@ -208,7 +283,7 @@ public class InventarioTienda extends InventarioVault {
 		if ((slot != null) && slot.contieneItem()) {
 			final Item item = slot.getItem();
 			final long precio = item.getPrecioBasePlata();
-			final String lineaCompra = "Compra: " + Item.formatearMoneda(precio);
+			final String lineaCompra = "Compra: " + Item.formatearMoneda(precio) + " [Shift: Lote]";
 
 			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipItemConPrecio(g, item, lineaCompra, COLOR_PRECIO_COMPRA);
 		}

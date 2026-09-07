@@ -21,10 +21,25 @@ public class CajaMunicion extends Consumible {
 	public CajaMunicion(final int x, final int y, final int cantidad, final String codModelo) {
 		super(x, y, cantidad, codModelo, codModelo, TexturaItem.CAJA_MUNICION_INV, TexturaItem.CAJA_MUNICION_MAPA,
 				resolverLimiteMunicion(codModelo));
+		this.asignarPrecioMunicion(codModelo);
 	}
 
 	public CajaMunicion(final int cantidad, final String codModelo) {
 		this(0, 0, cantidad, codModelo);
+	}
+
+	private void asignarPrecioMunicion(final String cod) {
+		if (COD_9MM.equals(cod)) {
+			this.precioBasePlata = 30L;
+		} else if (COD_12CAL.equals(cod)) {
+			this.precioBasePlata = 40L;
+		} else if (COD_762MM.equals(cod)) {
+			this.precioBasePlata = 60L;
+		} else if (COD_PESADA.equals(cod)) {
+			this.precioBasePlata = 90L;
+		} else {
+			this.precioBasePlata = 30L;
+		}
 	}
 
 	public static CajaMunicion crear9mm(final int x, final int y, final int cantidad) {
@@ -58,8 +73,10 @@ public class CajaMunicion extends Consumible {
 
 	@Override
 	public Objeto copiar() {
-		return new CajaMunicion(this.getPosicionXInt(), this.getPosicionYInt(), this.getCantidad(),
+		final CajaMunicion cm = new CajaMunicion(this.getPosicionXInt(), this.getPosicionYInt(), this.getCantidad(),
 				this.getCodigoModelo());
+		cm.setPrecioBasePlata(this.precioBasePlata);
+		return cm;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -70,6 +87,7 @@ public class CajaMunicion extends Consumible {
 		json.put("y", Integer.valueOf(this.getPosicionYInt()));
 		json.put("codModelo", this.getCodigoModelo());
 		json.put("cantidad", Integer.valueOf(this.getCantidad()));
+		json.put("precio", Long.valueOf(this.precioBasePlata));
 		return json;
 	}
 
@@ -83,7 +101,11 @@ public class CajaMunicion extends Consumible {
 		final String codModelo = (json.get("codModelo") != null) ? json.get("codModelo").toString() : COD_9MM;
 		final int cantidad = (json.get("cantidad") != null) ? ((Number) json.get("cantidad")).intValue() : 30;
 
-		return new CajaMunicion(x, y, cantidad, codModelo);
+		final CajaMunicion cm = new CajaMunicion(x, y, cantidad, codModelo);
+		if (json.get("precio") != null) {
+			cm.setPrecioBasePlata(((Number) json.get("precio")).longValue());
+		}
+		return cm;
 	}
 
 	@Override

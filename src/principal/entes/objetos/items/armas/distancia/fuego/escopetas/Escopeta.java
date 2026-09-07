@@ -14,6 +14,12 @@ import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
+/**
+ * Base abstracta para escopetas con dispersión de perdigones y precios
+ * comerciales calibrados.
+ * 
+ * @version 3.0 (Vanilla Java 8 - Calibrated Pricing)
+ */
 public abstract class Escopeta extends Arma {
 
 	private static final long serialVersionUID = 581920391203912L;
@@ -34,6 +40,7 @@ public abstract class Escopeta extends Arma {
 		this.cantidadPerdigones = Math.max(2, cantidadPerdigones);
 		this.anguloAperturaRad = Math.toRadians(aperturaGrados);
 		this.velocidadPerdigon = velocidadPerdigon;
+		this.asignarPrecioEscopeta(codModelo);
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
@@ -45,7 +52,20 @@ public abstract class Escopeta extends Arma {
 		this.cantidadPerdigones = Math.max(2, cantidadPerdigones);
 		this.anguloAperturaRad = Math.toRadians(aperturaGrados);
 		this.velocidadPerdigon = velocidadPerdigon;
+		this.asignarPrecioEscopeta(codModelo);
 		this.rellenarInfo(this.LISTA_INFO);
+	}
+
+	private void asignarPrecioEscopeta(final String cod) {
+		if (COD_RECORTADA.equals(cod)) {
+			this.precioBasePlata = 250L; // 2 Oro 50 Plata
+		} else if (COD_TACTICA.equals(cod)) {
+			this.precioBasePlata = 450L; // 4 Oro 50 Plata
+		} else if (COD_AUTOMATICA.equals(cod)) {
+			this.precioBasePlata = 700L; // 7 Oro
+		} else {
+			this.precioBasePlata = 300L;
+		}
 	}
 
 	@Override
@@ -125,6 +145,7 @@ public abstract class Escopeta extends Arma {
 		json.put("codModelo", this.codigoModelo);
 		json.put("balasCargador", Integer.valueOf(this.balasCargador));
 		json.put("capacidadCargador", Integer.valueOf(this.capacidadCargador));
+		json.put("precio", Long.valueOf(this.precioBasePlata));
 		return json;
 	}
 

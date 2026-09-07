@@ -1,9 +1,11 @@
 package principal.inventario.equipamiento;
 
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 
 import principal.controles.Raton;
@@ -22,13 +24,15 @@ import principal.mapa.Mundo;
 import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
+import principal.utilidades.audio.sonido.GestorSonido;
+import principal.utilidades.audio.sonido.IDSonido;
 import principal.utilidades.inventario.ItemPuntero;
 
 /**
  * Gestor maestro de casillas de inventario, equipamiento rápido y transferencia
  * bidireccional (Zero-GC / O(1)).
  * 
- * @version 2.3 (Vanilla Java 8 - Centered Grid Alignment)
+ * @version 2.4 (Vanilla Java 8 - Equipment Sale Guard & Shift Bulk Support)
  */
 public class SlotManager {
 
@@ -121,9 +125,20 @@ public class SlotManager {
 						// ítem
 						if (Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && (Globales.GESTOR_INVENTARIO
 								.getInventarioTercero() instanceof principal.inventario.tienda.InventarioTienda)) {
+
 							final principal.inventario.tienda.InventarioTienda tienda = (principal.inventario.tienda.InventarioTienda) Globales.GESTOR_INVENTARIO
 									.getInventarioTercero();
-							tienda.venderItemJugador(slot);
+
+							// PROTECCIÓN: Prohíbe vender equipamiento puesto
+							if (slot instanceof SlotEquipamiento) {
+								GestorSonido.reproducir(IDSonido.SIN_MUNICION);
+								tienda.mostrarNotificacion("¡Desequipa el objeto para venderlo!",
+										new Color(255, 100, 100));
+								return;
+							}
+
+							final boolean venderTodo = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_SHIFT);
+							tienda.venderItemJugador(slot, venderTodo);
 							return;
 						}
 

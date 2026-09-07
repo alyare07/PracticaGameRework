@@ -25,17 +25,20 @@ public class Pistola extends Arma {
 
 	public Pistola(final String codModelo) {
 		super(codModelo, 10, 250, false, 12, 1200, 400, CajaMunicion.COD_9MM);
+		this.precioBasePlata = 150L; // 1 Oro 50 Plata
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
 	public Pistola(final int x, final int y, final String codModelo) {
 		super(x, y, codModelo, 10, 250, false, 12, 1200, 400, CajaMunicion.COD_9MM);
+		this.precioBasePlata = 150L;
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
 	public Pistola(final int x, final int y, final String codModelo, final int balasCargador) {
 		super(x, y, codModelo, 10, 250, false, 12, 1200, 400, CajaMunicion.COD_9MM);
 		this.balasCargador = Math.max(0, Math.min(this.capacidadCargador, balasCargador));
+		this.precioBasePlata = 150L;
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
@@ -92,7 +95,10 @@ public class Pistola extends Arma {
 
 	@Override
 	public Objeto copiar() {
-		return new Pistola(this.getPosicionXInt(), this.getPosicionYInt(), this.codigoModelo, this.balasCargador);
+		final Pistola p = new Pistola(this.getPosicionXInt(), this.getPosicionYInt(), this.codigoModelo,
+				this.balasCargador);
+		p.setPrecioBasePlata(this.precioBasePlata);
+		return p;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -104,6 +110,7 @@ public class Pistola extends Arma {
 		json.put("codModelo", this.codigoModelo);
 		json.put("balasCargador", Integer.valueOf(this.balasCargador));
 		json.put("capacidadCargador", Integer.valueOf(this.capacidadCargador));
+		json.put("precio", Long.valueOf(this.precioBasePlata));
 		return json;
 	}
 
@@ -123,7 +130,11 @@ public class Pistola extends Arma {
 			balas = ((Number) json.get("municion")).intValue();
 		}
 
-		return new Pistola(x, y, codModelo, balas);
+		final Pistola p = new Pistola(x, y, codModelo, balas);
+		if (json.get("precio") != null) {
+			p.setPrecioBasePlata(((Number) json.get("precio")).longValue());
+		}
+		return p;
 	}
 
 	@Override

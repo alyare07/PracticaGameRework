@@ -13,11 +13,13 @@ public class GranadaT1 extends Granada {
 
 	public GranadaT1(final int cantidad) {
 		super(0, 0, cantidad, 50, 20.0, COD_MODELO);
+		this.precioBasePlata = 50L; // 50 Plata
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
 	public GranadaT1(final int x, final int y, final int cantidad) {
 		super(x, y, cantidad, 50, 20.0, COD_MODELO);
+		this.precioBasePlata = 50L;
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
@@ -29,6 +31,7 @@ public class GranadaT1 extends Granada {
 		json.put("y", Integer.valueOf(this.getPosicionYInt()));
 		json.put("codModelo", this.getCodigoModelo());
 		json.put("cant", Integer.valueOf(this.getCantidad()));
+		json.put("precio", Long.valueOf(this.precioBasePlata));
 		return json;
 	}
 
@@ -41,12 +44,18 @@ public class GranadaT1 extends Granada {
 		final int y = (json.get("y") != null) ? ((Number) json.get("y")).intValue() : 0;
 		final int cant = (json.get("cant") != null) ? ((Number) json.get("cant")).intValue() : 1;
 
-		return new GranadaT1(x, y, cant);
+		final GranadaT1 g = new GranadaT1(x, y, cant);
+		if (json.get("precio") != null) {
+			g.setPrecioBasePlata(((Number) json.get("precio")).longValue());
+		}
+		return g;
 	}
 
 	@Override
 	public Objeto copiar() {
-		return new GranadaT1(this.getPosicionXInt(), this.getPosicionYInt(), this.getCantidad());
+		final GranadaT1 g = new GranadaT1(this.getPosicionXInt(), this.getPosicionYInt(), this.getCantidad());
+		g.setPrecioBasePlata(this.precioBasePlata);
+		return g;
 	}
 
 	@Override

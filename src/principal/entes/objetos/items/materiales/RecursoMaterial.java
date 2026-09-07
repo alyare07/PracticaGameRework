@@ -18,6 +18,7 @@ public class RecursoMaterial extends Consumible {
 
 	public RecursoMaterial(final int x, final int y, final int cantidad, final String codModelo) {
 		super(x, y, cantidad, codModelo, codModelo, resolverTexturaInv(codModelo), resolverTexturaMapa(codModelo), 999);
+		this.precioBasePlata = COD_MADERA.equals(codModelo) ? 2L : 3L; // 2 Plata madera, 3 Plata piedra
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
@@ -35,14 +36,16 @@ public class RecursoMaterial extends Consumible {
 
 	@Override
 	public void consumir(final Criatura c) {
-		// Los materiales no se consumen directamente; se usan para crafteo y
-		// construcción
+		// Los materiales no se consumen directamente; se usan para crafteo,
+		// construcción o venta
 	}
 
 	@Override
 	public Objeto copiar() {
-		return new RecursoMaterial(this.getPosicionXInt(), this.getPosicionYInt(), this.getCantidad(),
-				this.getCodigoModelo());
+		final RecursoMaterial rm = new RecursoMaterial(this.getPosicionXInt(), this.getPosicionYInt(),
+				this.getCantidad(), this.getCodigoModelo());
+		rm.setPrecioBasePlata(this.precioBasePlata);
+		return rm;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -53,6 +56,7 @@ public class RecursoMaterial extends Consumible {
 		json.put("y", Integer.valueOf(this.getPosicionYInt()));
 		json.put("codModelo", this.getCodigoModelo());
 		json.put("cant", Integer.valueOf(this.getCantidad()));
+		json.put("precio", Long.valueOf(this.precioBasePlata));
 		return json;
 	}
 
@@ -65,14 +69,18 @@ public class RecursoMaterial extends Consumible {
 		final String codModelo = (json.get("codModelo") != null) ? json.get("codModelo").toString() : COD_MADERA;
 		final int cant = (json.get("cant") != null) ? ((Number) json.get("cant")).intValue() : 1;
 
-		return new RecursoMaterial(x, y, cant, codModelo);
+		final RecursoMaterial rm = new RecursoMaterial(x, y, cant, codModelo);
+		if (json.get("precio") != null) {
+			rm.setPrecioBasePlata(((Number) json.get("precio")).longValue());
+		}
+		return rm;
 	}
 
 	@Override
 	protected void rellenarInfo(final ArrayList<String> listaInfo) {
 		listaInfo.clear();
 		listaInfo.add("Material básico recolectado.");
-		listaInfo.add("Utilizado para crafteo y construcción.");
+		listaInfo.add("Utilizado para crafteo, construcción o venta.");
 	}
 
 	@Override

@@ -16,18 +16,23 @@ public class PocionVidaMenor extends PocionVida {
 	public PocionVidaMenor(final int cantidad) {
 		super(cantidad, COD_MODELO, "Poción de Vida Menor", TexturaItem.POCION_ROJA_INV, TexturaItem.POCION_ROJA_MAPA,
 				99, PUNTOS_REST);
+		this.precioBasePlata = 15L; // 15 Plata
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
 	public PocionVidaMenor(final int x, final int y, final int cantidad) {
 		super(x, y, cantidad, COD_MODELO, "Poción de Vida Menor", TexturaItem.POCION_ROJA_INV,
 				TexturaItem.POCION_ROJA_MAPA, 99, PUNTOS_REST);
+		this.precioBasePlata = 15L;
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
 	@Override
 	public Objeto copiar() {
-		return new PocionVidaMenor(this.getPosicionXInt(), this.getPosicionYInt(), this.getCantidad());
+		final PocionVidaMenor p = new PocionVidaMenor(this.getPosicionXInt(), this.getPosicionYInt(),
+				this.getCantidad());
+		p.setPrecioBasePlata(this.precioBasePlata);
+		return p;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -38,6 +43,7 @@ public class PocionVidaMenor extends PocionVida {
 		json.put("y", Integer.valueOf(this.getPosicionYInt()));
 		json.put("codModelo", this.getCodigoModelo());
 		json.put("cant", Integer.valueOf(this.getCantidad()));
+		json.put("precio", Long.valueOf(this.precioBasePlata));
 		return json;
 	}
 
@@ -45,7 +51,11 @@ public class PocionVidaMenor extends PocionVida {
 		final int x = Integer.parseInt(json.get("x").toString());
 		final int y = Integer.parseInt(json.get("y").toString());
 		final int cant = Integer.parseInt(json.get("cant").toString());
-		return new PocionVidaMenor(x, y, cant);
+		final PocionVidaMenor p = new PocionVidaMenor(x, y, cant);
+		if (json.get("precio") != null) {
+			p.setPrecioBasePlata(((Number) json.get("precio")).longValue());
+		}
+		return p;
 	}
 
 	@Override

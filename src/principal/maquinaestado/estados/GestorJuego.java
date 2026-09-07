@@ -22,8 +22,6 @@ import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
 import principal.entes.proyectil.explosivo.BolaFuego;
-import principal.eventos.Evento;
-import principal.eventos.EventoJugadorZonaTP;
 import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.TipoLuz;
 import principal.mapa.Mundo;
@@ -53,7 +51,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	protected final GestorPartida GP;
 	private final Raton RATON = Globales.RATON;
 	protected Mapa mapa;
-	protected final ArrayList<Evento> EVENTOS = new ArrayList<Evento>();
 
 	protected final GestorTiempo GT_MOSTRAR_PANTALLA_MUERTE;
 	protected final int TIEMPO_MS_ESPERA_MOSTRAR_PANTALLA_MUERTE = 1500;
@@ -94,7 +91,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 		Globales.GESTOR_INVENTARIO.actualizar(this.RATON, this.mapa.getMundoActual());
 		this.mapa.actualizar();
-		this.actualizarEventos();
 
 		if (Globales.TECLADO.TECLA_DIJKSTRA.presionadoUnicaActualizacion()) {
 			if (Globales.JUGADOR.getFaccionBit() == GestorFacciones.FACCION_JUGADOR) {
@@ -135,6 +131,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.GESTOR_LUZ.actualizar();
 		Globales.GESTOR_TERMICO_JUGADOR.actualizar(dt); // <-- CONECTADO AL GAME LOOP
 		Globales.GESTOR_CRAFTEO.actualizar(this.mapa.getMundoActual());
+		this.actualizarEventos(dt);
 
 		if (this.auxFuenteLuzTempoPrueba != null) {
 			this.auxFuenteLuzTempoPrueba.orientarSegunDireccion(Globales.JUGADOR.getDireccion());
@@ -199,16 +196,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 	}
 
-	private void actualizarEventos() {
-		for (int i = 0; i < this.EVENTOS.size(); i++) {
-			final Evento evento = this.EVENTOS.get(i);
-			evento.actualizar();
-
-			if (evento.estaEliminado()) {
-				this.EVENTOS.remove(i);
-				i--;
-			}
-		}
+	private void actualizarEventos(final double dt) {
+		Globales.GESTOR_INTERACCION.actualizar(this.mapa.getMundoActual());
+		Globales.GESTOR_DIALOGOS.actualizar(dt);
+		Globales.GESTOR_EVENTOS.actualizar(dt);
 	}
 
 	private boolean detectarCambioAMenu() {
@@ -291,6 +282,8 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 				this.mapa.pintar(gMundo);
 			}
 
+			Globales.GESTOR_INTERACCION.pintar(gMundo);
+
 			if (Globales.GESTOR_CONSTRUCCION.isActivo()) {
 				Globales.GESTOR_CONSTRUCCION.pintar(gMundo);
 			}
@@ -344,6 +337,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 						Color.BLACK);
 			}
 		}
+		Globales.GESTOR_DIALOGOS.pintar(g);
 	}
 
 	private void pintarInventarios(final Graphics2D g) {
@@ -515,9 +509,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		mundoActual.meterEntidad(zonaTP);
 		mundoActual.meterEntidad(zonaTP2);
 
-		this.EVENTOS.add(new EventoJugadorZonaTP(zonaTP, this, true));
-		this.EVENTOS.add(new EventoJugadorZonaTP(zonaTP2, this, true));
-
 		mundoActual.meterEntidad(new Complemento(773, 177, ListaModeloComplemento.COD_CASA_1));
 	}
 
@@ -534,11 +525,5 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	public Mapa getMapa() {
 		return this.mapa;
-	}
-
-	public void meterEvento(final Evento e) {
-		if (e != null) {
-			this.EVENTOS.add(e);
-		}
 	}
 }

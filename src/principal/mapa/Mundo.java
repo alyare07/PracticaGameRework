@@ -38,6 +38,7 @@ import principal.ia.aEstrella.AEstrella;
 import principal.ia.dijkstra.DijkstraRework;
 import principal.ia.dijkstra.NodoD;
 import principal.mapa.escenario.Escenario;
+import principal.mapa.mapas.Mapa;
 import principal.mapa.mapas.Spawn;
 import principal.mapa.renderEntidades.ZoneBox;
 import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
@@ -48,16 +49,10 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 import principal.utilidades.audio.musica.GestorMusica;
 
-/**
- * Gestor maestro del mapa activo, flujo de navegación, zonas de indexación,
- * puntos de Spawn y ciclo de vida de entidades. Carga de forma autónoma la
- * música, bioma y atmósfera según los metadatos del escenario.
- * 
- * @version 6.0 (Vanilla Java 8 - Autonomous World Engine)
- */
 public class Mundo {
 
-	protected String nombreMundo = "Exterior";
+	protected String nombreMundo = "exterior";
+	protected Mapa mapaAsignado;
 	protected final Escenario ESCENARIO;
 	protected final HashMap<String, Spawn> PUNTOS_SPAWN_JUGADOR = new HashMap<String, Spawn>();
 	private boolean forzarUnaActualizacionDijkstra;
@@ -113,7 +108,6 @@ public class Mundo {
 		this.generarCriaturas(esc.generarListaCriaturas(this));
 		this.ESCENARIO.generarObjetosEnTerreno(this);
 
-		// Generación de Spawns, Triggers, Zonas de Ambiente y Luces Estáticas
 		for (final Spawn s : esc.generarSpawns()) {
 			this.PUNTOS_SPAWN_JUGADOR.put(s.getNombre(), s);
 		}
@@ -126,9 +120,6 @@ public class Mundo {
 		esc.generarTriggers(this);
 		esc.generarZonasAmbiente();
 		esc.generarLucesEstaticas();
-
-		// Inicialización de la atmósfera según los metadatos del mapa
-		this.aplicarMetadatosAtmosfericos(esc.getMetadatos());
 
 		final Spawn spawnBase = this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO);
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
@@ -146,7 +137,12 @@ public class Mundo {
 		this.generarZonas();
 	}
 
-	private void aplicarMetadatosAtmosfericos(final MetadatosEscenario meta) {
+	/**
+	 * Configura en caliente la música, iluminación, niebla y clima al entrar a este
+	 * mundo.
+	 */
+	public void aplicarMetadatosAtmosfericos() {
+		final MetadatosEscenario meta = this.ESCENARIO.getMetadatos();
 		if (meta == null) {
 			return;
 		}
@@ -156,22 +152,30 @@ public class Mundo {
 			GestorMusica.reproducirMusicaFondoPrincipal(meta.getMusicaFondo());
 		}
 
-		// 2. Bioma y Clima Inicial
-		if (Globales.GESTOR_CLIMA != null) {
-			if (meta.getPerfilBioma() != null) {
-				Globales.GESTOR_CLIMA.setPerfilBioma(meta.getPerfilBioma());
-			}
-			if (meta.getClimaInicial() != null) {
-				Globales.GESTOR_CLIMA.setClima(meta.getClimaInicial(), 0.0);
+		// 2. Iluminación según el Tipo de Ambiente
+		if (Globales.GESTOR_LUZ != null) {
+			if (meta.esEspacioInterior()) {
+				final Color colorLuz = meta.resolverColorLuzEfectivo();
+				Globales.GESTOR_LUZ.establecerAmbienteTransicion(colorLuz, 0.4);
+			} else {
+				Globales.GESTOR_LUZ.restablecerModoExterior();
 			}
 		}
 
-		// 3. Iluminación Interior vs. Exterior
-		if (Globales.GESTOR_LUZ != null) {
-			if (meta.isEsInteriorCueva()) {
-				Globales.GESTOR_LUZ.establecerAmbienteTransicion(meta.getColorLuzInterior(), 0.0);
+		// 3. Bioma y Clima
+		if (Globales.GESTOR_CLIMA != null) {
+			if (meta.esEspacioInterior()) {
+				// En interiores no llueve ni cae nieve
+				Globales.GESTOR_CLIMA.setClima(principal.clima.TipoClima.DESPEJADO, 0.0);
+				Globales.GESTOR_CLIMA.setCicloAutomaticoHabilitado(false);
 			} else {
-				Globales.GESTOR_LUZ.restablecerModoExterior();
+				Globales.GESTOR_CLIMA.setCicloAutomaticoHabilitado(true);
+				if (meta.getPerfilBioma() != null) {
+					Globales.GESTOR_CLIMA.setPerfilBioma(meta.getPerfilBioma());
+				}
+				if (meta.getClimaInicial() != null) {
+					Globales.GESTOR_CLIMA.setClima(meta.getClimaInicial(), 0.0);
+				}
 			}
 		}
 	}
@@ -210,11 +214,23 @@ public class Mundo {
 	}
 
 	public String getNombreMundo() {
-		return (this.nombreMundo != null) ? this.nombreMundo : "Exterior";
+		return (this.nombreMundo != null) ? this.nombreMundo : "exterior";
 	}
 
 	public void setNombreMundo(final String nombreMundo) {
 		this.nombreMundo = nombreMundo;
+	}
+
+	public Mapa getMapa() {
+		return this.mapaAsignado;
+	}
+
+	public void setMapa(final Mapa mapa) {
+		this.mapaAsignado = mapa;
+	}
+
+	public Escenario getEscenario() {
+		return this.ESCENARIO;
 	}
 
 	private void generarZonas() {

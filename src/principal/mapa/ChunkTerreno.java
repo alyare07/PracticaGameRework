@@ -65,8 +65,7 @@ public class ChunkTerreno {
 			gChunk.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
 					RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
-			// 2. Limpieza total de la superficie VRAM con AlphaComposite.Clear (Elimina el
-			// fondo blanco)
+			// 2. Limpieza total de la superficie VRAM con AlphaComposite.Clear
 			gChunk.setComposite(AlphaComposite.Clear);
 			gChunk.fillRect(0, 0, this.ladoPixeles, this.ladoPixeles);
 			gChunk.setComposite(AlphaComposite.SrcOver);
@@ -94,12 +93,12 @@ public class ChunkTerreno {
 					final int localX = tx * ladoTile;
 					final int localY = ty * ladoTile;
 
-					// 1. Dibujar capa de fondo si existe
+					// 1. Dibujar capa de fondo sólida si existe
 					if (tile.getTipoFondo() != null) {
 						final SetTerreno setFondo = Globales.GESTOR_TEXTURAS.getSetTerreno(tile.getTipoFondo());
 						if (setFondo != null) {
-							final BufferedImage imgFondo = setFondo.getSprite(tile.getMascaraBit(),
-									tile.getVariacionPropia(), frameAgua);
+							final BufferedImage imgFondo = setFondo.getSprite((byte) 15, tile.getVariacionPropia(),
+									frameAgua);
 							gChunk.drawImage(imgFondo, localX, localY, null);
 							if (setFondo.getCantFrames() > 1) {
 								this.contieneAnimacion = true;
@@ -107,7 +106,7 @@ public class ChunkTerreno {
 						}
 					}
 
-					// 2. Dibujar capa de terreno principal
+					// 2. Dibujar capa de terreno principal (con su máscara de borde y canal Alpha)
 					final SetTerreno set = Globales.GESTOR_TEXTURAS.getSetTerreno(tile.getTipoTerreno());
 					if (set != null) {
 						final BufferedImage imgTile = set.getSprite(tile.getMascaraBit(), tile.getVariacionPropia(),

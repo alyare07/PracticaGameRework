@@ -27,8 +27,8 @@ import principal.utilidades.Globales;
 /**
  * Clase encargada de controlar los mundos que contiene dicho mapa
  */
-
 public abstract class Mapa {
+
 	protected final GestorPartida GP;
 	final HashMap<String, Mundo> MUNDOS = new HashMap<String, Mundo>();
 	Mundo mundoActual;
@@ -59,6 +59,50 @@ public abstract class Mapa {
 		}
 		this.mundoActual = this.MUNDOS.get(jsonMapa.get("mundoActual").toString());
 		this.cargarFuncionalidadesPropias();
+	}
+
+	/**
+	 * Transfiere de forma atómica al jugador entre mundos pertenecientes a este
+	 * mapa.
+	 */
+	public void cambiarMundoInterno(final String nombreMundoDestino, final String nombreSpawnDestino) {
+		if ((nombreMundoDestino == null) || !this.MUNDOS.containsKey(nombreMundoDestino)) {
+			System.err.println("[Mapa] El mundo destino '" + nombreMundoDestino + "' no existe en este mapa.");
+			return;
+		}
+
+		final Mundo mundoViejo = this.mundoActual;
+		final Mundo nuevoMundo = this.MUNDOS.get(nombreMundoDestino);
+
+		// 1. Guardar cambios del mundo que se abandona en su Delta
+		if (mundoViejo != null) {
+			Globales.GESTOR_DELTAS.capturarDelta(mundoViejo, 0);
+		}
+
+		// 2. Establecer el nuevo mundo activo
+		this.mundoActual = nuevoMundo;
+		nuevoMundo.setNombreMundo(nombreMundoDestino);
+
+		// 3. Vincular al jugador con el nuevo mundo y ubicarlo en el Spawn
+		Globales.JUGADOR.setMundo(nuevoMundo);
+		final Spawn spawnDest = nuevoMundo.getSpawn(nombreSpawnDestino);
+		if (spawnDest != null) {
+			spawnDest.moverJugadorCentrado();
+		} else {
+			nuevoMundo.moverJugadorPuntoComienzo();
+		}
+
+		// 4. Aplicar cambios persistentes del nuevo mundo (árboles talados, cofres,
+		// construcciones)
+		Globales.GESTOR_DELTAS.aplicarDelta(nuevoMundo);
+
+		// 5. Configurar atmósfera (Iluminación, Clima, Niebla, Música)
+		nuevoMundo.aplicarMetadatosAtmosfericos();
+
+		// 6. Recalcular límites de cámara y actualizar inventario
+		Globales.CAMARA.habilitarGestorLimite();
+		Globales.GESTOR_INVENTARIO.getInventarioJugador().establecerMundo(nuevoMundo);
+		Globales.RATON.soltar();
 	}
 
 	public void actualizar() {
@@ -92,7 +136,6 @@ public abstract class Mapa {
 	protected abstract void cargarFuncionalidadesPropias();
 
 	protected Escenario cargarEscenario(final GestorCarga gc, final int porcentajeCarga, final File ruta) {
-
 		final Escenario esc = EscenarioLoader.importarEscenario(ruta, gc, porcentajeCarga);
 		if (esc == null) {
 			System.err.println("No se ha podido cargar el escenario: " + ruta.getAbsolutePath());
@@ -100,7 +143,6 @@ public abstract class Mapa {
 					JOptionPane.ERROR_MESSAGE);
 			System.exit(0);
 		}
-//		Constantes.LADO_TILE = esc.getTerreno().ladoTile();
 		return esc;
 	}
 
@@ -110,7 +152,6 @@ public abstract class Mapa {
 		JSONObject jsonSpawn = null;
 		for (final Object obj : (JSONArray) jsonMundo
 				.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class))) {
-			System.out.println();
 			jsonSpawn = (JSONObject) obj;
 			listaSpawn.add(new Spawn(Integer.parseInt(jsonSpawn.get("x").toString()),
 					Integer.parseInt(jsonSpawn.get("y").toString()), jsonSpawn.get("nombre").toString()));
@@ -128,10 +169,10 @@ public abstract class Mapa {
 						.toString(),
 				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class))).toString()),
 				comienzo.getPoint());
+		m.setMapa(this);
 		m.llenarSpawn(listaSpawn);
 		return m;
 	}
 
 	public abstract String[] getNombreMundos();
-
 }

@@ -21,7 +21,7 @@ import principal.utilidades.Globales;
  * renderizado optimizado por Chunks en VRAM, cálculo de autotiles bitwise y
  * operaciones de pintura en bloque (Líneas, Rectángulos y Reemplazo).
  * 
- * @version 2.5 (Vanilla Java 8 - Batch Tile Operations)
+ * @version 2.6 (Vanilla Java 8 - Hierarchical Autotile)
  */
 public class Terreno implements Serializable {
 
@@ -238,6 +238,47 @@ public class Terreno implements Serializable {
 		return 3;
 	}
 
+	// =========================================================================
+	// === LÓGICA DE JERARQUÍA DE AUTOTILING (ZERO DOUBLE-BORDER)
+	// =========================================================================
+
+	private boolean esConectado(final TipoTerreno miTipo, final Tile tileVecino) {
+		if (tileVecino == null) {
+			return false;
+		}
+		final TipoTerreno tipoVecino = tileVecino.getTipoTerreno();
+		if (tipoVecino == miTipo) {
+			return true;
+		}
+		// Si el vecino tiene mayor jerarquía, el vecino se dibuja encima de nosotros
+		// y nosotros continuamos sólidos por debajo sin recortar nuestro borde.
+		if (tipoVecino.getPrioridad() > miTipo.getPrioridad()) {
+			return true;
+		}
+		if (tipoVecino.getPrioridad() == miTipo.getPrioridad()) {
+			return tipoVecino.ordinal() > miTipo.ordinal();
+		}
+		return false;
+	}
+
+	private TipoTerreno obtenerVecinoInferior(final TipoTerreno miTipo, final Tile tileVecino) {
+		if (tileVecino == null) {
+			return null;
+		}
+		final TipoTerreno tipoVecino = tileVecino.getTipoTerreno();
+		if (tipoVecino == miTipo) {
+			return null;
+		}
+		// Solo es candidato a fondo si tiene menor jerarquía que nosotros
+		if (tipoVecino.getPrioridad() < miTipo.getPrioridad()) {
+			return tipoVecino;
+		}
+		if ((tipoVecino.getPrioridad() == miTipo.getPrioridad()) && (tipoVecino.ordinal() < miTipo.ordinal())) {
+			return tipoVecino;
+		}
+		return null;
+	}
+
 	public void calcularAutotiles() {
 		for (int ty = 0; ty < this.CANTIDAD_TILES_Y; ty++) {
 			final int fila = ty * this.CANTIDAD_TILES_X;
@@ -249,23 +290,73 @@ public class Terreno implements Serializable {
 
 				final TipoTerreno tipo = tileActual.getTipoTerreno();
 				byte mascara = 0;
+				TipoTerreno vecinoFondo = null;
 
-				if ((ty > 0) && (this.TILES[((ty - 1) * this.CANTIDAD_TILES_X) + tx].getTipoTerreno() == tipo)) {
-					mascara += 1;
+				// Norte (Bit 1)
+				if (ty > 0) {
+					final Tile tN = this.TILES[((ty - 1) * this.CANTIDAD_TILES_X) + tx];
+					if (this.esConectado(tipo, tN)) {
+						mascara += 1;
+					} else {
+						final TipoTerreno fondoN = this.obtenerVecinoInferior(tipo, tN);
+						if ((fondoN != null)
+								&& ((vecinoFondo == null) || (fondoN.getPrioridad() < vecinoFondo.getPrioridad()))) {
+							vecinoFondo = fondoN;
+						}
+					}
 				}
-				if ((tx < (this.CANTIDAD_TILES_X - 1)) && (this.TILES[fila + tx + 1].getTipoTerreno() == tipo)) {
-					mascara += 2;
+
+				// Este (Bit 2)
+				if (tx < (this.CANTIDAD_TILES_X - 1)) {
+					final Tile tE = this.TILES[fila + tx + 1];
+					if (this.esConectado(tipo, tE)) {
+						mascara += 2;
+					} else {
+						final TipoTerreno fondoE = this.obtenerVecinoInferior(tipo, tE);
+						if ((fondoE != null)
+								&& ((vecinoFondo == null) || (fondoE.getPrioridad() < vecinoFondo.getPrioridad()))) {
+							vecinoFondo = fondoE;
+						}
+					}
 				}
-				if ((ty < (this.CANTIDAD_TILES_Y - 1))
-						&& (this.TILES[((ty + 1) * this.CANTIDAD_TILES_X) + tx].getTipoTerreno() == tipo)) {
-					mascara += 4;
+
+				// Sur (Bit 4)
+				if (ty < (this.CANTIDAD_TILES_Y - 1)) {
+					final Tile tS = this.TILES[((ty + 1) * this.CANTIDAD_TILES_X) + tx];
+					if (this.esConectado(tipo, tS)) {
+						mascara += 4;
+					} else {
+						final TipoTerreno fondoS = this.obtenerVecinoInferior(tipo, tS);
+						if ((fondoS != null)
+								&& ((vecinoFondo == null) || (fondoS.getPrioridad() < vecinoFondo.getPrioridad()))) {
+							vecinoFondo = fondoS;
+						}
+					}
 				}
-				if ((tx > 0) && (this.TILES[(fila + tx) - 1].getTipoTerreno() == tipo)) {
-					mascara += 8;
+
+				// Oeste (Bit 8)
+				if (tx > 0) {
+					final Tile tO = this.TILES[(fila + tx) - 1];
+					if (this.esConectado(tipo, tO)) {
+						mascara += 8;
+					} else {
+						final TipoTerreno fondoO = this.obtenerVecinoInferior(tipo, tO);
+						if ((fondoO != null)
+								&& ((vecinoFondo == null) || (fondoO.getPrioridad() < vecinoFondo.getPrioridad()))) {
+							vecinoFondo = fondoO;
+						}
+					}
 				}
 
 				tileActual.setMascaraBit(mascara);
 				tileActual.setVariacionPropia(this.calcularVariacionDeterminista(tx, ty, tipo));
+
+				// Solo se asigna fondo si hay un borde real hacia un terreno inferior
+				if ((mascara < 15) && (vecinoFondo != null)) {
+					tileActual.setTipoFondo(vecinoFondo);
+				} else {
+					tileActual.setTipoFondo(null);
+				}
 			}
 		}
 		this.marcarTodosLosChunksSucios();
@@ -285,26 +376,57 @@ public class Terreno implements Serializable {
 
 		final TipoTerreno tipo = tileActual.getTipoTerreno();
 		byte mascara = 0;
+		TipoTerreno vecinoFondo = null;
 
 		final Tile tN = this.getTileGrid(tx, ty - 1);
-		if ((tN != null) && (tN.getTipoTerreno() == tipo)) {
+		if (this.esConectado(tipo, tN)) {
 			mascara += 1;
+		} else {
+			final TipoTerreno fondoN = this.obtenerVecinoInferior(tipo, tN);
+			if ((fondoN != null) && ((vecinoFondo == null) || (fondoN.getPrioridad() < vecinoFondo.getPrioridad()))) {
+				vecinoFondo = fondoN;
+			}
 		}
+
 		final Tile tE = this.getTileGrid(tx + 1, ty);
-		if ((tE != null) && (tE.getTipoTerreno() == tipo)) {
+		if (this.esConectado(tipo, tE)) {
 			mascara += 2;
+		} else {
+			final TipoTerreno fondoE = this.obtenerVecinoInferior(tipo, tE);
+			if ((fondoE != null) && ((vecinoFondo == null) || (fondoE.getPrioridad() < vecinoFondo.getPrioridad()))) {
+				vecinoFondo = fondoE;
+			}
 		}
+
 		final Tile tS = this.getTileGrid(tx, ty + 1);
-		if ((tS != null) && (tS.getTipoTerreno() == tipo)) {
+		if (this.esConectado(tipo, tS)) {
 			mascara += 4;
+		} else {
+			final TipoTerreno fondoS = this.obtenerVecinoInferior(tipo, tS);
+			if ((fondoS != null) && ((vecinoFondo == null) || (fondoS.getPrioridad() < vecinoFondo.getPrioridad()))) {
+				vecinoFondo = fondoS;
+			}
 		}
+
 		final Tile tO = this.getTileGrid(tx - 1, ty);
-		if ((tO != null) && (tO.getTipoTerreno() == tipo)) {
+		if (this.esConectado(tipo, tO)) {
 			mascara += 8;
+		} else {
+			final TipoTerreno fondoO = this.obtenerVecinoInferior(tipo, tO);
+			if ((fondoO != null) && ((vecinoFondo == null) || (fondoO.getPrioridad() < vecinoFondo.getPrioridad()))) {
+				vecinoFondo = fondoO;
+			}
 		}
 
 		tileActual.setMascaraBit(mascara);
 		tileActual.setVariacionPropia(this.calcularVariacionDeterminista(tx, ty, tipo));
+
+		if ((mascara < 15) && (vecinoFondo != null)) {
+			tileActual.setTipoFondo(vecinoFondo);
+		} else {
+			tileActual.setTipoFondo(null);
+		}
+
 		this.marcarChunkSucio(worldX, worldY);
 	}
 
@@ -361,13 +483,6 @@ public class Terreno implements Serializable {
 		}
 	}
 
-	// =========================================================================
-	// OPERACIONES EN BLOQUE (GEOMETRÍA Y REEMPLAZO PARA EL EDITOR)
-	// =========================================================================
-
-	/**
-	 * Reemplaza globalmente un tipo de terreno por otro en todo el mapa.
-	 */
 	public int reemplazarTipoTerreno(final TipoTerreno tipoOrigen, final TipoTerreno tipoDestino) {
 		if ((tipoOrigen == null) || (tipoDestino == null) || (tipoOrigen == tipoDestino)) {
 			return 0;
@@ -389,9 +504,6 @@ public class Terreno implements Serializable {
 		return cambiados;
 	}
 
-	/**
-	 * Pinta un área rectangular de tiles (rellena o hueca).
-	 */
 	public void pintarRectanguloTiles(final int startTileX, final int startTileY, final int endTileX,
 			final int endTileY, final TipoTerreno tipo, final boolean relleno) {
 		if (tipo == null) {

@@ -33,8 +33,10 @@ import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
 
 public class Mapa1 extends Mapa {
+
 	public static final String NOMBRE_MAPA = "Mapa1";
-	public static final String EXTERIOR = "Exterior";
+	public static final String EXTERIOR = "exterior";
+	public static final String INTERIOR_CASA1 = "interior_casa1";
 
 	public Mapa1(final GestorCarga gc, final int porcentajeCarga, final GestorPartida gp) {
 		super(gc, porcentajeCarga, gp);
@@ -46,27 +48,42 @@ public class Mapa1 extends Mapa {
 
 	@Override
 	protected void establecerMundos(final GestorCarga gc, final int porcentajeCarga) {
-		final int cantMundos = 1;
+		final int cantMundos = 2; // 2 mundos: Exterior e Interior
 		final int porcentajeCargaParcial = porcentajeCarga / cantMundos;
 		final int porcentajeCargaEscenario = (75 * porcentajeCargaParcial) / 100;
 		final int porcentajeCargaMundo = (25 * porcentajeCargaParcial) / 100;
 
+		// 1. Exterior
 		gc.setDetalleCarga("Generando mundo " + EXTERIOR);
-		this.MUNDOS.put(EXTERIOR,
-				new Mundo(this.cargarEscenario(gc, porcentajeCargaEscenario, new File("mundos/escenario1.json")),
-						new Point(1878, 1796), gc, porcentajeCargaMundo));
+		final Mundo mExterior = new Mundo(
+				this.cargarEscenario(gc, porcentajeCargaEscenario, new File("mundos/escenario1.json")),
+				new Point(1878, 1796), gc, porcentajeCargaMundo);
+		mExterior.setNombreMundo(EXTERIOR);
+		mExterior.setMapa(this);
+		this.MUNDOS.put(EXTERIOR, mExterior);
+
+		// 2. Interior de la Casa
+		gc.setDetalleCarga("Generando mundo " + INTERIOR_CASA1);
+		final Mundo mInterior = new Mundo(
+				this.cargarEscenario(gc, porcentajeCargaEscenario, new File("mundos/interior_casa1.json")),
+				new Point(1878, 1796), gc, porcentajeCargaMundo);
+		mInterior.setNombreMundo(INTERIOR_CASA1);
+		mInterior.setMapa(this);
+		this.MUNDOS.put(INTERIOR_CASA1, mInterior);
 	}
 
 	@Override
 	public void establecerMundoActual(final String nombreMundo) {
 		if ((nombreMundo != null) && this.MUNDOS.containsKey(nombreMundo)) {
 			this.mundoActual = this.MUNDOS.get(nombreMundo);
+			this.mundoActual.setNombreMundo(nombreMundo);
+			this.mundoActual.aplicarMetadatosAtmosfericos();
 		}
 	}
 
 	@Override
 	protected void establecerMundoComienzo() {
-		this.mundoActual = this.getMundo(EXTERIOR);
+		this.establecerMundoActual(EXTERIOR);
 	}
 
 	@Override
@@ -75,59 +92,56 @@ public class Mapa1 extends Mapa {
 		Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
 		new PuertaArea(new Rectangle(832, 333, 16, 16));
 
-		// Enemigos iniciales
-//		this.mundoActual.meterEntidad(new BandidoGarrote(890, 220, 50, 50, this.mundoActual));
-//		this.mundoActual.meterEntidad(new BandidoGarrote(897, 220, 75, 75, this.mundoActual));
-//		this.mundoActual.meterEntidad(new BandidoGarrote(876, 220, 125, 125, this.mundoActual));
-//		this.mundoActual.meterEntidad(new BandidoGranadero(927, 64, 1500, 1500, this.mundoActual));
-//		this.mundoActual.meterEntidad(new BandidoPistolero(670, 121, 250, 250, this.mundoActual));
+		// Recursos Cosechables en el exterior
+		final Mundo mExt = this.MUNDOS.get(EXTERIOR);
+		if (mExt != null) {
+			mExt.meterEntidad(new ArbolCosechable(1789, 1854, ClaveHoja.ARBOLES_32, 0));
+			mExt.meterEntidad(new ArbolCosechable(1777, 1854, ClaveHoja.ARBOLES_32, 1));
+			mExt.meterEntidad(new RocaCosechable(1954, 1777, ClaveHoja.DUNGEON_16, 813));
 
-		// Recursos Cosechables de prueba cerca del spawn
-		this.mundoActual.meterEntidad(new ArbolCosechable(1789, 1854, ClaveHoja.ARBOLES_32, 0));
-		this.mundoActual.meterEntidad(new ArbolCosechable(1777, 1854, ClaveHoja.ARBOLES_32, 1));
-		this.mundoActual.meterEntidad(new RocaCosechable(1954, 1777, ClaveHoja.DUNGEON_16, 813));
+			// Cofre con herramientas y armamento
+			final ArbolCofre arbolcofre1 = new ArbolCofre(1800, 1900);
+			arbolcofre1.getInventario()
+					.agregarItem(new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
+			arbolcofre1.getInventario()
+					.agregarItem(new Herramienta(Herramienta.COD_PICO, 6, 14, 400, TipoHerramienta.PICO, 30.0));
+			arbolcofre1.getInventario().agregarItem(new EscopetaAutomatica());
+			arbolcofre1.getInventario().agregarItem(new EscopetaRecortada());
+			arbolcofre1.getInventario().agregarItem(new EscopetaTactica());
+			arbolcofre1.getInventario().agregarItem(new SubfusilLigero());
+			arbolcofre1.getInventario().agregarItem(new RifleAsalto());
+			arbolcofre1.getInventario().agregarItem(new AmetralladoraPesada());
 
-		// Cofre con herramientas y armamento
-		final ArbolCofre arbolcofre1 = new ArbolCofre(1800, 1900);
-		arbolcofre1.getInventario()
-				.agregarItem(new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
-		arbolcofre1.getInventario()
-				.agregarItem(new Herramienta(Herramienta.COD_PICO, 6, 14, 400, TipoHerramienta.PICO, 30.0));
-		arbolcofre1.getInventario().agregarItem(new EscopetaAutomatica());
-		arbolcofre1.getInventario().agregarItem(new EscopetaRecortada());
-		arbolcofre1.getInventario().agregarItem(new EscopetaTactica());
-		arbolcofre1.getInventario().agregarItem(new SubfusilLigero());
-		arbolcofre1.getInventario().agregarItem(new RifleAsalto());
-		arbolcofre1.getInventario().agregarItem(new AmetralladoraPesada());
+			arbolcofre1.getInventario().agregarItem(CajaMunicion.crear762mm(0, 0, 100));
+			arbolcofre1.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 100));
+			arbolcofre1.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 100));
 
-		arbolcofre1.getInventario().agregarItem(CajaMunicion.crear762mm(0, 0, 100));
-		arbolcofre1.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 100));
-		arbolcofre1.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 100));
+			arbolcofre1.getInventario()
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5));
+			arbolcofre1.getInventario()
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15));
+			arbolcofre1.getInventario()
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3));
+			arbolcofre1.getInventario()
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ANILLO_ORO, TipoEquipo.ANILLO, 2, 2, 2, 0));
 
-		arbolcofre1.getInventario()
-				.agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5));
-		arbolcofre1.getInventario()
-				.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15));
-		arbolcofre1.getInventario()
-				.agregarItem(new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3));
-		arbolcofre1.getInventario()
-				.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ANILLO_ORO, TipoEquipo.ANILLO, 2, 2, 2, 0));
+			mExt.meterEntidad(arbolcofre1);
+			this.generarEnemigosParaPrueba(5);
+			mExt.notificarModificacionEstructura();
+		}
 
-		this.mundoActual.meterEntidad(arbolcofre1);
-		this.generarEnemigosParaPrueba(5);
 		Globales.JUGADOR.setModoDios(true);
-
-		this.mundoActual.notificarModificacionEstructura();
 	}
 
 	public void generarEnemigosParaPrueba(final int cantidadDeseada) {
-		if (this.mundoActual == null) {
+		final Mundo mExt = this.MUNDOS.get(EXTERIOR);
+		if (mExt == null) {
 			return;
 		}
 
 		final Random random = new Random();
-		final int anchoLimite = Math.max(1, this.mundoActual.getTerreno().getAncho() - 50);
-		final int altoLimite = Math.max(1, this.mundoActual.getTerreno().getAlto() - 50);
+		final int anchoLimite = Math.max(1, mExt.getTerreno().getAncho() - 50);
+		final int altoLimite = Math.max(1, mExt.getTerreno().getAlto() - 50);
 		final int anchoBandido = 12;
 		final int altoBandido = 20;
 		final Rectangle areaPrueba = new Rectangle(0, 0, anchoBandido, altoBandido);
@@ -142,13 +156,13 @@ public class Mapa1 extends Mapa {
 			final int posY = random.nextInt(altoLimite);
 			areaPrueba.setLocation(posX, posY);
 
-			final boolean colisionaTerreno = this.mundoActual.getTerreno().intersectaSolidoDijkstra(areaPrueba);
-			final boolean colisionaObjeto = this.mundoActual.colisionaConObjetoSolido(areaPrueba);
+			final boolean colisionaTerreno = mExt.getTerreno().intersectaSolidoDijkstra(areaPrueba);
+			final boolean colisionaObjeto = mExt.colisionaConObjetoSolido(areaPrueba);
 
 			if (!colisionaTerreno && !colisionaObjeto) {
 				final int vida = 150;
-				final Bandido enemigo = new BandidoPistolero(posX, posY, vida, vida, this.mundoActual);
-				this.mundoActual.meterEntidad(enemigo);
+				final Bandido enemigo = new BandidoPistolero(posX, posY, vida, vida, mExt);
+				mExt.meterEntidad(enemigo);
 				generados++;
 			}
 		}
@@ -156,8 +170,7 @@ public class Mapa1 extends Mapa {
 
 	@Override
 	public String[] getNombreMundos() {
-		final String[] lista = { EXTERIOR };
-		return lista;
+		return new String[] { EXTERIOR, INTERIOR_CASA1 };
 	}
 
 	@Override

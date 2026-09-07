@@ -2614,6 +2614,10 @@
             "x": 308,
             "y": 535,
             "nombre": "Comienzo"
+        }, {
+            "x": 1207,
+            "y": 2357,
+            "nombre": "regreso_casa1"
         }
     ],
     "criaturas": [
@@ -2982,7 +2986,7 @@
         {
             "tipo": "PuertaMundo",
             "spawn": "Comienzo",
-            "mundo": "Exterior",
+            "mundo": "interior_casa1",
             "mapa": "Mapa1",
             "w": 20,
             "x": 1232,

@@ -8,7 +8,6 @@ import org.json.simple.JSONObject;
 import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.cofres.CofreMediano;
-import principal.eventos.EventoJugadorZonaTP;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.escenario.Escenario;
@@ -56,7 +55,6 @@ public class MapaPlano extends Mapa {
 
 		final ZonaTP zonaTP2 = new ZonaTP(new Rectangle(184, 215, 20, 20), null);
 		this.mundoActual.meterEntidad(zonaTP2);
-		jg.meterEvento(new EventoJugadorZonaTP(zonaTP2, jg, true));
 	}
 
 	@Override

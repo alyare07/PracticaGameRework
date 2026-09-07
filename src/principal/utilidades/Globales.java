@@ -11,10 +11,13 @@ import principal.construccion.GestorConstruccion;
 import principal.controles.Raton;
 import principal.controles.Teclado;
 import principal.crafteo.GestorCrafteo;
+import principal.dialogos.GestorDialogos;
 import principal.entes.criaturas.Jugador;
+import principal.eventos.GestorEventos;
 import principal.igu.MotorIGU;
 import principal.igu.textos.GestorTextosFlotantes;
 import principal.iluminacion.GestorLuz;
+import principal.interaccion.GestorInteraccion;
 import principal.inventario.vault.InventarioVault;
 import principal.mapa.persistencia.GestorDeltasMundo;
 import principal.mapa.renderEntidades.camara.Camara;
@@ -25,6 +28,7 @@ import principal.particulas.GestorParticulas;
 import principal.recursos.GestorTexturas;
 import principal.utilidades.funciones.Funciones;
 import principal.utilidades.inventario.GestorInventario;
+import principal.utilidades.progreso.GestorProgreso;
 
 public class Globales {
 
@@ -90,6 +94,10 @@ public class Globales {
 	public static final GestorConstruccion GESTOR_CONSTRUCCION = new GestorConstruccion();
 	public static final GestorCrafteo GESTOR_CRAFTEO = new GestorCrafteo();
 	public static final GestorDeltasMundo GESTOR_DELTAS = new GestorDeltasMundo();
+	public static final GestorProgreso GESTOR_PROGRESO = new GestorProgreso();
+	public static final GestorInteraccion GESTOR_INTERACCION = new GestorInteraccion();
+	public static final GestorDialogos GESTOR_DIALOGOS = new GestorDialogos();
+	public static final GestorEventos GESTOR_EVENTOS = new GestorEventos();
 
 	// =========================================================================
 	// === MÉTODOS DE ESCALADO Y CONSULTA

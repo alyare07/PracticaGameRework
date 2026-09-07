@@ -39,14 +39,16 @@ public class Tile implements Serializable {
 	}
 
 	private void pintarCapas(final Graphics2D g) {
+		// 1. Capa de Fondo (Base sólida de centro lleno con máscara 15)
 		if (this.tipoFondo != null) {
 			final SetTerreno setFondo = Globales.GESTOR_TEXTURAS.getSetTerreno(this.tipoFondo);
 			if (setFondo != null) {
-				final BufferedImage texFondo = setFondo.getSprite(this.mascaraBit, this.variacionPropia, 0);
+				final BufferedImage texFondo = setFondo.getSprite((byte) 15, this.variacionPropia, 0);
 				Render2D.dibujarImagenRefCamara(g, texFondo, this.X, this.Y);
 			}
 		}
 
+		// 2. Capa Principal / Transición (Borde recortado según autotile)
 		final SetTerreno set = Globales.GESTOR_TEXTURAS.getSetTerreno(this.tipoTerreno);
 		if (set != null) {
 			final BufferedImage texPrincipal = set.getSprite(this.mascaraBit, this.variacionPropia, 0);

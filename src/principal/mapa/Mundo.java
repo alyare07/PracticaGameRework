@@ -689,8 +689,8 @@ public class Mundo {
 
 	public ArrayList<Criatura> getCriaturasIntersectadas(final Shape area, final boolean tenerEnCuentaJugador) {
 		this.LISTA_CRIATURAS_TEMP.clear();
-		this.paraCadaCriaturaEn(area, tenerEnCuentaJugador, this.LISTA_CRIATURAS_TEMP::add);
-		return this.LISTA_CRIATURAS_TEMP;
+		this.paraCadaCriaturaEn(area, tenerEnCuentaJugador, this.visitorRecolectarCriaturas);
+		return this.LISTA_CRIATURAS_TEMP; // 0 allocations
 	}
 
 	public ArrayList<Criatura> getCriaturasIntersectadasConEnte(final Ente e) {
@@ -707,14 +707,14 @@ public class Mundo {
 
 	public HashSet<Item> getItemsIntersectados(final Shape area) {
 		this.LISTA_ITEMS_TEMP.clear();
-		this.paraCadaItemEn(area, this.LISTA_ITEMS_TEMP::add);
+		this.paraCadaItemEn(area, this.visitorRecolectarItems);
 		return this.LISTA_ITEMS_TEMP;
 	}
 
 	public ArrayList<Ente> getEnteIntersectados(final Shape area, final boolean tenerEnCuentaJugador,
 			final boolean incuirZonasTP) {
 		this.LISTA_ENTES_TEMP.clear();
-		this.paraCadaEnteEn(area, tenerEnCuentaJugador, incuirZonasTP, this.LISTA_ENTES_TEMP::add);
+		this.paraCadaEnteEn(area, tenerEnCuentaJugador, incuirZonasTP, this.visitorRecolectarEntes);
 		this.GESTOR_PROYECTILES.agregarIntersecciones(area.getBounds(), this.LISTA_ENTES_TEMP);
 		return this.LISTA_ENTES_TEMP;
 	}
@@ -1000,6 +1000,26 @@ public class Mundo {
 	public Spawn getSpawn(final String nombreSpawn) {
 		return this.PUNTOS_SPAWN_JUGADOR.get(nombreSpawn);
 	}
+
+	private final AccionEntidad<Criatura> visitorRecolectarCriaturas = new AccionEntidad<Criatura>() {
+		@Override
+		public void ejecutar(final Criatura c) {
+			Mundo.this.LISTA_CRIATURAS_TEMP.add(c);
+		}
+	};
+
+	private final AccionEntidad<Item> visitorRecolectarItems = new AccionEntidad<Item>() {
+		@Override
+		public void ejecutar(final Item i) {
+			Mundo.this.LISTA_ITEMS_TEMP.add(i);
+		}
+	};
+	private final AccionEntidad<Ente> visitorRecolectarEntes = new AccionEntidad<Ente>() {
+		@Override
+		public void ejecutar(final Ente e) {
+			Mundo.this.LISTA_ENTES_TEMP.add(e);
+		}
+	};
 
 	@SuppressWarnings("unchecked")
 	public JSONArray getSpawnsInJson() {

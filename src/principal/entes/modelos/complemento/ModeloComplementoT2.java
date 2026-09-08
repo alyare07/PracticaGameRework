@@ -53,11 +53,23 @@ public final class ModeloComplementoT2 extends ModeloComplemento {
 
 	@Override
 	public boolean intersecta(final Shape area, final Complemento cPropietario) {
-		for (final Rectangle margen : this.MARGENES_INTERSECCION) {
-			final Rectangle r = new Rectangle(cPropietario.getPosicionXInt() + margen.x,
-					cPropietario.getPosicionYInt() + margen.y, this.getAncho() - margen.width - margen.x,
-					this.getAlto() - margen.height - margen.y);
-			if (area.intersects(r)) {
+		if ((area == null) || (cPropietario == null)) {
+			return false;
+		}
+		final int px = cPropietario.getPosicionXInt();
+		final int py = cPropietario.getPosicionYInt();
+		final int anchoTotal = this.getAncho();
+		final int altoTotal = this.getAlto();
+		final int totalMargenes = this.MARGENES_INTERSECCION.size();
+
+		for (int i = 0; i < totalMargenes; i++) {
+			final Rectangle margen = this.MARGENES_INTERSECCION.get(i);
+			final int x = px + margen.x;
+			final int y = py + margen.y;
+			final int w = anchoTotal - margen.width - margen.x;
+			final int h = altoTotal - margen.height - margen.y;
+
+			if (area.intersects(x, y, w, h)) {
 				return true;
 			}
 		}

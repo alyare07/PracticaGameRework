@@ -140,8 +140,9 @@ public abstract class Criatura extends Ente {
 	protected NodoA nodoADestino;
 	protected int destinoX;
 	protected int destinoY;
-
+	protected final Point PUNTO_POSICION_AUX = new Point();
 	protected static final Random ALEATORIO = new Random();
+	public static final Direccion[] DIRECCIONES_ARRAY = Direccion.values();
 
 	public Criatura(final double x, final double y, final int ancho, final int alto) {
 		this(x, y, ancho, alto, 100.0, 100.0, 0.5);
@@ -542,8 +543,7 @@ public abstract class Criatura extends Ente {
 				final int yMundo = n.getYNodo() * altoTile;
 				final String txt = String.valueOf(pos);
 
-				Render2D.dibujarRectanguloContornoRefCamara(g, new Rectangle(xMundo, yMundo, anchoTile, altoTile),
-						Color.MAGENTA);
+				Render2D.dibujarRectanguloContornoRefCamara(g, xMundo, yMundo, anchoTile, altoTile, Color.MAGENTA);
 
 				final int xTexto = (xMundo + (anchoTile / 2))
 						- (Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt) / 2);
@@ -909,12 +909,14 @@ public abstract class Criatura extends Ente {
 	}
 
 	public Point getPosicion() {
-		return new Point((int) Math.round(this.x), (int) Math.round(this.y));
+		this.PUNTO_POSICION_AUX.setLocation((int) Math.round(this.x), (int) Math.round(this.y));
+		return this.PUNTO_POSICION_AUX;
 	}
 
 	public Point getPosicionTile() {
-		return new Point(Math.floorDiv((int) Math.round(this.x), Constantes.LADO_TILE),
+		this.PUNTO_POSICION_AUX.setLocation(Math.floorDiv((int) Math.round(this.x), Constantes.LADO_TILE),
 				Math.floorDiv((int) Math.round(this.y), Constantes.LADO_TILE));
+		return this.PUNTO_POSICION_AUX;
 	}
 
 	public Direccion getDireccion() {

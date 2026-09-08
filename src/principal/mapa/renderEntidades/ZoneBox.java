@@ -7,8 +7,6 @@ import java.util.ArrayList;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
-import principal.entes.modelos.complemento.ListaModeloComplemento;
-import principal.entes.modelos.complemento.ModeloComplementoT1;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
@@ -19,10 +17,11 @@ import principal.utilidades.Globales;
 
 /**
  * Celda espacial de indexación de entidades (64x64 px). Realiza barrido
- * continuo y purga activa de entidades muertas para prevenir fugas de memoria
+ * continuo, purga activa y despacho seguro de visitors en reversa para prevenir
+ * ConcurrentModification e IndexOutOfBounds al eliminar entidades en caliente
  * (Zero-GC / O(1)).
  * 
- * @version 2.1 (Vanilla Java 8 - Auto-Purge Lifecycle)
+ * @version 2.2 (Vanilla Java 8 - Mutation-Safe Visitor Suite)
  */
 public class ZoneBox extends Ente {
 
@@ -168,7 +167,7 @@ public class ZoneBox extends Ente {
 	@Override
 	public void pintar(final Graphics2D g) {
 		final int codPaint = this.mundo.getCodPintado();
-		for (int i = 0; i < this.ITEMS.size(); i++) {
+		for (int i = this.ITEMS.size() - 1; i >= 0; i--) {
 			final Item item = this.ITEMS.get(i);
 			if (!item.estaEliminado() && !item.estaPintado(codPaint)) {
 				item.pintar(g);
@@ -223,16 +222,14 @@ public class ZoneBox extends Ente {
 	// =========================================================================
 
 	public boolean intersectaLineaSolida(final double x0, final double y0, final double x1, final double y1) {
-		final int totalObj = this.OBJETOS.size();
-		for (int i = 0; i < totalObj; i++) {
+		for (int i = this.OBJETOS.size() - 1; i >= 0; i--) {
 			final Objeto o = this.OBJETOS.get(i);
 			if (o.esSolido() && !o.estaEliminado() && o.getArea().intersectsLine(x0, y0, x1, y1)) {
 				return true;
 			}
 		}
 
-		final int totalComp = this.COMPLEMENTOS.size();
-		for (int i = 0; i < totalComp; i++) {
+		for (int i = this.COMPLEMENTOS.size() - 1; i >= 0; i--) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
 			if (c.esSolido() && !c.estaEliminado() && c.getArea().intersectsLine(x0, y0, x1, y1)) {
 				return true;
@@ -243,17 +240,34 @@ public class ZoneBox extends Ente {
 	}
 
 	// =========================================================================
-	// === MÉTODOS VISITOR ZERO-GC
+	// === MÉTODOS VISITOR SEGUROS EN REVERSA (ZERO-GC / MUTATION-SAFE)
 	// =========================================================================
 
 	public void paraCadaCriatura(final Shape area, final AccionEntidad<Criatura> accion) {
 		if (!this.intersectaZona(area)) {
 			return;
 		}
-		for (int i = 0; i < this.CRIATURAS.size(); i++) {
-			final Criatura c = this.CRIATURAS.get(i);
-			if (!c.estaEliminado() && area.intersects(c.getArea())) {
-				accion.ejecutar(c);
+		for (int i = this.CRIATURAS.size() - 1; i >= 0; i--) {
+			if (i < this.CRIATURAS.size()) {
+				final Criatura c = this.CRIATURAS.get(i);
+				if (!c.estaEliminado() && area.intersects(c.getArea())) {
+					accion.ejecutar(c);
+				}
+			}
+		}
+	}
+
+	public void paraCadaCriatura(final int x, final int y, final int w, final int h,
+			final AccionEntidad<Criatura> accion) {
+		if (!this.intersectaZona(x, y, w, h)) {
+			return;
+		}
+		for (int i = this.CRIATURAS.size() - 1; i >= 0; i--) {
+			if (i < this.CRIATURAS.size()) {
+				final Criatura c = this.CRIATURAS.get(i);
+				if (!c.estaEliminado() && c.getArea().intersects(x, y, w, h)) {
+					accion.ejecutar(c);
+				}
 			}
 		}
 	}
@@ -262,10 +276,12 @@ public class ZoneBox extends Ente {
 		if (!this.intersectaZona(area)) {
 			return;
 		}
-		for (int i = 0; i < this.ITEMS.size(); i++) {
-			final Item item = this.ITEMS.get(i);
-			if (!item.estaEliminado() && area.intersects(item.getArea())) {
-				accion.ejecutar(item);
+		for (int i = this.ITEMS.size() - 1; i >= 0; i--) {
+			if (i < this.ITEMS.size()) {
+				final Item item = this.ITEMS.get(i);
+				if (!item.estaEliminado() && area.intersects(item.getArea())) {
+					accion.ejecutar(item);
+				}
 			}
 		}
 	}
@@ -274,10 +290,12 @@ public class ZoneBox extends Ente {
 		if (!this.intersectaZona(area)) {
 			return;
 		}
-		for (int i = 0; i < this.OBJETOS.size(); i++) {
-			final Objeto o = this.OBJETOS.get(i);
-			if (!o.estaEliminado() && area.intersects(o.getArea())) {
-				accion.ejecutar(o);
+		for (int i = this.OBJETOS.size() - 1; i >= 0; i--) {
+			if (i < this.OBJETOS.size()) {
+				final Objeto o = this.OBJETOS.get(i);
+				if (!o.estaEliminado() && area.intersects(o.getArea())) {
+					accion.ejecutar(o);
+				}
 			}
 		}
 	}
@@ -286,10 +304,12 @@ public class ZoneBox extends Ente {
 		if (!this.intersectaZona(area)) {
 			return;
 		}
-		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
-			final Complemento c = this.COMPLEMENTOS.get(i);
-			if (!c.estaEliminado() && area.intersects(c.getArea())) {
-				accion.ejecutar(c);
+		for (int i = this.COMPLEMENTOS.size() - 1; i >= 0; i--) {
+			if (i < this.COMPLEMENTOS.size()) {
+				final Complemento c = this.COMPLEMENTOS.get(i);
+				if (!c.estaEliminado() && area.intersects(c.getArea())) {
+					accion.ejecutar(c);
+				}
 			}
 		}
 	}
@@ -298,38 +318,46 @@ public class ZoneBox extends Ente {
 		if (!this.intersectaZona(area)) {
 			return;
 		}
-		for (int i = 0; i < this.CRIATURAS.size(); i++) {
-			final Criatura c = this.CRIATURAS.get(i);
-			if (!c.estaEliminado() && area.intersects(c.getArea())) {
-				accion.ejecutar(c);
+		for (int i = this.CRIATURAS.size() - 1; i >= 0; i--) {
+			if (i < this.CRIATURAS.size()) {
+				final Criatura c = this.CRIATURAS.get(i);
+				if (!c.estaEliminado() && area.intersects(c.getArea())) {
+					accion.ejecutar(c);
+				}
 			}
 		}
-		for (int i = 0; i < this.ITEMS.size(); i++) {
-			final Item item = this.ITEMS.get(i);
-			if (!item.estaEliminado() && area.intersects(item.getArea())) {
-				accion.ejecutar(item);
+		for (int i = this.ITEMS.size() - 1; i >= 0; i--) {
+			if (i < this.ITEMS.size()) {
+				final Item item = this.ITEMS.get(i);
+				if (!item.estaEliminado() && area.intersects(item.getArea())) {
+					accion.ejecutar(item);
+				}
 			}
 		}
-		for (int i = 0; i < this.OBJETOS.size(); i++) {
-			final Objeto o = this.OBJETOS.get(i);
-			if (!o.estaEliminado() && area.intersects(o.getArea())) {
-				accion.ejecutar(o);
+		for (int i = this.OBJETOS.size() - 1; i >= 0; i--) {
+			if (i < this.OBJETOS.size()) {
+				final Objeto o = this.OBJETOS.get(i);
+				if (!o.estaEliminado() && area.intersects(o.getArea())) {
+					accion.ejecutar(o);
+				}
 			}
 		}
-		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
-			final Complemento c = this.COMPLEMENTOS.get(i);
-			if (!c.estaEliminado() && area.intersects(c.getAreaInterseccionEnBaseMargen(
-					((ModeloComplementoT1) ListaModeloComplemento.getModeloComplemento(c.getCodigoModelo()))
-							.getMargenesInterseccion()))) {
-				accion.ejecutar(c);
+		for (int i = this.COMPLEMENTOS.size() - 1; i >= 0; i--) {
+			if (i < this.COMPLEMENTOS.size()) {
+				final Complemento c = this.COMPLEMENTOS.get(i);
+				if (!c.estaEliminado() && c.intersecta(area)) {
+					accion.ejecutar(c);
+				}
 			}
 		}
 
 		if (tenerEncuentaZonaTP) {
-			for (int i = 0; i < this.ZONAS_TP.size(); i++) {
-				final ZonaTP z = this.ZONAS_TP.get(i);
-				if (!z.estaEliminado() && area.intersects(z.getArea())) {
-					accion.ejecutar(z);
+			for (int i = this.ZONAS_TP.size() - 1; i >= 0; i--) {
+				if (i < this.ZONAS_TP.size()) {
+					final ZonaTP z = this.ZONAS_TP.get(i);
+					if (!z.estaEliminado() && area.intersects(z.getArea())) {
+						accion.ejecutar(z);
+					}
 				}
 			}
 		}
@@ -343,13 +371,13 @@ public class ZoneBox extends Ente {
 		if (!this.intersectaZona(area)) {
 			return false;
 		}
-		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
+		for (int i = this.COMPLEMENTOS.size() - 1; i >= 0; i--) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
 			if (!c.estaEliminado() && c.esSolido() && c.intersecta(area)) {
 				return true;
 			}
 		}
-		for (int i = 0; i < this.OBJETOS.size(); i++) {
+		for (int i = this.OBJETOS.size() - 1; i >= 0; i--) {
 			final Objeto o = this.OBJETOS.get(i);
 			if (!o.estaEliminado() && o.esSolido() && area.intersects(o.getArea())) {
 				return true;
@@ -366,7 +394,7 @@ public class ZoneBox extends Ente {
 		if (!this.intersectaZona(area)) {
 			return false;
 		}
-		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
+		for (int i = this.COMPLEMENTOS.size() - 1; i >= 0; i--) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
 			if (!c.estaEliminado() && c.esSolido() && c.intersectaAreaNoSolida(area)) {
 				return true;
@@ -379,7 +407,7 @@ public class ZoneBox extends Ente {
 		if (!this.intersectaZona(area)) {
 			return false;
 		}
-		for (int i = 0; i < this.CRIATURAS.size(); i++) {
+		for (int i = this.CRIATURAS.size() - 1; i >= 0; i--) {
 			final Criatura c = this.CRIATURAS.get(i);
 			if (!c.estaEliminado() && area.intersects(c.getArea())) {
 				return true;
@@ -392,7 +420,7 @@ public class ZoneBox extends Ente {
 		if (!this.intersectaZona(area)) {
 			return false;
 		}
-		for (int i = 0; i < this.ITEMS.size(); i++) {
+		for (int i = this.ITEMS.size() - 1; i >= 0; i--) {
 			final Item item = this.ITEMS.get(i);
 			if (!item.estaEliminado() && area.intersects(item.getArea())) {
 				return true;
@@ -405,7 +433,7 @@ public class ZoneBox extends Ente {
 		if (!this.intersectaZona(area)) {
 			return false;
 		}
-		for (int i = 0; i < this.COMPLEMENTOS.size(); i++) {
+		for (int i = this.COMPLEMENTOS.size() - 1; i >= 0; i--) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
 			if (!c.estaEliminado() && area.intersects(c.getArea())) {
 				return true;
@@ -416,20 +444,6 @@ public class ZoneBox extends Ente {
 
 	public boolean intersectaZona(final int x, final int y, final int w, final int h) {
 		return this.AREA.intersects(x, y, w, h);
-	}
-
-	public void paraCadaCriatura(final int x, final int y, final int w, final int h,
-			final AccionEntidad<Criatura> accion) {
-		if (!this.intersectaZona(x, y, w, h)) {
-			return;
-		}
-		final int total = this.CRIATURAS.size();
-		for (int i = 0; i < total; i++) {
-			final Criatura c = this.CRIATURAS.get(i);
-			if (!c.estaEliminado() && c.getArea().intersects(x, y, w, h)) {
-				accion.ejecutar(c);
-			}
-		}
 	}
 
 	public boolean intersectaZona(final Shape area) {

@@ -11,16 +11,16 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Paleta del editor limpia y simplificada para colocar sellos de Triggers,
- * Volúmenes de Ambiente y Luces en el mapa. La configuración detallada se
- * realiza directamente con la tecla 'E' sobre el trigger en el mapa.
+ * Paleta del editor limpia y simplificada para colocar sellos de Spawns,
+ * Triggers, Volúmenes de Ambiente y Luces en el mapa. La configuración
+ * detallada se realiza directamente con la tecla 'E' sobre el elemento.
  * 
- * @version 2.0 (Vanilla Java 8 - Clean Stamp Palette)
+ * @version 2.1 (Vanilla Java 8 - Spawn Support)
  */
 public class PaletaTriggers extends Paleta {
 
 	public enum CategoriaTrigger {
-		TELEPORT_PUERTA("Zona TP / Puerta"), ZONA_AMBIENTE_BIOMA("Bioma / Niebla"),
+		PUNTO_SPAWN("Punto de Spawn"), TELEPORT_PUERTA("Zona TP / Puerta"), ZONA_AMBIENTE_BIOMA("Bioma / Niebla"),
 		ZONA_AMBIENTE_CUEVA("Cueva / Interior"), LUZ_ANTORCHA("Luz Antorcha (80px)"), LUZ_FOGATA("Luz Fogata (140px)");
 
 		private final String nombre;
@@ -58,6 +58,9 @@ public class PaletaTriggers extends Paleta {
 	}
 
 	private void cargarPresets() {
+		this.ENTRADAS.add(new EntradaTrigger("Punto Spawn", CategoriaTrigger.PUNTO_SPAWN,
+				this.crearIconoTexto("SPW", new Color(255, 215, 0)), new Color(255, 215, 0)));
+
 		this.ENTRADAS.add(new EntradaTrigger("Zona TP", CategoriaTrigger.TELEPORT_PUERTA,
 				this.crearIconoTexto("TP", new Color(255, 60, 60)), new Color(255, 60, 60)));
 

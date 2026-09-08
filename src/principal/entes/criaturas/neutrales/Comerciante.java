@@ -79,8 +79,7 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		// Mirar a diferentes lados periódicamente si está ocioso
 		if (!this.estaEstadoCaminando() && this.GT_PAUSA_MIRADA.transcurrioMiliSegundos(4000 + RANDOM.nextInt(3000))) {
 			this.GT_PAUSA_MIRADA.establecerReferenciaTiempoActual();
-			final Direccion[] dirs = Direccion.values();
-			this.direccion = dirs[RANDOM.nextInt(dirs.length)];
+			this.direccion = DIRECCIONES_ARRAY[RANDOM.nextInt(DIRECCIONES_ARRAY.length)]; // 0 allocations
 		}
 
 		final int tipoAnim = this.estaEstadoCaminando() ? AnimacionesComerciante.CAMINANDO

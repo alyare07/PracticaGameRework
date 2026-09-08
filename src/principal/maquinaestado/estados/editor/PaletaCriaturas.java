@@ -55,8 +55,6 @@ public class PaletaCriaturas extends Paleta {
 	private void cargarCriaturas() {
 		final HojaSprite hojaBandido = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.BANDIDO);
 
-		// Márgenes estándar del Bandido: margenX = 10, margenY = 6, anchoHitbox = 12,
-		// altoHitbox = 20
 		final BufferedImage iconPistolero = (hojaBandido != null) ? hojaBandido.getSprite(24) : null;
 		this.agregarEntrada("Bandido Pistolero", iconPistolero, 10, 6, 12, 20,
 				(x, y) -> new BandidoPistolero(x, y, 50, 50, null));
@@ -75,6 +73,30 @@ public class PaletaCriaturas extends Paleta {
 		if ((nombre != null) && (icono != null) && (creador != null)) {
 			this.ENTRADAS.add(new EntradaCriatura(nombre, icono, margenX, margenY, anchoHitbox, altoHitbox, creador));
 		}
+	}
+
+	public boolean seleccionarPorNombre(final String nombre) {
+		if ((nombre == null) || nombre.isEmpty()) {
+			return false;
+		}
+		final String buscado = normalizar(nombre);
+		for (int i = 0; i < this.ENTRADAS.size(); i++) {
+			final String entradaNorm = normalizar(this.ENTRADAS.get(i).nombre);
+			if (entradaNorm.equals(buscado) || entradaNorm.contains(buscado) || buscado.contains(entradaNorm)) {
+				this.indiceSeleccionado = i;
+				this.paginaActual = i / this.ELEMENTOS_POR_PAGINA;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static String normalizar(final String s) {
+		if (s == null) {
+			return "";
+		}
+		return s.toLowerCase().replace(" ", "").replace("_", "").replace("á", "a").replace("é", "e").replace("í", "i")
+				.replace("ó", "o").replace("ú", "u").replace("ñ", "n");
 	}
 
 	@Override

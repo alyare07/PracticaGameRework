@@ -11,12 +11,12 @@ import principal.utilidades.Globales;
 public class Spawn {
 
 	private final Point PUNTO;
-	private final String NOMBRE;
+	private String nombre;
 	private final Rectangle AREA_COLISION;
 
 	public Spawn(final int x, final int y, final String nombre) {
 		this.PUNTO = new Point(x, y);
-		this.NOMBRE = (nombre != null) ? nombre : "Spawn";
+		this.nombre = (nombre != null) ? nombre : "Spawn";
 		this.AREA_COLISION = new Rectangle(x, y, 16, 16);
 	}
 
@@ -25,7 +25,16 @@ public class Spawn {
 	}
 
 	public String getNombre() {
-		return this.NOMBRE;
+		return this.nombre;
+	}
+
+	public void setNombre(final String nombre) {
+		this.nombre = (nombre != null) ? nombre : "Spawn";
+	}
+
+	public void setPosicion(final int x, final int y) {
+		this.PUNTO.setLocation(x, y);
+		this.AREA_COLISION.setLocation(x, y);
 	}
 
 	public Point getPoint() {
@@ -64,7 +73,7 @@ public class Spawn {
 		final JSONObject json = new JSONObject();
 		json.put("x", Integer.valueOf(this.PUNTO.x));
 		json.put("y", Integer.valueOf(this.PUNTO.y));
-		json.put("nombre", this.NOMBRE);
+		json.put("nombre", this.nombre);
 		return json;
 	}
 
@@ -80,6 +89,6 @@ public class Spawn {
 
 	@Override
 	public String toString() {
-		return "Spawn [nombre=" + this.NOMBRE + ", x=" + this.PUNTO.x + ", y=" + this.PUNTO.y + "]";
+		return "Spawn [nombre=" + this.nombre + ", x=" + this.PUNTO.x + ", y=" + this.PUNTO.y + "]";
 	}
 }

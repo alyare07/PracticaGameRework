@@ -22,7 +22,7 @@ import principal.utilidades.audio.sonido.IDSonido;
  * Paleta de selección de terrenos y herramientas de pintura geométrica (Lápiz,
  * Flood Fill / Bote, Rectángulos y Reemplazador global).
  * 
- * @version 2.0 (Vanilla Java 8 - Tool Integration)
+ * @version 2.1 (Vanilla Java 8 - Eyedropper Support)
  */
 public class PaletaTile extends Paleta {
 
@@ -57,7 +57,6 @@ public class PaletaTile extends Paleta {
 		if (raton.presionadoClickIzqUnicaAct()) {
 			final Point pClick = raton.getPuntoPosicionEscalado();
 
-			// 1. Selección de herramienta de trazado
 			for (int i = 0; i < this.botonesHerramientas.length; i++) {
 				if (this.botonesHerramientas[i].contains(pClick)) {
 					this.herramientaSeleccionada = TipoHerramientaDibujo.values()[i];
@@ -72,7 +71,6 @@ public class PaletaTile extends Paleta {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		// 1. Barra de botones de herramientas de dibujo
 		final int cabY = this.AREA.y - 20;
 		Render2D.dibujarRectanguloRelleno(g, this.AREA.x, cabY, this.AREA.width, 20, new Color(30, 32, 40));
 		Render2D.dibujarRectanguloContorno(g, this.AREA.x, cabY, this.AREA.width, 20, Color.BLACK);
@@ -100,9 +98,21 @@ public class PaletaTile extends Paleta {
 		}
 
 		g.setFont(fontPrevia);
-
-		// 2. Grilla de selección de tiles
 		super.pintar(g);
+	}
+
+	public boolean seleccionarTipo(final TipoTerreno tipo) {
+		if (tipo == null) {
+			return false;
+		}
+		for (int i = 0; i < this.TIPOS_TERRENO.length; i++) {
+			if (this.TIPOS_TERRENO[i] == tipo) {
+				this.indiceSeleccionado = i;
+				this.paginaActual = i / this.ELEMENTOS_POR_PAGINA;
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override

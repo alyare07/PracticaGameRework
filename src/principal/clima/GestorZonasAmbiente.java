@@ -83,6 +83,13 @@ public class GestorZonasAmbiente {
 		}
 	}
 
+	public ZonaAmbiente getZonaPorIndice(final int indice) {
+		if ((indice >= 0) && (indice < this.cantidadZonas)) {
+			return this.zonas[indice];
+		}
+		return null;
+	}
+
 	public ZonaAmbiente getZonaActual() {
 		return this.zonaActual;
 	}

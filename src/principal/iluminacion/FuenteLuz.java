@@ -8,7 +8,7 @@ import principal.entes.criaturas.Criatura.Direccion;
  * (Chroma Jitter), conos de visión, parpadeo armónico y sincronización con
  * {@link Ente} (Zero-GC / O(1)).
  * 
- * @version 8.0
+ * @version 8.1 (Vanilla Java 8 - Mutable Position & Editor Support)
  */
 public class FuenteLuz {
 
@@ -169,13 +169,12 @@ public class FuenteLuz {
 
 			this.radioActual = this.radioBase + (ondaFuego * this.tipo.getAmplitudParpadeo());
 
-			// Conmutación espectral térmica según la energía de la llama
 			if (ondaFuego > 0.40) {
-				this.varianteTermica = 0; // Alta temperatura (Núcleo incandescente)
+				this.varianteTermica = 0; // Alta temperatura
 			} else if (ondaFuego < -0.40) {
-				this.varianteTermica = 2; // Baja temperatura (Enfriamiento/brasa)
+				this.varianteTermica = 2; // Baja temperatura
 			} else {
-				this.varianteTermica = 1; // Temperatura nominal estándar
+				this.varianteTermica = 1; // Temperatura nominal
 			}
 		} else {
 			this.radioActual = this.radioBase;
@@ -195,8 +194,24 @@ public class FuenteLuz {
 	}
 
 	// =========================================================================
-	// === MÉTODOS DE ORIENTACIÓN Y OFFSETS (API PÚBLICA)
+	// === MÉTODOS DE POSICIONAMIENTO Y CONFIGURACIÓN (API PÚBLICA)
 	// =========================================================================
+
+	public void setPosicion(final double x, final double y) {
+		this.posX = x;
+		this.posY = y;
+	}
+
+	public void setRadioBase(final double radioBase) {
+		this.radioBase = Math.max(10.0, radioBase);
+		this.radioActual = this.radioBase;
+	}
+
+	public void setTipo(final TipoLuz tipo) {
+		if (tipo != null) {
+			this.tipo = tipo;
+		}
+	}
 
 	public void setOffset(final double offsetX, final double offsetY) {
 		this.offsetX = offsetX;
@@ -269,6 +284,10 @@ public class FuenteLuz {
 
 	public double getRadioActual() {
 		return this.radioActual;
+	}
+
+	public double getRadioBase() {
+		return this.radioBase;
 	}
 
 	public TipoLuz getTipo() {

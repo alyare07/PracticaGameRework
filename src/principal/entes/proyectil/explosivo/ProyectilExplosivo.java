@@ -19,6 +19,7 @@ public abstract class ProyectilExplosivo extends ProyectilGeneral {
 	protected final int TIEMPO_MS_ANIMACION_IMPACTO = 400;
 	protected final GestorTiempo GT_ANIMACION_IMPACTO = new GestorTiempo();
 	protected boolean impactoRealizado;
+	private final Ellipse2D.Double AREA_EXPLOSION_AUX = new Ellipse2D.Double();
 
 	public ProyectilExplosivo(final double damage, final double velocidad, final double alcance,
 			final boolean penetraObstaculos, final Mundo escenario, final double x, final double y, final int ancho,
@@ -75,9 +76,10 @@ public abstract class ProyectilExplosivo extends ProyectilGeneral {
 	}
 
 	protected Ellipse2D getAreaExplosion() {
-		return new Ellipse2D.Double(this.getPosicionXInt() - (this.DIAMETRO_EXPLOSION / 2),
-				(this.getPosicionYInt() + (this.alto / 2)) - (this.DIAMETRO_EXPLOSION / 2), this.DIAMETRO_EXPLOSION,
+		this.AREA_EXPLOSION_AUX.setFrame(this.getPosicionXInt() - (this.DIAMETRO_EXPLOSION / 2.0),
+				(this.getPosicionYInt() + (this.alto / 2.0)) - (this.DIAMETRO_EXPLOSION / 2.0), this.DIAMETRO_EXPLOSION,
 				this.DIAMETRO_EXPLOSION);
+		return this.AREA_EXPLOSION_AUX; // 0 bytes en Heap
 	}
 
 }

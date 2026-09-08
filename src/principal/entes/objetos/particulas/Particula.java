@@ -26,9 +26,12 @@ public abstract class Particula extends Objeto {
 		}
 	}
 
+	// DESPUÉS (en Estructura.java y Particula.java):
 	@Override
 	public Rectangle getArea() {
-		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(), this.getAlto());
+		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(),
+				this.getAlto());
+		return this.AREA_ENTE_RETORNO;
 	}
 
 }

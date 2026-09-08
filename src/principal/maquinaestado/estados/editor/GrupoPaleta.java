@@ -27,7 +27,7 @@ import principal.utilidades.Render2D;
  * Gestor maestro de pestañas del panel lateral del editor. Organiza las 6
  * categorías: Suelos, Recursos, Objetos, Criaturas, Ítems y Triggers/Eventos.
  * 
- * @version 2.2 (Vanilla Java 8)
+ * @version 2.3 (Vanilla Java 8 - Eyedropper & Programmatic Tab Switch)
  */
 public class GrupoPaleta {
 
@@ -125,6 +125,23 @@ public class GrupoPaleta {
 			return this.LISTA.size() - 1;
 		}
 		return 0;
+	}
+
+	public boolean seleccionarPestanaPorNombre(final String nombrePestana) {
+		if (nombrePestana == null) {
+			return false;
+		}
+		for (int i = 0; i < this.NOMBRES_PESTANAS.size(); i++) {
+			if (this.NOMBRES_PESTANAS.get(i).equalsIgnoreCase(nombrePestana)) {
+				this.indiceActivo = i;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public Paleta getPaleta(final int indice) {
+		return ((indice >= 0) && (indice < this.LISTA.size())) ? this.LISTA.get(indice) : null;
 	}
 
 	private void recalcularAreasPestanas() {

@@ -77,9 +77,12 @@ public class Estructura extends Ente {
 		return this.eliminado;
 	}
 
+	// DESPUÉS (en Estructura.java y Particula.java):
 	@Override
 	public Rectangle getArea() {
-		return new Rectangle(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(), this.getAlto());
+		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(),
+				this.getAlto());
+		return this.AREA_ENTE_RETORNO;
 	}
 
 	@Override

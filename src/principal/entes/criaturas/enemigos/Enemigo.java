@@ -60,6 +60,7 @@ public abstract class Enemigo extends Criatura {
 	protected final Rectangle AREA_RANGO_ATAQUE_MELE_AUXILIAR_ESTE = new Rectangle();
 	protected final Rectangle AREA_RANGO_ATAQUE_MELE_AUXILIAR_OESTE = new Rectangle();
 	protected final Rectangle[] LISTA_AREA_RANGO_ATAQUE_MELE_AUXILIAR = new Rectangle[4];
+	private final Rectangle AREA_PRUEBA_DESTINO = new Rectangle();
 
 	public Enemigo(final double x, final double y, final int ancho, final int alto, final double vida,
 			final double vidaMaxima, final Mundo mundo) {
@@ -442,7 +443,8 @@ public abstract class Enemigo extends Criatura {
 
 		int intentos = 0;
 		final Dimension dimNodoA = this.getMundo().getAEstrellaX12X20().getDimensionNodoA();
-		final Rectangle areaPrueba = new Rectangle(0, 0, dimNodoA.width, dimNodoA.height);
+		this.AREA_PRUEBA_DESTINO.setSize(dimNodoA.width, dimNodoA.height);
+		// usar this.AREA_PRUEBA_DESTINO en lugar de instanciar uno nuevo
 
 		while (!destinoFactible && (intentos < 20)) {
 			intentos++;
@@ -453,10 +455,10 @@ public abstract class Enemigo extends Criatura {
 			final NodoA nodoDestino = this.getMundo().getAEstrellaX12X20().getNodoRef(this.destinoX, this.destinoY);
 
 			if (nodoDestino != null) {
-				areaPrueba.x = nodoDestino.getXNodo() * dimNodoA.width;
-				areaPrueba.y = nodoDestino.getYNodo() * dimNodoA.height;
+				this.AREA_PRUEBA_DESTINO.x = nodoDestino.getXNodo() * dimNodoA.width;
+				this.AREA_PRUEBA_DESTINO.y = nodoDestino.getYNodo() * dimNodoA.height;
 
-				if (!this.mundo.colisionaConZonaUObjetoSolido(areaPrueba)) {
+				if (!this.mundo.colisionaConZonaUObjetoSolido(this.AREA_PRUEBA_DESTINO)) {
 					this.getMundo().getAEstrellaX12X20().getRecorrido(this.getPosicionXInt(), this.getPosicionYInt(),
 							this.destinoX, this.destinoY, this.recorridoA);
 					if ((this.recorridoA != null) && !this.recorridoA.isEmpty()) {
@@ -506,15 +508,13 @@ public abstract class Enemigo extends Criatura {
 		super.pintar(g);
 		if (Globales.TECLADO.TECLA_DEBUG.presionado() && Globales.estadoJuego) {
 			Render2D.dibujarFiguraEllipseRefCamara(g,
-					new Rectangle((int) ((this.getPosicionX() - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0)),
-							(int) ((this.getPosicionY() - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0)),
-							(int) this.areaDeteccionAncho, (int) this.areaDeteccionAlto),
-					Color.RED);
+					(int) ((this.getPosicionX() - (this.areaDeteccionAncho / 2.0)) + (this.ANCHO / 2.0)),
+					(int) ((this.getPosicionY() - (this.areaDeteccionAlto / 2.0)) + (this.ALTO / 2.0)),
+					(int) this.areaDeteccionAncho, (int) this.areaDeteccionAlto, Color.RED);
 			Render2D.dibujarFiguraEllipseRefCamara(g,
-					new Rectangle((int) ((this.getPosicionX() - (this.areaDeteccionAncho / 8.0)) + (this.ANCHO / 2.0)),
-							(int) ((this.getPosicionY() - (this.areaDeteccionAlto / 8.0)) + (this.ALTO / 2.0)),
-							(int) (this.areaDeteccionAncho / 4.0), (int) (this.areaDeteccionAlto / 4.0)),
-					Color.ORANGE);
+					(int) ((this.getPosicionX() - (this.areaDeteccionAncho / 8.0)) + (this.ANCHO / 2.0)),
+					(int) ((this.getPosicionY() - (this.areaDeteccionAlto / 8.0)) + (this.ALTO / 2.0)),
+					(int) (this.areaDeteccionAncho / 4.0), (int) (this.areaDeteccionAlto / 4.0), Color.ORANGE);
 		}
 	}
 

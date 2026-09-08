@@ -47,10 +47,14 @@ public final class ModeloComplementoT1 extends ModeloComplemento {
 
 	@Override
 	public boolean intersecta(final Shape area, final Complemento cPropietario) {
-		final Rectangle r = new Rectangle(cPropietario.getPosicionXInt() + this.MARGENES_INTERSECCION.x,
-				cPropietario.getPosicionYInt() + this.MARGENES_INTERSECCION.y,
-				this.getAncho() - this.MARGENES_INTERSECCION.width - this.MARGENES_INTERSECCION.x,
-				this.getAlto() - this.MARGENES_INTERSECCION.height - this.MARGENES_INTERSECCION.y);
-		return area.intersects(r);
+		if ((area == null) || (cPropietario == null)) {
+			return false;
+		}
+		final int x = cPropietario.getPosicionXInt() + this.MARGENES_INTERSECCION.x;
+		final int y = cPropietario.getPosicionYInt() + this.MARGENES_INTERSECCION.y;
+		final int w = this.getAncho() - this.MARGENES_INTERSECCION.width - this.MARGENES_INTERSECCION.x;
+		final int h = this.getAlto() - this.MARGENES_INTERSECCION.height - this.MARGENES_INTERSECCION.y;
+
+		return area.intersects(x, y, w, h); // 0 bytes en Heap
 	}
 }

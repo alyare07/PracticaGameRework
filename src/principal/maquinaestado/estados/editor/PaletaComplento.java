@@ -46,6 +46,30 @@ public class PaletaComplento extends Paleta {
 		}
 	}
 
+	public boolean seleccionarPorNombre(final String nombre) {
+		if ((nombre == null) || nombre.isEmpty()) {
+			return false;
+		}
+		final String buscado = normalizar(nombre);
+		for (int i = 0; i < this.ENTRADAS.size(); i++) {
+			final String entradaNorm = normalizar(this.ENTRADAS.get(i).nombre);
+			if (entradaNorm.equals(buscado) || entradaNorm.contains(buscado) || buscado.contains(entradaNorm)) {
+				this.indiceSeleccionado = i;
+				this.paginaActual = i / this.ELEMENTOS_POR_PAGINA;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static String normalizar(final String s) {
+		if (s == null) {
+			return "";
+		}
+		return s.toLowerCase().replace(" ", "").replace("_", "").replace("á", "a").replace("é", "e").replace("í", "i")
+				.replace("ó", "o").replace("ú", "u").replace("ñ", "n");
+	}
+
 	@Override
 	public int getCantidadTotalElementos() {
 		return this.ENTRADAS.size();
@@ -55,11 +79,9 @@ public class PaletaComplento extends Paleta {
 	protected void pintarElementoEnSlot(final Graphics2D g, final int index, final int slotX, final int slotY) {
 		final EntradaPaleta entrada = this.ENTRADAS.get(index);
 		if (entrada.icono != null) {
-			// Ajuste automático sin desbordar el slot
 			this.dibujarIconoAjustadoAlSlot(g, entrada.icono, slotX, slotY);
 		}
 
-		// Insignia: [T] Verde para Cosechables/Talables, [E] Azul para Estáticos/Cofres
 		final Font fontPrevia = g.getFont();
 		g.setFont(FUENTE_BADGE);
 		final String badge = entrada.esCosechable ? "T" : "E";

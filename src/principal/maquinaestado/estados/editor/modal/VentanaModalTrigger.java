@@ -21,11 +21,11 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Inspector modal interactivo para configurar Triggers (ZonaTP). Soporta 3
- * tipos de puertas: A Otro Mapa (.mp), Entre Mundos (mismo mapa) y Local
- * (Coordenadas).
+ * Inspector modal interactivo para configurar Triggers (ZonaTP). Carga y
+ * muestra en tiempo real los valores actuales de la puerta seleccionada
+ * (PuertaMapa, PuertaMundo o PuertaArea).
  * 
- * @version 2.0 (Vanilla Java 8)
+ * @version 2.1 (Vanilla Java 8 - Dynamic Value Loading)
  */
 public class VentanaModalTrigger extends ComponenteMenu {
 
@@ -83,16 +83,44 @@ public class VentanaModalTrigger extends ComponenteMenu {
 		this.abierta = true;
 		this.visible = true;
 
-		// Sincronizar el estado del modal con la configuración actual del trigger
-		if (trigger.getPuertaTP() instanceof PuertaMundo) {
+		final Object puerta = trigger.getPuertaTP();
+
+		// Carga dinámica de los valores reales almacenados en la puerta
+		if (puerta instanceof PuertaMundo) {
 			this.idxTipoPuerta = 1;
-		} else if (trigger.getPuertaTP() instanceof PuertaArea) {
+			final PuertaMundo pm = (PuertaMundo) puerta;
+			this.ctParametro1.setVisible(false);
+			this.ctParametro2.setVisible(true);
+			this.ctParametro3.setVisible(true);
+			this.ctParametro2.setTexto(pm.getNombreMundoDestino() != null ? pm.getNombreMundoDestino() : "Exterior");
+			this.ctParametro3.setTexto(pm.getNombreSpawnDestino() != null ? pm.getNombreSpawnDestino() : "Comienzo");
+
+		} else if (puerta instanceof PuertaArea) {
 			this.idxTipoPuerta = 2;
+			final PuertaArea pa = (PuertaArea) puerta;
+			this.ctParametro1.setVisible(false);
+			this.ctParametro2.setVisible(true);
+			this.ctParametro3.setVisible(true);
+			this.ctParametro2.setTexto(String.valueOf(pa.getXDestino()));
+			this.ctParametro3.setTexto(String.valueOf(pa.getYDestino()));
+
+		} else if (puerta instanceof PuertaMapa) {
+			this.idxTipoPuerta = 0;
+			final PuertaMapa pmap = (PuertaMapa) puerta;
+			this.ctParametro1.setVisible(true);
+			this.ctParametro2.setVisible(true);
+			this.ctParametro3.setVisible(true);
+			this.ctParametro1.setTexto(pmap.getRutaMapaDestino() != null ? pmap.getRutaMapaDestino() : "Mapa1");
+			this.ctParametro2
+					.setTexto(pmap.getNombreMundoDestino() != null ? pmap.getNombreMundoDestino() : "Exterior");
+			this.ctParametro3.setTexto(
+					pmap.getNombreSpawnDelMundoDestino() != null ? pmap.getNombreSpawnDelMundoDestino() : "Comienzo");
+
 		} else {
-			this.idxTipoPuerta = 0; // Por defecto PuertaMapa
+			this.idxTipoPuerta = 0;
+			this.actualizarPlaceholdersPorDefecto();
 		}
 
-		this.actualizarPlaceholders();
 		GestorSonido.reproducir(IDSonido.GOLPE_1);
 	}
 
@@ -136,7 +164,7 @@ public class VentanaModalTrigger extends ComponenteMenu {
 			final Point p = raton.getPuntoPosicionEscalado();
 			if (this.areaBtnTipo.contains(p)) {
 				this.idxTipoPuerta = (this.idxTipoPuerta + 1) % TIPOS_PUERTA.length;
-				this.actualizarPlaceholders();
+				this.actualizarPlaceholdersPorDefecto();
 				GestorSonido.reproducir(IDSonido.GOLPE_1);
 			}
 		}
@@ -148,7 +176,7 @@ public class VentanaModalTrigger extends ComponenteMenu {
 		this.btnCerrar.actualizar(raton);
 	}
 
-	private void actualizarPlaceholders() {
+	private void actualizarPlaceholdersPorDefecto() {
 		switch (this.idxTipoPuerta) {
 		case 0:
 			this.ctParametro1.setVisible(true);
@@ -216,7 +244,9 @@ public class VentanaModalTrigger extends ComponenteMenu {
 		}
 
 		Render2D.dibujarStringConSombra(g, "Tipo de Puerta:", x + 16, y + 54, Color.WHITE, Color.BLACK);
-		Render2D.dibujarStringConSombra(g, lbl1, x + 16, y + 80, Color.WHITE, Color.BLACK);
+		if (!lbl1.isEmpty()) {
+			Render2D.dibujarStringConSombra(g, lbl1, x + 16, y + 80, Color.WHITE, Color.BLACK);
+		}
 		Render2D.dibujarStringConSombra(g, lbl2, x + 16, y + 108, Color.WHITE, Color.BLACK);
 		Render2D.dibujarStringConSombra(g, lbl3, x + 16, y + 136, Color.WHITE, Color.BLACK);
 

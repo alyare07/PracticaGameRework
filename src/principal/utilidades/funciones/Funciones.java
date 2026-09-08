@@ -1,7 +1,6 @@
 package principal.utilidades.funciones;
 
 import java.awt.Point;
-import java.util.EnumSet;
 
 import principal.entes.criaturas.Criatura.Direccion;
 
@@ -68,13 +67,6 @@ public class Funciones {
 			return (dy > 0) ? Direccion.SUR : Direccion.NORTE;
 		}
 		return (dx >= 0) ? Direccion.ESTE : Direccion.OESTE;
-	}
-
-	public EnumSet<Direccion> getDireccionesMirando(final int xI, final int yI, final int xF, final int yF) {
-		final Direccion vertical = (yI <= yF) ? Direccion.SUR : Direccion.NORTE;
-		final Direccion horizontal = (xI <= xF) ? Direccion.ESTE : Direccion.OESTE;
-
-		return EnumSet.of(vertical, horizontal);
 	}
 
 }

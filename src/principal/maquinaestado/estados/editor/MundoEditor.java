@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
+import principal.entes.Ente;
 import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.TipoLuz;
 import principal.iluminacion.ZonaAmbiente;
@@ -46,6 +47,43 @@ public class MundoEditor extends Mundo {
 		super(esc, new Point(0, 0));
 		if (esc != null) {
 			esc.generarTriggers(this);
+			this.sincronizarElementosCargadosDesdeEscenario();
+		}
+	}
+
+	/**
+	 * Sincroniza las entidades ZonaTP, Zonas de Ambiente y Luces cargadas desde el
+	 * escenario hacia las listas internas del editor para habilitar su edición
+	 * interactiva ('E', borrado y traslado).
+	 */
+	private void sincronizarElementosCargadosDesdeEscenario() {
+		// 1. Sincronizar Triggers (ZonaTP) presentes en el mundo
+		for (final Ente e : this.ENTES_REGISTRADOS) {
+			if ((e instanceof ZonaTP) && !this.triggersEditor.contains(e)) {
+				this.triggersEditor.add((ZonaTP) e);
+			}
+		}
+
+		// 2. Sincronizar Zonas de Ambiente desde el gestor global (Zero-GC)
+		if (Globales.GESTOR_ZONAS_AMBIENTE != null) {
+			final int totalZonas = Globales.GESTOR_ZONAS_AMBIENTE.getCantidadZonas();
+			for (int i = 0; i < totalZonas; i++) {
+				final ZonaAmbiente z = Globales.GESTOR_ZONAS_AMBIENTE.getZonaPorIndice(i);
+				if ((z != null) && !this.zonasAmbienteEditor.contains(z)) {
+					this.zonasAmbienteEditor.add(z);
+				}
+			}
+		}
+
+		// 3. Sincronizar Fuentes de Luz estáticas desde el gestor global (Zero-GC)
+		if (Globales.GESTOR_LUZ != null) {
+			final int totalLuces = Globales.GESTOR_LUZ.getCantidadActivas();
+			for (int i = 0; i < totalLuces; i++) {
+				final FuenteLuz luz = Globales.GESTOR_LUZ.getLuzPorIndice(i);
+				if ((luz != null) && (luz.getEnteAnclado() == null) && !this.lucesEstaticasEditor.contains(luz)) {
+					this.lucesEstaticasEditor.add(luz);
+				}
+			}
 		}
 	}
 

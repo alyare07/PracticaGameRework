@@ -16,7 +16,6 @@ import principal.entes.objetos.items.armas.Arma;
 import principal.entes.objetos.items.armas.Desarmado;
 import principal.entes.objetos.items.arrojadizos.Arrojadizo;
 import principal.entes.objetos.items.equipamiento.PiezaEquipo;
-import principal.inventario.CajaInfo;
 import principal.inventario.Inventario;
 import principal.inventario.slot.Slot;
 import principal.inventario.slot.SlotIGU;
@@ -61,7 +60,6 @@ public class SlotManager {
 	private SlotPiezaEquipo slotAnillo2;
 	private SlotPiezaEquipo slotAnillo3;
 
-	private final CajaInfo infoArma;
 	private Slot slotApuntado;
 	private SlotIGU slotIguApuntado;
 
@@ -72,9 +70,6 @@ public class SlotManager {
 		this.ZONA_SLOTS_ALMACEN = zonaSlotAlmacen;
 		this.ZONA_SLOTS_PRINCIPALES = zonaSlotPrincipales;
 		this.MARGEN_GENERAL = margenGeneral;
-
-		this.infoArma = new CajaInfo(new Rectangle(this.ZONA_SLOTS_EQUIPAMIENTOS.x + (LADO_SLOTS * 7) + 14,
-				this.ZONA_SLOTS_EQUIPAMIENTOS.y, 40, LADO_SLOTS));
 
 		this.llenarSlotsPrincipales();
 		this.llenarSlotsEquipamientos();
@@ -507,7 +502,7 @@ public class SlotManager {
 		int x = this.ZONA_SLOTS_EQUIPAMIENTOS.x;
 		final int y = this.ZONA_SLOTS_EQUIPAMIENTOS.y;
 
-		this.slotArma = new SlotArma(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), this.infoArma);
+		this.slotArma = new SlotArma(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS));
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotArma);
 		this.LISTA_SLOTS_GENERAL.add(this.slotArma);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;

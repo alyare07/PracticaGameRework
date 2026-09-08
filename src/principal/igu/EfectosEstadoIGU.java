@@ -19,6 +19,13 @@ import principal.utilidades.Render2D;
  * @version 1.0 (Vanilla Java 8)
  */
 public class EfectosEstadoIGU {
+	// Alternativa directa en EfectosEstadoIGU.java:
+	private static final String[] INSIGNIAS = new String[TipoEfectoEstado.values().length];
+	static {
+		for (final TipoEfectoEstado t : TipoEfectoEstado.values()) {
+			INSIGNIAS[t.ordinal()] = t.getNombre().substring(0, 1);
+		}
+	}
 
 	private static final int LADO_ICONO = 14;
 	private static final int MARGEN = 3;
@@ -70,7 +77,7 @@ public class EfectosEstadoIGU {
 			// 3. Letra / Icono distintivo del efecto
 			final Font fontPrevia = g.getFont();
 			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 8f));
-			final String letra = ef.getTipo().getNombre().substring(0, 1);
+			final String letra = INSIGNIAS[ef.getTipo().ordinal()]; // 0 bytes en Heap
 			Render2D.dibujarStringConSombra(g, letra, x + 4, y + 9, ef.getTipo().getColorIdentificativo(), Color.BLACK);
 
 			// 4. Stacks acumulados (ej: x2, x3)

@@ -5,7 +5,6 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.Shape;
 import java.awt.Transparency;
 import java.awt.event.KeyEvent;
 import java.awt.geom.AffineTransform;
@@ -115,11 +114,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.verificarPantallaMuerte();
 		Globales.MOTOR_IGU.actualizar();
 
-		final Shape areaMovimiento = Globales.JUGADOR.getAreaInterseccionMovimiento();
+		// DESPUÉS:
+		final Rectangle areaMovimiento = Globales.JUGADOR.getAreaInterseccionMovimiento();
 		if ((areaMovimiento != null) && (this.mapa != null) && (this.mapa.getMundoActual() != null)) {
-			final Rectangle bounds = areaMovimiento.getBounds();
-			final int pieX = bounds.x + (bounds.width / 2);
-			final int pieY = bounds.y + bounds.height;
+			final int pieX = areaMovimiento.x + (areaMovimiento.width / 2);
+			final int pieY = areaMovimiento.y + areaMovimiento.height;
 
 			this.tilePisado = this.mapa.getMundoActual().getTerreno().getTileReferenciado(pieX, pieY);
 		}

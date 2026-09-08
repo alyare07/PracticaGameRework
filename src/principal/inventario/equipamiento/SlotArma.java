@@ -9,7 +9,6 @@ import java.util.HashMap;
 import principal.controles.Raton;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.armas.Arma;
-import principal.inventario.CajaInfo;
 import principal.inventario.Info;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
@@ -41,17 +40,15 @@ public class SlotArma extends SlotEquipamiento {
 	private static final String CLAVE_MUNICION = "Municion";
 
 	protected final HashMap<String, Info> lista;
-	protected final CajaInfo cajaInfo;
 
 	private final Info infoAtaque;
 	private final Info infoAlcance;
 	private final Info infoPenetrante;
 	private final Info infoMunicion;
 
-	public SlotArma(final Rectangle area, final CajaInfo cajaInfo) {
+	public SlotArma(final Rectangle area) {
 		super(area, Globales.FUNCIONES.CARGADOR_RECURSOS.cargarImagenCompatibleTranslucida(RUTA_LOGO_ARMA));
 
-		this.cajaInfo = cajaInfo;
 		this.lista = new HashMap<String, Info>();
 
 		this.infoAtaque = new Info(CLAVE_ATAQUE, "0");
@@ -68,15 +65,31 @@ public class SlotArma extends SlotEquipamiento {
 		}
 	}
 
+	private int lastBalas = -1;
+	private int lastCapacidad = -1;
+	private int lastReserva = -1;
+	private boolean lastRecargando = false;
+	private String cachedTextoMunicion = "";
+
 	private void sincronizarValoresArma(final Arma arma) {
 		if (arma.esArmaDistancia() && this.lista.containsKey(CLAVE_MUNICION)) {
+			final int balas = arma.getBalasCargador();
+			final int cap = arma.getCapacidadCargador();
+			final boolean rec = arma.isRecargando();
 			final int reserva = Globales.GESTOR_INVENTARIO.getInventarioJugador()
 					.contarMunicionTotal(arma.getTipoMunicionRequerida());
 
-			final String textoMunicion = arma.isRecargando() ? "REC... [" + reserva + "]"
-					: arma.getBalasCargador() + "/" + arma.getCapacidadCargador() + " [" + reserva + "]";
+			if ((balas != this.lastBalas) || (cap != this.lastCapacidad) || (rec != this.lastRecargando)
+					|| (reserva != this.lastReserva)) {
 
-			this.infoMunicion.establecerValor(textoMunicion);
+				this.lastBalas = balas;
+				this.lastCapacidad = cap;
+				this.lastRecargando = rec;
+				this.lastReserva = reserva;
+
+				this.cachedTextoMunicion = rec ? "REC... [" + reserva + "]" : balas + "/" + cap + " [" + reserva + "]";
+				this.infoMunicion.establecerValor(this.cachedTextoMunicion);
+			}
 		}
 	}
 
@@ -103,9 +116,6 @@ public class SlotArma extends SlotEquipamiento {
 			}
 		}
 
-		if (this.cajaInfo != null) {
-			this.cajaInfo.actualizarLista(this.lista);
-		}
 	}
 
 	@Override

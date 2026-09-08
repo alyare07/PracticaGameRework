@@ -35,6 +35,7 @@ public class Complemento extends Objeto {
 
 	private static final long serialVersionUID = -2759528530038714828L;
 	private final int COD_MODELO_COMPLEMENTO;
+	private final Rectangle AREA_MARGENES_INTERSECCION_AUXILIAR = new Rectangle();
 
 	public Complemento(final int x, final int y, final int codModeloComplemento) {
 		super(x, y);
@@ -66,8 +67,10 @@ public class Complemento extends Objeto {
 	}
 
 	public Rectangle getAreaInterseccionEnBaseMargen(final Rectangle margen) {
-		return new Rectangle(this.getPosicionXInt() + margen.x, this.getPosicionYInt() + margen.y,
-				this.getAncho() - margen.width - margen.x, (this.getAlto() - margen.height - margen.y));
+		this.AREA_MARGENES_INTERSECCION_AUXILIAR.setBounds(this.getPosicionXInt() + margen.x,
+				this.getPosicionYInt() + margen.y, this.getAncho() - margen.width - margen.x,
+				(this.getAlto() - margen.height - margen.y));
+		return this.AREA_MARGENES_INTERSECCION_AUXILIAR;
 	}
 
 	@Override

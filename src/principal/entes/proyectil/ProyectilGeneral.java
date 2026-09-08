@@ -3,7 +3,7 @@ package principal.entes.proyectil;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.io.Serializable;
-import java.util.HashSet;
+import java.util.Arrays;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
@@ -12,16 +12,28 @@ import principal.mapa.Mundo;
 import principal.utilidades.AccionEntidad;
 
 /**
- * Proyectil estándar con resolución de impacto Zero-GC mediante visitor directo
- * (AccionEntidad).
+ * Proyectil estándar balístico con resolución de impactos Zero-GC. Reemplaza el
+ * HashSet dinámico por un arreglo plano con conteo primitivo para eliminar por
+ * completo la creación de nodos internos en el Heap.
  * 
- * @version 2.3 (Vanilla Java 8 - Defensive Lifecycle)
+ * @version 3.0 (Vanilla Java 8 - Zero-GC Array Backed)
  */
 public class ProyectilGeneral extends Proyectil implements Serializable, AccionEntidad<Criatura> {
 
 	private static final long serialVersionUID = -3596461015684122157L;
 
-	protected final HashSet<Criatura> perforados = new HashSet<Criatura>(4);
+	/**
+	 * Capacidad máxima de perforación simultánea por proyectil antes de saturar el
+	 * buffer.
+	 */
+	private static final int MAX_PERFORADOS = 8;
+
+	/**
+	 * Buffer pre-asignado de entidades ya impactadas (Cero creación de nodos en
+	 * runtime).
+	 */
+	protected final Criatura[] perforados = new Criatura[MAX_PERFORADOS];
+	protected int cantidadPerforados = 0;
 
 	public ProyectilGeneral(final double damage, final double velocidad, final boolean penetrante, final double alcance,
 			final Mundo mundo, final double x, final double y, final int ancho, final int alto,
@@ -53,15 +65,21 @@ public class ProyectilGeneral extends Proyectil implements Serializable, AccionE
 		super.pintar(g);
 	}
 
+	/**
+	 * Reinicia las propiedades del proyectil al ser reutilizado desde el Pool
+	 * limpiando las referencias de memoria para evitar fugas (Memory Leaks).
+	 */
 	@Override
 	public void reiniciar(final double damage, final double velocidad, final boolean penetrante, final double alcance,
 			final Mundo mundo, final double xOrigen, final double yOrigen, final double xDestino, final double yDestino,
 			final int ancho, final int alto, final Ente causante) {
 		super.reiniciar(damage, velocidad, penetrante, alcance, mundo, xOrigen, yOrigen, xDestino, yDestino, ancho,
 				alto, causante);
-		if (this.perforados != null) {
-			this.perforados.clear();
-		}
+
+		// Limpieza de referencias fuertes a criaturas para permitir que el GC limpie
+		// las muertas
+		Arrays.fill(this.perforados, 0, this.cantidadPerforados, null);
+		this.cantidadPerforados = 0;
 	}
 
 	protected void verificarImpacto() {
@@ -86,8 +104,7 @@ public class ProyectilGeneral extends Proyectil implements Serializable, AccionE
 
 	@Override
 	public void ejecutar(final Criatura victima) {
-		if (this.eliminado || (victima == this.CAUSANTE) || this.perforados.contains(victima)
-				|| victima.estaEliminado()) {
+		if (this.eliminado || (victima == this.CAUSANTE) || this.yaPerforado(victima) || victima.estaEliminado()) {
 			return;
 		}
 
@@ -106,11 +123,30 @@ public class ProyectilGeneral extends Proyectil implements Serializable, AccionE
 
 	@Override
 	protected void impactar(final Criatura c) {
-		if ((c == null) || this.perforados.contains(c)) {
+		if ((c == null) || this.yaPerforado(c)) {
 			return;
 		}
-		this.perforados.add(c);
+		this.registrarPerforado(c);
 		c.recibirAtaque(this.DAMAGE, this.CAUSANTE);
+	}
+
+	/**
+	 * Búsqueda secuencial O(K) en arreglo primitivo (K <= 8). Al ser un arreglo
+	 * pequeño contiguo en caché L1 de CPU, es más rápido que calcular hashes.
+	 */
+	protected boolean yaPerforado(final Criatura c) {
+		for (int i = 0; i < this.cantidadPerforados; i++) {
+			if (this.perforados[i] == c) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	protected void registrarPerforado(final Criatura c) {
+		if (this.cantidadPerforados < MAX_PERFORADOS) {
+			this.perforados[this.cantidadPerforados++] = c;
+		}
 	}
 
 	@Override

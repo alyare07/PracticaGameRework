@@ -11,15 +11,18 @@ public class RifleAsalto extends ArmaAutomatica {
 
 	public RifleAsalto() {
 		super(ArmaAutomatica.COD_RIFLE, 8, 320, false, 30, 1800, 160, CajaMunicion.COD_762MM, 2.0, 5.5);
+		this.radioRuido = 380;
 	}
 
 	public RifleAsalto(final int x, final int y) {
 		super(x, y, ArmaAutomatica.COD_RIFLE, 8, 320, false, 30, 1800, 160, CajaMunicion.COD_762MM, 2.0, 5.5);
+		this.radioRuido = 380;
 	}
 
 	public RifleAsalto(final int x, final int y, final int balasCargador) {
 		super(x, y, ArmaAutomatica.COD_RIFLE, 8, 320, false, 30, 1800, 160, CajaMunicion.COD_762MM, 2.0, 5.5);
 		this.balasCargador = Math.max(0, Math.min(this.capacidadCargador, balasCargador));
+		this.radioRuido = 380;
 	}
 
 	@Override

@@ -23,6 +23,7 @@ import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.enemigos.Enemigo;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
@@ -72,7 +73,9 @@ public class Mundo {
 
 	protected final DijkstraRework dijkstra;
 	protected final AEstrella AESTRELLA_X12X20;
-
+	private final Rectangle areaRuidoAux = new Rectangle();
+	private double origenRuidoX, origenRuidoY, radioRuidoActual;
+	private Ente emisorRuidoActual;
 	protected int codAct;
 	protected int codPintado;
 
@@ -231,6 +234,30 @@ public class Mundo {
 
 	public Escenario getEscenario() {
 		return this.ESCENARIO;
+	}
+
+	private final AccionEntidad<Criatura> visitorPropagacionRuido = new AccionEntidad<Criatura>() {
+		@Override
+		public void ejecutar(final Criatura c) {
+			if ((c instanceof Enemigo) && !c.estaEliminado()) {
+				((Enemigo) c).escucharRuido(Mundo.this.origenRuidoX, Mundo.this.origenRuidoY,
+						Mundo.this.radioRuidoActual, Mundo.this.emisorRuidoActual);
+			}
+		}
+	};
+
+	public void emitirPulsoSonido(final double x, final double y, final double radio, final Ente emisor) {
+		if (radio <= 0.0) {
+			return;
+		}
+		this.origenRuidoX = x;
+		this.origenRuidoY = y;
+		this.radioRuidoActual = radio;
+		this.emisorRuidoActual = emisor;
+
+		final int r = (int) Math.ceil(radio);
+		this.areaRuidoAux.setBounds((int) x - r, (int) y - r, r * 2, r * 2);
+		this.paraCadaCriaturaEn(this.areaRuidoAux, false, this.visitorPropagacionRuido);
 	}
 
 	private void generarZonas() {

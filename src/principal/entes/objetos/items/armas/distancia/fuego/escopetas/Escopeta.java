@@ -42,6 +42,7 @@ public abstract class Escopeta extends Arma {
 		this.velocidadPerdigon = velocidadPerdigon;
 		this.asignarPrecioEscopeta(codModelo);
 		this.rellenarInfo(this.LISTA_INFO);
+		this.radioRuido = 460;
 	}
 
 	public Escopeta(final int x, final int y, final String codModelo, final int damagePorPerdigon, final int alcance,
@@ -54,6 +55,7 @@ public abstract class Escopeta extends Arma {
 		this.velocidadPerdigon = velocidadPerdigon;
 		this.asignarPrecioEscopeta(codModelo);
 		this.rellenarInfo(this.LISTA_INFO);
+		this.radioRuido = 460;
 	}
 
 	private void asignarPrecioEscopeta(final String cod) {
@@ -73,6 +75,7 @@ public abstract class Escopeta extends Arma {
 			final Mundo escenario, final Criatura causante) {
 
 		if (this.consumirDisparo(causante)) {
+			super.disparar(xOrigen, yOrigen, xDestino, yDestino, escenario, causante);
 			final double dx = xDestino - xOrigen;
 			final double dy = yDestino - yOrigen;
 			final double dist = Math.sqrt((dx * dx) + (dy * dy));

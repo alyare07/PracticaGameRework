@@ -70,6 +70,7 @@ public abstract class ArmaAutomatica extends Arma {
 			final Mundo escenario, final Criatura causante) {
 
 		if (this.consumirDisparo(causante)) {
+			super.disparar(xOrigen, yOrigen, xDestino, yDestino, escenario, causante);
 			final double dx = xDestino - xOrigen;
 			final double dy = yDestino - yOrigen;
 			final double dist = Math.sqrt((dx * dx) + (dy * dy));

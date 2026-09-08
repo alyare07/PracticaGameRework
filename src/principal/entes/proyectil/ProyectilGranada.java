@@ -123,7 +123,12 @@ public class ProyectilGranada extends ProyectilGeneral {
 	protected void verificarImpacto() {
 		if (!this.realizoImpacto && (this.trayectoria != null) && (this.posTrayectoria >= this.trayectoria[0].length)) {
 			if (this.mundo != null) {
+				if (this.mundo != null) {
+					this.mundo.emitirPulsoSonido(this.AREA_DESTINO.getCenterX(), this.AREA_DESTINO.getCenterY(), 550,
+							this.CAUSANTE);
+				}
 				this.mundo.paraCadaCriaturaEn(this.AREA_DESTINO, true, this);
+
 			}
 
 			if ((Globales.CAMARA != null) && (Globales.CAMARA.getEntidadEnfocada() != null)) {

@@ -11,15 +11,18 @@ public class AmetralladoraPesada extends ArmaAutomatica {
 
 	public AmetralladoraPesada() {
 		super(ArmaAutomatica.COD_AMETRALLADORA, 7, 360, true, 100, 3500, 120, CajaMunicion.COD_PESADA, 5.5, 5.0);
+		this.radioRuido = 520;
 	}
 
 	public AmetralladoraPesada(final int x, final int y) {
 		super(x, y, ArmaAutomatica.COD_AMETRALLADORA, 7, 360, true, 100, 3500, 120, CajaMunicion.COD_PESADA, 5.5, 5.0);
+		this.radioRuido = 520;
 	}
 
 	public AmetralladoraPesada(final int x, final int y, final int balasCargador) {
 		super(x, y, ArmaAutomatica.COD_AMETRALLADORA, 7, 360, true, 100, 3500, 120, CajaMunicion.COD_PESADA, 5.5, 5.0);
 		this.balasCargador = Math.max(0, Math.min(this.capacidadCargador, balasCargador));
+		this.radioRuido = 520;
 	}
 
 	@Override

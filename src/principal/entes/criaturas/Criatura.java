@@ -52,7 +52,8 @@ public abstract class Criatura extends Ente {
 
 	public enum Estado {
 		ESTANDAR("Estandar"), CAMINANDO("Caminando"), CORRIENDO("Corriendo"), ATACANDO("Atacando"),
-		ARROJANDO("Arrojando"), PERSIGUIENDO("Persiguiendo");
+		ARROJANDO("Arrojando"), PERSIGUIENDO("Persiguiendo"), INVESTIGANDO("Investigando");
+		// ...
 
 		private final String DESCRIPCION;
 

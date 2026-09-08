@@ -21,6 +21,7 @@ public abstract class Arma extends Portable {
 	protected final int damage;
 	protected final int alcance;
 
+	protected int radioRuido = 0; // 0 por defecto (silencioso para melee)
 	protected int cadenciaMs = 500;
 	protected int capacidadCargador = 0;
 	protected int balasCargador = 0;
@@ -152,10 +153,16 @@ public abstract class Arma extends Portable {
 
 	public void disparar(final int xOrigen, final int yOrigen, final int xDestino, final int yDestino,
 			final Mundo escenario, final Criatura causante) {
+		if ((escenario != null) && (this.radioRuido > 0)) {
+			escenario.emitirPulsoSonido(xOrigen, yOrigen, this.radioRuido, causante);
+		}
 	}
 
 	public void disparar(final int xOrigen, final int yOrigen, final Direccion direccion, final Mundo escenario,
 			final Criatura causante) {
+		if ((escenario != null) && (this.radioRuido > 0)) {
+			escenario.emitirPulsoSonido(xOrigen, yOrigen, this.radioRuido, causante);
+		}
 	}
 
 	public boolean esArmaDistancia() {
@@ -196,6 +203,10 @@ public abstract class Arma extends Portable {
 
 	public boolean esPenetrante() {
 		return this.penetrante;
+	}
+
+	public int getRadioRuido() {
+		return this.radioRuido;
 	}
 
 	public int getCadenciaMs() {

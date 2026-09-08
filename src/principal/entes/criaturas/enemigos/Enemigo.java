@@ -61,6 +61,11 @@ public abstract class Enemigo extends Criatura {
 	protected final Rectangle AREA_RANGO_ATAQUE_MELE_AUXILIAR_OESTE = new Rectangle();
 	protected final Rectangle[] LISTA_AREA_RANGO_ATAQUE_MELE_AUXILIAR = new Rectangle[4];
 	private final Rectangle AREA_PRUEBA_DESTINO = new Rectangle();
+	protected final GestorTiempo GT_COOLDOWN_RUIDO = new GestorTiempo();
+	protected final GestorTiempo GT_TIEMPO_INSPECCION = new GestorTiempo();
+	protected int posXInvestigacion;
+	protected int posYInvestigacion;
+	protected boolean inspeccionandoPunto;
 
 	public Enemigo(final double x, final double y, final int ancho, final int alto, final double vida,
 			final double vidaMaxima, final Mundo mundo) {
@@ -90,14 +95,19 @@ public abstract class Enemigo extends Criatura {
 		super.actualizar();
 		this.curar();
 
+		// 1. La vista y el daño recibido siempre tienen prioridad sobre el sonido
 		this.actualizarPercepcionYObjetivo();
 
+		// 2. Máquina de estados limpia y sin duplicaciones
 		if (this.objetivoActual != null) {
-			this.actualizarAtaque();
+			this.actualizarAtaque(); // Combate visual directo
+		} else if (this.tieneEstado(Estado.INVESTIGANDO)) {
+			this.actualizarInvestigacion(); // Acudir al punto del disparo escuchado
 		} else {
-			this.tomarAccion();
+			this.tomarAccion(); // Patrulla pasiva estándar
 		}
 
+		// 3. Interacciones debug y oclusión
 		if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())
 				&& Globales.RATON.presionadoClickDerUnicaAct()) {
 			this.curar(Globales.JUGADOR.getDamage());
@@ -419,6 +429,58 @@ public abstract class Enemigo extends Criatura {
 		if (!this.tieneEstado(Estado.ESTANDAR)) {
 			this.setEstadoEstandar();
 		}
+	}
+
+	protected void actualizarInvestigacion() {
+		// 1. Si mientras viaja detecta visualmente al jugador, pasa a combate inmediato
+		if (this.objetivoActual != null) {
+			return;
+		}
+
+		// 2. Si todavía no llegó al punto del disparo, avanza con A*
+		if (!this.inspeccionandoPunto) {
+			if ((this.nodoADestino != null) || !this.recorridoA.isEmpty()) {
+				this.moverANodoADestino();
+			} else {
+				// Llegó al origen del disparo -> Inicia inspección de 3 segundos
+				this.inspeccionandoPunto = true;
+				this.GT_TIEMPO_INSPECCION.establecerReferenciaTiempoActual();
+				this.setEstadoEstandar(); // Queda quieto mirando
+			}
+		} else // 3. Mira a los lados durante 3 segundos antes de volver a su rutina
+		if (this.GT_TIEMPO_INSPECCION.transcurrioMiliSegundos(3000)) {
+			this.inspeccionandoPunto = false;
+			this.desactivarModoAgresivo(); // Vuelve a patrulla ESTANDAR
+		}
+	}
+
+	public void escucharRuido(final double origenX, final double origenY, final double radio, final Ente emisor) {
+		// 1. Si ya tiene objetivo de combate o no es hostil, ignora el sonido
+		if ((this.objetivoActual != null) || ((emisor instanceof Criatura) && !this.esHostilHacia((Criatura) emisor))) {
+			return;
+		}
+
+		// 2. Comprobación radial pura en O(1)
+		final double dx = this.getCentroX() - origenX;
+		final double dy = this.getCentroY() - origenY;
+		if (((dx * dx) + (dy * dy)) > (radio * radio)) {
+			return;
+		}
+
+		// 3. Cooldown de 1.2s contra ráfagas de armas automáticas (Anti-CPU Spike)
+		if (!this.GT_COOLDOWN_RUIDO.transcurrioMiliSegundos(1200)) {
+			return;
+		}
+		this.GT_COOLDOWN_RUIDO.establecerReferenciaTiempoActual();
+
+		// 4. Transición al estado INVESTIGANDO
+		this.setEstadoUnico(Estado.INVESTIGANDO);
+		this.posXInvestigacion = (int) origenX;
+		this.posYInvestigacion = (int) origenY;
+		this.inspeccionandoPunto = false;
+		this.enAccion = false;
+
+		this.calcularRutaAEstrella(this.posXInvestigacion, this.posYInvestigacion);
 	}
 
 	protected void generarTiempoDeEspera() {

@@ -11,15 +11,18 @@ public class SubfusilLigero extends ArmaAutomatica {
 
 	public SubfusilLigero() {
 		super(ArmaAutomatica.COD_SUBFUSIL, 4, 220, false, 30, 1400, 110, CajaMunicion.COD_9MM, 4.5, 4.5);
+		this.radioRuido = 260;
 	}
 
 	public SubfusilLigero(final int x, final int y) {
 		super(x, y, ArmaAutomatica.COD_SUBFUSIL, 4, 220, false, 30, 1400, 110, CajaMunicion.COD_9MM, 4.5, 4.5);
+		this.radioRuido = 260;
 	}
 
 	public SubfusilLigero(final int x, final int y, final int balasCargador) {
 		super(x, y, ArmaAutomatica.COD_SUBFUSIL, 4, 220, false, 30, 1400, 110, CajaMunicion.COD_9MM, 4.5, 4.5);
 		this.balasCargador = Math.max(0, Math.min(this.capacidadCargador, balasCargador));
+		this.radioRuido = 260;
 	}
 
 	@Override

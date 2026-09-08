@@ -26,12 +26,14 @@ public class Pistola extends Arma {
 	public Pistola(final String codModelo) {
 		super(codModelo, 10, 250, false, 12, 1200, 400, CajaMunicion.COD_9MM);
 		this.precioBasePlata = 150L; // 1 Oro 50 Plata
+		this.radioRuido = 240;
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
 	public Pistola(final int x, final int y, final String codModelo) {
 		super(x, y, codModelo, 10, 250, false, 12, 1200, 400, CajaMunicion.COD_9MM);
 		this.precioBasePlata = 150L;
+		this.radioRuido = 240;
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
@@ -39,6 +41,7 @@ public class Pistola extends Arma {
 		super(x, y, codModelo, 10, 250, false, 12, 1200, 400, CajaMunicion.COD_9MM);
 		this.balasCargador = Math.max(0, Math.min(this.capacidadCargador, balasCargador));
 		this.precioBasePlata = 150L;
+		this.radioRuido = 240;
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
@@ -47,6 +50,7 @@ public class Pistola extends Arma {
 			final Mundo escenario, final Criatura causante) {
 
 		if (this.consumirDisparo(causante)) {
+			super.disparar(xOrigen, yOrigen, xDestino, yDestino, escenario, causante);
 			final double dx = xDestino - xOrigen;
 			final double dy = yDestino - yOrigen;
 			final double dist = Math.sqrt((dx * dx) + (dy * dy));

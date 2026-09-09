@@ -283,9 +283,13 @@ public abstract class Criatura extends Ente {
 		if (this.tieneEfectoActivo(TipoEfectoEstado.CELERIDAD)) {
 			mult += 0.25;
 		}
-		if (this.tieneEfectoActivo(TipoEfectoEstado.HIPOTERMIA)) {
-			mult -= 0.20;
+
+		// Ralentización progresiva por nivel de Hipotermia (-15% por stack/nivel)
+		final EfectoEstado efHipotermia = this.getEfecto(TipoEfectoEstado.HIPOTERMIA);
+		if ((efHipotermia != null) && efHipotermia.isActivo()) {
+			mult -= Math.min(0.60, 0.15 * efHipotermia.getStacks());
 		}
+
 		if (this.tieneEfectoActivo(TipoEfectoEstado.ATURDIMIENTO)) {
 			mult = 0.0;
 		}
@@ -804,6 +808,30 @@ public abstract class Criatura extends Ente {
 	public void sanar() {
 		this.vida = this.vidaMaxima;
 		this.vidaLag = this.vidaMaxima;
+	}
+
+	// =========================================================================
+	// === GESTIÓN DE DAÑO DIRECTO (TRUE DAMAGE - ZERO-GC)
+	// =========================================================================
+
+	public void recibirDanioDirecto(final double damage) {
+		if (this.modoDios || (damage <= 0.0)) {
+			return;
+		}
+		this.reducirVida(damage);
+		this.activarFlashDanio();
+
+		if (this.mundo != null) {
+			Globales.GESTOR_TEXTOS.agregarDanio((int) Math.ceil(damage), this.getPosicionX(), this.getPosicionY(),
+					false);
+		}
+	}
+
+	public void aplicarEfectoInfinito(final TipoEfectoEstado tipo, final double potencia, final int stacks) {
+		if ((tipo != null) && (this.efectosActivos[tipo.ordinal()] != null)) {
+			this.efectosActivos[tipo.ordinal()].aplicarInfinito(potencia, stacks);
+			this.establecerVelocidadStardar();
+		}
 	}
 
 	public void setModoDios(final boolean modoDios) {

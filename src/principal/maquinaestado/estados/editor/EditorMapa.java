@@ -484,7 +484,7 @@ public class EditorMapa implements EstadoJuego {
 		}
 
 		// Conmutador Snap a Grilla (S)
-		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_S)) {
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_T)) {
 			this.modoSnapGrilla = !this.modoSnapGrilla;
 			GestorSonido.reproducir(IDSonido.GOLPE_1);
 		}

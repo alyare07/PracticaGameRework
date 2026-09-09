@@ -63,7 +63,8 @@ public class CicloDiaNoche {
 	// =========================================================================
 
 	/** Duración de un día completo in-game a velocidad 1x (por defecto 8 min). */
-	private double duracionDiaSegundos = 480.0;
+//	private double duracionDiaSegundos = 480.0; //8min
+	private double duracionDiaSegundos = 1800.0; // 30min
 
 	/** Hora decimal actual (0.00 a 23.99). */
 	private double horaActual = FaseDia.MEDIODIA.getHoraInicio();

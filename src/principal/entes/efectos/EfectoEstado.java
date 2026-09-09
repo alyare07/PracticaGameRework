@@ -8,7 +8,7 @@ import principal.utilidades.Globales;
  * estándar, acumulación de cargas (stacks) y transición de efectos infinitos a
  * tiempo residual (Zero-GC).
  * 
- * @version 1.0 (Vanilla Java 8)
+ * @version 1.1 (Vanilla Java 8 - True Damage & Hypothermia Tick Support)
  */
 public class EfectoEstado {
 
@@ -47,12 +47,21 @@ public class EfectoEstado {
 	}
 
 	public void aplicarInfinito(final double potencia) {
+		this.aplicarInfinito(potencia, 1);
+	}
+
+	public void aplicarInfinito(final double potencia, final int stacks) {
+		final boolean estabaActivo = this.activo;
 		this.activo = true;
 		this.infinito = true;
 		this.potencia = Math.max(0.1, potencia);
 		this.duracionTotal = 1.0;
 		this.tiempoRestante = 1.0;
-		this.stacks = 1;
+		this.stacks = Math.max(1, stacks);
+
+		if (!estabaActivo) {
+			this.tiempoAcumuladoTick = 0.0;
+		}
 	}
 
 	public void desactivarInfinito(final double tiempoResidualSegundos) {
@@ -80,7 +89,7 @@ public class EfectoEstado {
 	// =========================================================================
 
 	public void actualizar(final Criatura portador, final double dt) {
-		if (!this.activo || portador == null || portador.estaEliminado()) {
+		if (!this.activo || (portador == null) || portador.estaEliminado()) {
 			return;
 		}
 
@@ -114,24 +123,32 @@ public class EfectoEstado {
 			break;
 
 		case VENENO:
-			portador.reducirVida(valorEfectivo);
+			portador.recibirDanioDirecto(valorEfectivo);
 			Globales.GESTOR_PARTICULAS.emitirMagia(portador.getCentroX(), portador.getCentroY(), 4);
-			Globales.GESTOR_TEXTOS.agregarDanio((int) Math.ceil(valorEfectivo), portador.getPosicionX(),
-					portador.getPosicionY(), false);
 			break;
 
 		case SANGRADO:
-			portador.reducirVida(valorEfectivo);
+			portador.recibirDanioDirecto(valorEfectivo);
 			Globales.GESTOR_PARTICULAS.emitirSangre(portador.getCentroX(), portador.getCentroY(), 0.0, -1.0, 5);
-			Globales.GESTOR_TEXTOS.agregarDanio((int) Math.ceil(valorEfectivo), portador.getPosicionX(),
-					portador.getPosicionY(), false);
 			break;
 
 		case QUEMADURA:
-			portador.reducirVida(valorEfectivo);
+			portador.recibirDanioDirecto(valorEfectivo);
 			Globales.GESTOR_PARTICULAS.emitirExplosion(portador.getCentroX(), portador.getCentroY(), 3);
-			Globales.GESTOR_TEXTOS.agregarDanio((int) Math.ceil(valorEfectivo), portador.getPosicionX(),
-					portador.getPosicionY(), false);
+			break;
+
+		case HIPOTERMIA:
+			if (valorEfectivo > 0.0) {
+				portador.recibirDanioDirecto(valorEfectivo);
+			}
+			Globales.GESTOR_PARTICULAS.emitirMagia(portador.getCentroX(), portador.getCentroY(), 1 + this.stacks);
+			break;
+		case HIPERTERMIA:
+			if (valorEfectivo > 0.0) {
+				portador.recibirDanioDirecto(valorEfectivo);
+			}
+			// Partículas de calor/brasa según la intensidad
+			Globales.GESTOR_PARTICULAS.emitirExplosion(portador.getCentroX(), portador.getCentroY(), 1 + this.stacks);
 			break;
 
 		default:
@@ -172,7 +189,7 @@ public class EfectoEstado {
 	}
 
 	public double getProgresoNormalizado() {
-		if (this.infinito || this.duracionTotal <= 0.0) {
+		if (this.infinito || (this.duracionTotal <= 0.0)) {
 			return 1.0;
 		}
 		return Math.max(0.0, Math.min(1.0, this.tiempoRestante / this.duracionTotal));

@@ -39,6 +39,8 @@ public class Mapa1 extends Mapa {
 	public static final String NOMBRE_MAPA = "Mapa1";
 	public static final String EXTERIOR = "exterior";
 	public static final String INTERIOR_CASA1 = "interior_casa1";
+	public static final String EXTERIOR_DESIERTO = "ext_desierto";
+	public static final String EXTERIOR_NIEVE = "ext_nieve";
 
 	public Mapa1(final GestorCarga gc, final int porcentajeCarga, final GestorPartida gp) {
 		super(gc, porcentajeCarga, gp);
@@ -50,7 +52,7 @@ public class Mapa1 extends Mapa {
 
 	@Override
 	protected void establecerMundos(final GestorCarga gc, final int porcentajeCarga) {
-		final int cantMundos = 2; // 2 mundos: Exterior e Interior
+		final int cantMundos = 4; // 2 mundos: Exterior e Interior
 		final int porcentajeCargaParcial = porcentajeCarga / cantMundos;
 		final int porcentajeCargaEscenario = (75 * porcentajeCargaParcial) / 100;
 		final int porcentajeCargaMundo = (25 * porcentajeCargaParcial) / 100;
@@ -72,6 +74,24 @@ public class Mapa1 extends Mapa {
 		mInterior.setNombreMundo(INTERIOR_CASA1);
 		mInterior.setMapa(this);
 		this.MUNDOS.put(INTERIOR_CASA1, mInterior);
+
+		// 3. exterior desierto
+		gc.setDetalleCarga("Generando mundo " + EXTERIOR_DESIERTO);
+		final Mundo mExt_desierto = new Mundo(
+				this.cargarEscenario(gc, porcentajeCargaEscenario, new File("mundos/ext_desierto.json")),
+				new Point(1878, 1796), gc, porcentajeCargaMundo);
+		mExt_desierto.setNombreMundo(EXTERIOR_DESIERTO);
+		mExt_desierto.setMapa(this);
+		this.MUNDOS.put(EXTERIOR_DESIERTO, mExt_desierto);
+
+		// 4. exterior nieve
+		gc.setDetalleCarga("Generando mundo " + EXTERIOR_NIEVE);
+		final Mundo mExt_nieve = new Mundo(
+				this.cargarEscenario(gc, porcentajeCargaEscenario, new File("mundos/ext_nieve.json")),
+				new Point(1878, 1796), gc, porcentajeCargaMundo);
+		mExt_nieve.setNombreMundo(EXTERIOR_NIEVE);
+		mExt_nieve.setMapa(this);
+		this.MUNDOS.put(EXTERIOR_NIEVE, mExt_nieve);
 	}
 
 	@Override
@@ -119,11 +139,11 @@ public class Mapa1 extends Mapa {
 			arbolcofre1.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 100));
 
 			arbolcofre1.getInventario()
-					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5));
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5, 10));
 			arbolcofre1.getInventario()
-					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15));
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15, 10));
 			arbolcofre1.getInventario()
-					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3));
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3, 10));
 			arbolcofre1.getInventario()
 					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ANILLO_ORO, TipoEquipo.ANILLO, 2, 2, 2, 0));
 

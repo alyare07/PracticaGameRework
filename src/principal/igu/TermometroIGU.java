@@ -66,8 +66,11 @@ public class TermometroIGU {
 			this.lastTempAmbInt = ambInt;
 			this.lastTempCorpInt = corpInt;
 
-			this.cachedAmbiente = "Amb: " + String.format("%.1f", ambInt / 10.0) + " °C";
-			this.cachedCorporal = "Corp: " + String.format("%.1f", corpInt / 10.0) + " °C";
+			final int ambDec = Math.abs(ambInt % 10);
+			final int corpDec = Math.abs(corpInt % 10);
+
+			this.cachedAmbiente = "Amb: " + (ambInt / 10) + "." + ambDec + " °C";
+			this.cachedCorporal = "Corp: " + (corpInt / 10) + "." + corpDec + " °C";
 
 			if (tendencia > 0.0001) {
 				this.cachedTendencia = "[^]"; // Subiendo

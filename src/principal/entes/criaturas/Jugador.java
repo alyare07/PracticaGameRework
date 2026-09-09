@@ -14,6 +14,8 @@ import org.json.simple.JSONObject;
 
 import principal.animaciones.Animaciones;
 import principal.entes.Ente;
+import principal.entes.efectos.EfectoEstado;
+import principal.entes.efectos.TipoEfectoEstado;
 import principal.entes.facciones.GestorFacciones;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Consumible;
@@ -509,7 +511,10 @@ public class Jugador extends Criatura {
 		final boolean izq = Globales.TECLADO.TECLA_IZQUIERDA.presionado();
 		final boolean der = Globales.TECLADO.TECLA_DERECHA.presionado();
 
-		if (Globales.TECLADO.TECLA_CORRIENDO.presionado()) {
+		// Evaluación de sprint condicionada por la capacidad física del jugador
+		final boolean intentandoCorrer = Globales.TECLADO.TECLA_CORRIENDO.presionado() && this.puedeCorrer();
+
+		if (intentandoCorrer) {
 			if (arr || abj || der || izq) {
 				if (this.gastarEstamina()) {
 					this.velocidad = this.velocidadEstandar * 1.5;
@@ -861,7 +866,22 @@ public class Jugador extends Criatura {
 			return true;
 		}
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
-		final double gastoPorTick = this.puntoGastarEstaminaXseg * dt;
+
+		double factorCansancio = 1.0;
+
+		// 1. Sobrecosto por Hipotermia (Temblores musculares)
+		final EfectoEstado efHipotermia = this.getEfecto(TipoEfectoEstado.HIPOTERMIA);
+		if ((efHipotermia != null) && efHipotermia.isActivo() && (efHipotermia.getStacks() == 2)) {
+			factorCansancio += 0.75;
+		}
+
+		// 2. Sobrecosto por Hipertermia (Deshidratación y sofoco)
+		final EfectoEstado efHipertermia = this.getEfecto(TipoEfectoEstado.HIPERTERMIA);
+		if ((efHipertermia != null) && efHipertermia.isActivo()) {
+			factorCansancio += (0.50 * efHipertermia.getStacks()); // N1: +50%, N2: +100%, N3: +150%
+		}
+
+		final double gastoPorTick = this.puntoGastarEstaminaXseg * dt * factorCansancio;
 
 		if (this.estamina >= gastoPorTick) {
 			this.estamina -= gastoPorTick;
@@ -885,8 +905,36 @@ public class Jugador extends Criatura {
 				recuperacionPorTick *= 1.5;
 			}
 
+			// Penalización de recuperación por Hipertermia
+			final EfectoEstado efHipertermia = this.getEfecto(TipoEfectoEstado.HIPERTERMIA);
+			if ((efHipertermia != null) && efHipertermia.isActivo()) {
+				if (efHipertermia.getStacks() >= 3) {
+					recuperacionPorTick = 0.0; // Bloqueo total de regeneración en Golpe de Calor Crítico
+				} else if (efHipertermia.getStacks() == 2) {
+					recuperacionPorTick *= 0.40; // 60% más lenta
+				} else {
+					recuperacionPorTick *= 0.70; // 30% más lenta
+				}
+			}
+
 			this.estamina = Math.min(this.maxEstamina, this.estamina + recuperacionPorTick);
 		}
+	}
+
+	public boolean puedeCorrer() {
+		if (this.modoDios) {
+			return true;
+		}
+		// Bloqueo por aturdimiento
+		if (this.tieneEfectoActivo(TipoEfectoEstado.ATURDIMIENTO)) {
+			return false;
+		}
+		// Bloqueo total de sprint en Hipotermia Nivel 3 (Congelación)
+		final EfectoEstado efHipotermia = this.getEfecto(TipoEfectoEstado.HIPOTERMIA);
+		if ((efHipotermia != null) && efHipotermia.isActivo() && (efHipotermia.getStacks() >= 3)) {
+			return false;
+		}
+		return true;
 	}
 
 	@Override

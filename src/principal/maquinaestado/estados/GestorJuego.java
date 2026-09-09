@@ -11,7 +11,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.VolatileImage;
 import java.util.ArrayList;
 
-import principal.clima.PerfilClima;
 import principal.clima.TipoClima;
 import principal.controles.Raton;
 import principal.entes.Ente;
@@ -486,7 +485,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 				75);
 		this.auxFuenteLuzTempoPrueba.setOffset(4, 3);
 
-		Globales.GESTOR_CLIMA.setPerfilBioma(PerfilClima.TEMPLADO_BOSQUE);
+		Globales.GESTOR_LUZ.getCiclo().setHora(21.5);
 	}
 
 	public void agregarObjetosAlMundo() {

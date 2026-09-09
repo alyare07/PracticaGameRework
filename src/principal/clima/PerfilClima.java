@@ -4,13 +4,15 @@ package principal.clima;
  * Catálogo de perfiles climáticos por bioma que define las probabilidades y
  * transiciones meteorológicas (Cadenas de Markov).
  * 
- * @version 3.0
+ * @version 3.1 (Vanilla Java 8 - Added Boreal Forest Biome)
  */
 public enum PerfilClima {
 
-	TEMPLADO_BOSQUE("Bosque Templado", 18.0, 0.50), DESIERTO_CALIDO("Desierto", 34.0, 0.15),
-	MONTANA_NEVADA("Montaña Helada", -4.0, 0.80), PANTANO_HUMEDO("Pantano Húmedo", 22.0, 0.90),
-	VOLCANICO("Tierras Volcánicas", 40.0, 0.20), BOSQUE_MISTICO("Bosque Místico", 20.0, 0.70);
+	TEMPLADO_BOSQUE("Bosque Templado", 18.0, 0.50), BOSQUE_BOREAL("Bosque Boreal", 12.0, 0.65), // <-- NUEVO BIOMA
+																								// RIGUROSO
+	DESIERTO_CALIDO("Desierto", 34.0, 0.15), MONTANA_NEVADA("Montaña Helada", -4.0, 0.80),
+	PANTANO_HUMEDO("Pantano Húmedo", 22.0, 0.90), VOLCANICO("Tierras Volcánicas", 40.0, 0.20),
+	BOSQUE_MISTICO("Bosque Místico", 20.0, 0.70);
 
 	private final String nombreVisible;
 	private final double temperaturaBase;
@@ -26,6 +28,29 @@ public enum PerfilClima {
 		final double azar = Math.random();
 
 		switch (this) {
+		case BOSQUE_BOREAL:
+			if (actual == TipoClima.DESPEJADO) {
+				if (azar < 0.35) {
+					return TipoClima.VENTOSO;
+				}
+				if (azar < 0.60) {
+					return TipoClima.LLUVIA_LEVE;
+				}
+				if (azar < 0.80) {
+					return TipoClima.NIEBLA_CERRADA;
+				}
+				return TipoClima.NIEVE; // Posibilidad de nevada ligera en bosque boreal
+			}
+			if (actual == TipoClima.VENTOSO) {
+				return (azar < 0.50) ? TipoClima.NIEVE : TipoClima.LLUVIA_LEVE;
+			}
+			if (actual == TipoClima.LLUVIA_LEVE) {
+				return (azar < 0.40) ? TipoClima.NIEBLA_CERRADA : TipoClima.DESPEJADO;
+			}
+			if (actual == TipoClima.NIEVE) {
+				return (azar < 0.50) ? TipoClima.VENTOSO : TipoClima.DESPEJADO;
+			}
+			return TipoClima.DESPEJADO;
 		case DESIERTO_CALIDO:
 			if (actual == TipoClima.DESPEJADO) {
 				return (azar < 0.25) ? TipoClima.VENTOSO

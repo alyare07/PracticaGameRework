@@ -21,6 +21,7 @@ import principal.utilidades.Render2D;
 public class EfectosEstadoIGU {
 	// Alternativa directa en EfectosEstadoIGU.java:
 	private static final String[] INSIGNIAS = new String[TipoEfectoEstado.values().length];
+	private static final String[] ROMANOS = { "", " I", " II", " III", " IV", " V" };
 	static {
 		for (final TipoEfectoEstado t : TipoEfectoEstado.values()) {
 			INSIGNIAS[t.ordinal()] = t.getNombre().substring(0, 1);
@@ -122,8 +123,25 @@ public class EfectosEstadoIGU {
 			}
 
 			if (this.areasIconos[slotIndex].contains(pMouse)) {
-				final String titulo = ef.getTipo().getNombre() + (ef.getStacks() > 1 ? " x" + ef.getStacks() : "");
-				final String dur = ef.isInfinito() ? " [Continuo]" : String.format(" [%.1fs]", ef.getTiempoRestante());
+				final int st = Math.min(ROMANOS.length - 1, Math.max(1, ef.getStacks()));
+
+				// 1. Asignación de sufijo: Números romanos para Hipotermia/Hipertermia y "xN"
+				// para veneno/sangrado
+				final boolean esAmbiental = (ef.getTipo() == TipoEfectoEstado.HIPOTERMIA)
+						|| (ef.getTipo() == TipoEfectoEstado.HIPERTERMIA);
+				final String sufijoNivel = esAmbiental ? ROMANOS[st]
+						: (ef.getStacks() > 1 ? " x" + ef.getStacks() : "");
+
+				// 2. Duración sin String.format (Zero-GC)
+				final String dur;
+				if (ef.isInfinito()) {
+					dur = " [Continuo]";
+				} else {
+					final int segRestantes = (int) Math.ceil(ef.getTiempoRestante());
+					dur = " [" + segRestantes + "s]";
+				}
+
+				final String titulo = ef.getTipo().getNombre() + sufijoNivel;
 				final String desc = ef.getTipo().getDescripcion();
 
 				Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipConCabecera(g, titulo + dur + ": ", desc,

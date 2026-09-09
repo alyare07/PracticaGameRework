@@ -323,15 +323,19 @@ public class GestorClima {
 			break;
 		case LLUVIA_TORMENTA:
 		case LLUVIA_ACIDA:
-			tempObjetivo -= 4.0;
+			tempObjetivo -= 4.5;
 			humObjetivo = 0.95;
 			presObjetivo = 992.0;
 			break;
 		case NIEVE:
-		case VENTISCA:
-			tempObjetivo -= 8.0;
+			tempObjetivo -= 8.5;
 			humObjetivo = 0.75;
 			presObjetivo = 1002.0;
+			break;
+		case VENTISCA:
+			tempObjetivo -= 14.0;
+			humObjetivo = 0.90;
+			presObjetivo = 985.0;
 			break;
 		case TORMENTA_ARENA:
 			tempObjetivo += 6.0;

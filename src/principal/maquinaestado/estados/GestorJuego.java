@@ -11,7 +11,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.VolatileImage;
 import java.util.ArrayList;
 
-import principal.clima.TipoClima;
 import principal.controles.Raton;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura.Direccion;
@@ -29,7 +28,6 @@ import principal.mapa.escenario.tps.PuertaArea;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.mapa.mapas.Mapa;
 import principal.mapa.mapas.MapaManager;
-import principal.mapa.renderEntidades.camara.efectos.TipoEfectoCamara;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.maquinaestado.estados.pantallaCarga.cargaMapa;
@@ -38,7 +36,6 @@ import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 import principal.utilidades.audio.musica.GestorMusica;
-import principal.utilidades.audio.musica.IDMusica;
 
 public final class GestorJuego implements EstadoJuego, cargaMapa {
 
@@ -64,7 +61,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.GP = gp;
 		this.GT_MOSTRAR_PANTALLA_MUERTE = new GestorTiempo();
 
-		GestorMusica.reproducirMusicaFondoPrincipal(IDMusica.FONDO_FOREST);
 	}
 
 	@Override
@@ -77,8 +73,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			return;
 		}
 
+		// 1. Gestión de Pausa: Silencia tanto la música de fondo como el ambiente de
+		// lluvia
 		if (Globales.pausa) {
 			GestorMusica.actualizarMusicaFondoPrincipal(false);
+			GestorMusica.actualizarAmbienteClima(false);
 			return;
 		}
 		this.actualizarControlesDebug();
@@ -113,7 +112,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.verificarPantallaMuerte();
 		Globales.MOTOR_IGU.actualizar();
 
-		// DESPUÉS:
 		final Rectangle areaMovimiento = Globales.JUGADOR.getAreaInterseccionMovimiento();
 		if ((areaMovimiento != null) && (this.mapa != null) && (this.mapa.getMundoActual() != null)) {
 			final int pieX = areaMovimiento.x + (areaMovimiento.width / 2);
@@ -127,7 +125,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.GESTOR_ZONAS_AMBIENTE.actualizar(dt);
 		Globales.GESTOR_CLIMA.actualizar();
 		Globales.GESTOR_LUZ.actualizar();
-		Globales.GESTOR_TERMICO_JUGADOR.actualizar(dt); // <-- CONECTADO AL GAME LOOP
+		Globales.GESTOR_TERMICO_JUGADOR.actualizar(dt);
 		Globales.GESTOR_CRAFTEO.actualizar(this.mapa.getMundoActual());
 		this.actualizarEventos(dt);
 
@@ -139,37 +137,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	private void actualizarControlesDebug() {
 		this.actualizarCambioCamaraConEntesYZoom();
 
-		if (Globales.TECLADO.TECLA_NUM_1.presionadoUnicaActualizacion()) {
-			Globales.GESTOR_LUZ.getCiclo().setHora(7.5);
-		}
-		if (Globales.TECLADO.TECLA_NUM_2.presionadoUnicaActualizacion()) {
-			Globales.GESTOR_LUZ.getCiclo().setHora(17.5);
-		}
-		if (Globales.TECLADO.TECLA_NUM_3.presionadoUnicaActualizacion()) {
-			Globales.GESTOR_LUZ.agregarLuzEstatica(Globales.JUGADOR.getPosicionX(), Globales.JUGADOR.getPosicionY(),
-					TipoLuz.FOGATA, 140);
-		}
-		if (Globales.TECLADO.TECLA_NUM_4.presionadoUnicaActualizacion()) {
-			Globales.CAMARA.getGestorEfectos().reproducirEfectoTemporal(TipoEfectoCamara.BARCO_NAVEGACION, 10000, 1);
-		}
-		if (Globales.TECLADO.TECLA_NUM_5.presionadoUnicaActualizacion()) {
-			Globales.GESTOR_LUZ.getCiclo().irANoche();
-			Globales.GESTOR_CLIMA.setClima(TipoClima.AURORA_BOREAL);
-		}
-		if (Globales.TECLADO.TECLA_NUM_6.presionadoUnicaActualizacion()) {
-			Globales.GESTOR_LUZ.getCiclo().irAMediodia();
-			Globales.GESTOR_CLIMA.setClima(TipoClima.ECLIPSE_SOLAR);
-		}
-		if (Globales.TECLADO.TECLA_NUM_7.presionadoUnicaActualizacion()) {
-			Globales.GESTOR_LUZ.getCiclo().irANoche();
-			Globales.GESTOR_CLIMA.setClima(TipoClima.LLUVIA_ESTRELLAS);
-		}
-		if (Globales.TECLADO.TECLA_NUM_8.presionadoUnicaActualizacion()) {
-			Globales.GESTOR_CLIMA.setClima(TipoClima.LLUVIA_TORMENTA);
-		}
-		if (Globales.TECLADO.TECLA_NUM_9.presionadoUnicaActualizacion()) {
-			Globales.CAMARA.activarModoCinematico(!Globales.CAMARA.isModoCinematico());
-		}
 	}
 
 	private void actualizarCambioCamaraConEntesYZoom() {

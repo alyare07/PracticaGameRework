@@ -255,9 +255,11 @@ public class GestorTermicoJugador {
 
 		switch (tipo) {
 		case FOGATA:
+		case FOGATA_AZUL:
 			calorBase = 28.0;
-			radioCalor = 140.0;
+			radioCalor = 100.0;
 			break;
+
 		case ANTORCHA:
 			calorBase = 14.0;
 			radioCalor = 70.0;

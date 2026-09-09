@@ -12,10 +12,11 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Clase base para cascos, armaduras, armas, botas y anillos. Renderiza un fondo
- * de slot táctico en relieve oscuro con siluetas guía de alta legibilidad.
+ * Clase base para cascos, armaduras, armas, mano secundaria, botas y anillos.
+ * Renderiza un fondo de slot táctico en relieve oscuro con siluetas y texto
+ * guía (ARM, SEC, CAS, TOR, BOT, ANI) de alta legibilidad (Zero-GC / O(1)).
  * 
- * @version 2.0 (Vanilla Java 8 - Dark Tactical UI)
+ * @version 2.1 (Vanilla Java 8 - Offhand "SEC" Text Integration)
  */
 public abstract class SlotEquipamiento extends Slot {
 
@@ -55,7 +56,6 @@ public abstract class SlotEquipamiento extends Slot {
 		} else if (this.logo != null) {
 			Render2D.dibujarImagen(g, this.logo, area.x + this.MARGEN_ESPACIADO, area.y + this.MARGEN_ESPACIADO);
 		} else {
-			// Si no hay archivo PNG de silueta, dibujamos un indicador guía limpio
 			this.pintarGuiaRespaldo(g, area);
 		}
 	}
@@ -71,6 +71,8 @@ public abstract class SlotEquipamiento extends Slot {
 		String etiqueta = "";
 		if (this instanceof SlotArma) {
 			etiqueta = "ARM";
+		} else if (this instanceof SlotManoSecundaria) {
+			etiqueta = "SEC";
 		} else if (this instanceof SlotPiezaEquipo) {
 			switch (((SlotPiezaEquipo) this).getTipoRequerido()) {
 			case CASCO:

@@ -6,6 +6,8 @@ import java.awt.image.BufferedImage;
 import org.json.simple.JSONObject;
 
 import principal.entes.criaturas.Criatura;
+import principal.entes.objetos.items.desplegables.KitFogata;
+import principal.entes.objetos.items.desplegables.KitFogataAzul;
 import principal.entes.objetos.items.materiales.RecursoMaterial;
 import principal.entes.objetos.items.municiones.CajaMunicion;
 import principal.entes.objetos.items.pociones.PocionVidaMenor;
@@ -162,6 +164,13 @@ public abstract class Consumible extends Item {
 		}
 		if (codModelo.equals("Madera") || codModelo.equals("Piedra")) {
 			return RecursoMaterial.crearDesdeJson(json);
+		}
+
+		if (codModelo.equals("Kit de Fogata") || codModelo.equals("KitFogata")) {
+			return KitFogata.crearDesdeJson(json);
+		}
+		if (codModelo.equals(KitFogataAzul.COD_KIT_FOGATA_AZUL) || codModelo.equals("KitFogataAzul")) {
+			return KitFogataAzul.crearDesdeJson(json);
 		}
 
 		return null;

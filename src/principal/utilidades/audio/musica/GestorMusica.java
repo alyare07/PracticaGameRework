@@ -18,14 +18,14 @@ import principal.utilidades.audio.DatosAudio;
  * e independientes en streaming (radios, vehículos, zonas ambientadas).
  * </p>
  * 
- * @author TuNombre / Proyecto Java2D
  */
 public class GestorMusica {
 
 	// =========================================================================
 	// ATRIBUTOS ESTÁTICOS Y REGISTRO DE DATOS
 	// =========================================================================
-
+	private static MusicaStream musicaAmbienteClima;
+	private static String idAmbienteClimaActual;
 	/**
 	 * Diccionario en memoria RAM que almacena los metadatos (ruta y volumen base)
 	 * de cada pista de música cargada desde el JSON, indexados por su ID.
@@ -226,5 +226,55 @@ public class GestorMusica {
 			return obtenerInstancia(id.getId());
 		}
 		return null;
+	}
+
+	public static void reproducirAmbienteClima(final String idAmbiente) {
+		if (idAmbiente == null) {
+			detenerAmbienteClima();
+			return;
+		}
+
+		if (idAmbiente.equals(idAmbienteClimaActual) && (musicaAmbienteClima != null)) {
+			musicaAmbienteClima.actualizar(true);
+			return;
+		}
+
+		detenerAmbienteClima();
+
+		final DatosAudio datos = REGISTRO.get(idAmbiente);
+		if (datos != null) {
+			musicaAmbienteClima = new MusicaStream(datos.getRuta(), datos.getVolumen());
+			musicaAmbienteClima.repetir(true);
+			musicaAmbienteClima.reproducir();
+			idAmbienteClimaActual = idAmbiente;
+		}
+	}
+
+	public static void reproducirAmbienteClima(final IDMusica id) {
+		if (id != null) {
+			reproducirAmbienteClima(id.getId());
+		} else {
+			detenerAmbienteClima();
+		}
+	}
+
+	public static void detenerAmbienteClima() {
+		if (musicaAmbienteClima != null) {
+			musicaAmbienteClima.detener();
+			musicaAmbienteClima = null;
+			idAmbienteClimaActual = null;
+		}
+	}
+
+	public static void actualizarAmbienteClima(final boolean reproducir) {
+		if (musicaAmbienteClima != null) {
+			musicaAmbienteClima.actualizar(reproducir);
+		}
+	}
+
+	public static void setVolumenAmbienteClima(final double volumen) {
+		if (musicaAmbienteClima != null) {
+			musicaAmbienteClima.setVolumen(volumen);
+		}
 	}
 }

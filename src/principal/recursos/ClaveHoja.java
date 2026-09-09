@@ -13,6 +13,9 @@ public enum ClaveHoja {
 	JUGADOR("/imagenes/sprites/player_sprites.png", 32, 32), BANDIDO("/imagenes/sprites/bandido.png", 32, 32),
 	CHARACTER_2("/imagenes/sprites/player2_sprites.png", 32, 32),
 
+	// --- OBJETOS ---
+	FOGATA("/imagenes/sprites/objetos/campfire.png", 16, 16),
+
 	// --- Proyectiles y Habilidades ---
 	BOLA_FUEGO("/imagenes/sprites/firebolt.png", 16, 16),
 	EXPLOSION_BOLA_FUEGO("/imagenes/sprites/firebolt_explosion.png", 32, 32),

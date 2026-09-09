@@ -43,7 +43,7 @@ public class MetadatosEscenario implements Serializable {
 	private Color colorLuzPersonalizado;
 
 	public MetadatosEscenario() {
-		this(IDMusica.FONDO_FOREST, PerfilClima.TEMPLADO_BOSQUE, TipoClima.DESPEJADO, TipoAmbiente.EXTERIOR,
+		this(IDMusica.FONDO_RELAX, PerfilClima.TEMPLADO_BOSQUE, TipoClima.DESPEJADO, TipoAmbiente.EXTERIOR,
 				new Color(0, 0, 0, 255));
 	}
 

@@ -16,6 +16,7 @@ public enum TipoLuz {
 
 	ANTORCHA(80, new Color(255, 160, 40), 0.85f, true, 4.0, false, 360.0),
 	FOGATA(140, new Color(255, 120, 20), 0.90f, true, 7.0, false, 360.0),
+	FOGATA_AZUL(140, new Color(15, 135, 255), 0.96f, true, 6.0, false, 360.0),
 	VELA_TENUE(45, new Color(255, 200, 100), 0.70f, true, 2.5, false, 360.0),
 
 	/**

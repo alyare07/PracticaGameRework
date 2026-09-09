@@ -2,15 +2,19 @@ package principal.clima;
 
 import java.awt.AlphaComposite;
 import java.awt.Color;
-import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 
 import principal.iluminacion.IntensidadNiebla;
+import principal.iluminacion.ZonaAmbiente;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
+import principal.utilidades.audio.musica.GestorMusica;
+import principal.utilidades.audio.musica.IDMusica;
+import principal.utilidades.audio.sonido.GestorSonido;
+import principal.utilidades.audio.sonido.IDSonido;
 
 /**
  * Gestor maestro del subsistema meteorológico y atmosférico del motor 2D
@@ -26,7 +30,7 @@ public class GestorClima {
 	private static final int RESOLUCION_NUBES = 512;
 	private static final int RESOLUCION_NIEBLA = 256;
 	private static final int ANCHO_AURORA_HD = 640;
-	private static final int ALTO_AURORA_HD = 120;
+	private static final int ALTO_AURORA_HD = 360;
 
 	private static final Color COLOR_LLUVIA = new Color(185, 215, 245, 175);
 	private static final Color COLOR_NIEVE = new Color(245, 250, 255, 210);
@@ -184,20 +188,26 @@ public class GestorClima {
 		return img;
 	}
 
+	// 2. Pre-horneado con triple gradiente atmosférico continuo (Sin cortes rectos)
 	private BufferedImage hornearTexturaAurora() {
 		final BufferedImage img = new BufferedImage(ANCHO_AURORA_HD, ALTO_AURORA_HD, BufferedImage.TYPE_INT_ARGB);
 		final Graphics2D g = img.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-		final GradientPaint grad = new GradientPaint(0, 0, new Color(40, 240, 180, 0), 0, ALTO_AURORA_HD / 2,
-				new Color(70, 255, 190, 160));
-		g.setPaint(grad);
-		g.fillRect(0, 0, ANCHO_AURORA_HD, ALTO_AURORA_HD / 2);
+		// Paradas cromáticas continuas (0% a 100%) sin cortes de rectángulos
+		final float[] fracciones = { 0.0f, 0.20f, 0.50f, 0.75f, 1.0f };
+		final Color[] colores = { new Color(30, 255, 180, 0), // 0%: Transparente en el límite superior
+				new Color(40, 255, 190, 115), // 20%: Velo verde esmeralda brillante
+				new Color(60, 215, 255, 90), // 50%: Cian aéreo intermedio
+				new Color(140, 75, 255, 55), // 75%: Violeta cósmico suave
+				new Color(140, 75, 255, 0) // 100%: Desvanecimiento total a transparente
+		};
 
-		final GradientPaint grad2 = new GradientPaint(0, ALTO_AURORA_HD / 2, new Color(130, 80, 255, 140), 0,
-				ALTO_AURORA_HD, new Color(130, 80, 255, 0));
-		g.setPaint(grad2);
-		g.fillRect(0, ALTO_AURORA_HD / 2, ANCHO_AURORA_HD, ALTO_AURORA_HD / 2);
+		final java.awt.LinearGradientPaint gradienteContinuo = new java.awt.LinearGradientPaint(0, 0, 0, ALTO_AURORA_HD,
+				fracciones, colores);
+
+		g.setPaint(gradienteContinuo);
+		g.fillRect(0, 0, ANCHO_AURORA_HD, ALTO_AURORA_HD);
 
 		g.dispose();
 		return img;
@@ -215,6 +225,12 @@ public class GestorClima {
 
 		if (this.cicloAutomaticoHabilitado) {
 			this.actualizarSimuladorMeteorologico(dt);
+		}
+
+		// Si el clima es Aurora Boreal, teñimos la noche para que la luz ambiental no
+		// sea negra opaca
+		if ((this.climaActual == TipoClima.AURORA_BOREAL) && (Globales.GESTOR_LUZ != null)) {
+			Globales.GESTOR_LUZ.setTinteBiomaExterior(new Color(20, 60, 70, 190), 0.75);
 		}
 
 		this.actualizarTermodinamica(dt);
@@ -464,12 +480,54 @@ public class GestorClima {
 			this.temporizadorProximoRayo = 4.0 + (Math.random() * 8.0);
 		}
 
+		// Cuando la onda de sonido del trueno llega al jugador tras el destello:
 		if (this.truenoPendiente) {
 			this.tiempoParaSonidoTrueno -= dt;
 			if (this.tiempoParaSonidoTrueno <= 0.0) {
 				this.truenoPendiente = false;
+
+				// 1. Reproducción del sonido del trueno
+				GestorSonido.reproducir(IDSonido.TRUENO);
+
+				// 2. Opcional: Si el rayo cayó muy cerca (< 1.2 km), sacudida táctica de cámara
+				if ((this.volumenTruenoProporcional > 0.6f) && (Globales.CAMARA != null)) {
+					Globales.CAMARA.aplicarTemblor(350, this.volumenTruenoProporcional * 2.5);
+				}
 			}
 		}
+	}
+
+	public void actualizarTinteAtmosferico() {
+		if (Globales.GESTOR_LUZ == null) {
+			return;
+		}
+
+		if (this.climaActual == TipoClima.AURORA_BOREAL) {
+			// Solo tiñe si es de noche / penumbra (alpha > 40)
+			final int osc = Globales.GESTOR_LUZ.getAlphaOscuridadActual();
+			if (osc > 40) {
+				Globales.GESTOR_LUZ.setTinteBiomaExterior(new Color(20, 80, 70, 180), 0.70);
+			} else {
+				Globales.GESTOR_LUZ.setTinteBiomaExterior(null, 0.0);
+			}
+		} else if (this.climaActual == TipoClima.ECLIPSE_SOLAR) {
+			// Penumbra carmesí del eclipse
+			Globales.GESTOR_LUZ.setTinteBiomaExterior(new Color(110, 20, 35, 210), 0.85);
+		} else // En cualquier otro clima estándar (Lluvia, Despejado, Nieve), delegamos a
+				// ZonasAmbiente
+		if ((Globales.GESTOR_ZONAS_AMBIENTE != null) && (Globales.GESTOR_ZONAS_AMBIENTE.getZonaActual() != null)) {
+			final ZonaAmbiente z = Globales.GESTOR_ZONAS_AMBIENTE.getZonaActual();
+			if (!z.isEsInterior()) {
+				Globales.GESTOR_LUZ.setTinteBiomaExterior(z.getColorAmbiente(), z.getFactorInmersion());
+			}
+		} else {
+			// Luz solar/lunar pura sin tinte residual
+			Globales.GESTOR_LUZ.setTinteBiomaExterior(null, 0.0);
+		}
+	}
+
+	public boolean tieneTinteClimaticoEspecial() {
+		return (this.climaActual == TipoClima.AURORA_BOREAL) || (this.climaActual == TipoClima.ECLIPSE_SOLAR);
 	}
 
 	// =========================================================================
@@ -484,7 +542,7 @@ public class GestorClima {
 
 		// 1. Cintas de Aurora Boreal
 		if (this.climaActual == TipoClima.AURORA_BOREAL) {
-			this.pintarAuroraBoreal(g, camX);
+			this.pintarAuroraBoreal(g, camX, camY);
 		}
 
 		// 2. Sombras de nubes
@@ -537,15 +595,22 @@ public class GestorClima {
 		g.setComposite(COMPOSITE_OPACO);
 	}
 
-	private void pintarAuroraBoreal(final Graphics2D g, final int camX) {
-		g.setComposite(obtenerComposite(0.55f));
-		final double onda = Math.sin(this.faseOndaAurora) * 20.0;
-		final int ox = Math.floorMod((int) Math.round((this.faseOndaAurora * 15.0) - (camX * 0.2)), ANCHO_AURORA_HD);
+	// 4. Renderizado con doble cortina ondulante y Parallax bidireccional suave
+	private void pintarAuroraBoreal(final Graphics2D g, final int camX, final int camY) {
+		g.setComposite(obtenerComposite(0.60f));
+
+		final double onda1 = Math.sin(this.faseOndaAurora * 0.7) * 25.0;
+		final double onda2 = Math.cos(this.faseOndaAurora * 0.5) * 15.0;
+
+		// Parallax estratosférico suave en X e Y
+		final int ox = Math.floorMod((int) Math.round((this.faseOndaAurora * 12.0) - (camX * 0.12)), ANCHO_AURORA_HD);
+		final int oy = (int) Math.round((-(camY * 0.04) + onda1) - 20.0);
 
 		for (int x = -ANCHO_AURORA_HD + ox; x < Constantes.ANCHO_JUEGO; x += ANCHO_AURORA_HD) {
-			final int y = (int) Math.round(-15.0 + onda);
-			Render2D.dibujarImagen(g, this.texturaAurora, x, y);
-			Render2D.dibujarImagen(g, this.texturaAurora, x + 120, y + 25);
+			// Cortina Principal
+			Render2D.dibujarImagen(g, this.texturaAurora, x, oy);
+			// Cortina Secundaria desfasada para dar volumen tridimensional
+			Render2D.dibujarImagen(g, this.texturaAurora, x + 180, (int) Math.round(oy + onda2 + 20.0));
 		}
 	}
 
@@ -750,6 +815,28 @@ public class GestorClima {
 		this.setViento(nuevoClima.getAnguloVientoGrados(), nuevoClima.getFuerzaViento());
 
 		this.cantidadParticulasActivas = Math.min(MAX_PARTICULAS, nuevoClima.getCantidadParticulas());
+		this.actualizarTinteAtmosferico();
+
+		// Sincronización automática de bucle de audio ambiental de lluvia/tormenta
+		switch (nuevoClima) {
+		case LLUVIA_LEVE:
+		case LLUVIA_ACIDA:
+			GestorMusica.reproducirAmbienteClima(IDMusica.AMBIENTE_LLUVIA);
+			break;
+
+		case LLUVIA_TORMENTA:
+			principal.utilidades.audio.musica.GestorMusica.reproducirAmbienteClima(IDMusica.AMBIENTE_TORMENTA);
+			break;
+		case VENTOSO:
+		case VENTISCA:
+		case TORMENTA_ARENA:
+			principal.utilidades.audio.musica.GestorMusica.reproducirAmbienteClima(IDMusica.AMBIENTE_VENTOSO);
+			break;
+
+		default:
+			principal.utilidades.audio.musica.GestorMusica.detenerAmbienteClima();
+			break;
+		}
 	}
 
 	public void setViento(final double gradosDireccion, final double fuerza) {

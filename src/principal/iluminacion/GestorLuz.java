@@ -181,26 +181,6 @@ public class GestorLuz {
 		return img;
 	}
 
-	private BufferedImage hornearTexturaColorHD(final TipoLuz tipo, final int nivelTermico) {
-		final BufferedImage img = new BufferedImage(RESOLUCION_HALO_HD, RESOLUCION_HALO_HD,
-				BufferedImage.TYPE_INT_ARGB);
-		final Graphics2D g2d = img.createGraphics();
-		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-		final float centro = RESOLUCION_HALO_HD / 2.0f;
-		final Color base = this.calcularColorTermico(tipo.getColorLuz(), nivelTermico, tipo == TipoLuz.MAGIA_ARCANO);
-		final int aMax = (int) (tipo.getIntensidad() * 255.0f);
-		final float[] fracciones = { 0.0f, 0.40f, 1.0f };
-		final Color[] colores = { new Color(base.getRed(), base.getGreen(), base.getBlue(), aMax),
-				new Color(base.getRed(), base.getGreen(), base.getBlue(), (int) (aMax * 0.45f)),
-				new Color(base.getRed(), base.getGreen(), base.getBlue(), 0) };
-
-		g2d.setPaint(new RadialGradientPaint(centro, centro, centro, fracciones, colores));
-		g2d.fillOval(0, 0, RESOLUCION_HALO_HD, RESOLUCION_HALO_HD);
-		g2d.dispose();
-		return img;
-	}
-
 	private BufferedImage hornearTexturaColorConoHD(final TipoLuz tipo, final int nivelTermico) {
 		final BufferedImage img = new BufferedImage(RESOLUCION_HALO_HD, RESOLUCION_HALO_HD,
 				BufferedImage.TYPE_INT_ARGB);
@@ -223,7 +203,28 @@ public class GestorLuz {
 		return img;
 	}
 
-	private Color calcularColorTermico(final Color base, final int nivel, final boolean esArcano) {
+	private BufferedImage hornearTexturaColorHD(final TipoLuz tipo, final int nivelTermico) {
+		final BufferedImage img = new BufferedImage(RESOLUCION_HALO_HD, RESOLUCION_HALO_HD,
+				BufferedImage.TYPE_INT_ARGB);
+		final Graphics2D g2d = img.createGraphics();
+		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+		final float centro = RESOLUCION_HALO_HD / 2.0f;
+		final boolean esAzul = ((tipo == TipoLuz.FOGATA_AZUL) || (tipo == TipoLuz.MAGIA_ARCANO));
+		final Color base = this.calcularColorTermico(tipo.getColorLuz(), nivelTermico, esAzul);
+		final int aMax = (int) (tipo.getIntensidad() * 255.0f);
+		final float[] fracciones = { 0.0f, 0.40f, 1.0f };
+		final Color[] colores = { new Color(base.getRed(), base.getGreen(), base.getBlue(), aMax),
+				new Color(base.getRed(), base.getGreen(), base.getBlue(), (int) (aMax * 0.55f)),
+				new Color(base.getRed(), base.getGreen(), base.getBlue(), 0) };
+
+		g2d.setPaint(new RadialGradientPaint(centro, centro, centro, fracciones, colores));
+		g2d.fillOval(0, 0, RESOLUCION_HALO_HD, RESOLUCION_HALO_HD);
+		g2d.dispose();
+		return img;
+	}
+
+	private Color calcularColorTermico(final Color base, final int nivel, final boolean esAzul) {
 		if (nivel == 1) {
 			return base;
 		}
@@ -232,13 +233,15 @@ public class GestorLuz {
 		int g = base.getGreen();
 		int b = base.getBlue();
 
-		if (esArcano) {
+		if (esAzul) {
 			if (nivel == 0) {
-				g = Math.min(255, g + 25);
-				b = Math.min(255, b + 15);
+				// Núcleo incandescente: destello cian eléctrico
+				g = Math.min(255, g + 40);
+				b = Math.min(255, b + 20);
 			} else {
-				r = Math.min(255, r + 45);
-				g = Math.max(0, g - 40);
+				// Brasa mística: tono zafiro / índigo profundo
+				r = Math.min(255, r + 25);
+				g = Math.max(0, g - 45);
 			}
 		} else if (nivel == 0) {
 			r = Math.min(255, r + 15);
@@ -252,7 +255,6 @@ public class GestorLuz {
 
 		return new Color(r, g, b);
 	}
-
 	// =========================================================================
 	// === POOL Y GESTIÓN DE LUCES (ZERO-GC)
 	// =========================================================================

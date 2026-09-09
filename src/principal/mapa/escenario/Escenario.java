@@ -16,6 +16,7 @@ import principal.entes.criaturas.enemigos.bandido.BandidoGranadero;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
+import principal.entes.objetos.Fogata;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.cofres.Cofre;
 import principal.entes.objetos.items.Item;
@@ -234,6 +235,8 @@ public class Escenario implements Serializable {
 					obj = ArbolCosechable.crearDesdeJson(entiti);
 				} else if (tipo.equals("RocaCosechable")) {
 					obj = RocaCosechable.crearDesdeJson(entiti);
+				} else if (tipo.equals("Fogata")) {
+					obj = Fogata.crearDesdeJson(entiti);
 				}
 
 				if (obj != null) {

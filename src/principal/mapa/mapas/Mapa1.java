@@ -18,6 +18,7 @@ import principal.entes.objetos.items.armas.distancia.fuego.automaticas.SubfusilL
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaAutomatica;
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaRecortada;
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaTactica;
+import principal.entes.objetos.items.desplegables.KitFogata;
 import principal.entes.objetos.items.equipamiento.PiezaEquipo;
 import principal.entes.objetos.items.equipamiento.TipoEquipo;
 import principal.entes.objetos.items.herramientas.Herramienta;
@@ -133,17 +134,18 @@ public class Mapa1 extends Mapa {
 			arbolcofre1.getInventario().agregarItem(new SubfusilLigero());
 			arbolcofre1.getInventario().agregarItem(new RifleAsalto());
 			arbolcofre1.getInventario().agregarItem(new AmetralladoraPesada());
+			arbolcofre1.getInventario().agregarItem(new KitFogata(1));
 
 			arbolcofre1.getInventario().agregarItem(CajaMunicion.crear762mm(0, 0, 100));
 			arbolcofre1.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 100));
 			arbolcofre1.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 100));
 
 			arbolcofre1.getInventario()
-					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5, 10));
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5, 3));
 			arbolcofre1.getInventario()
-					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15, 10));
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15, 3));
 			arbolcofre1.getInventario()
-					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3, 10));
+					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3, 3));
 			arbolcofre1.getInventario()
 					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ANILLO_ORO, TipoEquipo.ANILLO, 2, 2, 2, 0));
 

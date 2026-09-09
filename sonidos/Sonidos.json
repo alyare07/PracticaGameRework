@@ -22,5 +22,9 @@
   "efectos.golpe_2": {
     "ruta": "sonidos/hit_punch_2.mp3",
     "volumen": 1.0
+  },
+  "ambiente_trueno": {
+    "ruta": "sonidos/trueno.wav",
+    "volumen": 1.0
   }
 }

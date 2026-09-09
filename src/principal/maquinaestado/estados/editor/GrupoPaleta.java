@@ -11,6 +11,7 @@ import principal.controles.Raton;
 import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
+import principal.entes.objetos.Fogata;
 import principal.entes.objetos.cofres.CofreMediano;
 import principal.entes.objetos.cofres.CofrePequeño;
 import principal.entes.objetos.especial.CuadradoInvisible;
@@ -61,6 +62,7 @@ public class GrupoPaleta {
 		final HojaSprite dungeon = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.DUNGEON_16);
 		final HojaSprite casa = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.CASA_1);
 		final HojaSprite cofres = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.COFRES_16);
+		final HojaSprite hojaFogata = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.FOGATA);
 		final BufferedImage transparente = Globales.GESTOR_TEXTURAS.getTexturaTransparente();
 
 		// 1. PESTAÑA: SUELOS & HERRAMIENTAS
@@ -96,6 +98,8 @@ public class GrupoPaleta {
 				(x, y) -> new CofrePequeño(x, y));
 		paletaObjetos.agregarEntrada("Árbol Cofre Secreto", arboles.getSprite(1), false,
 				(x, y) -> new ArbolCofre(x, y));
+		paletaObjetos.agregarEntrada("Fogata", (hojaFogata != null ? hojaFogata.getSprite(0) : null), false,
+				(x, y) -> new Fogata(x, y));
 		paletaObjetos.agregarEntrada("Barrera Invisible", transparente, false,
 				(x, y) -> new Complemento(x, y, ListaModeloComplemento.COD_BARRERA_INVISIBLE));
 		paletaObjetos.agregarEntrada("Cuadrado Invisible", transparente, false,

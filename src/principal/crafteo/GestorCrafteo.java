@@ -16,9 +16,10 @@ import principal.utilidades.audio.sonido.IDSonido;
 
 /**
  * Gestor maestro del sistema de fabricación y detección de estaciones cercanas.
- * Opera con cero asignaciones en memoria en cada frame (Zero-GC).
+ * Soporta detección lumínica de fogatas tanto estándar como de fuego azul
+ * (Zero-GC / O(1)).
  * 
- * @version 2.1 (Vanilla Java 8 - Zero-GC)
+ * @version 2.2 (Vanilla Java 8 - Blue Fire Lighting Detection)
  */
 public class GestorCrafteo implements AccionEntidad<Objeto> {
 
@@ -47,7 +48,8 @@ public class GestorCrafteo implements AccionEntidad<Objeto> {
 		// 1. Escaneo espacial de objetos físicos con visitor Zero-GC
 		mundo.paraCadaObjetoEn(this.areaDeteccionEstaciones, this);
 
-		// 2. Detección de proximidad a fuentes de calor reales (Fogatas)
+		// 2. Detección de proximidad a fuentes de calor reales (Fogatas Fuego Normal y
+		// Azul)
 		if (Globales.GESTOR_LUZ != null) {
 			this.detectarFogatasPorLuz(centroX, centroY);
 		}
@@ -57,13 +59,16 @@ public class GestorCrafteo implements AccionEntidad<Objeto> {
 	public void ejecutar(final Objeto objeto) {
 		if ((objeto instanceof EstacionInteractiva) && !objeto.estaEliminado()) {
 			final EstacionInteractiva estacion = (EstacionInteractiva) objeto;
-			this.estacionesDisponibles.add(estacion.getTipoEstacion());
+			final EstacionCrafteo tipo = estacion.getTipoEstacion();
+			if (tipo != null) {
+				this.estacionesDisponibles.add(tipo);
+			}
 		}
 	}
 
 	/**
-	 * Verifica si hay una fuente de luz activa de tipo FOGATA dentro del rango
-	 * físico de calor.
+	 * Verifica si hay una fuente de luz activa de tipo FOGATA o FOGATA_AZUL dentro
+	 * del rango físico de calor.
 	 */
 	private void detectarFogatasPorLuz(final int centroX, final int centroY) {
 		if (this.estacionesDisponibles.contains(EstacionCrafteo.FOGATA)) {
@@ -73,15 +78,17 @@ public class GestorCrafteo implements AccionEntidad<Objeto> {
 		final double rangoSq = RANGO_DETECCION_ESTACION * RANGO_DETECCION_ESTACION;
 		final int totalLuces = Globales.GESTOR_LUZ.getCantidadActivas();
 
-		// Búsqueda directa O(N) sobre luces activas
 		for (int i = 0; i < totalLuces; i++) {
 			final FuenteLuz luz = Globales.GESTOR_LUZ.getLuzPorIndice(i);
-			if ((luz != null) && luz.isActiva() && (luz.getTipo() == TipoLuz.FOGATA)) {
-				final double dx = centroX - luz.getPosX();
-				final double dy = centroY - luz.getPosY();
-				if (((dx * dx) + (dy * dy)) <= rangoSq) {
-					this.estacionesDisponibles.add(EstacionCrafteo.FOGATA);
-					break;
+			if ((luz != null) && luz.isActiva()) {
+				final TipoLuz tipo = luz.getTipo();
+				if ((tipo == TipoLuz.FOGATA) || (tipo == TipoLuz.FOGATA_AZUL)) {
+					final double dx = centroX - luz.getPosX();
+					final double dy = centroY - luz.getPosY();
+					if (((dx * dx) + (dy * dy)) <= rangoSq) {
+						this.estacionesDisponibles.add(EstacionCrafteo.FOGATA);
+						break;
+					}
 				}
 			}
 		}

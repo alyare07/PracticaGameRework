@@ -758,6 +758,9 @@ public class EditorMapa implements EstadoJuego {
 					} else if (simpleName.contains("RocaCosechable")) {
 						pestana = "Recursos";
 						termino = "Roca Minable";
+					} else if (simpleName.contains("Fogata")) {
+						pestana = "Objetos";
+						termino = "Fogata";
 					} else if (simpleName.contains("ArbolCofre")) {
 						pestana = "Objetos";
 						termino = "Árbol Cofre Secreto";

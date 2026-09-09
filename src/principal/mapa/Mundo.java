@@ -26,6 +26,7 @@ import principal.entes.criaturas.Jugador;
 import principal.entes.criaturas.enemigos.Enemigo;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
+import principal.entes.objetos.Fogata;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.cofres.Cofre;
 import principal.entes.objetos.items.Item;
@@ -1090,6 +1091,11 @@ public class Mundo {
 				final JSONObject wrapper = new JSONObject();
 				wrapper.put("tipoObjeto", "RocaCosechable");
 				wrapper.put("entiti", ((RocaCosechable) e).exportarParaJSON());
+				listaObjetos.add(wrapper);
+			} else if (e instanceof Fogata) { // <-- AGREGAR ESTE BLOQUE
+				final JSONObject wrapper = new JSONObject();
+				wrapper.put("tipoObjeto", "Fogata");
+				wrapper.put("entiti", ((Fogata) e).exportarParaJSON());
 				listaObjetos.add(wrapper);
 			}
 		}

@@ -25,11 +25,11 @@ import principal.utilidades.Render2D;
 import principal.utilidades.inventario.ItemPuntero;
 
 /**
- * Ventana central del inventario del jugador con estética gráfica oscura en
- * relieve. Muestra el héroe, los 7 slots de equipamiento, los 4 atributos RPG,
- * la billetera (Oro y Plata) y tooltips enriquecidos (Bold + Plain).
+ * Ventana central del inventario del jugador (240 px) con cabecera de 8 slots
+ * de equipamiento (Arma, Mano Secundaria, Casco, Torso, Botas, 3 Anillos),
+ * Atributos RPG y Billetera (Zero-GC / O(1)).
  * 
- * @version 4.0 (Vanilla Java 8 - Currency & Extended Header Integration)
+ * @version 4.2 (Vanilla Java 8 - 8-Slot Equipment Header Layout)
  */
 public class Inventario {
 
@@ -88,7 +88,6 @@ public class Inventario {
 	private final Rectangle areaStatsDEF;
 	private final Rectangle areaBilletera;
 
-	// Dirty-Flags para renderizado numérico sin asignaciones en heap
 	private long lastDineroPlata = -1;
 	private String cachedOro = "0";
 	private String cachedPlata = "0";
@@ -109,24 +108,23 @@ public class Inventario {
 
 		this.AREA_TOTAL = new Rectangle(this.X, this.Y, this.ANCHO, this.ALTO);
 		this.ZONA_INFO_JUGADOR = new Rectangle(this.X, this.Y, this.ANCHO, 25);
-		this.ZONA_SLOTS_EQUIPAMIENTOS = new Rectangle(this.X + 26, this.Y + 3, 138, 18);
+		// Ancho para 8 slots: 8 * 18 + 7 * 2 = 158 px
+		this.ZONA_SLOTS_EQUIPAMIENTOS = new Rectangle(this.X + 26, this.Y + 3, 158, 18);
 		this.ZONA_SLOTS_ALMACEN = new Rectangle(this.X, this.ZONA_INFO_JUGADOR.y + this.ZONA_INFO_JUGADOR.height,
 				this.ANCHO, 62);
 		this.ZONA_SLOTS_PRINCIPALES = new Rectangle(this.X, this.ZONA_SLOTS_ALMACEN.y + this.ZONA_SLOTS_ALMACEN.height,
 				this.ANCHO, 22);
 		this.AREA_PERSONAJE = new Rectangle(this.X + 3, this.Y + 3, 20, 20);
 
-		// Sub-columna 1: Atributos RPG
-		final int xStats = this.X + 167;
+		final int xStats = this.X + 186;
 		final int yBase = this.Y + 5;
-		this.areaStatsFUE = new Rectangle(xStats, yBase - 4, 34, 5);
-		this.areaStatsAGI = new Rectangle(xStats, yBase + 1, 34, 5);
-		this.areaStatsINT = new Rectangle(xStats, yBase + 6, 34, 5);
-		this.areaStatsDEF = new Rectangle(xStats, yBase + 11, 34, 5);
+		this.areaStatsFUE = new Rectangle(xStats, yBase - 4, 25, 5);
+		this.areaStatsAGI = new Rectangle(xStats, yBase + 1, 25, 5);
+		this.areaStatsINT = new Rectangle(xStats, yBase + 6, 25, 5);
+		this.areaStatsDEF = new Rectangle(xStats, yBase + 11, 25, 5);
 
-		// Sub-columna 2: Billetera
-		final int xDinero = this.X + 204;
-		this.areaBilletera = new Rectangle(xDinero, yBase - 4, 33, 22);
+		final int xDinero = this.X + 213;
+		this.areaBilletera = new Rectangle(xDinero, yBase - 4, 25, 22);
 
 		this.SLOT_MANAGER = new SlotManager(this, this.MARGEN_GENERAL, this.ZONA_SLOTS_ALMACEN,
 				this.ZONA_SLOTS_PRINCIPALES, this.ZONA_SLOTS_EQUIPAMIENTOS);
@@ -224,21 +222,19 @@ public class Inventario {
 		final Font fuentePrevia = g.getFont();
 		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 7f));
 
-		// 1. Renderizado de Atributos RPG
 		final int str = Globales.JUGADOR.getFuerzaTotal();
 		final int agi = Globales.JUGADOR.getAgilidadTotal();
 		final int intel = Globales.JUGADOR.getInteligenciaTotal();
 		final int def = Globales.JUGADOR.getDefensaTotal();
 
-		final int xStats = this.X + 167;
+		final int xStats = this.X + 186;
 		final int yBase = this.Y + 7;
 
-		Render2D.dibujarStringConSombra(g, "FUE: " + str, xStats, yBase, COLOR_TEXTO_FUE, Color.BLACK);
-		Render2D.dibujarStringConSombra(g, "AGI: " + agi, xStats, yBase + 5, COLOR_TEXTO_AGI, Color.BLACK);
-		Render2D.dibujarStringConSombra(g, "INT: " + intel, xStats, yBase + 10, COLOR_TEXTO_INT, Color.BLACK);
-		Render2D.dibujarStringConSombra(g, "DEF: " + def, xStats, yBase + 15, COLOR_TEXTO_DEF, Color.BLACK);
+		Render2D.dibujarStringConSombra(g, "F: " + str, xStats, yBase, COLOR_TEXTO_FUE, Color.BLACK);
+		Render2D.dibujarStringConSombra(g, "A: " + agi, xStats, yBase + 5, COLOR_TEXTO_AGI, Color.BLACK);
+		Render2D.dibujarStringConSombra(g, "I: " + intel, xStats, yBase + 10, COLOR_TEXTO_INT, Color.BLACK);
+		Render2D.dibujarStringConSombra(g, "D: " + def, xStats, yBase + 15, COLOR_TEXTO_DEF, Color.BLACK);
 
-		// 2. Renderizado de Billetera (Dirty-Flag para Zero-GC)
 		final long dineroTotal = Globales.JUGADOR.getDineroPlata();
 		if (dineroTotal != this.lastDineroPlata) {
 			this.lastDineroPlata = dineroTotal;
@@ -246,21 +242,19 @@ public class Inventario {
 			this.cachedPlata = String.valueOf(dineroTotal % 100L);
 		}
 
-		final int xDinero = this.X + 204;
+		final int xDinero = this.X + 213;
 
-		// Fila 1: Oro (Icono 10x10 + Cantidad)
 		final BufferedImage iconOro = Globales.GESTOR_TEXTURAS.get(TexturaItem.ANILLO_ORO_MAPA);
 		if (iconOro != null) {
 			Render2D.dibujarImagen(g, iconOro, xDinero, this.Y + 2);
 		}
-		Render2D.dibujarStringConSombra(g, this.cachedOro, xDinero + 12, this.Y + 10, COLOR_TEXTO_ORO, Color.BLACK);
+		Render2D.dibujarStringConSombra(g, this.cachedOro, xDinero + 10, this.Y + 9, COLOR_TEXTO_ORO, Color.BLACK);
 
-		// Fila 2: Plata (Icono 10x10 + Cantidad)
 		final BufferedImage iconPlata = Globales.GESTOR_TEXTURAS.get(TexturaItem.ANILLO_PLATA_MAPA);
 		if (iconPlata != null) {
-			Render2D.dibujarImagen(g, iconPlata, xDinero, this.Y + 12);
+			Render2D.dibujarImagen(g, iconPlata, xDinero, this.Y + 11);
 		}
-		Render2D.dibujarStringConSombra(g, this.cachedPlata, xDinero + 12, this.Y + 20, COLOR_TEXTO_PLATA, Color.BLACK);
+		Render2D.dibujarStringConSombra(g, this.cachedPlata, xDinero + 10, this.Y + 18, COLOR_TEXTO_PLATA, Color.BLACK);
 
 		g.setFont(fuentePrevia);
 	}
@@ -270,11 +264,19 @@ public class Inventario {
 	}
 
 	public int contarMunicionTotal(final String codModeloMunicion) {
-		return this.SLOT_MANAGER.contarMunicionTotal(codModeloMunicion);
+		return this.SLOT_MANAGER.contarItemGenericoTotal(codModeloMunicion);
 	}
 
 	public int extraerMunicion(final String codModeloMunicion, final int cantidadRequerida) {
 		return this.SLOT_MANAGER.extraerMunicion(codModeloMunicion, cantidadRequerida);
+	}
+
+	public int contarItemGenericoTotal(final String codigoONombre) {
+		return this.SLOT_MANAGER.contarItemGenericoTotal(codigoONombre);
+	}
+
+	public boolean extraerItemGenerico(final String codigoONombre, final int cantidadRequerida) {
+		return this.SLOT_MANAGER.extraerItemGenerico(codigoONombre, cantidadRequerida);
 	}
 
 	public boolean agregarObjeto(final Item item) {

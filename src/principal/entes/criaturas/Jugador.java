@@ -1135,6 +1135,23 @@ public class Jugador extends Criatura {
 		}
 	}
 
+	/**
+	 * Detiene de forma inmediata cualquier navegación activa por pathfinding (A* o
+	 * Dijkstra) y restablece la cinemática a reposo (Zero-GC).
+	 */
+	public void detenerMovimientoPathfinding() {
+		this.moviendoPorRecorrido = false;
+		this.nodoADestino = null;
+		this.nodoDDestino = null;
+		if (this.recorridoA != null) {
+			this.recorridoA.clear();
+		}
+		this.recorridoD = null;
+		this.velActualX = 0.0;
+		this.velActualY = 0.0;
+		this.setEstadoEstandar();
+	}
+
 	public boolean tieneArmaDistanciaEquipada() {
 		final Arma arma = this.getArmaEquipada();
 		return (arma != null) && arma.esArmaDistancia();

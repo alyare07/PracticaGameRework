@@ -28,10 +28,10 @@ import principal.utilidades.audio.sonido.IDSonido;
 import principal.utilidades.inventario.ItemPuntero;
 
 /**
- * Gestor maestro de casillas de inventario, equipamiento rápido y transferencia
- * bidireccional (Zero-GC / O(1)).
+ * Gestor maestro de casillas de inventario, equipamiento rápido, Hotbar
+ * numérica 1-0 y proyección HUD de [ARM] y [SEC] (Zero-GC / O(1)).
  * 
- * @version 2.4 (Vanilla Java 8 - Equipment Sale Guard & Shift Bulk Support)
+ * @version 2.7 (Vanilla Java 8 - Offhand HUD Projection & Fast Unequip)
  */
 public class SlotManager {
 
@@ -39,13 +39,16 @@ public class SlotManager {
 	private static final int CANTIDAD_SLOTS_FILA = 10;
 	private static final int FILAS_ALMACEN = 3;
 
+	private static final int[] TECLAS_HOTBAR = { KeyEvent.VK_1, KeyEvent.VK_2, KeyEvent.VK_3, KeyEvent.VK_4,
+			KeyEvent.VK_5, KeyEvent.VK_6, KeyEvent.VK_7, KeyEvent.VK_8, KeyEvent.VK_9, KeyEvent.VK_0 };
+
 	private final Inventario INVENTARIO;
 	private final ArrayList<Slot> LISTA_SLOTS = new ArrayList<Slot>(40);
-	private final ArrayList<SlotIGU> LISTA_SLOTS_IGU = new ArrayList<SlotIGU>(11);
-	private final ArrayList<Slot> LISTA_SLOTS_GENERAL = new ArrayList<Slot>(47);
+	private final ArrayList<SlotIGU> LISTA_SLOTS_IGU = new ArrayList<SlotIGU>(12);
+	private final ArrayList<Slot> LISTA_SLOTS_GENERAL = new ArrayList<Slot>(48);
 	private final ArrayList<Slot> LISTA_SLOTS_ALMACEN = new ArrayList<Slot>(30);
 	private final ArrayList<Slot> LISTA_SLOTS_PRINCIPALES = new ArrayList<Slot>(10);
-	private final ArrayList<SlotEquipamiento> LISTA_SLOTS_EQUIPAMIENTO = new ArrayList<SlotEquipamiento>(7);
+	private final ArrayList<SlotEquipamiento> LISTA_SLOTS_EQUIPAMIENTO = new ArrayList<SlotEquipamiento>(8);
 
 	private final Rectangle ZONA_SLOTS_ALMACEN;
 	private final Rectangle ZONA_SLOTS_PRINCIPALES;
@@ -53,6 +56,7 @@ public class SlotManager {
 	private final int MARGEN_GENERAL;
 
 	private SlotArma slotArma;
+	private SlotManoSecundaria slotManoSecundaria;
 	private SlotPiezaEquipo slotCasco;
 	private SlotPiezaEquipo slotTorso;
 	private SlotPiezaEquipo slotBotas;
@@ -82,11 +86,13 @@ public class SlotManager {
 		this.actualizarSlots(raton);
 		this.actualizarClickIzquierdo(raton, gtRatonPresiono, tiempoMsRatonPresiono, itemPuntero);
 		this.actualizarActivarItem(raton);
+		this.actualizarHotbarTeclado();
 	}
 
 	public void actualizarIGU(final Raton raton) {
 		this.actualizarSlotsIGU(raton);
 		this.actualizarActivarItemIGU(raton);
+		this.actualizarHotbarTeclado();
 	}
 
 	private void actualizarClickIzquierdo(final Raton raton, final GestorTiempo gtRaton, final int tiempoMs,
@@ -104,74 +110,6 @@ public class SlotManager {
 			} else {
 				itemPuntero.interactuarConSlot(slot);
 			}
-		}
-	}
-
-	private void actualizarActivarItem(final Raton raton) {
-		if (raton.presionadoClickDerUnicaAct() && this.INVENTARIO.getActivarItemDisponible()) {
-			final int totalSlots = this.LISTA_SLOTS_GENERAL.size();
-			for (int s = 0; s < totalSlots; s++) {
-				final Slot slot = this.LISTA_SLOTS_GENERAL.get(s);
-				if (slot.ratonIntersecta(raton)) {
-					if (slot.contieneItem()) {
-						final Item i = slot.getItem();
-
-						// 1. GANCHO DE COMERCIO: Si hay una tienda abierta, el clic derecho VENDE el
-						// ítem
-						if (Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && (Globales.GESTOR_INVENTARIO
-								.getInventarioTercero() instanceof principal.inventario.tienda.InventarioTienda)) {
-
-							final principal.inventario.tienda.InventarioTienda tienda = (principal.inventario.tienda.InventarioTienda) Globales.GESTOR_INVENTARIO
-									.getInventarioTercero();
-
-							// PROTECCIÓN: Prohíbe vender equipamiento puesto
-							if (slot instanceof SlotEquipamiento) {
-								GestorSonido.reproducir(IDSonido.SIN_MUNICION);
-								tienda.mostrarNotificacion("¡Desequipa el objeto para venderlo!",
-										new Color(255, 100, 100));
-								return;
-							}
-
-							final boolean venderTodo = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_SHIFT);
-							tienda.venderItemJugador(slot, venderTodo);
-							return;
-						}
-
-						// 2. Acciones estándar fuera de la tienda
-						if (i instanceof Arrojadizo) {
-							this.INVENTARIO.getSlotArrojadizo().establecerObjeto(i);
-							Globales.GESTOR_INVENTARIO.getInventarioJugador().invertirVisibilidad();
-							return;
-						}
-
-						if (i instanceof Arma) {
-							if (slot == this.slotArma) {
-								this.desequiparArma();
-							} else {
-								final Item itemAux = this.slotArma.getItem();
-								this.slotArma.establecerObjeto(i);
-								slot.establecerObjeto(itemAux);
-							}
-							break;
-						}
-
-						if (i instanceof PiezaEquipo) {
-							this.equiparPiezaRapida(slot, (PiezaEquipo) i);
-							break;
-						}
-
-						if (i instanceof Consumible) {
-							final Consumible c = (Consumible) i;
-							c.consumir(Globales.JUGADOR);
-							this.INVENTARIO.setActivarItemDisponible(false);
-							break;
-						}
-					}
-					break;
-				}
-			}
-		} else if (!this.INVENTARIO.getActivarItemDisponible() && !raton.presionadoClickDer()) {
-			this.INVENTARIO.setActivarItemDisponible(true);
 		}
 	}
 
@@ -238,33 +176,123 @@ public class SlotManager {
 		}
 	}
 
+	/**
+	 * Despachador universal de activación, consumo, equipamiento y venta rápida de
+	 * ítems. Unifica el comportamiento de teclas 1-0, HUD y ventana de inventario
+	 * (Zero-GC).
+	 */
+	public void activarItemDeSlot(final Slot slot) {
+		if ((slot == null) || !slot.contieneItem()) {
+			return;
+		}
+
+		final Item i = slot.getItem();
+
+		// 1. Gancho de Tienda: Si hay tienda abierta, clic derecho vende el ítem
+		if (Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && (Globales.GESTOR_INVENTARIO
+				.getInventarioTercero() instanceof principal.inventario.tienda.InventarioTienda)) {
+
+			final principal.inventario.tienda.InventarioTienda tienda = (principal.inventario.tienda.InventarioTienda) Globales.GESTOR_INVENTARIO
+					.getInventarioTercero();
+
+			// Protección: No permite vender equipo que se encuentre puesto
+			if (slot instanceof SlotEquipamiento) {
+				GestorSonido.reproducir(IDSonido.SIN_MUNICION);
+				tienda.mostrarNotificacion("¡Desequipa el objeto para venderlo!", new Color(255, 100, 100));
+				return;
+			}
+
+			final boolean venderTodo = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_SHIFT);
+			tienda.venderItemJugador(slot, venderTodo);
+			return;
+		}
+
+		// 2. Arrojadizos (Granadas / Cuchillos)
+		if (i instanceof Arrojadizo) {
+			this.INVENTARIO.getSlotArrojadizo().establecerObjeto(i);
+			if (this.INVENTARIO.esVisible()) {
+				this.INVENTARIO.ocultar();
+			}
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			return;
+		}
+
+		// 3. Armas Principales (Equipar / Intercambiar con SlotArma)
+		if (i instanceof Arma) {
+			if (slot == this.slotArma) {
+				this.desequiparArma();
+			} else {
+				final Item armaPrevia = this.slotArma.getItem();
+				this.slotArma.establecerObjeto(i);
+				slot.establecerObjeto(armaPrevia);
+			}
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			return;
+		}
+
+		// 4. Mano Secundaria (Desequipar)
+		if (slot == this.slotManoSecundaria) {
+			this.desequiparAAlmacen(this.slotManoSecundaria);
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			return;
+		}
+
+		// 5. Piezas de Equipo (Cascos, Armaduras, Botas, Anillos)
+		if (i instanceof PiezaEquipo) {
+			this.equiparPiezaRapida(slot, (PiezaEquipo) i);
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			return;
+		}
+
+		// 6. Consumibles y Desplegables (Pociones, Kit de Fogatas, etc.)
+		if (i instanceof Consumible) {
+			final Consumible c = (Consumible) i;
+			c.consumir(Globales.JUGADOR);
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			return;
+		}
+	}
+
+	private void actualizarHotbarTeclado() {
+		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()) {
+			return;
+		}
+
+		for (int i = 0; i < TECLAS_HOTBAR.length; i++) {
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(TECLAS_HOTBAR[i])) {
+				if (i < this.LISTA_SLOTS_PRINCIPALES.size()) {
+					final Slot slotHotbar = this.LISTA_SLOTS_PRINCIPALES.get(i);
+					this.activarItemDeSlot(slotHotbar);
+				}
+				break;
+			}
+		}
+	}
+
+	private void actualizarActivarItem(final Raton raton) {
+		if (raton.presionadoClickDerUnicaAct() && this.INVENTARIO.getActivarItemDisponible()) {
+			final int totalSlots = this.LISTA_SLOTS_GENERAL.size();
+			for (int s = 0; s < totalSlots; s++) {
+				final Slot slot = this.LISTA_SLOTS_GENERAL.get(s);
+				if (slot.ratonIntersecta(raton) && slot.contieneItem()) {
+					this.activarItemDeSlot(slot);
+					this.INVENTARIO.setActivarItemDisponible(false);
+					break;
+				}
+			}
+		} else if (!this.INVENTARIO.getActivarItemDisponible() && !raton.presionadoClickDer()) {
+			this.INVENTARIO.setActivarItemDisponible(true);
+		}
+	}
+
 	private void actualizarActivarItemIGU(final Raton raton) {
 		if (raton.presionadoClickDerUnicaAct() && this.INVENTARIO.getActivarItemDisponible()) {
 			for (int idx = 0; idx < this.LISTA_SLOTS_IGU.size(); idx++) {
 				final SlotIGU slotIGU = this.LISTA_SLOTS_IGU.get(idx);
 				if (slotIGU.apuntado() && slotIGU.contieneItem()) {
-					final Item i = slotIGU.getItem();
+					this.activarItemDeSlot(slotIGU.getSlot());
 					this.INVENTARIO.setActivarItemDisponible(false);
-
-					if (i instanceof Arrojadizo) {
-						this.INVENTARIO.getSlotArrojadizo().establecerObjeto(i);
-						return;
-					}
-					if (i instanceof Arma) {
-						if (slotIGU.getSlot() == this.slotArma) {
-							this.desequiparArma();
-						} else {
-							final Item itemAux = this.slotArma.getItem();
-							this.slotArma.establecerObjeto(i);
-							slotIGU.establecerObjeto(itemAux);
-						}
-						break;
-					}
-					if (i instanceof Consumible) {
-						final Consumible c = (Consumible) i;
-						c.consumir(Globales.JUGADOR);
-						break;
-					}
+					break;
 				}
 			}
 		} else if (!this.INVENTARIO.getActivarItemDisponible() && !raton.presionadoClickDerUnicaAct()) {
@@ -273,24 +301,7 @@ public class SlotManager {
 	}
 
 	public int contarMunicionTotal(final String codModeloMunicion) {
-		if (codModeloMunicion == null) {
-			return 0;
-		}
-
-		int total = 0;
-		final int cantSlots = this.LISTA_SLOTS.size();
-
-		for (int i = 0; i < cantSlots; i++) {
-			final Slot slot = this.LISTA_SLOTS.get(i);
-			if (slot.contieneItem() && (slot.getItem().getTipoItem() == Item.COD_ITEM_CONSUMIBLE)) {
-				final Consumible cons = (Consumible) slot.getItem();
-				if (codModeloMunicion.equals(cons.getCodigoModelo())) {
-					total += cons.getCantidad();
-				}
-			}
-		}
-
-		return total;
+		return this.contarItemGenericoTotal(codModeloMunicion);
 	}
 
 	public int extraerMunicion(final String codModeloMunicion, final int cantidadRequerida) {
@@ -303,24 +314,72 @@ public class SlotManager {
 
 		for (int i = 0; i < cantSlots; i++) {
 			final Slot slot = this.LISTA_SLOTS.get(i);
-			if (slot.contieneItem() && (slot.getItem().getTipoItem() == Item.COD_ITEM_CONSUMIBLE)) {
-				final Consumible cons = (Consumible) slot.getItem();
-				if (codModeloMunicion.equals(cons.getCodigoModelo())) {
-					final int disponible = cons.getCantidad();
+			if (slot.contieneItem()) {
+				final Item item = slot.getItem();
 
-					if (disponible > faltan) {
-						cons.establecerCantidad(disponible - faltan);
-						faltan = 0;
+				if (item instanceof Consumible) {
+					final Consumible cons = (Consumible) item;
+					if (codModeloMunicion.equalsIgnoreCase(cons.getCodigoModelo())
+							|| codModeloMunicion.equalsIgnoreCase(cons.getNombre())) {
+						final int disponible = cons.getCantidad();
+
+						if (disponible > faltan) {
+							cons.establecerCantidad(disponible - faltan);
+							faltan = 0;
+							break;
+						}
+						faltan -= disponible;
+						cons.establecerCantidad(0);
+						slot.eliminarObjeto();
+					}
+				} else if (codModeloMunicion.equalsIgnoreCase(item.getNombre())) {
+					slot.eliminarObjeto();
+					faltan--;
+					if (faltan == 0) {
 						break;
 					}
-					faltan -= disponible;
-					cons.establecerCantidad(0);
-					slot.eliminarObjeto();
 				}
 			}
 		}
 
 		return cantidadRequerida - faltan;
+	}
+
+	public int contarItemGenericoTotal(final String codigoONombre) {
+		if (codigoONombre == null) {
+			return 0;
+		}
+
+		int total = 0;
+		final int cantSlots = this.LISTA_SLOTS.size();
+
+		for (int i = 0; i < cantSlots; i++) {
+			final Slot slot = this.LISTA_SLOTS.get(i);
+			if (slot.contieneItem()) {
+				final Item item = slot.getItem();
+				if (item instanceof Consumible) {
+					final Consumible cons = (Consumible) item;
+					if (codigoONombre.equalsIgnoreCase(cons.getCodigoModelo())
+							|| codigoONombre.equalsIgnoreCase(cons.getNombre())) {
+						total += cons.getCantidad();
+					}
+				} else if (codigoONombre.equalsIgnoreCase(item.getNombre())) {
+					total++;
+				}
+			}
+		}
+
+		return total;
+	}
+
+	public boolean extraerItemGenerico(final String codigoONombre, final int cantidadRequerida) {
+		if ((codigoONombre == null) || (cantidadRequerida <= 0)) {
+			return false;
+		}
+		if (this.contarItemGenericoTotal(codigoONombre) < cantidadRequerida) {
+			return false;
+		}
+		return this.extraerMunicion(codigoONombre, cantidadRequerida) == cantidadRequerida;
 	}
 
 	private void desequiparArma() {
@@ -368,7 +427,7 @@ public class SlotManager {
 			if (slot.contieneItem()) {
 				if (slot.getItem().getTipoItem() == Item.COD_ITEM_CONSUMIBLE) {
 					final Consumible cons = (Consumible) slot.getItem();
-					if (cons.getCodigoModelo().equals(item.getCodigoModelo())) {
+					if (cons.getCodigoModelo().equalsIgnoreCase(item.getCodigoModelo())) {
 						final int sobrante = cons.agregarCantidad(item.getCantidad());
 						item.establecerCantidad(sobrante);
 
@@ -502,41 +561,54 @@ public class SlotManager {
 		int x = this.ZONA_SLOTS_EQUIPAMIENTOS.x;
 		final int y = this.ZONA_SLOTS_EQUIPAMIENTOS.y;
 
+		// 1. Arma Principal
 		this.slotArma = new SlotArma(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS));
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotArma);
 		this.LISTA_SLOTS_GENERAL.add(this.slotArma);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
+		// 2. Mano Secundaria (Offhand / Antorcha / Escudo)
+		this.slotManoSecundaria = new SlotManoSecundaria(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null);
+		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotManoSecundaria);
+		this.LISTA_SLOTS_GENERAL.add(this.slotManoSecundaria);
+		x += LADO_SLOTS + this.MARGEN_GENERAL;
+
+		// 3. Casco
 		this.slotCasco = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
 				principal.entes.objetos.items.equipamiento.TipoEquipo.CASCO);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotCasco);
 		this.LISTA_SLOTS_GENERAL.add(this.slotCasco);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
+		// 4. Torso
 		this.slotTorso = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
 				principal.entes.objetos.items.equipamiento.TipoEquipo.TORSO);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotTorso);
 		this.LISTA_SLOTS_GENERAL.add(this.slotTorso);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
+		// 5. Botas
 		this.slotBotas = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
 				principal.entes.objetos.items.equipamiento.TipoEquipo.BOTAS);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotBotas);
 		this.LISTA_SLOTS_GENERAL.add(this.slotBotas);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
+		// 6. Anillo 1
 		this.slotAnillo1 = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
 				principal.entes.objetos.items.equipamiento.TipoEquipo.ANILLO);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotAnillo1);
 		this.LISTA_SLOTS_GENERAL.add(this.slotAnillo1);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
+		// 7. Anillo 2
 		this.slotAnillo2 = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
 				principal.entes.objetos.items.equipamiento.TipoEquipo.ANILLO);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotAnillo2);
 		this.LISTA_SLOTS_GENERAL.add(this.slotAnillo2);
 		x += LADO_SLOTS + this.MARGEN_GENERAL;
 
+		// 8. Anillo 3
 		this.slotAnillo3 = new SlotPiezaEquipo(new Rectangle(x, y, LADO_SLOTS, LADO_SLOTS), null,
 				principal.entes.objetos.items.equipamiento.TipoEquipo.ANILLO);
 		this.LISTA_SLOTS_EQUIPAMIENTO.add(this.slotAnillo3);
@@ -546,20 +618,38 @@ public class SlotManager {
 	private void llenarSlotsIGU() {
 		final int posIguY = Constantes.ALTO_JUEGO - LADO_SLOTS - this.MARGEN_GENERAL;
 
+		// 1. Hotbar principal (10 casillas de acceso rápido)
 		for (int i = 0; i < this.LISTA_SLOTS_PRINCIPALES.size(); i++) {
 			final Slot slot = this.LISTA_SLOTS_PRINCIPALES.get(i);
 			this.LISTA_SLOTS_IGU.add(new SlotIGU(slot, slot.getX(), posIguY));
 		}
 
-		if ((this.slotArma != null) && !this.LISTA_SLOTS_PRINCIPALES.isEmpty()) {
+		// 2. Ranuras activas de equipo en el HUD (Mano Secundaria y Arma Principal)
+		if (!this.LISTA_SLOTS_PRINCIPALES.isEmpty()) {
 			final Slot primerSlotHotbar = this.LISTA_SLOTS_PRINCIPALES.get(0);
-			final int xSlotArmaIGU = primerSlotHotbar.getX() - this.slotArma.getAncho() - (2 * this.MARGEN_GENERAL);
-			this.LISTA_SLOTS_IGU.add(new SlotIGU(this.slotArma, xSlotArmaIGU, posIguY - this.MARGEN_GENERAL));
+			final int xBase = primerSlotHotbar.getX();
+
+			// Mano Secundaria [SEC] inmediatamente a la izquierda de la Hotbar
+			if (this.slotManoSecundaria != null) {
+				final int xSlotSecIGU = xBase - this.slotManoSecundaria.getAncho() - (2 * this.MARGEN_GENERAL);
+				this.LISTA_SLOTS_IGU
+						.add(new SlotIGU(this.slotManoSecundaria, xSlotSecIGU, posIguY - this.MARGEN_GENERAL));
+			}
+
+			// Arma Principal [ARM] a la izquierda de la Mano Secundaria
+			if (this.slotArma != null) {
+				final int xSlotArmaIGU = xBase - (2 * this.slotArma.getAncho()) - (3 * this.MARGEN_GENERAL);
+				this.LISTA_SLOTS_IGU.add(new SlotIGU(this.slotArma, xSlotArmaIGU, posIguY - this.MARGEN_GENERAL));
+			}
 		}
 	}
 
 	public ArrayList<SlotEquipamiento> getSlotsEquipamiento() {
 		return this.LISTA_SLOTS_EQUIPAMIENTO;
+	}
+
+	public SlotManoSecundaria getSlotManoSecundaria() {
+		return this.slotManoSecundaria;
 	}
 
 	public static int getLadoSlots() {

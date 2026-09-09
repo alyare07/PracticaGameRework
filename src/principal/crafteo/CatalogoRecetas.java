@@ -4,7 +4,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import principal.entes.objetos.Fogata;
 import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
+import principal.entes.objetos.items.desplegables.KitFogata;
+import principal.entes.objetos.items.desplegables.KitFogataAzul;
 import principal.entes.objetos.items.herramientas.Herramienta;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
 import principal.entes.objetos.items.materiales.RecursoMaterial;
@@ -47,6 +50,17 @@ public final class CatalogoRecetas {
 		// 5. Granada T1 (Mesa de Trabajo: 8 Piedra)
 		registrarReceta(new RecetaCrafteo("granada_t1", "Granada T1", EstacionCrafteo.MESA_TRABAJO,
 				new Ingrediente[] { new Ingrediente(RecursoMaterial.COD_PIEDRA, 8) }, new GranadaT1(1)));
+
+		// 6. Kit de Fogata (A Mano: 5 Madera + 2 Piedra)
+		registrarReceta(new RecetaCrafteo("fogata_kit", "Kit de Fogata", EstacionCrafteo.MANUAL, new Ingrediente[] {
+				new Ingrediente(RecursoMaterial.COD_MADERA, 5), new Ingrediente(RecursoMaterial.COD_PIEDRA, 2) },
+				new KitFogata(1)));
+		// Registrar la receta de la Fogata Mística
+		registrarReceta(new RecetaCrafteo("fogata_azul_kit", "Kit de Fogata Mística", EstacionCrafteo.MANUAL,
+				new Ingrediente[] { new Ingrediente(RecursoMaterial.COD_MADERA, 5),
+						new Ingrediente(RecursoMaterial.COD_PIEDRA, 2),
+						new Ingrediente(Fogata.COD_ANILLO_INFUSION, 1) },
+				new KitFogataAzul(1)));
 	}
 
 	public static void registrarReceta(final RecetaCrafteo receta) {

@@ -31,10 +31,11 @@ public class AnimacionesComerciante {
 
 		// 1. ESTÁNDAR / REPOSO (Filas 0, 1, 2)
 		this.animaciones[ESTANDAR] = new AnimacionDireccionada(
-				new Animacion(hojaNormal.recortarRango(4, framesPorFila), true, this.TIEMPO_MS_POR_FRAME),  // Norte
-				new Animacion(hojaNormal.recortarRango(0, framesPorFila), true, this.TIEMPO_MS_POR_FRAME),  // Sur
-				new Animacion(hojaNormal.recortarRango(8, framesPorFila), true, this.TIEMPO_MS_POR_FRAME),  // Este
-				new Animacion(hojaVolteada.recortarRango(8, framesPorFila), true, this.TIEMPO_MS_POR_FRAME) // Oeste (Volteado)
+				new Animacion(hojaNormal.recortarRango(4, framesPorFila), true, this.TIEMPO_MS_POR_FRAME), // Norte
+				new Animacion(hojaNormal.recortarRango(0, framesPorFila), true, this.TIEMPO_MS_POR_FRAME), // Sur
+				new Animacion(hojaNormal.recortarRango(8, framesPorFila), true, this.TIEMPO_MS_POR_FRAME), // Este
+				new Animacion(hojaVolteada.recortarRango(8, framesPorFila), true, this.TIEMPO_MS_POR_FRAME) // Oeste
+																											// (Volteado)
 		);
 
 		// 2. CAMINANDO (Filas 3, 4, 5)
@@ -42,8 +43,7 @@ public class AnimacionesComerciante {
 				new Animacion(hojaNormal.recortarRango(16, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50),
 				new Animacion(hojaNormal.recortarRango(12, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50),
 				new Animacion(hojaNormal.recortarRango(20, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50),
-				new Animacion(hojaVolteada.recortarRango(20, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50)
-		);
+				new Animacion(hojaVolteada.recortarRango(20, framesPorFila), true, this.TIEMPO_MS_POR_FRAME - 50));
 	}
 
 	public void actualizar(final Direccion direccion, final int tipo) {

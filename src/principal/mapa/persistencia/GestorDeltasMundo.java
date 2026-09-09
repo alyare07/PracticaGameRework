@@ -10,12 +10,20 @@ import org.json.simple.JSONObject;
 import principal.construccion.EstructuraConstruible;
 import principal.construccion.TipoEstructura;
 import principal.entes.Ente;
+import principal.entes.objetos.Fogata;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.recursos.RecursoCosechable;
 import principal.inventario.Contenedor;
 import principal.mapa.Mundo;
 import principal.utilidades.Globales;
 
+/**
+ * Gestor centralizado del subsistema de persistencia diferencial por mapa.
+ * Captura y aplica deltas de estado (destrucción de recursos, construcciones,
+ * cofres e ítems en el suelo) con soporte de expiración por calendario in-game.
+ * 
+ * @version 2.0 (Vanilla Java 8 - Fogata & Structure Persistence)
+ */
 public class GestorDeltasMundo {
 
 	private final Map<String, DeltaMundo> deltasPorMundo = new HashMap<String, DeltaMundo>();
@@ -49,7 +57,7 @@ public class GestorDeltasMundo {
 		final String claveMundo = mundo.getNombreMundo();
 		final DeltaMundo delta = this.obtenerOCrearDelta(claveMundo, diasParaRegenerar);
 
-		final int diaActual = (Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)
+		final int diaActual = ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null))
 				? Globales.GESTOR_LUZ.getCiclo().getDiaActual()
 				: 1;
 
@@ -63,17 +71,24 @@ public class GestorDeltasMundo {
 				continue;
 			}
 
-			// 1. Muros y construcciones colocadas por el jugador
+			// 1. Muros y defensas de construcción
 			if (e instanceof EstructuraConstruible) {
 				final EstructuraConstruible est = (EstructuraConstruible) e;
 				final JSONObject jsonEst = new JSONObject();
-				jsonEst.put("x", est.getPosicionXInt());
-				jsonEst.put("y", est.getPosicionYInt());
+				jsonEst.put("x", Integer.valueOf(est.getPosicionXInt()));
+				jsonEst.put("y", Integer.valueOf(est.getPosicionYInt()));
 				jsonEst.put("tipo", est.getTipo().name());
-				jsonEst.put("hp", est.getVida());
+				jsonEst.put("hp", Double.valueOf(est.getVida()));
 				delta.getEstructurasConstruidas().add(jsonEst);
 			}
-			// 2. Inventarios de cualquier contenedor (Cofres, ArbolCofre, etc.)
+			// 2. Fogatas desplegadas o modificadas por el jugador
+			else if (e instanceof Fogata) {
+				final Fogata f = (Fogata) e;
+				final JSONObject jsonFog = f.exportarParaJSON();
+				jsonFog.put("tipo", "Fogata");
+				delta.getEstructurasConstruidas().add(jsonFog);
+			}
+			// 3. Inventarios de cualquier contenedor (Cofres, Alijos, etc.)
 			else if (e instanceof Contenedor) {
 				final Contenedor c = (Contenedor) e;
 				final Ente propietario = c.getEntePropietario();
@@ -87,7 +102,7 @@ public class GestorDeltasMundo {
 					delta.getCofresModificados().put(clave, itemsJson);
 				}
 			}
-			// 3. Ítems actualmente tirados en el suelo
+			// 4. Ítems actualmente tirados en el suelo
 			else if (e instanceof Item) {
 				final Item item = (Item) e;
 				delta.getItemsEnSuelo().add(item.getJsonItem());
@@ -106,50 +121,56 @@ public class GestorDeltasMundo {
 			return;
 		}
 
-		final int diaActual = (Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)
+		final int diaActual = ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null))
 				? Globales.GESTOR_LUZ.getCiclo().getDiaActual()
 				: 1;
 
-		// Si el delta expiró (ej: cueva regenerable), se limpia y carga fresca
+		// Si el delta expiró (ej: mazmorra regenerable), se limpia y carga fresca
 		if (delta.haExpirado(diaActual)) {
 			delta.limpiar();
 			this.deltasPorMundo.remove(claveMundo);
 			return;
 		}
 
-		// 1. Purga árboles y rocas que fueron cosechados
+		// 1. Purga recursos cosechables y fogatas destruidas del mapa base
 		final Iterator<Ente> it = mundo.getEntes().iterator();
 		while (it.hasNext()) {
 			final Ente e = it.next();
-			if (e instanceof RecursoCosechable) {
+			if ((e instanceof RecursoCosechable) || (e instanceof Fogata)) {
 				if (delta.isEntidadDestruida(e.getPosicionXInt(), e.getPosicionYInt())) {
 					e.eliminar();
 					it.remove();
 				}
 			} else if (e instanceof Item) {
-				// Elimina los ítems iniciales de plantilla para reemplazarlos por el estado
-				// exacto del delta
+				// Elimina los ítems plantilla para restaurar el estado exacto del delta
 				e.eliminar();
 				it.remove();
 			}
 		}
 
-		// 2. Re-instancia las estructuras construidas por el jugador
+		// 2. Re-instancia las estructuras y fogatas construidas por el jugador
 		for (int i = 0; i < delta.getEstructurasConstruidas().size(); i++) {
 			final JSONObject jEst = delta.getEstructurasConstruidas().get(i);
-			final int x = ((Number) jEst.get("x")).intValue();
-			final int y = ((Number) jEst.get("y")).intValue();
-			final String tipoStr = jEst.get("tipo").toString();
+			final String tipoStr = (jEst.get("tipo") != null) ? jEst.get("tipo").toString() : "";
 
-			try {
-				final TipoEstructura tipo = TipoEstructura.valueOf(tipoStr);
-				final EstructuraConstruible est = new EstructuraConstruible(x, y, tipo);
-				mundo.meterEntidad(est);
-			} catch (final Exception ignored) {
+			if (tipoStr.equals("Fogata")) {
+				final Fogata f = Fogata.crearDesdeJson(jEst);
+				if (f != null) {
+					mundo.meterEntidad(f);
+				}
+			} else {
+				try {
+					final TipoEstructura tipo = TipoEstructura.valueOf(tipoStr);
+					final int x = ((Number) jEst.get("x")).intValue();
+					final int y = ((Number) jEst.get("y")).intValue();
+					final EstructuraConstruible est = new EstructuraConstruible(x, y, tipo);
+					mundo.meterEntidad(est);
+				} catch (final Exception ignored) {
+				}
 			}
 		}
 
-		// 3. Restaura contenidos modificados de cofres
+		// 3. Restaura contenidos modificados de contenedores
 		for (final Ente e : mundo.getEntes()) {
 			if (e instanceof Contenedor) {
 				final Contenedor c = (Contenedor) e;
@@ -163,9 +184,9 @@ public class GestorDeltasMundo {
 						c.getInventario().vaciar();
 						for (final Object objItem : items) {
 							if (objItem instanceof JSONObject) {
-								final Item i = Item.crearItemDesdeJson((JSONObject) objItem);
-								if (i != null) {
-									c.getInventario().agregarItem(i);
+								final Item item = Item.crearItemDesdeJson((JSONObject) objItem);
+								if (item != null) {
+									c.getInventario().agregarItem(item);
 								}
 							}
 						}

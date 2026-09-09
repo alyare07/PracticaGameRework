@@ -3,5 +3,24 @@
   "musicas.fondo_forest": {
     "ruta": "sonidos/forest.mp3",
     "volumen": 0.5
+  },
+   "musicas.fondo_relax": {
+    "ruta": "sonidos/Light_Among_The_Leaves.mp3",
+    "volumen": 0.10
   }
+  ,
+   "musicas.ambiente_lluvia": {
+    "ruta": "sonidos/lluvia.mp3",
+    "volumen": 0.5
+  }
+  ,
+   "musicas.ambiente_tormenta": {
+    "ruta": "sonidos/tormenta.mp3",
+    "volumen": 0.5
+  },
+   "musicas.ambiente_ventoso": {
+    "ruta": "sonidos/ventoso.mp3",
+    "volumen": 0.35
+  }
+
 }

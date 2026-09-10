@@ -60,7 +60,7 @@ public class BotonPixel extends ComponenteMenu {
 	}
 
 	public void accionar() {
-		GestorSonido.reproducir(IDSonido.GOLPE_1);
+		GestorSonido.reproducir(IDSonido.SELECT_MENU);
 		if (this.accion != null) {
 			this.accion.ejecutar();
 		}

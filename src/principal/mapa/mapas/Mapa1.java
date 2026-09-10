@@ -20,6 +20,7 @@ import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaRec
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaTactica;
 import principal.entes.objetos.items.desplegables.KitFogata;
 import principal.entes.objetos.items.equipamiento.PiezaEquipo;
+import principal.entes.objetos.items.equipamiento.TipoAislamiento;
 import principal.entes.objetos.items.equipamiento.TipoEquipo;
 import principal.entes.objetos.items.herramientas.Herramienta;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
@@ -140,12 +141,12 @@ public class Mapa1 extends Mapa {
 			arbolcofre1.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 100));
 			arbolcofre1.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 100));
 
-			arbolcofre1.getInventario()
-					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5, 3));
-			arbolcofre1.getInventario()
-					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15, 3));
-			arbolcofre1.getInventario()
-					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3, 3));
+			arbolcofre1.getInventario().agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0,
+					3, 5, TipoAislamiento.CALOR, 3));
+			arbolcofre1.getInventario().agregarItem(new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4,
+					0, 0, 15, TipoAislamiento.CALOR, 3));
+			arbolcofre1.getInventario().agregarItem(new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6,
+					0, 3, TipoAislamiento.CALOR, 3));
 			arbolcofre1.getInventario()
 					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ANILLO_ORO, TipoEquipo.ANILLO, 2, 2, 2, 0));
 

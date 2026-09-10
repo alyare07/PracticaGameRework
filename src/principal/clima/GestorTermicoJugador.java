@@ -9,37 +9,30 @@ import principal.utilidades.Globales;
 
 /**
  * Gestor de termorregulación, inercia térmica corporal y conexión reactiva con
- * el sistema de Efectos de Estado infinitos y residuales (Zero-GC / O(1)).
+ * el sistema de Efectos de Estado infinitos y residuales con resistencia
+ * térmica por tipo de prenda (Zero-GC / O(1)).
  * 
- * @version 2.4 (Vanilla Java 8 - Enhanced Thermodynamic Curve & Tiers)
+ * @version 3.0 (Vanilla Java 8 - Categorized Damping & Greenhousing)
  */
 public class GestorTermicoJugador {
 
-	// =========================================================================
-	// === 1. CONSTANTES TERMODINÁMICAS Y UMBRALES
-	// =========================================================================
-
-	public static final double TEMP_NOMINAL_CUERPO = 37.0; // 37.0 °C (Confort humano óptimo)
+	public static final double TEMP_NOMINAL_CUERPO = 37.0;
 
 	// Umbrales de Hipotermia Escalonada
-	public static final double UMBRAL_HIPOTERMIA_NIVEL_1 = 35.0; // Hipotermia I (Leve / Alerta)
-	public static final double UMBRAL_HIPOTERMIA_NIVEL_2 = 32.0; // Hipotermia II (Moderada / Daño)
-	public static final double UMBRAL_HIPOTERMIA_NIVEL_3 = 28.0; // Hipotermia III (Severa / Crítica)
+	public static final double UMBRAL_HIPOTERMIA_NIVEL_1 = 35.0;
+	public static final double UMBRAL_HIPOTERMIA_NIVEL_2 = 32.0;
+	public static final double UMBRAL_HIPOTERMIA_NIVEL_3 = 28.0;
 
 	// Umbrales de Hipertermia
 	public static final double UMBRAL_HIPERTERMIA_LEVE = 38.5;
 	public static final double UMBRAL_HIPERTERMIA_SEVERA = 40.0;
 
 	// Umbrales de Hipertermia Escalonada
-	public static final double UMBRAL_HIPERTERMIA_NIVEL_1 = 38.2; // Nivel 1: Bochorno / Fatiga
-	public static final double UMBRAL_HIPERTERMIA_NIVEL_2 = 39.5; // Nivel 2: Agotamiento / Mareo
-	public static final double UMBRAL_HIPERTERMIA_NIVEL_3 = 41.0; // Nivel 3: Golpe de Calor Crítico
+	public static final double UMBRAL_HIPERTERMIA_NIVEL_1 = 38.2;
+	public static final double UMBRAL_HIPERTERMIA_NIVEL_2 = 39.5;
+	public static final double UMBRAL_HIPERTERMIA_NIVEL_3 = 41.0;
 
-	private static final double TIEMPO_RESIDUAL_RECUPERACION = 6.0; // 6 segundos de transición
-
-	// =========================================================================
-	// === 2. ESTADO TÉRMICO
-	// =========================================================================
+	private static final double TIEMPO_RESIDUAL_RECUPERACION = 6.0;
 
 	private double temperaturaCorporal = TEMP_NOMINAL_CUERPO;
 	private double calorRecibidoFuego = 0.0;
@@ -53,10 +46,6 @@ public class GestorTermicoJugador {
 
 	public GestorTermicoJugador() {
 	}
-
-	// =========================================================================
-	// === 3. CICLO DE ACTUALIZACIÓN (60 APS)
-	// =========================================================================
 
 	public void actualizar(final double dt) {
 		if ((Globales.JUGADOR == null) || Globales.JUGADOR.estaEliminado()) {
@@ -88,33 +77,46 @@ public class GestorTermicoJugador {
 			enfriamientoViento = Globales.GESTOR_CLIMA.getFuerzaViento() * 1.2;
 		}
 
-		// 4. Aislamiento térmico de prendas equipadas
-		final int aislamientoPrendas = Globales.JUGADOR.getAislamientoTermicoEquipo();
+		// 4. Aislamiento clasificado de prendas equipadas
+		final int aislaFrio = Globales.JUGADOR.getAislamientoFrioTotal();
+		final int aislaCalor = Globales.JUGADOR.getAislamientoCalorTotal();
+		final int sofoco = Globales.JUGADOR.getPenalizacionSofocoTotal();
 
-		// 5. Temperatura efectiva percibida por el cuerpo
-		final double tempPercibida = (tempAmbiente - enfriamientoViento) + this.calorRecibidoFuego + aislamientoPrendas;
+		// Mitigación del viento: Cada punto de aislamiento al frío reduce el impacto
+		// del viento un 5% (hasta un 80% máx)
+		final double factorMitigacionViento = Math.max(0.20, 1.0 - (aislaFrio * 0.05));
+		final double vientoEfectivo = enfriamientoViento * factorMitigacionViento;
+
+		// 5. Cálculo de Temperatura Efectiva Percibida
+		double tempPercibida;
+
+		if (tempAmbiente < 10.0) {
+			// AMBIENTE FRÍO: El aislamiento frena la pérdida de calor y amortigua el viento
+			tempPercibida = (tempAmbiente - vientoEfectivo) + (aislaFrio * 0.85) + this.calorRecibidoFuego;
+		} else if (tempAmbiente > 27.0) {
+			// AMBIENTE CÁLIDO: El aislamiento disipa calor, pero el abrigo pesado añade
+			// sofoco
+			tempPercibida = (tempAmbiente - (aislaCalor * 0.85)) + (sofoco * 0.60) + this.calorRecibidoFuego;
+		} else {
+			// ZONA DE CONFORT / HOMEOSTASIS BASE
+			tempPercibida = tempAmbiente + this.calorRecibidoFuego;
+		}
 
 		// 6. Transferencia e inercia térmica
-		double velocidadCambio = 0.055; // Tasa base de intercambio térmico
+		double velocidadCambio = 0.055;
 
 		if (this.cercaDeFuenteCalor) {
-			// El cuerpo absorbe calor mucho más rápido cerca de una fogata
 			velocidadCambio *= 2.5;
 		} else if (this.expuestoAIntemperieFria) {
-			// Mojarse o estar bajo nieve acelera el enfriamiento corporal
 			velocidadCambio *= (nieve ? 2.2 : 1.8);
 		}
 
-		// Curva termodinámica con rango de Homeostasis Metabólica
 		double tempObjetivoCuerpo = TEMP_NOMINAL_CUERPO;
 
 		if (tempPercibida < 10.0) {
-			// Pérdida de calor cuando la sensación térmica cae por debajo de 10 °C
 			final double deficitTermico = 10.0 - tempPercibida;
 			tempObjetivoCuerpo = Math.max(20.0, TEMP_NOMINAL_CUERPO - (deficitTermico * 0.90));
-
 		} else if (tempPercibida > 27.0) {
-			// Sobrecalentamiento cuando la sensación térmica supera los 27 °C
 			final double excesoTermico = tempPercibida - 27.0;
 			tempObjetivoCuerpo = Math.min(42.0, TEMP_NOMINAL_CUERPO + (excesoTermico * 0.55));
 		}
@@ -128,80 +130,60 @@ public class GestorTermicoJugador {
 	}
 
 	private void actualizarEfectosEstadoAmbientales() {
-		// =====================================================================
-		// A. GESTIÓN DE HIPOTERMIA ESCALONADA (NIVELES I, II, III)
-		// =====================================================================
 		if (this.temperaturaCorporal < UMBRAL_HIPOTERMIA_NIVEL_1) {
 			final int nivelHipotermia;
 			final double danioBasePorNivel;
 
 			if (this.temperaturaCorporal < UMBRAL_HIPOTERMIA_NIVEL_3) {
-				// Nivel 3: Congelación Crítica (< 28.0 °C)
 				nivelHipotermia = 3;
-				danioBasePorNivel = 1.50; // 1.50 * 3 = 4.5 HP Daño Directo cada tick (2 seg)
+				danioBasePorNivel = 1.50;
 
 				if (this.GT_TEMBLOR_FRIO.transcurrioMiliSegundos(1600) && (Globales.CAMARA != null)) {
 					Globales.CAMARA.aplicarTemblor(300, 1.8);
 					this.GT_TEMBLOR_FRIO.establecerReferenciaTiempoActual();
 				}
-
 			} else if (this.temperaturaCorporal < UMBRAL_HIPOTERMIA_NIVEL_2) {
-				// Nivel 2: Hipotermia Moderada (28.0 °C a 32.0 °C)
 				nivelHipotermia = 2;
-				danioBasePorNivel = 0.75; // 0.75 * 2 = 1.5 HP Daño Directo cada tick (2 seg)
+				danioBasePorNivel = 0.75;
 
 				if (this.GT_TEMBLOR_FRIO.transcurrioMiliSegundos(3200) && (Globales.CAMARA != null)) {
 					Globales.CAMARA.aplicarTemblor(200, 0.9);
 					this.GT_TEMBLOR_FRIO.establecerReferenciaTiempoActual();
 				}
-
 			} else {
-				// Nivel 1: Alerta / Enfriamiento (32.0 °C a 35.0 °C)
 				nivelHipotermia = 1;
-				danioBasePorNivel = 0.0; // Sin daño directo en Nivel 1 (da tiempo a buscar refugio)
+				danioBasePorNivel = 0.0;
 			}
 
-			// Aplicar debuff infinito con la cantidad de stacks según el nivel
 			Globales.JUGADOR.aplicarEfectoInfinito(TipoEfectoEstado.HIPOTERMIA, danioBasePorNivel, nivelHipotermia);
 
-		} else // Si la temperatura se normaliza (>= 35.0 °C), transiciona a tiempo residual (6
-				// seg)
-		if (Globales.JUGADOR.tieneEfectoActivo(TipoEfectoEstado.HIPOTERMIA)) {
+		} else if (Globales.JUGADOR.tieneEfectoActivo(TipoEfectoEstado.HIPOTERMIA)) {
 			Globales.JUGADOR.finalizarEfectoInfinito(TipoEfectoEstado.HIPOTERMIA, TIEMPO_RESIDUAL_RECUPERACION);
 		}
-		// =====================================================================
-		// B. GESTIÓN DE HIPERTERMIA ESCALONADA (CALOR NIVELES I, II, III)
-		// =====================================================================
+
 		if (this.temperaturaCorporal > UMBRAL_HIPERTERMIA_NIVEL_1) {
 			final int nivelHipertermia;
 			final double danioBasePorNivel;
 
 			if (this.temperaturaCorporal >= UMBRAL_HIPERTERMIA_NIVEL_3) {
-				// Nivel 3: Golpe de Calor Crítico (>= 41.0 °C)
 				nivelHipertermia = 3;
-				danioBasePorNivel = 1.35; // 1.35 * 3 ≈ 4.05 HP Daño Directo cada tick (2 seg)
+				danioBasePorNivel = 1.35;
 
-				// Efecto borracho / distorsión permanente
 				if ((Globales.CAMARA != null)
 						&& !Globales.CAMARA.getGestorEfectos().getEfecto(TipoEfectoCamara.BORRACHO).isActivo()) {
 					Globales.CAMARA.activarModoBorracho(true);
 				}
-
 			} else if (this.temperaturaCorporal >= UMBRAL_HIPERTERMIA_NIVEL_2) {
-				// Nivel 2: Agotamiento Térmico (39.5 °C a 41.0 °C)
 				nivelHipertermia = 2;
-				danioBasePorNivel = 0.75; // 0.75 * 2 = 1.5 HP Daño Directo cada tick (2 seg)
+				danioBasePorNivel = 0.75;
 
-				// Efecto borracho intermitente por sofoco
 				if ((Globales.CAMARA != null)
 						&& !Globales.CAMARA.getGestorEfectos().getEfecto(TipoEfectoCamara.BORRACHO).isActivo()) {
 					Globales.CAMARA.activarModoBorracho(true);
 				}
-
 			} else {
-				// Nivel 1: Bochorno / Fatiga (38.2 °C a 39.5 °C)
 				nivelHipertermia = 1;
-				danioBasePorNivel = 0.0; // Sin daño directo en Nivel 1 (solo fatiga de estamina)
+				danioBasePorNivel = 0.0;
 
 				if ((Globales.CAMARA != null)
 						&& Globales.CAMARA.getGestorEfectos().getEfecto(TipoEfectoCamara.BORRACHO).isActivo()) {
@@ -209,11 +191,9 @@ public class GestorTermicoJugador {
 				}
 			}
 
-			// Aplicar debuff infinito con stacks según el nivel
 			Globales.JUGADOR.aplicarEfectoInfinito(TipoEfectoEstado.HIPERTERMIA, danioBasePorNivel, nivelHipertermia);
 
 		} else {
-			// Si la temperatura baja de 38.2 °C, transiciona a tiempo residual (6 seg)
 			if (Globales.JUGADOR.tieneEfectoActivo(TipoEfectoEstado.HIPERTERMIA)) {
 				Globales.JUGADOR.finalizarEfectoInfinito(TipoEfectoEstado.HIPERTERMIA, TIEMPO_RESIDUAL_RECUPERACION);
 			}
@@ -282,10 +262,6 @@ public class GestorTermicoJugador {
 			this.cercaDeFuenteCalor = true;
 		}
 	}
-
-	// =========================================================================
-	// === GETTERS Y SETTERS
-	// =========================================================================
 
 	public double getTemperaturaCorporal() {
 		return this.temperaturaCorporal;

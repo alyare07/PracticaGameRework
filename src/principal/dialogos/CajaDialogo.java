@@ -3,7 +3,6 @@ package principal.dialogos;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.event.KeyEvent;
 import java.util.List;
 
@@ -50,7 +49,7 @@ public class CajaDialogo {
 		// 1. Efecto máquina de escribir
 		if (!this.textoCompletado) {
 			this.tiempoAcumuladoLetra += dt;
-			while (this.tiempoAcumuladoLetra >= VELOCIDAD_TYPEWRITER && this.caracteresRevelados < texto.length()) {
+			while ((this.tiempoAcumuladoLetra >= VELOCIDAD_TYPEWRITER) && (this.caracteresRevelados < texto.length())) {
 				this.caracteresRevelados++;
 				this.tiempoAcumuladoLetra -= VELOCIDAD_TYPEWRITER;
 			}
@@ -75,24 +74,26 @@ public class CajaDialogo {
 			} else {
 				// Confirma la opción seleccionada
 				final List<OpcionDialogo> ops = this.mensajeActual.getOpciones();
-				if (this.opcionSeleccionada >= 0 && this.opcionSeleccionada < ops.size()) {
+				if ((this.opcionSeleccionada >= 0) && (this.opcionSeleccionada < ops.size())) {
 					ops.get(this.opcionSeleccionada).seleccionar();
 				}
 				Globales.GESTOR_DIALOGOS.siguienteMensaje();
 			}
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.SELECT);
 			return;
 		}
 
 		// 3. Navegación entre opciones múltiples (Arriba / Abajo)
 		if (this.textoCompletado && this.mensajeActual.tieneOpciones()) {
 			final int totalOps = this.mensajeActual.getOpciones().size();
-			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_UP) || Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_W)) {
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_UP)
+					|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_W)) {
 				this.opcionSeleccionada = (this.opcionSeleccionada <= 0) ? totalOps - 1 : this.opcionSeleccionada - 1;
-				GestorSonido.reproducir(IDSonido.GOLPE_1);
-			} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_DOWN) || Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_S)) {
-				this.opcionSeleccionada = (this.opcionSeleccionada >= totalOps - 1) ? 0 : this.opcionSeleccionada + 1;
-				GestorSonido.reproducir(IDSonido.GOLPE_1);
+				GestorSonido.reproducir(IDSonido.SELECT_MENU);
+			} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_DOWN)
+					|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_S)) {
+				this.opcionSeleccionada = (this.opcionSeleccionada >= (totalOps - 1)) ? 0 : this.opcionSeleccionada + 1;
+				GestorSonido.reproducir(IDSonido.SELECT_MENU);
 			}
 		}
 	}
@@ -115,7 +116,7 @@ public class CajaDialogo {
 		// 2. Nombre del hablante en placa superior
 		final String nombre = this.mensajeActual.getNombreHablante();
 		int xTexto = x + 10;
-		if (nombre != null && !nombre.isEmpty()) {
+		if ((nombre != null) && !nombre.isEmpty()) {
 			final Font fontPrevia = g.getFont();
 			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 14f));
 
@@ -166,7 +167,8 @@ public class CajaDialogo {
 		}
 	}
 
-	private void dibujarTextoConSaltoDeLinea(final Graphics2D g, final String texto, final int x, final int y, final int anchoMax) {
+	private void dibujarTextoConSaltoDeLinea(final Graphics2D g, final String texto, final int x, final int y,
+			final int anchoMax) {
 		final String[] palabras = texto.split(" ");
 		final StringBuilder lineaActual = new StringBuilder();
 		int yActual = y;

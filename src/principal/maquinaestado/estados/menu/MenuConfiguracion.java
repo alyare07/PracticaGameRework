@@ -127,12 +127,12 @@ public class MenuConfiguracion extends Menu {
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_LEFT)
 				|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_A)) {
 			this.establecerIndiceEnfocado(0);
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.SELECT_MENU);
 		}
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_RIGHT)
 				|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_D)) {
 			this.establecerIndiceEnfocado(1);
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.SELECT_MENU);
 		}
 
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ENTER)

@@ -112,7 +112,7 @@ public class GestorCrafteo implements AccionEntidad<Objeto> {
 
 		if (exito) {
 			if ((Globales.CAMARA != null) && (Globales.CAMARA.getEntidadEnfocada() != null)) {
-				GestorSonido.reproducirEnPosicion(IDSonido.GOLPE_1, Globales.JUGADOR.getCentroX(),
+				GestorSonido.reproducirEnPosicion(IDSonido.RECOGER, Globales.JUGADOR.getCentroX(),
 						Globales.JUGADOR.getCentroY(), Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
 						Globales.CAMARA.getEntidadEnfocada().getPosicionY());
 			}

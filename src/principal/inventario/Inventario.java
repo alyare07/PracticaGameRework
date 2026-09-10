@@ -26,18 +26,15 @@ import principal.utilidades.inventario.ItemPuntero;
 
 /**
  * Ventana central del inventario del jugador (240 px) con cabecera de 8 slots
- * de equipamiento (Arma, Mano Secundaria, Casco, Torso, Botas, 3 Anillos),
- * Atributos RPG y Billetera (Zero-GC / O(1)).
+ * de equipamiento, Atributos RPG, Resistencia Térmica y Billetera (Zero-GC /
+ * O(1)).
  * 
- * @version 4.2 (Vanilla Java 8 - 8-Slot Equipment Header Layout)
+ * @version 4.3 (Vanilla Java 8 - Thermal Resistance HUD Integration)
  */
 public class Inventario {
 
 	public static final int TIEMPO_ACTUALIZACION_RATON_PRESIONADO = 500;
 
-	// =========================================================================
-	// === PALETA TÁCTICA PIXEL-ART (ZERO-GC)
-	// =========================================================================
 	public static final Color FONDO_PANEL_OSCURO = new Color(16, 18, 24, 235);
 	public static final Color FONDO_SECCION_HEROE = new Color(24, 28, 38, 240);
 	public static final Color FONDO_SLOTS_ALMACEN = new Color(20, 23, 30, 220);
@@ -108,7 +105,6 @@ public class Inventario {
 
 		this.AREA_TOTAL = new Rectangle(this.X, this.Y, this.ANCHO, this.ALTO);
 		this.ZONA_INFO_JUGADOR = new Rectangle(this.X, this.Y, this.ANCHO, 25);
-		// Ancho para 8 slots: 8 * 18 + 7 * 2 = 158 px
 		this.ZONA_SLOTS_EQUIPAMIENTOS = new Rectangle(this.X + 26, this.Y + 3, 158, 18);
 		this.ZONA_SLOTS_ALMACEN = new Rectangle(this.X, this.ZONA_INFO_JUGADOR.y + this.ZONA_INFO_JUGADOR.height,
 				this.ANCHO, 62);
@@ -178,8 +174,11 @@ public class Inventario {
 			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipConCabecera(g, TITULO_INT, DESC_INT, COLOR_TEXTO_INT,
 					COLOR_DESC_TOOLTIP, FONDO_PANEL_OSCURO);
 		} else if (this.areaStatsDEF.contains(pMouse)) {
-			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipConCabecera(g, TITULO_DEF, DESC_DEF, COLOR_TEXTO_DEF,
-					COLOR_DESC_TOOLTIP, FONDO_PANEL_OSCURO);
+			final int frio = (Globales.JUGADOR != null) ? Globales.JUGADOR.getAislamientoFrioTotal() : 0;
+			final int calor = (Globales.JUGADOR != null) ? Globales.JUGADOR.getAislamientoCalorTotal() : 0;
+			final String descDefConAisla = DESC_DEF + " [Resist. Frío: +" + frio + "°C | Calor: +" + calor + "°C]";
+			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipConCabecera(g, TITULO_DEF, descDefConAisla,
+					COLOR_TEXTO_DEF, COLOR_DESC_TOOLTIP, FONDO_PANEL_OSCURO);
 		} else if (this.areaBilletera.contains(pMouse)) {
 			final String totalDesc = "Fondos: " + this.cachedOro + " Oro, " + this.cachedPlata + " Plata.";
 			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipConCabecera(g, "Billetera: ", totalDesc, COLOR_TEXTO_ORO,

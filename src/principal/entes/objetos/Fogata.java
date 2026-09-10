@@ -273,7 +273,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 		}
 		this.actualizarEstadoVisual();
 		this.animaciones.reiniciar(this.estadoVisual);
-		GestorSonido.reproducir(IDSonido.GOLPE_1);
+		GestorSonido.reproducir(IDSonido.SELECT);
 	}
 
 	public void apagar() {
@@ -284,7 +284,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 		this.estadoVisual = AnimacionesFogata.APAGADA_HUMO;
 		this.animaciones.reiniciar(AnimacionesFogata.APAGADA_HUMO);
 		this.desvincularLuz();
-		GestorSonido.reproducir(IDSonido.GOLPE_1);
+		GestorSonido.reproducir(IDSonido.SELECT);
 	}
 
 	public boolean agregarMadera(final int cantidad) {
@@ -382,7 +382,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 			if (!this.fuegoAzul && (inv != null) && (inv.contarItemGenericoTotal(COD_ANILLO_INFUSION) > 0)) {
 				inv.extraerItemGenerico(COD_ANILLO_INFUSION, 1);
 				this.setFuegoAzul(true);
-				GestorSonido.reproducir(IDSonido.GOLPE_1);
+				GestorSonido.reproducir(IDSonido.SELECT);
 				Globales.GESTOR_PARTICULAS.emitirMagia(this.getCentroX(), this.getCentroY(), 15);
 				Globales.GESTOR_TEXTOS.agregarTexto("¡Fuego Místico Despertado!", this.getCentroX(),
 						this.getPosicionYInt() - 8, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
@@ -398,7 +398,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 				if (inv.contarItemGenericoTotal(RecursoMaterial.COD_MADERA) > 0) {
 					inv.extraerItemGenerico(RecursoMaterial.COD_MADERA, 1);
 					this.agregarMadera(1);
-					GestorSonido.reproducir(IDSonido.GOLPE_1);
+					GestorSonido.reproducir(IDSonido.SELECT);
 					Globales.GESTOR_TEXTOS.agregarTexto("+1 Leña", this.getCentroX(), this.getPosicionYInt() - 8,
 							principal.igu.textos.TipoTextoFlotante.ORO_EXP);
 				} else {

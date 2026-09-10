@@ -49,7 +49,7 @@ public abstract class Cofre extends Objeto implements Contenedor, Interactuable 
 	public void interactuar(final Jugador jugador) {
 		if (this.INVENTARIO.getEstadoInventario() == EstadoInventario.CERRADO) {
 			this.INVENTARIO.abrir();
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.SELECT);
 		}
 	}
 

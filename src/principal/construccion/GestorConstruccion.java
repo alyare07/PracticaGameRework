@@ -139,7 +139,7 @@ public class GestorConstruccion {
 
 			if (!this.enCaminoAColocar) {
 				this.cancelar();
-				GestorSonido.reproducir(IDSonido.GOLPE_1);
+				GestorSonido.reproducir(IDSonido.SELECT);
 				return;
 			}
 			this.cancelarSmartWalk();
@@ -303,7 +303,7 @@ public class GestorConstruccion {
 		}
 
 		mundo.notificarModificacionEstructura();
-		GestorSonido.reproducirEnPosicion(IDSonido.GOLPE_1, x, y, Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
+		GestorSonido.reproducirEnPosicion(IDSonido.SELECT, x, y, Globales.CAMARA.getEntidadEnfocada().getPosicionX(),
 				Globales.CAMARA.getEntidadEnfocada().getPosicionY());
 	}
 

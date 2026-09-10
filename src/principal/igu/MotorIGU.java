@@ -7,9 +7,10 @@ import principal.entes.criaturas.Criatura;
 
 /**
  * Motor central de interfaz de usuario del juego (HUD 1:1). Integra barras de
- * estado, dial astrológico, termómetro y la fila de efectos de estado activos.
+ * estado, dial astrológico, termómetro con monitoreo de aislamiento/sofoco y la
+ * fila de efectos de estado activos (Zero-GC / O(1)).
  * 
- * @version 2.1 (Vanilla Java 8 - Status Effect HUD Integration)
+ * @version 2.2 (Vanilla Java 8 - Termometro Tooltip Integration)
  */
 public class MotorIGU {
 
@@ -45,7 +46,10 @@ public class MotorIGU {
 		this.RELOJ_CICLO.pintar(g);
 		this.TERMOMETRO.pintar(g);
 		this.EFECTOS_ESTADO.pintar(g);
+
+		// Renderizado superior de tooltips en capa final
 		this.EFECTOS_ESTADO.pintarTooltips(g);
+		this.TERMOMETRO.pintarTooltips(g);
 	}
 
 	public void fijarJefe(final Criatura jefe) {

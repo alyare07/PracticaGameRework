@@ -23,8 +23,21 @@
     "ruta": "sonidos/hit_punch_2.mp3",
     "volumen": 1.0
   },
+  "efectos.recoger": {
+    "ruta": "sonidos/recoger.wav",
+    "volumen": 1.0
+  },
+  "efectos.select": {
+    "ruta": "sonidos/select.wav",
+    "volumen": 1.0
+  },
+  "efectos.select_menu": {
+    "ruta": "sonidos/menu_select.wav",
+    "volumen": 1.0
+  },
   "ambiente_trueno": {
     "ruta": "sonidos/trueno.wav",
     "volumen": 1.0
   }
+  
 }

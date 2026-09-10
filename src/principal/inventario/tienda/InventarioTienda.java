@@ -138,7 +138,7 @@ public class InventarioTienda extends InventarioVault {
 
 		// 3. Ejecutar cobro
 		Globales.JUGADOR.restarDinero(costoTotal);
-		GestorSonido.reproducir(IDSonido.GOLPE_1);
+		GestorSonido.reproducir(IDSonido.RECOGER);
 
 		final String textoGasto = "-" + Item.formatearMoneda(costoTotal)
 				+ (cantidadDeseada > 1 ? " (x" + cantidadDeseada + ")" : "");
@@ -193,7 +193,7 @@ public class InventarioTienda extends InventarioVault {
 
 		// Sumar dinero
 		Globales.JUGADOR.sumarDinero(gananciaTotal);
-		GestorSonido.reproducir(IDSonido.GOLPE_1);
+		GestorSonido.reproducir(IDSonido.RECOGER);
 
 		final String textoGanancia = "+" + Item.formatearMoneda(gananciaTotal)
 				+ (cantidadAVender > 1 ? " (x" + cantidadAVender + ")" : "");
@@ -229,7 +229,7 @@ public class InventarioTienda extends InventarioVault {
 
 		final long gananciaTotal = itemVenta.getPrecioVentaPlata() * cantidad;
 		Globales.JUGADOR.sumarDinero(gananciaTotal);
-		GestorSonido.reproducir(IDSonido.GOLPE_1);
+		GestorSonido.reproducir(IDSonido.RECOGER);
 
 		final String texto = "+" + Item.formatearMoneda(gananciaTotal) + (cantidad > 1 ? " (x" + cantidad + ")" : "");
 		this.mostrarNotificacion("Vendido: " + texto, new Color(255, 215, 80));

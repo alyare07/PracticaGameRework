@@ -8,10 +8,10 @@ import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Portable;
 
 /**
- * Representa una pieza de equipamiento equipable con atributos y precio de
- * mercado calibrado.
+ * Representa una pieza de equipamiento equipable con atributos RPG, precio de
+ * mercado y resistencia térmica clasificada (Zero-GC / O(1)).
  * 
- * @version 3.0 (Vanilla Java 8 - Calibrated Commercial Pricing)
+ * @version 4.0 (Vanilla Java 8 - Classified Thermal Insulation)
  */
 public class PiezaEquipo extends Portable {
 
@@ -28,57 +28,62 @@ public class PiezaEquipo extends Portable {
 	protected final int bonifAgilidad;
 	protected final int bonifInteligencia;
 	protected final int armaduraDefensa;
-	protected final int bonifTemperatura;
+	protected final TipoAislamiento tipoAislamiento;
+	protected final int valorAislamiento;
 
 	public PiezaEquipo(final String codModelo, final TipoEquipo tipoEquipo, final int bonifFuerza,
 			final int bonifAgilidad, final int bonifInteligencia, final int armaduraDefensa,
-			final int bonifTemperatura) {
+			final TipoAislamiento tipoAislamiento, final int valorAislamiento) {
 		super(codModelo);
 		this.tipoEquipo = (tipoEquipo != null) ? tipoEquipo : TipoEquipo.CASCO;
 		this.bonifFuerza = bonifFuerza;
 		this.bonifAgilidad = bonifAgilidad;
 		this.bonifInteligencia = bonifInteligencia;
 		this.armaduraDefensa = armaduraDefensa;
-		this.bonifTemperatura = bonifTemperatura;
+		this.tipoAislamiento = (tipoAislamiento != null) ? tipoAislamiento : TipoAislamiento.NINGUNO;
+		this.valorAislamiento = Math.max(0, valorAislamiento);
 		this.asignarPrecioPorDefecto();
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
 	public PiezaEquipo(final int x, final int y, final String codModelo, final TipoEquipo tipoEquipo,
 			final int bonifFuerza, final int bonifAgilidad, final int bonifInteligencia, final int armaduraDefensa,
-			final int bonifTemperatura) {
+			final TipoAislamiento tipoAislamiento, final int valorAislamiento) {
 		super(x, y, codModelo);
 		this.tipoEquipo = (tipoEquipo != null) ? tipoEquipo : TipoEquipo.CASCO;
 		this.bonifFuerza = bonifFuerza;
 		this.bonifAgilidad = bonifAgilidad;
 		this.bonifInteligencia = bonifInteligencia;
 		this.armaduraDefensa = armaduraDefensa;
-		this.bonifTemperatura = bonifTemperatura;
+		this.tipoAislamiento = (tipoAislamiento != null) ? tipoAislamiento : TipoAislamiento.NINGUNO;
+		this.valorAislamiento = Math.max(0, valorAislamiento);
 		this.asignarPrecioPorDefecto();
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
 	public PiezaEquipo(final String codModelo, final TipoEquipo tipoEquipo, final int bonifFuerza,
 			final int bonifAgilidad, final int bonifInteligencia, final int armaduraDefensa) {
-		this(codModelo, tipoEquipo, bonifFuerza, bonifAgilidad, bonifInteligencia, armaduraDefensa, 0);
+		this(codModelo, tipoEquipo, bonifFuerza, bonifAgilidad, bonifInteligencia, armaduraDefensa,
+				TipoAislamiento.NINGUNO, 0);
 	}
 
 	public PiezaEquipo(final int x, final int y, final String codModelo, final TipoEquipo tipoEquipo,
 			final int bonifFuerza, final int bonifAgilidad, final int bonifInteligencia, final int armaduraDefensa) {
-		this(x, y, codModelo, tipoEquipo, bonifFuerza, bonifAgilidad, bonifInteligencia, armaduraDefensa, 0);
+		this(x, y, codModelo, tipoEquipo, bonifFuerza, bonifAgilidad, bonifInteligencia, armaduraDefensa,
+				TipoAislamiento.NINGUNO, 0);
 	}
 
 	private void asignarPrecioPorDefecto() {
 		if (this.codigoModelo.equals(COD_ANILLO_ORO)) {
-			this.precioBasePlata = 800L; // 8 Oro
+			this.precioBasePlata = 800L;
 		} else if (this.codigoModelo.equals(COD_ANILLO_PLATA)) {
-			this.precioBasePlata = 300L; // 3 Oro
+			this.precioBasePlata = 300L;
 		} else if (this.tipoEquipo == TipoEquipo.TORSO) {
-			this.precioBasePlata = 350L; // 3 Oro 50 Plata
+			this.precioBasePlata = 350L;
 		} else if (this.tipoEquipo == TipoEquipo.CASCO) {
-			this.precioBasePlata = 200L; // 2 Oro
+			this.precioBasePlata = 200L;
 		} else if (this.tipoEquipo == TipoEquipo.BOTAS) {
-			this.precioBasePlata = 150L; // 1 Oro 50 Plata
+			this.precioBasePlata = 150L;
 		} else {
 			this.precioBasePlata = 100L;
 		}
@@ -104,8 +109,12 @@ public class PiezaEquipo extends Portable {
 		return this.armaduraDefensa;
 	}
 
-	public int getBonifTemperatura() {
-		return this.bonifTemperatura;
+	public TipoAislamiento getTipoAislamiento() {
+		return this.tipoAislamiento;
+	}
+
+	public int getValorAislamiento() {
+		return this.valorAislamiento;
 	}
 
 	@Override
@@ -131,10 +140,21 @@ public class PiezaEquipo extends Portable {
 		if (this.bonifInteligencia > 0) {
 			listaInfo.add("Inteligencia: +" + this.bonifInteligencia);
 		}
-		if (this.bonifTemperatura > 0) {
-			listaInfo.add("Aislamiento Termico: +" + this.bonifTemperatura + " °C");
-		} else if (this.bonifTemperatura < 0) {
-			listaInfo.add("Refrigeracion: " + this.bonifTemperatura + " °C");
+
+		if ((this.tipoAislamiento != TipoAislamiento.NINGUNO) && (this.valorAislamiento > 0)) {
+			switch (this.tipoAislamiento) {
+			case FRIO:
+				listaInfo.add("Aislamiento Frío: +" + this.valorAislamiento + " °C");
+				break;
+			case CALOR:
+				listaInfo.add("Aislamiento Calor: +" + this.valorAislamiento + " °C");
+				break;
+			case UNIVERSAL:
+				listaInfo.add("Aislamiento Térmico: +" + this.valorAislamiento + " °C");
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
@@ -142,7 +162,7 @@ public class PiezaEquipo extends Portable {
 	public Objeto copiar() {
 		final PiezaEquipo p = new PiezaEquipo(this.getPosicionXInt(), this.getPosicionYInt(), this.codigoModelo,
 				this.tipoEquipo, this.bonifFuerza, this.bonifAgilidad, this.bonifInteligencia, this.armaduraDefensa,
-				this.bonifTemperatura);
+				this.tipoAislamiento, this.valorAislamiento);
 		p.setPrecioBasePlata(this.precioBasePlata);
 		return p;
 	}
@@ -159,7 +179,8 @@ public class PiezaEquipo extends Portable {
 		json.put("agilidad", Integer.valueOf(this.bonifAgilidad));
 		json.put("inteligencia", Integer.valueOf(this.bonifInteligencia));
 		json.put("defensa", Integer.valueOf(this.armaduraDefensa));
-		json.put("temperatura", Integer.valueOf(this.bonifTemperatura));
+		json.put("tipoAislamiento", this.tipoAislamiento.name());
+		json.put("valorAislamiento", Integer.valueOf(this.valorAislamiento));
 		json.put("precio", Long.valueOf(this.precioBasePlata));
 		return json;
 	}
@@ -184,9 +205,20 @@ public class PiezaEquipo extends Portable {
 		final int a = (json.get("agilidad") != null) ? ((Number) json.get("agilidad")).intValue() : 0;
 		final int i = (json.get("inteligencia") != null) ? ((Number) json.get("inteligencia")).intValue() : 0;
 		final int def = (json.get("defensa") != null) ? ((Number) json.get("defensa")).intValue() : 0;
-		final int temp = (json.get("temperatura") != null) ? ((Number) json.get("temperatura")).intValue() : 0;
 
-		final PiezaEquipo pieza = new PiezaEquipo(x, y, codModelo, tipo, f, a, i, def, temp);
+		final String aislaStr = (json.get("tipoAislamiento") != null) ? json.get("tipoAislamiento").toString()
+				: "NINGUNO";
+		TipoAislamiento tipoAisla = TipoAislamiento.NINGUNO;
+		try {
+			tipoAisla = TipoAislamiento.valueOf(aislaStr);
+		} catch (final Exception ignored) {
+		}
+
+		final int valorAisla = (json.get("valorAislamiento") != null)
+				? ((Number) json.get("valorAislamiento")).intValue()
+				: 0;
+
+		final PiezaEquipo pieza = new PiezaEquipo(x, y, codModelo, tipo, f, a, i, def, tipoAisla, valorAisla);
 		if (json.get("precio") != null) {
 			pieza.setPrecioBasePlata(((Number) json.get("precio")).longValue());
 		}

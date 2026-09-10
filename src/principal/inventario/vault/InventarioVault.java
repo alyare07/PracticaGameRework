@@ -122,7 +122,7 @@ public class InventarioVault {
 					} else {
 						apuntado.eliminarObjeto();
 					}
-					GestorSonido.reproducir(IDSonido.GOLPE_1);
+					GestorSonido.reproducir(IDSonido.RECOGER);
 				}
 			}
 		}

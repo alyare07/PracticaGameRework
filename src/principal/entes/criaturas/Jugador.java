@@ -24,6 +24,7 @@ import principal.entes.objetos.items.Portable;
 import principal.entes.objetos.items.armas.Arma;
 import principal.entes.objetos.items.arrojadizos.Arrojadizo;
 import principal.entes.objetos.items.equipamiento.PiezaEquipo;
+import principal.entes.objetos.items.equipamiento.TipoAislamiento;
 import principal.entes.proyectil.GolpeMele;
 import principal.ia.Lista;
 import principal.ia.aEstrella.NodoA;
@@ -45,10 +46,10 @@ import principal.utilidades.audio.sonido.IDSonido;
 
 /**
  * Representa al personaje jugable con física diagonal normalizada, redondeo
- * simétrico con la cámara, gestión de equipamiento, termodinámica y estamina
- * (Zero-GC).
+ * simétrico con la cámara, gestión de equipamiento, termodinámica multivariable
+ * y estamina (Zero-GC).
  * 
- * @version 4.1 (Vanilla Java 8 - Thermal Equipment Integration)
+ * @version 5.0 (Vanilla Java 8 - Multi-Insulation System)
  */
 public class Jugador extends Criatura {
 
@@ -77,7 +78,10 @@ public class Jugador extends Criatura {
 	protected int modAgilidadEquipo = 0;
 	protected int modInteligenciaEquipo = 0;
 	protected int defensaTotal = 0;
-	protected int modTemperaturaEquipo = 0;
+
+	protected int aislamientoFrioTotal = 0;
+	protected int aislamientoCalorTotal = 0;
+	protected int penalizacionSofocoTotal = 0;
 
 	protected double estamina;
 	protected double maxEstamina;
@@ -98,9 +102,6 @@ public class Jugador extends Criatura {
 	private final Rectangle RECTANGLE_AUXILIAR = new Rectangle();
 	private final Point PUNTO_AUXILIAR = new Point();
 
-	// =========================================================================
-	// BILLETERA LÓGICA (1 Oro = 100 Plata) Y RECOGIDA POR CONTACTO (ZERO-GC)
-	// =========================================================================
 	protected long dineroPlata = 0;
 
 	private final AccionEntidad<Item> accionRecogidaItem = new AccionEntidad<Item>() {
@@ -143,7 +144,9 @@ public class Jugador extends Criatura {
 		int a = 0;
 		int i = 0;
 		int def = 0;
-		int temp = 0;
+		int aislaFrio = 0;
+		int aislaCalor = 0;
+		int sofoco = 0;
 
 		if ((Globales.GESTOR_INVENTARIO != null) && (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
 			final ArrayList<SlotEquipamiento> slots = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotManager()
@@ -157,7 +160,28 @@ public class Jugador extends Criatura {
 					a += p.getBonifAgilidad();
 					i += p.getBonifInteligencia();
 					def += p.getArmaduraDefensa();
-					temp += p.getBonifTemperatura();
+
+					final TipoAislamiento tipo = p.getTipoAislamiento();
+					final int val = p.getValorAislamiento();
+					if (val > 0) {
+						switch (tipo) {
+						case FRIO:
+							aislaFrio += val;
+							sofoco += (int) Math.round(val * 0.75);
+							break;
+						case CALOR:
+							aislaCalor += val;
+							aislaFrio += (int) Math.round(val * 0.20);
+							break;
+						case UNIVERSAL:
+							aislaFrio += val;
+							aislaCalor += val;
+							break;
+						case NINGUNO:
+						default:
+							break;
+						}
+					}
 				}
 			}
 		}
@@ -166,7 +190,9 @@ public class Jugador extends Criatura {
 		this.modAgilidadEquipo = a;
 		this.modInteligenciaEquipo = i;
 		this.defensaTotal = def;
-		this.modTemperaturaEquipo = temp;
+		this.aislamientoFrioTotal = aislaFrio;
+		this.aislamientoCalorTotal = aislaCalor;
+		this.penalizacionSofocoTotal = sofoco;
 
 		final double nuevaVidaMax = this.PTS_VIDAMAX_BASE + (this.getFuerzaTotal() * 2.0);
 		final double ratioVida = (this.vidaMaxima > 0) ? (this.vida / this.vidaMaxima) : 1.0;
@@ -176,7 +202,7 @@ public class Jugador extends Criatura {
 
 		this.damage = this.PTS_DAMAGE_BASE + (this.getFuerzaTotal() * 0.5);
 
-		this.velocidadEstandar = 1 + (this.getAgilidadTotal() * 0.01);
+		this.velocidadEstandar = 1.0 + (this.getAgilidadTotal() * 0.01);
 		this.establecerVelocidadStardar();
 
 		this.maxEstamina = 20.0 + (this.getAgilidadTotal() * 0.5) + (this.getInteligenciaTotal() * 0.5);
@@ -202,8 +228,16 @@ public class Jugador extends Criatura {
 		return this.defensaTotal;
 	}
 
-	public int getAislamientoTermicoEquipo() {
-		return this.modTemperaturaEquipo;
+	public int getAislamientoFrioTotal() {
+		return this.aislamientoFrioTotal;
+	}
+
+	public int getAislamientoCalorTotal() {
+		return this.aislamientoCalorTotal;
+	}
+
+	public int getPenalizacionSofocoTotal() {
+		return this.penalizacionSofocoTotal;
 	}
 
 	@Override
@@ -229,8 +263,6 @@ public class Jugador extends Criatura {
 			return;
 		}
 
-		// Bloqueo total de movimiento, ataques y uso de armas durante conversaciones o
-		// cinemáticas
 		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()) {
 			if (!this.estaEstadoEstandar()) {
 				this.setEstadoEstandar();
@@ -238,7 +270,7 @@ public class Jugador extends Criatura {
 			if (Animaciones.JUGADOR != null) {
 				Animaciones.JUGADOR.actualizar(this);
 			}
-			return; // Detiene la ejecución aquí: no procesa teclas de ataque ni movimiento
+			return;
 		}
 
 		if (this.mundo != null) {
@@ -492,8 +524,6 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarMovimientos() {
-		// Bloquea el movimiento si el jugador está interactuando con la interfaz o
-		// hablando
 		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()) {
 			if (!this.estaEstadoEstandar()) {
 				this.setEstadoEstandar();
@@ -511,7 +541,6 @@ public class Jugador extends Criatura {
 		final boolean izq = Globales.TECLADO.TECLA_IZQUIERDA.presionado();
 		final boolean der = Globales.TECLADO.TECLA_DERECHA.presionado();
 
-		// Evaluación de sprint condicionada por la capacidad física del jugador
 		final boolean intentandoCorrer = Globales.TECLADO.TECLA_CORRIENDO.presionado() && this.puedeCorrer();
 
 		if (intentandoCorrer) {
@@ -529,9 +558,6 @@ public class Jugador extends Criatura {
 			this.velocidad = Math.max(0, this.velocidad + this.tilePisado.getAlteracionVelocidad());
 		}
 
-		// =====================================================================
-		// NORMALIZACIÓN DE VELOCIDAD DIAGONAL (1 / sqrt(2) ≈ 0.70710678)
-		// =====================================================================
 		final boolean movVertical = arr ^ abj;
 		final boolean movHorizontal = izq ^ der;
 
@@ -609,7 +635,6 @@ public class Jugador extends Criatura {
 	}
 
 	private void actualizarAtaque() {
-		// Bloquea el ataque si hay diálogos, cinemáticas, inventario o tienda abiertos
 		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()
 				|| Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible()
 				|| Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto()) {
@@ -699,15 +724,10 @@ public class Jugador extends Criatura {
 		}
 	}
 
-	// =========================================================================
-	// GESTIÓN DE DINERO Y RECOGIDA AUTOMÁTICA POR CONTACTO
-	// =========================================================================
-
 	private void actualizarAutoRecogidaMonedas() {
 		if ((this.mundo == null) || this.eliminado) {
 			return;
 		}
-		// Detección física directa al caminar por encima (Zero-GC)
 		this.mundo.paraCadaItemEn(this.getArea(), this.accionAutoRecogidaMoneda);
 	}
 
@@ -719,7 +739,7 @@ public class Jugador extends Criatura {
 			this.sumarDinero(valor);
 			moneda.eliminar();
 
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.RECOGER);
 
 			final String textoMoneda = (moneda.getTipo() == principal.entes.objetos.items.monedas.TipoMoneda.ORO)
 					? ("+" + (valor / 100L) + " Oro")
@@ -728,7 +748,6 @@ public class Jugador extends Criatura {
 			Globales.GESTOR_TEXTOS.agregarTexto(textoMoneda, this.getCentroX(), this.getPosicionYInt() - 8,
 					principal.igu.textos.TipoTextoFlotante.ORO_EXP);
 
-			// Notificar al delta del mundo para que no reaparezca
 			if ((Globales.GESTOR_DELTAS != null) && (this.mundo != null)) {
 				Globales.GESTOR_DELTAS.obtenerOCrearDelta(this.mundo.getNombreMundo(), 0)
 						.registrarDestruccion(moneda.getPosicionXInt(), moneda.getPosicionYInt());
@@ -801,7 +820,7 @@ public class Jugador extends Criatura {
 			final int absorbidos = cantInicial - cons.getCantidad();
 
 			if (absorbidos > 0) {
-				GestorSonido.reproducir(IDSonido.GOLPE_1);
+				GestorSonido.reproducir(IDSonido.RECOGER);
 				Globales.GESTOR_TEXTOS.agregarTexto("+" + absorbidos + " " + cons.getNombre(), this.getCentroX(),
 						this.getPosicionYInt() - 6, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
 
@@ -816,7 +835,7 @@ public class Jugador extends Criatura {
 		} else if (item instanceof Portable) {
 			if (Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(item)) {
 				item.eliminar();
-				GestorSonido.reproducir(IDSonido.GOLPE_1);
+				GestorSonido.reproducir(IDSonido.RECOGER);
 				Globales.GESTOR_TEXTOS.agregarTexto("+" + item.getNombre(), this.getCentroX(),
 						this.getPosicionYInt() - 6, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
 
@@ -869,16 +888,14 @@ public class Jugador extends Criatura {
 
 		double factorCansancio = 1.0;
 
-		// 1. Sobrecosto por Hipotermia (Temblores musculares)
 		final EfectoEstado efHipotermia = this.getEfecto(TipoEfectoEstado.HIPOTERMIA);
 		if ((efHipotermia != null) && efHipotermia.isActivo() && (efHipotermia.getStacks() == 2)) {
 			factorCansancio += 0.75;
 		}
 
-		// 2. Sobrecosto por Hipertermia (Deshidratación y sofoco)
 		final EfectoEstado efHipertermia = this.getEfecto(TipoEfectoEstado.HIPERTERMIA);
 		if ((efHipertermia != null) && efHipertermia.isActivo()) {
-			factorCansancio += (0.50 * efHipertermia.getStacks()); // N1: +50%, N2: +100%, N3: +150%
+			factorCansancio += (0.50 * efHipertermia.getStacks());
 		}
 
 		final double gastoPorTick = this.puntoGastarEstaminaXseg * dt * factorCansancio;
@@ -905,15 +922,14 @@ public class Jugador extends Criatura {
 				recuperacionPorTick *= 1.5;
 			}
 
-			// Penalización de recuperación por Hipertermia
 			final EfectoEstado efHipertermia = this.getEfecto(TipoEfectoEstado.HIPERTERMIA);
 			if ((efHipertermia != null) && efHipertermia.isActivo()) {
 				if (efHipertermia.getStacks() >= 3) {
-					recuperacionPorTick = 0.0; // Bloqueo total de regeneración en Golpe de Calor Crítico
+					recuperacionPorTick = 0.0;
 				} else if (efHipertermia.getStacks() == 2) {
-					recuperacionPorTick *= 0.40; // 60% más lenta
+					recuperacionPorTick *= 0.40;
 				} else {
-					recuperacionPorTick *= 0.70; // 30% más lenta
+					recuperacionPorTick *= 0.70;
 				}
 			}
 
@@ -925,11 +941,9 @@ public class Jugador extends Criatura {
 		if (this.modoDios) {
 			return true;
 		}
-		// Bloqueo por aturdimiento
 		if (this.tieneEfectoActivo(TipoEfectoEstado.ATURDIMIENTO)) {
 			return false;
 		}
-		// Bloqueo total de sprint en Hipotermia Nivel 3 (Congelación)
 		final EfectoEstado efHipotermia = this.getEfecto(TipoEfectoEstado.HIPOTERMIA);
 		if ((efHipotermia != null) && efHipotermia.isActivo() && (efHipotermia.getStacks() >= 3)) {
 			return false;
@@ -1135,10 +1149,6 @@ public class Jugador extends Criatura {
 		}
 	}
 
-	/**
-	 * Detiene de forma inmediata cualquier navegación activa por pathfinding (A* o
-	 * Dijkstra) y restablece la cinemática a reposo (Zero-GC).
-	 */
 	public void detenerMovimientoPathfinding() {
 		this.moviendoPorRecorrido = false;
 		this.nodoADestino = null;

@@ -126,7 +126,7 @@ public abstract class Menu implements EstadoJuego {
 			final int nuevoIdx = (this.indiceBotonEnfocado <= 0) ? this.botones.size() - 1
 					: this.indiceBotonEnfocado - 1;
 			this.establecerIndiceEnfocado(nuevoIdx);
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.SELECT_MENU);
 		}
 
 		// S o Flecha Abajo
@@ -135,7 +135,7 @@ public abstract class Menu implements EstadoJuego {
 			final int nuevoIdx = (this.indiceBotonEnfocado >= (this.botones.size() - 1)) ? 0
 					: this.indiceBotonEnfocado + 1;
 			this.establecerIndiceEnfocado(nuevoIdx);
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.SELECT_MENU);
 		}
 
 		// Confirmar con Enter o Espacio

@@ -317874,53 +317874,7 @@
                 "tipo": "Cofre Pequeño",
                 "x": 1256,
                 "y": 2372,
-                "items": [
-                    {
-                        "tipo": "PiezaEquipo",
-                        "entiti": {
-                            "precio": 200,
-                            "agilidad": 0,
-                            "inteligencia": 3,
-                            "codModelo": "Casco Ligero",
-                            "x": 0,
-                            "y": 0,
-                            "defensa": 5,
-                            "temperatura": 0,
-                            "fuerza": 0,
-                            "tipoEquipo": "CASCO"
-                        }
-                    },
-                    {
-                        "tipo": "PiezaEquipo",
-                        "entiti": {
-                            "precio": 350,
-                            "agilidad": 0,
-                            "inteligencia": 0,
-                            "codModelo": "Armadura Ligera",
-                            "x": 0,
-                            "y": 0,
-                            "defensa": 15,
-                            "temperatura": 0,
-                            "fuerza": 4,
-                            "tipoEquipo": "TORSO"
-                        }
-                    },
-                    {
-                        "tipo": "PiezaEquipo",
-                        "entiti": {
-                            "precio": 150,
-                            "agilidad": 6,
-                            "inteligencia": 0,
-                            "codModelo": "Botas Cuero",
-                            "x": 0,
-                            "y": 0,
-                            "defensa": 3,
-                            "temperatura": 0,
-                            "fuerza": 0,
-                            "tipoEquipo": "BOTAS"
-                        }
-                    }
-                ]
+                "items": []
             }
         },
         {
@@ -318429,36 +318383,7 @@
                 "x": 1301,
                 "y": 2289,
                 "items": [
-                    {
-                        "tipo": "PiezaEquipo",
-                        "entiti": {
-                            "precio": 300,
-                            "agilidad": 1,
-                            "inteligencia": 1,
-                            "codModelo": "Anillo de Plata",
-                            "x": 0,
-                            "y": 0,
-                            "defensa": 0,
-                            "temperatura": 0,
-                            "fuerza": 1,
-                            "tipoEquipo": "ANILLO"
-                        }
-                    },
-                    {
-                        "tipo": "PiezaEquipo",
-                        "entiti": {
-                            "precio": 800,
-                            "agilidad": 2,
-                            "inteligencia": 2,
-                            "codModelo": "Anillo de Oro",
-                            "x": 0,
-                            "y": 0,
-                            "defensa": 0,
-                            "temperatura": 0,
-                            "fuerza": 2,
-                            "tipoEquipo": "ANILLO"
-                        }
-                    },
+                    
                     {
                         "tipo": "RifleAsalto",
                         "entiti": {

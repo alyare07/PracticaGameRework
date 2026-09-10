@@ -64,7 +64,7 @@ public class BotonTogglePixel extends ComponenteMenu {
 	}
 
 	public void accionar() {
-		GestorSonido.reproducir(IDSonido.GOLPE_1);
+		GestorSonido.reproducir(IDSonido.SELECT_MENU);
 		if (this.accion != null) {
 			this.accion.ejecutar();
 		}
@@ -84,7 +84,8 @@ public class BotonTogglePixel extends ComponenteMenu {
 		final int h = this.area.height;
 
 		// 1. Fondo según estado
-		final Color colorFondo = this.presionado ? COLOR_FONDO_CLICK : (estadoActivo ? COLOR_FONDO_ON : COLOR_FONDO_OFF);
+		final Color colorFondo = this.presionado ? COLOR_FONDO_CLICK
+				: (estadoActivo ? COLOR_FONDO_ON : COLOR_FONDO_OFF);
 		Render2D.dibujarRectanguloRelleno(g, x, y, w, h, colorFondo);
 
 		// 2. Bordes

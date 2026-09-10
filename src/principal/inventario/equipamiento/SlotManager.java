@@ -213,7 +213,7 @@ public class SlotManager {
 			if (this.INVENTARIO.esVisible()) {
 				this.INVENTARIO.ocultar();
 			}
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.RECOGER);
 			return;
 		}
 
@@ -226,21 +226,21 @@ public class SlotManager {
 				this.slotArma.establecerObjeto(i);
 				slot.establecerObjeto(armaPrevia);
 			}
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.RECOGER);
 			return;
 		}
 
 		// 4. Mano Secundaria (Desequipar)
 		if (slot == this.slotManoSecundaria) {
 			this.desequiparAAlmacen(this.slotManoSecundaria);
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.RECOGER);
 			return;
 		}
 
 		// 5. Piezas de Equipo (Cascos, Armaduras, Botas, Anillos)
 		if (i instanceof PiezaEquipo) {
 			this.equiparPiezaRapida(slot, (PiezaEquipo) i);
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.RECOGER);
 			return;
 		}
 
@@ -248,7 +248,7 @@ public class SlotManager {
 		if (i instanceof Consumible) {
 			final Consumible c = (Consumible) i;
 			c.consumir(Globales.JUGADOR);
-			GestorSonido.reproducir(IDSonido.GOLPE_1);
+			GestorSonido.reproducir(IDSonido.RECOGER);
 			return;
 		}
 	}

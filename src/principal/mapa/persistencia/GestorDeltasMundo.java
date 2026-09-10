@@ -18,11 +18,11 @@ import principal.mapa.Mundo;
 import principal.utilidades.Globales;
 
 /**
- * Gestor centralizado del subsistema de persistencia diferencial por mapa.
- * Captura y aplica deltas de estado (destrucción de recursos, construcciones,
- * cofres e ítems en el suelo) con soporte de expiración por calendario in-game.
+ * Gestor centralizado de persistencia diferencial. Preserva recursos, cofres,
+ * construcciones e ítems portables/equipamiento en suelo, descartando monedas
+ * volátiles.
  * 
- * @version 2.0 (Vanilla Java 8 - Fogata & Structure Persistence)
+ * @version 2.1 (Vanilla Java 8 - Currency Volatility Persistence Fix)
  */
 public class GestorDeltasMundo {
 
@@ -81,14 +81,14 @@ public class GestorDeltasMundo {
 				jsonEst.put("hp", Double.valueOf(est.getVida()));
 				delta.getEstructurasConstruidas().add(jsonEst);
 			}
-			// 2. Fogatas desplegadas o modificadas por el jugador
+			// 2. Fogatas desplegadas o modificadas
 			else if (e instanceof Fogata) {
 				final Fogata f = (Fogata) e;
 				final JSONObject jsonFog = f.exportarParaJSON();
 				jsonFog.put("tipo", "Fogata");
 				delta.getEstructurasConstruidas().add(jsonFog);
 			}
-			// 3. Inventarios de cualquier contenedor (Cofres, Alijos, etc.)
+			// 3. Inventarios de cofres y almacenes
 			else if (e instanceof Contenedor) {
 				final Contenedor c = (Contenedor) e;
 				final Ente propietario = c.getEntePropietario();
@@ -102,10 +102,12 @@ public class GestorDeltasMundo {
 					delta.getCofresModificados().put(clave, itemsJson);
 				}
 			}
-			// 4. Ítems actualmente tirados en el suelo
+			// 4. Ítems en el suelo (Excluye monedas volátiles COD_ITEM_MONEDA = 3)
 			else if (e instanceof Item) {
 				final Item item = (Item) e;
-				delta.getItemsEnSuelo().add(item.getJsonItem());
+				if (item.getTipoItem() != Item.COD_ITEM_MONEDA) {
+					delta.getItemsEnSuelo().add(item.getJsonItem());
+				}
 			}
 		}
 	}
@@ -125,14 +127,13 @@ public class GestorDeltasMundo {
 				? Globales.GESTOR_LUZ.getCiclo().getDiaActual()
 				: 1;
 
-		// Si el delta expiró (ej: mazmorra regenerable), se limpia y carga fresca
 		if (delta.haExpirado(diaActual)) {
 			delta.limpiar();
 			this.deltasPorMundo.remove(claveMundo);
 			return;
 		}
 
-		// 1. Purga recursos cosechables y fogatas destruidas del mapa base
+		// 1. Purga recursos y fogatas destruidas
 		final Iterator<Ente> it = mundo.getEntes().iterator();
 		while (it.hasNext()) {
 			final Ente e = it.next();
@@ -142,13 +143,12 @@ public class GestorDeltasMundo {
 					it.remove();
 				}
 			} else if (e instanceof Item) {
-				// Elimina los ítems plantilla para restaurar el estado exacto del delta
 				e.eliminar();
 				it.remove();
 			}
 		}
 
-		// 2. Re-instancia las estructuras y fogatas construidas por el jugador
+		// 2. Re-instancia construcciones y fogatas
 		for (int i = 0; i < delta.getEstructurasConstruidas().size(); i++) {
 			final JSONObject jEst = delta.getEstructurasConstruidas().get(i);
 			final String tipoStr = (jEst.get("tipo") != null) ? jEst.get("tipo").toString() : "";
@@ -170,7 +170,7 @@ public class GestorDeltasMundo {
 			}
 		}
 
-		// 3. Restaura contenidos modificados de contenedores
+		// 3. Restaura contenidos de cofres
 		for (final Ente e : mundo.getEntes()) {
 			if (e instanceof Contenedor) {
 				final Contenedor c = (Contenedor) e;
@@ -195,7 +195,7 @@ public class GestorDeltasMundo {
 			}
 		}
 
-		// 4. Re-instancia los ítems tirados en el suelo capturados en el delta
+		// 4. Re-instancia únicamente los ítems legítimos en suelo
 		for (int i = 0; i < delta.getItemsEnSuelo().size(); i++) {
 			final JSONObject jItem = delta.getItemsEnSuelo().get(i);
 			final Item item = Item.crearItemDesdeJson(jItem);

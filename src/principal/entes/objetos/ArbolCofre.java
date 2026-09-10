@@ -21,6 +21,12 @@ import principal.utilidades.Render2D;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
+/**
+ * Alijo secreto camuflado en un árbol hueco con deformación eólica reactiva al
+ * viento atmosférico (Zero-GC / O(1)).
+ * 
+ * @version 2.0 (Vanilla Java 8 - Wind Swaying Integration)
+ */
 public class ArbolCofre extends Objeto implements Contenedor, Interactuable {
 
 	private static final long serialVersionUID = 651599209121613328L;
@@ -57,7 +63,22 @@ public class ArbolCofre extends Objeto implements Contenedor, Interactuable {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt() - 14, this.getPosicionYInt() - 18);
+		final BufferedImage img = this.getTextura();
+		final int px = this.getPosicionXInt() - 14;
+		final int py = this.getPosicionYInt() - 18;
+
+		if (Globales.GESTOR_CLIMA != null) {
+			final double balanceo = Globales.GESTOR_CLIMA.getFactorBalanceoVegetacion(this.getPosicionX(),
+					this.getPosicionY());
+			if (balanceo != 0.0) {
+				Render2D.dibujarImagenConBalanceoRefCamara(g, img, px, py, balanceo);
+			} else {
+				Render2D.dibujarImagenRefCamara(g, img, px, py);
+			}
+		} else {
+			Render2D.dibujarImagenRefCamara(g, img, px, py);
+		}
+
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
 		}

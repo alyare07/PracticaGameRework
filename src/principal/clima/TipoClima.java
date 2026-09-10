@@ -20,7 +20,7 @@ public enum TipoClima {
 	VENTOSO("Ventoso", IntensidadNiebla.DESACTIVADA, new Color(200, 215, 230), 140, false, true, 0.38f, 2.6, 35.0),
 	LLUVIA_LEVE("Lluvia Leve", IntensidadNiebla.LEVE, new Color(170, 190, 215), 180, false, false, 0.0f, 1.4, 65.0),
 
-	LLUVIA_TORMENTA("Tormenta Eléctrica", IntensidadNiebla.MODERADA, new Color(100, 120, 145), 360, true, false, 0.0f,
+	LLUVIA_TORMENTA("Tormenta Eléctrica", IntensidadNiebla.INTENSA, new Color(100, 120, 145), 360, true, false, 0.0f,
 			2.4, 75.0),
 	NIEVE("Nieve", IntensidadNiebla.LEVE, new Color(220, 235, 255), 220, false, false, 0.0f, 0.8, 30.0),
 	VENTISCA("Ventisca", IntensidadNiebla.MODERADA, new Color(200, 220, 250), 380, false, false, 0.0f, 2.8, 80.0),

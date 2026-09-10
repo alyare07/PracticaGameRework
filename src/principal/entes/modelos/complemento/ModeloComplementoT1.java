@@ -7,7 +7,7 @@ import java.awt.image.BufferedImage;
 import principal.entes.objetos.Complemento;
 import principal.utilidades.Animacion;
 
-public final class ModeloComplementoT1 extends ModeloComplemento {
+public class ModeloComplementoT1 extends ModeloComplemento {
 
 	private final Rectangle MARGENES_INTERSECCION;
 

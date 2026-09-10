@@ -45,11 +45,11 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Representa al personaje jugable con física diagonal normalizada, redondeo
- * simétrico con la cámara, gestión de equipamiento, termodinámica multivariable
- * y estamina (Zero-GC).
+ * Representa al personaje jugable con física diagonal normalizada, escalado
+ * reactivo de Inteligencia (INT) en estamina y termodinámica clasificada
+ * (Zero-GC).
  * 
- * @version 5.0 (Vanilla Java 8 - Multi-Insulation System)
+ * @version 5.1 (Vanilla Java 8 - Intelligence Tactical Scaling)
  */
 public class Jugador extends Criatura {
 
@@ -65,7 +65,7 @@ public class Jugador extends Criatura {
 
 	private static final int TIEMPO_MS_ESPERA_POR_ATAQUE_BASE = 500;
 	private static final int TIEMPO_MS_ESPERA_REGEN_VIDA = 5000;
-	private static final int TIEMPO_MS_ESPERA_REGEN_ESTAMINA = 2500;
+	private static final int TIEMPO_MS_ESPERA_REGEN_ESTAMINA_BASE = 2500;
 
 	private boolean dibujarAtaque;
 
@@ -739,7 +739,7 @@ public class Jugador extends Criatura {
 			this.sumarDinero(valor);
 			moneda.eliminar();
 
-			GestorSonido.reproducir(IDSonido.RECOGER);
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
 
 			final String textoMoneda = (moneda.getTipo() == principal.entes.objetos.items.monedas.TipoMoneda.ORO)
 					? ("+" + (valor / 100L) + " Oro")
@@ -820,7 +820,7 @@ public class Jugador extends Criatura {
 			final int absorbidos = cantInicial - cons.getCantidad();
 
 			if (absorbidos > 0) {
-				GestorSonido.reproducir(IDSonido.RECOGER);
+				GestorSonido.reproducir(IDSonido.GOLPE_1);
 				Globales.GESTOR_TEXTOS.agregarTexto("+" + absorbidos + " " + cons.getNombre(), this.getCentroX(),
 						this.getPosicionYInt() - 6, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
 
@@ -835,7 +835,7 @@ public class Jugador extends Criatura {
 		} else if (item instanceof Portable) {
 			if (Globales.GESTOR_INVENTARIO.getInventarioJugador().agregarObjeto(item)) {
 				item.eliminar();
-				GestorSonido.reproducir(IDSonido.RECOGER);
+				GestorSonido.reproducir(IDSonido.GOLPE_1);
 				Globales.GESTOR_TEXTOS.agregarTexto("+" + item.getNombre(), this.getCentroX(),
 						this.getPosicionYInt() - 6, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
 
@@ -910,11 +910,18 @@ public class Jugador extends Criatura {
 	}
 
 	private void recuperarEstamina() {
-		if (!this.estaEstadoCorriendo()
-				&& this.GT_RECUPERACION_ESTAMINA.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_REGEN_ESTAMINA)) {
+		// Escalado de Inteligencia (INT): Reduce el retraso de regeneración (de 2500 ms
+		// hasta 1200 ms)
+		final int esperaRegenInt = Math.max(1200,
+				TIEMPO_MS_ESPERA_REGEN_ESTAMINA_BASE - (this.getInteligenciaTotal() * 45));
+
+		if (!this.estaEstadoCorriendo() && this.GT_RECUPERACION_ESTAMINA.transcurrioMiliSegundos(esperaRegenInt)) {
 
 			final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
-			double recuperacionPorTick = this.puntoRecuperarEstaminaXseg * dt;
+
+			// Inteligencia acelera la tasa de recarga (+1.5% por punto de INT)
+			final double factorInteligencia = 1.0 + (this.getInteligenciaTotal() * 0.015);
+			double recuperacionPorTick = this.puntoRecuperarEstaminaXseg * factorInteligencia * dt;
 
 			if (this.estaEstadoCaminando()) {
 				recuperacionPorTick *= 0.5;

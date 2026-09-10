@@ -1,5 +1,7 @@
 package principal.entes.objetos.recursos;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 
@@ -12,7 +14,14 @@ import principal.entes.objetos.items.materiales.RecursoMaterial;
 import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
+import principal.utilidades.Render2D;
 
+/**
+ * Recurso talable que rinde madera y reacciona al viento con balanceo
+ * procedural mientras conserva su copa (Zero-GC / O(1)).
+ * 
+ * @version 2.0 (Vanilla Java 8 - Procedural Wind Swaying)
+ */
 public class ArbolCosechable extends RecursoCosechable {
 
 	private static final long serialVersionUID = 1L;
@@ -34,6 +43,29 @@ public class ArbolCosechable extends RecursoCosechable {
 	@Deprecated
 	public ArbolCosechable(final int x, final int y, final int codViejo) {
 		this(x, y, ClaveHoja.ARBOLES_32, 0);
+	}
+
+	@Override
+	public void pintar(final Graphics2D g) {
+		final BufferedImage img = this.getTextura();
+		final int px = this.getPosicionXInt();
+		final int py = this.getPosicionYInt();
+
+		// Solo se mece con el viento si conserva la copa (no es tocón)
+		if (!this.esTocon && (Globales.GESTOR_CLIMA != null)) {
+			final double balanceo = Globales.GESTOR_CLIMA.getFactorBalanceoVegetacion(px, py);
+			if (balanceo != 0.0) {
+				Render2D.dibujarImagenConBalanceoRefCamara(g, img, px, py, balanceo);
+			} else {
+				Render2D.dibujarImagenRefCamara(g, img, px, py);
+			}
+		} else {
+			Render2D.dibujarImagenRefCamara(g, img, px, py);
+		}
+
+		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
+		}
 	}
 
 	@Override

@@ -8,11 +8,11 @@ import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 
 /**
- * Gestor de termorregulación, inercia térmica corporal y conexión reactiva con
- * el sistema de Efectos de Estado infinitos y residuales con resistencia
- * térmica por tipo de prenda (Zero-GC / O(1)).
+ * Gestor de termorregulación, inercia térmica corporal, resistencia de prendas,
+ * aporte calórico de antorcha en mano e índice de calor/frío por humedad
+ * (Zero-GC / O(1)).
  * 
- * @version 3.0 (Vanilla Java 8 - Categorized Damping & Greenhousing)
+ * @version 3.1 (Vanilla Java 8 - Held Torch Heat & Humidity Integration)
  */
 public class GestorTermicoJugador {
 
@@ -55,12 +55,13 @@ public class GestorTermicoJugador {
 		final double jx = Globales.JUGADOR.getCentroX();
 		final double jy = Globales.JUGADOR.getCentroY();
 
-		// 1. Escaneo de radiación térmica de luces activas (fogatas, antorchas)
+		// 1. Escaneo de radiación térmica (incluyendo antorcha en mano del jugador)
 		this.escanearRadiacionLuces(jx, jy);
 
-		// 2. Temperatura ambiental base desde GestorClima
+		// 2. Variables ambientales y climáticas base
 		final double tempAmbiente = (Globales.GESTOR_CLIMA != null) ? Globales.GESTOR_CLIMA.getTemperaturaCelsius()
 				: 20.0;
+		final double humedad = (Globales.GESTOR_CLIMA != null) ? Globales.GESTOR_CLIMA.getHumedadRelativa() : 0.50;
 
 		final TipoClima clima = (Globales.GESTOR_CLIMA != null) ? Globales.GESTOR_CLIMA.getClimaActual()
 				: TipoClima.DESPEJADO;
@@ -82,23 +83,28 @@ public class GestorTermicoJugador {
 		final int aislaCalor = Globales.JUGADOR.getAislamientoCalorTotal();
 		final int sofoco = Globales.JUGADOR.getPenalizacionSofocoTotal();
 
-		// Mitigación del viento: Cada punto de aislamiento al frío reduce el impacto
-		// del viento un 5% (hasta un 80% máx)
 		final double factorMitigacionViento = Math.max(0.20, 1.0 - (aislaFrio * 0.05));
 		final double vientoEfectivo = enfriamientoViento * factorMitigacionViento;
 
-		// 5. Cálculo de Temperatura Efectiva Percibida
+		// 5. Cálculo de Temperatura Efectiva Percibida (Integrando Humedad / Heat
+		// Index)
 		double tempPercibida;
 
 		if (tempAmbiente < 10.0) {
-			// AMBIENTE FRÍO: El aislamiento frena la pérdida de calor y amortigua el viento
-			tempPercibida = (tempAmbiente - vientoEfectivo) + (aislaFrio * 0.85) + this.calorRecibidoFuego;
+			// Frío Húmedo: La humedad alta (>50%) penetra más rápido en la ropa
+			final double penetracionHumedad = 1.0 + Math.max(0.0, (humedad - 0.50) * 0.35);
+			final double frioEfectivo = (10.0 - tempAmbiente) * penetracionHumedad;
+			final double tempBaseHumedad = 10.0 - frioEfectivo;
+
+			tempPercibida = (tempBaseHumedad - vientoEfectivo) + (aislaFrio * 0.85) + this.calorRecibidoFuego;
 		} else if (tempAmbiente > 27.0) {
-			// AMBIENTE CÁLIDO: El aislamiento disipa calor, pero el abrigo pesado añade
-			// sofoco
-			tempPercibida = (tempAmbiente - (aislaCalor * 0.85)) + (sofoco * 0.60) + this.calorRecibidoFuego;
+			// Bochorno Húmedo: La humedad alta impide la transpiración (+0 a +3.5 °C
+			// percibidos)
+			final double bochornoHumedad = Math.max(0.0, (humedad - 0.50) * 7.0);
+
+			tempPercibida = ((tempAmbiente + bochornoHumedad) - (aislaCalor * 0.85)) + (sofoco * 0.60)
+					+ this.calorRecibidoFuego;
 		} else {
-			// ZONA DE CONFORT / HOMEOSTASIS BASE
 			tempPercibida = tempAmbiente + this.calorRecibidoFuego;
 		}
 
@@ -125,7 +131,7 @@ public class GestorTermicoJugador {
 		this.temperaturaCorporal += (tempObjetivoCuerpo - this.temperaturaCorporal) * (dt * velocidadCambio);
 		this.tendenciaTermica = this.temperaturaCorporal - prevTemp;
 
-		// 7. Conexión reactiva con el Motor de Efectos de Estado
+		// 7. Conexión reactiva con Efectos de Estado
 		this.actualizarEfectosEstadoAmbientales();
 	}
 
@@ -215,12 +221,24 @@ public class GestorTermicoJugador {
 		final int totalLuces = Globales.GESTOR_LUZ.getCantidadActivas();
 		for (int i = 0; i < totalLuces; i++) {
 			final FuenteLuz luz = Globales.GESTOR_LUZ.getLuzPorIndice(i);
-			if ((luz != null) && luz.isActiva() && (luz.getEnteAnclado() != Globales.JUGADOR)) {
-				final double dx = jx - luz.getPosX();
-				final double dy = jy - luz.getPosY();
-				final double dist = Math.sqrt((dx * dx) + (dy * dy));
+			if ((luz != null) && luz.isActiva()) {
 
-				this.aportarCalor(luz.getTipo(), dist);
+				// 1. Antorcha sostenida en la mano secundaria del propio jugador
+				if (luz.getEnteAnclado() == Globales.JUGADOR) {
+					if (luz.getTipo() == TipoLuz.ANTORCHA) {
+						this.calorRecibidoFuego = Math.max(this.calorRecibidoFuego, 12.0); // +12 °C radiantes directos
+						this.cercaDeFuenteCalor = true;
+					}
+					// AURA_JUGADOR o LINTERNA_CONICA no aportan calor (0 °C)
+				}
+				// 2. Fuentes de calor externas en el mundo (Fogatas, antorchas de pared)
+				else {
+					final double dx = jx - luz.getPosX();
+					final double dy = jy - luz.getPosY();
+					final double dist = Math.sqrt((dx * dx) + (dy * dy));
+
+					this.aportarCalor(luz.getTipo(), dist);
+				}
 			}
 		}
 	}

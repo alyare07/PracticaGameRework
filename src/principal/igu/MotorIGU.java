@@ -4,16 +4,19 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 
 import principal.entes.criaturas.Criatura;
+import principal.utilidades.Globales;
 
 /**
- * Motor central de interfaz de usuario del juego (HUD 1:1). Integra barras de
- * estado, dial astrológico, termómetro con monitoreo de aislamiento/sofoco y la
- * fila de efectos de estado activos (Zero-GC / O(1)).
+ * Motor central de interfaz de usuario del juego (HUD 1:1). Integra viñeta
+ * climática periférica de pantalla completa, barras de estado, dial
+ * astrológico, termómetro con monitoreo térmico avanzado, fila de efectos de
+ * estado y control maestro de visibilidad cinemática (Zero-GC / O(1)).
  * 
- * @version 2.2 (Vanilla Java 8 - Termometro Tooltip Integration)
+ * @version 3.0 (Vanilla Java 8 - Atmospheric Screen Vignette Integration)
  */
 public class MotorIGU {
 
+	private final VinetaTermicaIGU VINETA_TERMICA;
 	private final BarraVida BARRA_VIDA;
 	private final BarraEstamina BARRA_ESTAMINA;
 	private final BarraJefe BARRA_JEFE;
@@ -21,7 +24,10 @@ public class MotorIGU {
 	private final TermometroIGU TERMOMETRO;
 	private final EfectosEstadoIGU EFECTOS_ESTADO;
 
+	private boolean visible = true;
+
 	public MotorIGU() {
+		this.VINETA_TERMICA = new VinetaTermicaIGU();
 		this.BARRA_VIDA = new BarraVida(new Rectangle(6, 336, 84, 9));
 		this.BARRA_ESTAMINA = new BarraEstamina(new Rectangle(6, 347, 84, 9));
 		this.BARRA_JEFE = new BarraJefe();
@@ -31,6 +37,7 @@ public class MotorIGU {
 	}
 
 	public void actualizar() {
+		this.VINETA_TERMICA.actualizar();
 		this.BARRA_VIDA.actualizar();
 		this.BARRA_ESTAMINA.actualizar();
 		this.BARRA_JEFE.actualizar();
@@ -40,6 +47,15 @@ public class MotorIGU {
 	}
 
 	public void pintar(final Graphics2D g) {
+		// Supresión automática en cinemáticas, diálogos o si el HUD está desactivado
+		if (!this.visible || ((Globales.GESTOR_EVENTOS != null) && Globales.GESTOR_EVENTOS.haySecuenciaEnCurso())) {
+			return;
+		}
+
+		// 1. Capa inferior del HUD: Viñeta atmosférica de pantalla completa
+		this.VINETA_TERMICA.pintar(g);
+
+		// 2. Capa intermedia: Widgets y Barras de estado
 		this.BARRA_VIDA.pintar(g);
 		this.BARRA_ESTAMINA.pintar(g);
 		this.BARRA_JEFE.pintar(g);
@@ -47,7 +63,7 @@ public class MotorIGU {
 		this.TERMOMETRO.pintar(g);
 		this.EFECTOS_ESTADO.pintar(g);
 
-		// Renderizado superior de tooltips en capa final
+		// 3. Capa final superior: Tooltips flotantes
 		this.EFECTOS_ESTADO.pintarTooltips(g);
 		this.TERMOMETRO.pintarTooltips(g);
 	}
@@ -58,6 +74,18 @@ public class MotorIGU {
 
 	public void desvincularJefe() {
 		this.BARRA_JEFE.desvincularJefe();
+	}
+
+	public boolean isVisible() {
+		return this.visible;
+	}
+
+	public void setVisible(final boolean visible) {
+		this.visible = visible;
+	}
+
+	public void conmutarVisibilidad() {
+		this.visible = !this.visible;
 	}
 
 	public BarraJefe getBarraJefe() {
@@ -74,5 +102,9 @@ public class MotorIGU {
 
 	public EfectosEstadoIGU getEfectosEstado() {
 		return this.EFECTOS_ESTADO;
+	}
+
+	public VinetaTermicaIGU getVinetaTermica() {
+		return this.VINETA_TERMICA;
 	}
 }

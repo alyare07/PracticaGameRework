@@ -9,27 +9,17 @@ import java.awt.image.BufferedImage;
 import org.json.simple.JSONObject;
 
 import principal.entes.modelos.complemento.ListaModeloComplemento;
+import principal.entes.modelos.complemento.ModeloComplemento;
 import principal.entes.modelos.complemento.ModeloComplementoT1;
 import principal.entes.modelos.complemento.ModeloComplementoT2;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Representa elementos escénicos del mapa como árboles, casas, rocas y muros.
- * <p>
- * <b>Optimizaciones de Memoria:</b>
- * <ul>
- * <li>Corrige la asignación oculta de {@code new Rectangle()} en
- * {@link #getArea()}, reutilizando la estructura fija
- * {@link #AREA_ENTE_RETORNO} de {@link principal.entes.Ente}.</li>
- * <li>Integra el pivote de profundidad {@link #getPosicionYBase()} para que las
- * copas de los árboles y techos de casas tapen al jugador correctamente al
- * pasar por detrás.</li>
- * </ul>
- * </p>
+ * Representa elementos escénicos del mapa (árboles, casas, rocas) con
+ * deformación eólica reactiva para vegetación (Zero-GC / O(1)).
  * 
- * @author Copiloto Técnico
- * @version 2.0
+ * @version 2.2 (Vanilla Java 8 - Selective Wind Swaying)
  */
 public class Complemento extends Objeto {
 
@@ -43,15 +33,17 @@ public class Complemento extends Objeto {
 	}
 
 	public void pintarAreaInterseccion(final Graphics2D g) {
-		if (ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO) instanceof ModeloComplementoT1) {
-			Render2D.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionEnBaseMargen(
-					((ModeloComplementoT1) ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO))
-							.getMargenesInterseccion()),
+		final ModeloComplemento modelo = ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO);
+		if (modelo == null) {
+			return;
+		}
+
+		if (modelo instanceof ModeloComplementoT1) {
+			Render2D.dibujarRectanguloContornoRefCamara(g,
+					this.getAreaInterseccionEnBaseMargen(((ModeloComplementoT1) modelo).getMargenesInterseccion()),
 					Color.ORANGE);
-		} else if (ListaModeloComplemento
-				.getModeloComplemento(this.COD_MODELO_COMPLEMENTO) instanceof ModeloComplementoT2) {
-			for (final Rectangle margen : ((ModeloComplementoT2) ListaModeloComplemento
-					.getModeloComplemento(this.COD_MODELO_COMPLEMENTO)).getMargenesInterseccion()) {
+		} else if (modelo instanceof ModeloComplementoT2) {
+			for (final Rectangle margen : ((ModeloComplementoT2) modelo).getMargenesInterseccion()) {
 				Render2D.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionEnBaseMargen(margen),
 						Color.ORANGE);
 			}
@@ -76,20 +68,34 @@ public class Complemento extends Objeto {
 	@Override
 	public void pintar(final Graphics2D g) {
 		if (!Globales.TECLADO.TECLA_OCULTAR_COMPLEMENTOS.presionado()) {
-			if (ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).animar()) {
-				ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).getAnimacion().pintar(g,
-						this.getPosicionXInt(), this.getPosicionYInt());
-			} else {
-				Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(), this.getPosicionYInt());
+			final ModeloComplemento modelo = ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO);
+
+			if (modelo != null) {
+				if (modelo.animar()) {
+					modelo.getAnimacion().pintar(g, this.getPosicionXInt(), this.getPosicionYInt());
+				} else if (modelo.esVegetacion() && (Globales.GESTOR_CLIMA != null)) {
+					final double balanceo = Globales.GESTOR_CLIMA.getFactorBalanceoVegetacion(this.getPosicionX(),
+							this.getPosicionY());
+					if (balanceo != 0.0) {
+						Render2D.dibujarImagenConBalanceoRefCamara(g, this.getTextura(), this.getPosicionXInt(),
+								this.getPosicionYInt(), balanceo);
+					} else {
+						Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(),
+								this.getPosicionYInt());
+					}
+				} else {
+					Render2D.dibujarImagenRefCamara(g, this.getTextura(), this.getPosicionXInt(),
+							this.getPosicionYInt());
+				}
 			}
 		}
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado()) {
 			this.pintarAreaInterseccion(g);
-//			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.BLACK);
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
 		json.put("x", this.getPosicionXInt());
@@ -99,8 +105,8 @@ public class Complemento extends Objeto {
 	}
 
 	public boolean intersectaAreaNoSolida(final Shape area) {
-		if (area.intersects(this.getArea())
-				&& ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).contieneZonaNoSolida()) {
+		final ModeloComplemento modelo = ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO);
+		if ((modelo != null) && area.intersects(this.getArea()) && modelo.contieneZonaNoSolida()) {
 			return !this.intersecta(area);
 		}
 		return false;
@@ -115,12 +121,14 @@ public class Complemento extends Objeto {
 
 	@Override
 	public boolean intersecta(final Shape s) {
-		return ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).intersecta(s, this);
+		final ModeloComplemento modelo = ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO);
+		return (modelo != null) && modelo.intersecta(s, this);
 	}
 
 	@Override
 	public boolean esSolido() {
-		return ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).esSolido();
+		final ModeloComplemento modelo = ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO);
+		return (modelo != null) && modelo.esSolido();
 	}
 
 	@Override
@@ -130,7 +138,8 @@ public class Complemento extends Objeto {
 
 	@Override
 	public BufferedImage getTextura() {
-		return ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).getTextura();
+		final ModeloComplemento modelo = ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO);
+		return (modelo != null) ? modelo.getTextura() : Globales.GESTOR_TEXTURAS.getTexturaError();
 	}
 
 	@Override
@@ -145,23 +154,20 @@ public class Complemento extends Objeto {
 
 	@Override
 	public int getAncho() {
-		return ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).getAncho();
+		final ModeloComplemento modelo = ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO);
+		return (modelo != null) ? modelo.getAncho() : 32;
 	}
 
 	@Override
 	public int getAlto() {
-		return ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO).getAlto();
+		final ModeloComplemento modelo = ListaModeloComplemento.getModeloComplemento(this.COD_MODELO_COMPLEMENTO);
+		return (modelo != null) ? modelo.getAlto() : 32;
 	}
 
-	/**
-	 * Retorna el delimitador rectangular reutilizando la estructura fija de Ente
-	 * (Zero-GC).
-	 */
 	@Override
 	public Rectangle getArea() {
 		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt(), this.getPosicionYInt(), this.getAncho(),
 				this.getAlto());
 		return this.AREA_ENTE_RETORNO;
 	}
-
 }

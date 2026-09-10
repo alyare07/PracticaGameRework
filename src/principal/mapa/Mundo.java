@@ -51,6 +51,12 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 import principal.utilidades.audio.musica.GestorMusica;
 
+/**
+ * Contenedor espacial de entidades, indexación uniforme ZoneBox y orquestación
+ * acústica/térmica de interiores (Zero-GC / O(1)).
+ * 
+ * @version 4.1 (Vanilla Java 8 - Audio Attenuation & Biome Adaptation)
+ */
 public class Mundo {
 
 	protected String nombreMundo = "exterior";
@@ -141,10 +147,6 @@ public class Mundo {
 		this.generarZonas();
 	}
 
-	/**
-	 * Configura en caliente la música, iluminación, niebla y clima al entrar a este
-	 * mundo.
-	 */
 	public void aplicarMetadatosAtmosfericos() {
 		final MetadatosEscenario meta = this.ESCENARIO.getMetadatos();
 		if (meta == null) {
@@ -166,20 +168,26 @@ public class Mundo {
 			}
 		}
 
-		// 3. Bioma y Clima
+		// 3. Atenuación Acústica de Clima (20% en Casa, 0% en Cueva/Subterráneo, 100%
+		// en Exterior)
+		if (meta.esEspacioInterior()) {
+			final String nombreLower = this.getNombreMundo().toLowerCase();
+			final boolean esCueva = nombreLower.contains("cueva") || nombreLower.contains("mina")
+					|| nombreLower.contains("subterraneo") || nombreLower.contains("dungeon");
+
+			// Si es cueva silenciado (0.0), si es casa con techo atenuado al 20% (0.20)
+			GestorMusica.setFactorAtenuacionAmbiente(esCueva ? 0.0 : 0.20);
+		} else {
+			// Exterior al 100%
+			GestorMusica.setFactorAtenuacionAmbiente(1.0);
+		}
+
+		// 4. Bioma y Clima (Simulación Continua)
 		if (Globales.GESTOR_CLIMA != null) {
-			if (meta.esEspacioInterior()) {
-				// En interiores no llueve ni cae nieve
-				Globales.GESTOR_CLIMA.setClima(principal.clima.TipoClima.DESPEJADO, 0.0);
-				Globales.GESTOR_CLIMA.setCicloAutomaticoHabilitado(false);
-			} else {
-				Globales.GESTOR_CLIMA.setCicloAutomaticoHabilitado(true);
-				if (meta.getPerfilBioma() != null) {
-					Globales.GESTOR_CLIMA.setPerfilBioma(meta.getPerfilBioma());
-				}
-				if (meta.getClimaInicial() != null) {
-					Globales.GESTOR_CLIMA.setClima(meta.getClimaInicial(), 0.0);
-				}
+			Globales.GESTOR_CLIMA.setCicloAutomaticoHabilitado(true);
+
+			if (!meta.esEspacioInterior() && (meta.getPerfilBioma() != null)) {
+				Globales.GESTOR_CLIMA.setPerfilBioma(meta.getPerfilBioma());
 			}
 		}
 	}
@@ -718,7 +726,7 @@ public class Mundo {
 	public ArrayList<Criatura> getCriaturasIntersectadas(final Shape area, final boolean tenerEnCuentaJugador) {
 		this.LISTA_CRIATURAS_TEMP.clear();
 		this.paraCadaCriaturaEn(area, tenerEnCuentaJugador, this.visitorRecolectarCriaturas);
-		return this.LISTA_CRIATURAS_TEMP; // 0 allocations
+		return this.LISTA_CRIATURAS_TEMP;
 	}
 
 	public ArrayList<Criatura> getCriaturasIntersectadasConEnte(final Ente e) {
@@ -1092,7 +1100,7 @@ public class Mundo {
 				wrapper.put("tipoObjeto", "RocaCosechable");
 				wrapper.put("entiti", ((RocaCosechable) e).exportarParaJSON());
 				listaObjetos.add(wrapper);
-			} else if (e instanceof Fogata) { // <-- AGREGAR ESTE BLOQUE
+			} else if (e instanceof Fogata) {
 				final JSONObject wrapper = new JSONObject();
 				wrapper.put("tipoObjeto", "Fogata");
 				wrapper.put("entiti", ((Fogata) e).exportarParaJSON());

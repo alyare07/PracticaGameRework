@@ -17,10 +17,11 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Gestor maestro del subsistema meteorológico y atmosférico del motor 2D
- * (Zero-GC / O(1)).
+ * Gestor maestro meteorológico y atmosférico con simulación continua,
+ * conversión homóloga entre biomas y atenuación acústica en interiores (Zero-GC
+ * / O(1)).
  * 
- * @version 12.0
+ * @version 14.0 (Vanilla Java 8 - Proportional Acoustic Attenuation)
  */
 public class GestorClima {
 
@@ -188,20 +189,14 @@ public class GestorClima {
 		return img;
 	}
 
-	// 2. Pre-horneado con triple gradiente atmosférico continuo (Sin cortes rectos)
 	private BufferedImage hornearTexturaAurora() {
 		final BufferedImage img = new BufferedImage(ANCHO_AURORA_HD, ALTO_AURORA_HD, BufferedImage.TYPE_INT_ARGB);
 		final Graphics2D g = img.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-		// Paradas cromáticas continuas (0% a 100%) sin cortes de rectángulos
 		final float[] fracciones = { 0.0f, 0.20f, 0.50f, 0.75f, 1.0f };
-		final Color[] colores = { new Color(30, 255, 180, 0), // 0%: Transparente en el límite superior
-				new Color(40, 255, 190, 115), // 20%: Velo verde esmeralda brillante
-				new Color(60, 215, 255, 90), // 50%: Cian aéreo intermedio
-				new Color(140, 75, 255, 55), // 75%: Violeta cósmico suave
-				new Color(140, 75, 255, 0) // 100%: Desvanecimiento total a transparente
-		};
+		final Color[] colores = { new Color(30, 255, 180, 0), new Color(40, 255, 190, 115), new Color(60, 215, 255, 90),
+				new Color(140, 75, 255, 55), new Color(140, 75, 255, 0) };
 
 		final java.awt.LinearGradientPaint gradienteContinuo = new java.awt.LinearGradientPaint(0, 0, 0, ALTO_AURORA_HD,
 				fracciones, colores);
@@ -227,8 +222,6 @@ public class GestorClima {
 			this.actualizarSimuladorMeteorologico(dt);
 		}
 
-		// Si el clima es Aurora Boreal, teñimos la noche para que la luz ambiental no
-		// sea negra opaca
 		if ((this.climaActual == TipoClima.AURORA_BOREAL) && (Globales.GESTOR_LUZ != null)) {
 			Globales.GESTOR_LUZ.setTinteBiomaExterior(new Color(20, 60, 70, 190), 0.75);
 		}
@@ -480,18 +473,17 @@ public class GestorClima {
 			this.temporizadorProximoRayo = 4.0 + (Math.random() * 8.0);
 		}
 
-		// Cuando la onda de sonido del trueno llega al jugador tras el destello:
 		if (this.truenoPendiente) {
 			this.tiempoParaSonidoTrueno -= dt;
 			if (this.tiempoParaSonidoTrueno <= 0.0) {
 				this.truenoPendiente = false;
 
-				// 1. Reproducción del sonido del trueno
-				GestorSonido.reproducir(IDSonido.TRUENO);
+				// Reproducción del trueno escalada por la atenuación ambiental (Interior/Cueva)
+				final double factorAmbiente = GestorMusica.getFactorAtenuacionAmbiente();
+				GestorSonido.reproducirConFactor(IDSonido.TRUENO, this.volumenTruenoProporcional * factorAmbiente);
 
-				// 2. Opcional: Si el rayo cayó muy cerca (< 1.2 km), sacudida táctica de cámara
-				if ((this.volumenTruenoProporcional > 0.6f) && (Globales.CAMARA != null)) {
-					Globales.CAMARA.aplicarTemblor(350, this.volumenTruenoProporcional * 2.5);
+				if ((this.volumenTruenoProporcional > 0.6f) && (Globales.CAMARA != null) && (factorAmbiente > 0.0)) {
+					Globales.CAMARA.aplicarTemblor(350, this.volumenTruenoProporcional * 2.5 * factorAmbiente);
 				}
 			}
 		}
@@ -503,7 +495,6 @@ public class GestorClima {
 		}
 
 		if (this.climaActual == TipoClima.AURORA_BOREAL) {
-			// Solo tiñe si es de noche / penumbra (alpha > 40)
 			final int osc = Globales.GESTOR_LUZ.getAlphaOscuridadActual();
 			if (osc > 40) {
 				Globales.GESTOR_LUZ.setTinteBiomaExterior(new Color(20, 80, 70, 180), 0.70);
@@ -511,17 +502,14 @@ public class GestorClima {
 				Globales.GESTOR_LUZ.setTinteBiomaExterior(null, 0.0);
 			}
 		} else if (this.climaActual == TipoClima.ECLIPSE_SOLAR) {
-			// Penumbra carmesí del eclipse
 			Globales.GESTOR_LUZ.setTinteBiomaExterior(new Color(110, 20, 35, 210), 0.85);
-		} else // En cualquier otro clima estándar (Lluvia, Despejado, Nieve), delegamos a
-				// ZonasAmbiente
-		if ((Globales.GESTOR_ZONAS_AMBIENTE != null) && (Globales.GESTOR_ZONAS_AMBIENTE.getZonaActual() != null)) {
+		} else if ((Globales.GESTOR_ZONAS_AMBIENTE != null)
+				&& (Globales.GESTOR_ZONAS_AMBIENTE.getZonaActual() != null)) {
 			final ZonaAmbiente z = Globales.GESTOR_ZONAS_AMBIENTE.getZonaActual();
 			if (!z.isEsInterior()) {
 				Globales.GESTOR_LUZ.setTinteBiomaExterior(z.getColorAmbiente(), z.getFactorInmersion());
 			}
 		} else {
-			// Luz solar/lunar pura sin tinte residual
 			Globales.GESTOR_LUZ.setTinteBiomaExterior(null, 0.0);
 		}
 	}
@@ -530,22 +518,25 @@ public class GestorClima {
 		return (this.climaActual == TipoClima.AURORA_BOREAL) || (this.climaActual == TipoClima.ECLIPSE_SOLAR);
 	}
 
-	// =========================================================================
-	// === RENDERIZADO ATMOSFÉRICO EN PANTALLA (ZERO-GC)
-	// =========================================================================
-
 	public void pintar(final Graphics2D g) {
+		final boolean esInterior = (Globales.JUGADOR.getMundo() != null)
+				&& (Globales.JUGADOR.getMundo().getEscenario() != null)
+				&& (Globales.JUGADOR.getMundo().getEscenario().getMetadatos() != null)
+				&& Globales.JUGADOR.getMundo().getEscenario().getMetadatos().esEspacioInterior();
+
+		if (esInterior) {
+			return;
+		}
+
 		final int oscuridad = (Globales.GESTOR_LUZ != null) ? Globales.GESTOR_LUZ.getAlphaOscuridadActual() : 0;
 
 		final int camX = (Globales.CAMARA != null) ? Globales.CAMARA.getPosicionXInt() : 0;
 		final int camY = (Globales.CAMARA != null) ? Globales.CAMARA.getPosicionYInt() : 0;
 
-		// 1. Cintas de Aurora Boreal
 		if (this.climaActual == TipoClima.AURORA_BOREAL) {
 			this.pintarAuroraBoreal(g, camX, camY);
 		}
 
-		// 2. Sombras de nubes
 		if (this.sombrasNubesHabilitadas && (oscuridad < 130)) {
 			final float factorDia = 1.0f - (oscuridad / 130.0f);
 			final float opacidadEfectivaNubes = this.opacidadSombraNubes * factorDia;
@@ -562,7 +553,6 @@ public class GestorClima {
 			}
 		}
 
-		// 3. Capa de niebla dinámica con Paralaje
 		float opacidadEfectivaNiebla = this.opacidadNieblaActual;
 		if (this.factorInmersionBioma > 0.0) {
 			opacidadEfectivaNiebla = (float) (opacidadEfectivaNiebla
@@ -582,12 +572,10 @@ public class GestorClima {
 			}
 		}
 
-		// 4. Estrellas Fugaces / Meteoros
 		if (this.climaActual == TipoClima.LLUVIA_ESTRELLAS) {
 			this.pintarEstrellasFugaces(g);
 		}
 
-		// 5. Partículas atmosféricas
 		if (this.cantidadParticulasActivas > 0) {
 			this.pintarParticulas(g);
 		}
@@ -595,21 +583,17 @@ public class GestorClima {
 		g.setComposite(COMPOSITE_OPACO);
 	}
 
-	// 4. Renderizado con doble cortina ondulante y Parallax bidireccional suave
 	private void pintarAuroraBoreal(final Graphics2D g, final int camX, final int camY) {
 		g.setComposite(obtenerComposite(0.60f));
 
 		final double onda1 = Math.sin(this.faseOndaAurora * 0.7) * 25.0;
 		final double onda2 = Math.cos(this.faseOndaAurora * 0.5) * 15.0;
 
-		// Parallax estratosférico suave en X e Y
 		final int ox = Math.floorMod((int) Math.round((this.faseOndaAurora * 12.0) - (camX * 0.12)), ANCHO_AURORA_HD);
 		final int oy = (int) Math.round((-(camY * 0.04) + onda1) - 20.0);
 
 		for (int x = -ANCHO_AURORA_HD + ox; x < Constantes.ANCHO_JUEGO; x += ANCHO_AURORA_HD) {
-			// Cortina Principal
 			Render2D.dibujarImagen(g, this.texturaAurora, x, oy);
-			// Cortina Secundaria desfasada para dar volumen tridimensional
 			Render2D.dibujarImagen(g, this.texturaAurora, x + 180, (int) Math.round(oy + onda2 + 20.0));
 		}
 	}
@@ -723,10 +707,6 @@ public class GestorClima {
 		}
 	}
 
-	// =========================================================================
-	// === GETTERS Y SETTERS
-	// =========================================================================
-
 	public String getNombreClimaActual() {
 		return (this.climaActual != null) ? this.climaActual.getNombre() : "Despejado";
 	}
@@ -783,9 +763,36 @@ public class GestorClima {
 	}
 
 	public void setPerfilBioma(final PerfilClima nuevoPerfil) {
-		if (nuevoPerfil != null) {
-			this.perfilBiomaActual = nuevoPerfil;
-			this.climaPronosticado = this.perfilBiomaActual.calcularSiguienteClima(this.climaActual);
+		if ((nuevoPerfil == null) || (nuevoPerfil == this.perfilBiomaActual)) {
+			return;
+		}
+
+		final PerfilClima perfilPrevio = this.perfilBiomaActual;
+		this.perfilBiomaActual = nuevoPerfil;
+
+		this.adaptarClimaAlNuevoBioma(perfilPrevio, nuevoPerfil);
+		this.climaPronosticado = this.perfilBiomaActual.calcularSiguienteClima(this.climaActual);
+	}
+
+	private void adaptarClimaAlNuevoBioma(final PerfilClima perfilPrevio, final PerfilClima nuevoPerfil) {
+		final double tempNueva = nuevoPerfil.getTemperaturaBase();
+		TipoClima climaAdaptado = this.climaActual;
+
+		// 1. Biomas Helados / Bajo Cero (<= 2.0 °C)
+		if (tempNueva <= 2.0) {
+			if (this.climaActual == TipoClima.LLUVIA_LEVE) {
+				climaAdaptado = TipoClima.NIEVE; // La lluvia se congela en nieve
+			} else if (this.climaActual == TipoClima.LLUVIA_TORMENTA) {
+				climaAdaptado = TipoClima.VENTISCA; // La tormenta se convierte en ventisca
+			}
+		} else if (this.climaActual == TipoClima.NIEVE) {
+			climaAdaptado = TipoClima.LLUVIA_LEVE; // La nieve se derrite en lluvia
+		} else if (this.climaActual == TipoClima.VENTISCA) {
+			climaAdaptado = (tempNueva > 28.0) ? TipoClima.TORMENTA_ARENA : TipoClima.LLUVIA_TORMENTA;
+		}
+
+		if (climaAdaptado != this.climaActual) {
+			this.setClima(climaAdaptado, 2.0); // Transición suave de 2 segundos
 		}
 	}
 
@@ -817,7 +824,6 @@ public class GestorClima {
 		this.cantidadParticulasActivas = Math.min(MAX_PARTICULAS, nuevoClima.getCantidadParticulas());
 		this.actualizarTinteAtmosferico();
 
-		// Sincronización automática de bucle de audio ambiental de lluvia/tormenta
 		switch (nuevoClima) {
 		case LLUVIA_LEVE:
 		case LLUVIA_ACIDA:
@@ -825,16 +831,16 @@ public class GestorClima {
 			break;
 
 		case LLUVIA_TORMENTA:
-			principal.utilidades.audio.musica.GestorMusica.reproducirAmbienteClima(IDMusica.AMBIENTE_TORMENTA);
+			GestorMusica.reproducirAmbienteClima(IDMusica.AMBIENTE_TORMENTA);
 			break;
 		case VENTOSO:
 		case VENTISCA:
 		case TORMENTA_ARENA:
-			principal.utilidades.audio.musica.GestorMusica.reproducirAmbienteClima(IDMusica.AMBIENTE_VENTOSO);
+			GestorMusica.reproducirAmbienteClima(IDMusica.AMBIENTE_VENTOSO);
 			break;
 
 		default:
-			principal.utilidades.audio.musica.GestorMusica.detenerAmbienteClima();
+			GestorMusica.detenerAmbienteClima();
 			break;
 		}
 	}

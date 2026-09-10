@@ -10,57 +10,25 @@ import org.json.simple.parser.JSONParser;
 import principal.utilidades.audio.DatosAudio;
 
 /**
- * Administrador global de pistas musicales y bandas sonoras del juego.
- * <p>
- * Se encarga de analizar y registrar las configuraciones de música desde
- * archivos JSON, gestionar el ciclo de vida de la <b>música de fondo
- * principal</b> (BGM) del mapa/estado activo, e instanciar emisores secundarios
- * e independientes en streaming (radios, vehículos, zonas ambientadas).
- * </p>
+ * Administrador global de pistas musicales y bandas sonoras del juego con
+ * soporte de atenuación proporcional en interiores y cuevas (Zero-GC / O(1)).
  * 
+ * @version 3.0 (Vanilla Java 8 - Proportional Interior Attenuation)
  */
 public class GestorMusica {
 
-	// =========================================================================
-	// ATRIBUTOS ESTÁTICOS Y REGISTRO DE DATOS
-	// =========================================================================
 	private static MusicaStream musicaAmbienteClima;
 	private static String idAmbienteClimaActual;
-	/**
-	 * Diccionario en memoria RAM que almacena los metadatos (ruta y volumen base)
-	 * de cada pista de música cargada desde el JSON, indexados por su ID.
-	 */
+	private static double factorAtenuacionAmbiente = 1.0;
+
 	private static final Map<String, DatosAudio> REGISTRO = new HashMap<>();
 
-	/** Referencia a la instancia activa de la banda sonora principal del juego. */
 	private static MusicaStream musicaFondoPrincipal;
-
-	/**
-	 * Identificador único (ID) de la música de fondo principal que está sonando
-	 * actualmente.
-	 */
 	private static String idMusicaFondoPrincipal;
 
-	// Constructor privado para impedir la instanciación de esta clase utilitaria
-	// estática
 	private GestorMusica() {
 	}
 
-	// =========================================================================
-	// CARGA Y CONFIGURACIÓN (JSON)
-	// =========================================================================
-
-	/**
-	 * Carga y registra los metadatos de todas las músicas declaradas en el archivo
-	 * JSON especificado.
-	 * <p>
-	 * Filtra automáticamente las entradas cuyo ID comience con el prefijo
-	 * {@code "musicas."}. No carga los datos de audio pesados en RAM, únicamente
-	 * sus rutas y volúmenes.
-	 * </p>
-	 *
-	 * @param rutaJson Ubicación del archivo de configuración JSON.
-	 */
 	public static void cargarMusicasDesdeJSON(final String rutaJson) {
 		final JSONParser parser = new JSONParser();
 
@@ -71,7 +39,6 @@ public class GestorMusica {
 			for (final Object key : jsonObject.keySet()) {
 				final String idMusica = (String) key;
 
-				// Filtrado para registrar únicamente las claves correspondientes a música
 				if (idMusica.startsWith("musicas.")) {
 					final JSONObject config = (JSONObject) jsonObject.get(idMusica);
 					final String ruta = (String) config.get("ruta");
@@ -93,33 +60,16 @@ public class GestorMusica {
 		}
 	}
 
-	// =========================================================================
-	// GESTIÓN DE LA MÚSICA DE FONDO PRINCIPAL (BGM Global)
-	// =========================================================================
-
-	/**
-	 * Inicia la reproducción en bucle de la música de fondo principal de la escena
-	 * o nivel.
-	 * <p>
-	 * Si la pista solicitada ya está sonando como la música principal actual, no se
-	 * reinicia. Si había una música principal distinta reproduciéndose previamente,
-	 * esta se detiene automáticamente.
-	 * </p>
-	 *
-	 * @param idMusica ID de la música registrada en el JSON.
-	 */
 	public static void reproducirMusicaFondoPrincipal(final String idMusica) {
 		if (idMusica == null) {
 			return;
 		}
 
-		// Evita reiniciar la misma canción si ya está sonando como música principal
 		if (idMusica.equals(idMusicaFondoPrincipal) && (musicaFondoPrincipal != null)) {
 			musicaFondoPrincipal.actualizar(true);
 			return;
 		}
 
-		// Detiene la pista anterior para no superponer bandas sonoras globales
 		detenerMusicaFondoPrincipal();
 
 		final DatosAudio datos = REGISTRO.get(idMusica);
@@ -128,30 +78,18 @@ public class GestorMusica {
 			return;
 		}
 
-		// Instancia la nueva música en un hilo de streaming independiente
 		musicaFondoPrincipal = new MusicaStream(datos.getRuta(), datos.getVolumen());
 		musicaFondoPrincipal.repetir(true);
 		musicaFondoPrincipal.reproducir();
 		idMusicaFondoPrincipal = idMusica;
 	}
 
-	/**
-	 * Pausa o reanuda la música de fondo principal en función del estado de pausa
-	 * del juego.
-	 *
-	 * @param reproducir {@code true} para mantener/reanudar la reproducción;
-	 *                   {@code false} para pausarla.
-	 */
 	public static void actualizarMusicaFondoPrincipal(final boolean reproducir) {
 		if (musicaFondoPrincipal != null) {
 			musicaFondoPrincipal.actualizar(reproducir);
 		}
 	}
 
-	/**
-	 * Detiene completamente la música de fondo principal activa y libera su hilo de
-	 * ejecución.
-	 */
 	public static void detenerMusicaFondoPrincipal() {
 		if (musicaFondoPrincipal != null) {
 			musicaFondoPrincipal.detener();
@@ -160,34 +98,12 @@ public class GestorMusica {
 		}
 	}
 
-	/**
-	 * Modifica el volumen de la música de fondo principal en tiempo real.
-	 *
-	 * @param volumen Porcentaje lineal del volumen (rango de 0.0 a 1.0).
-	 */
 	public static void setVolumenMusicaFondoPrincipal(final double volumen) {
 		if (musicaFondoPrincipal != null) {
 			musicaFondoPrincipal.setVolumen(volumen);
 		}
 	}
 
-	// =========================================================================
-	// INSTANCIACIÓN DE FUENTES MÚLTIPLES (Emisores Secundarios / Radios)
-	// =========================================================================
-
-	/**
-	 * Crea y devuelve un objeto {@link MusicaStream} totalmente independiente.
-	 * <p>
-	 * Este método permite la coexistencia de múltiples canales de audio
-	 * simultáneos. Es ideal para objetos emisores dentro del juego (radios en
-	 * casas, vehículos encendidos, zonas ambientales) cuyo volumen varíe mediante
-	 * atenuación posicional 2D sin interferir con la música de fondo principal.
-	 * </p>
-	 *
-	 * @param idMusica ID de la pista registrada en el JSON.
-	 * @return Una nueva instancia en hilo independiente, o {@code null} si el ID no
-	 *         existe.
-	 */
 	public static MusicaStream obtenerInstancia(final String idMusica) {
 		final DatosAudio datos = REGISTRO.get(idMusica);
 		if (datos != null) {
@@ -197,36 +113,22 @@ public class GestorMusica {
 		return null;
 	}
 
-	// =========================================================================
-	// SOBRECARGAS CON ENUM (Seguridad de tipos y autocompletado)
-	// =========================================================================
-
-	/**
-	 * Sobrecarga de {@link #reproducirMusicaFondoPrincipal(String)} utilizando el
-	 * enum {@link IDMusica}.
-	 *
-	 * @param id Elemento del enum que contiene la clave String válida.
-	 */
 	public static void reproducirMusicaFondoPrincipal(final IDMusica id) {
 		if (id != null) {
 			reproducirMusicaFondoPrincipal(id.getId());
 		}
 	}
 
-	/**
-	 * Sobrecarga de {@link #obtenerInstancia(String)} utilizando el enum
-	 * {@link IDMusica}.
-	 *
-	 * @param id Elemento del enum que contiene la clave String válida.
-	 * @return Una nueva instancia en hilo independiente, o {@code null} si el ID es
-	 *         nulo o inválido.
-	 */
 	public static MusicaStream obtenerInstancia(final IDMusica id) {
 		if (id != null) {
 			return obtenerInstancia(id.getId());
 		}
 		return null;
 	}
+
+	// =========================================================================
+	// GESTIÓN PROPORCIONAL DE AUDIO CLIMÁTICO Y AMBIENTAL
+	// =========================================================================
 
 	public static void reproducirAmbienteClima(final String idAmbiente) {
 		if (idAmbiente == null) {
@@ -236,6 +138,7 @@ public class GestorMusica {
 
 		if (idAmbiente.equals(idAmbienteClimaActual) && (musicaAmbienteClima != null)) {
 			musicaAmbienteClima.actualizar(true);
+			thisAplicarVolumenEfectivo();
 			return;
 		}
 
@@ -243,7 +146,8 @@ public class GestorMusica {
 
 		final DatosAudio datos = REGISTRO.get(idAmbiente);
 		if (datos != null) {
-			musicaAmbienteClima = new MusicaStream(datos.getRuta(), datos.getVolumen());
+			final double volumenEfectivo = datos.getVolumen() * factorAtenuacionAmbiente;
+			musicaAmbienteClima = new MusicaStream(datos.getRuta(), volumenEfectivo);
 			musicaAmbienteClima.repetir(true);
 			musicaAmbienteClima.reproducir();
 			idAmbienteClimaActual = idAmbiente;
@@ -272,9 +176,26 @@ public class GestorMusica {
 		}
 	}
 
-	public static void setVolumenAmbienteClima(final double volumen) {
-		if (musicaAmbienteClima != null) {
-			musicaAmbienteClima.setVolumen(volumen);
+	/**
+	 * Configura el factor multiplicador de volumen para climas (1.0 = Exterior,
+	 * 0.20 = Casa, 0.0 = Cueva).
+	 */
+	public static void setFactorAtenuacionAmbiente(final double factor) {
+		factorAtenuacionAmbiente = Math.max(0.0, Math.min(1.0, factor));
+		thisAplicarVolumenEfectivo();
+	}
+
+	public static double getFactorAtenuacionAmbiente() {
+		return factorAtenuacionAmbiente;
+	}
+
+	private static void thisAplicarVolumenEfectivo() {
+		if ((musicaAmbienteClima != null) && (idAmbienteClimaActual != null)) {
+			final DatosAudio datos = REGISTRO.get(idAmbienteClimaActual);
+			if (datos != null) {
+				final double volumenCalculado = datos.getVolumen() * factorAtenuacionAmbiente;
+				musicaAmbienteClima.setVolumen(volumenCalculado);
+			}
 		}
 	}
 }

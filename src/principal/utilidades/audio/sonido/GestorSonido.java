@@ -9,6 +9,12 @@ import org.json.simple.parser.JSONParser;
 
 import principal.utilidades.Constantes;
 
+/**
+ * Gestor maestro de efectos de sonido polifónicos con soporte de escala de
+ * volumen proporcional para truenos y eventos climáticos.
+ * 
+ * @version 2.0 (Vanilla Java 8 - Volume Multiplier Extension)
+ */
 public class GestorSonido {
 
 	private static final Map<String, PoolSonido> REGISTRO = new HashMap<>();
@@ -34,7 +40,6 @@ public class GestorSonido {
 					volumen = Double.parseDouble(config.get("volumen").toString());
 				}
 
-				// Precarga el sonido base y crea su pool polifónico de 6 voces en RAM
 				final SonidoJavaSound sonidoBase = FabricaSonido.crearSonido(ruta, volumen);
 				if (sonidoBase != null) {
 					REGISTRO.put(idSonido, new PoolSonido(sonidoBase, 6));
@@ -56,6 +61,22 @@ public class GestorSonido {
 			return;
 		}
 		pool.reproducir();
+	}
+
+	/**
+	 * Reproduce un sonido escalando su volumen nominal del JSON por un factor
+	 * multiplicador (0.0 a 1.0).
+	 */
+	public static void reproducirConFactor(final String idSonido, final double factorVolumen) {
+		if (factorVolumen <= 0.0) {
+			return; // Silencio absoluto (ej: cueva profunda)
+		}
+		final PoolSonido pool = REGISTRO.get(idSonido);
+		if (pool == null) {
+			return;
+		}
+		final double volumenFinal = pool.getVolumenPorDefecto() * Math.max(0.0, Math.min(1.0, factorVolumen));
+		pool.reproducirConVolumen(volumenFinal);
 	}
 
 	public static void reproducirEnPosicion(final String idSonido, final double xEmisor, final double yEmisor,
@@ -82,13 +103,15 @@ public class GestorSonido {
 		reproducirEnPosicion(idSonido, xEmisor, yEmisor, xReceptor, yReceptor, Constantes.RADIO_AUDIO_DISTANCIA_MAXIMA);
 	}
 
-	// =========================================================================
-	// SOBRECARGAS CON ENUM (IDSonido)
-	// =========================================================================
-
 	public static void reproducir(final IDSonido id) {
 		if (id != null) {
 			reproducir(id.getId());
+		}
+	}
+
+	public static void reproducirConFactor(final IDSonido id, final double factorVolumen) {
+		if (id != null) {
+			reproducirConFactor(id.getId(), factorVolumen);
 		}
 	}
 

@@ -4,15 +4,15 @@ import principal.entes.efectos.TipoEfectoEstado;
 import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.TipoLuz;
 import principal.mapa.renderEntidades.camara.efectos.TipoEfectoCamara;
+import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 
 /**
  * Gestor de termorregulación, inercia térmica corporal, resistencia de prendas,
- * aporte calórico de antorcha en mano e índice de calor/frío por humedad
- * (Zero-GC / O(1)).
+ * refugio bajo techo en interiores y atenuación ambiental (Zero-GC / O(1)).
  * 
- * @version 3.1 (Vanilla Java 8 - Held Torch Heat & Humidity Integration)
+ * @version 4.0 (Vanilla Java 8 - Sheltered Interior Thermodynamics)
  */
 public class GestorTermicoJugador {
 
@@ -40,6 +40,7 @@ public class GestorTermicoJugador {
 
 	private boolean cercaDeFuenteCalor = false;
 	private boolean expuestoAIntemperieFria = false;
+	private boolean bajoTechoInterior = false;
 
 	private final GestorTiempo GT_TEMBLOR_FRIO = new GestorTiempo();
 	private final GestorTiempo GT_DANIO_EXTREMO_CALOR = new GestorTiempo();
@@ -55,11 +56,25 @@ public class GestorTermicoJugador {
 		final double jx = Globales.JUGADOR.getCentroX();
 		final double jy = Globales.JUGADOR.getCentroY();
 
-		// 1. Escaneo de radiación térmica (incluyendo antorcha en mano del jugador)
+		// 1. Detección de espacio interior / refugio bajo techo
+		this.bajoTechoInterior = false;
+		double tempBaseEspacio = 20.0;
+
+		if ((Globales.JUGADOR.getMundo() != null) && (Globales.JUGADOR.getMundo().getEscenario() != null)) {
+			final MetadatosEscenario meta = Globales.JUGADOR.getMundo().getEscenario().getMetadatos();
+			if (meta != null) {
+				this.bajoTechoInterior = meta.esEspacioInterior();
+				if (meta.getPerfilBioma() != null) {
+					tempBaseEspacio = meta.getPerfilBioma().getTemperaturaBase();
+				}
+			}
+		}
+
+		// 2. Escaneo de radiación térmica (fuegos del mundo y antorcha sostenida)
 		this.escanearRadiacionLuces(jx, jy);
 
-		// 2. Variables ambientales y climáticas base
-		final double tempAmbiente = (Globales.GESTOR_CLIMA != null) ? Globales.GESTOR_CLIMA.getTemperaturaCelsius()
+		// 3. Variables climáticas exteriores
+		final double tempExterior = (Globales.GESTOR_CLIMA != null) ? Globales.GESTOR_CLIMA.getTemperaturaCelsius()
 				: 20.0;
 		final double humedad = (Globales.GESTOR_CLIMA != null) ? Globales.GESTOR_CLIMA.getHumedadRelativa() : 0.50;
 
@@ -70,42 +85,53 @@ public class GestorTermicoJugador {
 				|| (clima == TipoClima.LLUVIA_ACIDA);
 		final boolean nieve = (clima == TipoClima.NIEVE) || (clima == TipoClima.VENTISCA);
 
-		this.expuestoAIntemperieFria = lluvia || nieve;
+		// Si estás bajo techo, NO te mojas ni estás expuesto a la intemperie
+		this.expuestoAIntemperieFria = !this.bajoTechoInterior && (lluvia || nieve);
 
-		// 3. Sensación térmica por viento (Wind Chill)
-		double enfriamientoViento = 0.0;
-		if ((tempAmbiente < 20.0) && (Globales.GESTOR_CLIMA != null)) {
-			enfriamientoViento = Globales.GESTOR_CLIMA.getFuerzaViento() * 1.2;
-		}
-
-		// 4. Aislamiento clasificado de prendas equipadas
+		// 4. Aislamiento de prendas
 		final int aislaFrio = Globales.JUGADOR.getAislamientoFrioTotal();
 		final int aislaCalor = Globales.JUGADOR.getAislamientoCalorTotal();
 		final int sofoco = Globales.JUGADOR.getPenalizacionSofocoTotal();
 
-		final double factorMitigacionViento = Math.max(0.20, 1.0 - (aislaFrio * 0.05));
-		final double vientoEfectivo = enfriamientoViento * factorMitigacionViento;
-
-		// 5. Cálculo de Temperatura Efectiva Percibida (Integrando Humedad / Heat
-		// Index)
+		// 5. Cálculo de Temperatura Efectiva Percibida
 		double tempPercibida;
 
-		if (tempAmbiente < 10.0) {
-			// Frío Húmedo: La humedad alta (>50%) penetra más rápido en la ropa
-			final double penetracionHumedad = 1.0 + Math.max(0.0, (humedad - 0.50) * 0.35);
-			final double frioEfectivo = (10.0 - tempAmbiente) * penetracionHumedad;
-			final double tempBaseHumedad = 10.0 - frioEfectivo;
+		// =====================================================================
+		// CASO A: BAJO TECHO (Refugio Interior - Protegido de viento y lluvia)
+		// =====================================================================
+		if (this.bajoTechoInterior) {
+			// El interior proporciona confort térmico protegido
+			tempPercibida = tempBaseEspacio + this.calorRecibidoFuego;
+			if (tempBaseEspacio > 27.0) {
+				tempPercibida += (sofoco * 0.50);
+			}
+		}
+		// =====================================================================
+		// CASO B: EN EL EXTERIOR (A la intemperie)
+		// =====================================================================
+		else {
+			double enfriamientoViento = 0.0;
+			if ((tempExterior < 20.0) && (Globales.GESTOR_CLIMA != null)) {
+				enfriamientoViento = Globales.GESTOR_CLIMA.getFuerzaViento() * 1.2;
+			}
 
-			tempPercibida = (tempBaseHumedad - vientoEfectivo) + (aislaFrio * 0.85) + this.calorRecibidoFuego;
-		} else if (tempAmbiente > 27.0) {
-			// Bochorno Húmedo: La humedad alta impide la transpiración (+0 a +3.5 °C
-			// percibidos)
-			final double bochornoHumedad = Math.max(0.0, (humedad - 0.50) * 7.0);
+			final double factorMitigacionViento = Math.max(0.20, 1.0 - (aislaFrio * 0.05));
+			final double vientoEfectivo = enfriamientoViento * factorMitigacionViento;
 
-			tempPercibida = ((tempAmbiente + bochornoHumedad) - (aislaCalor * 0.85)) + (sofoco * 0.60)
-					+ this.calorRecibidoFuego;
-		} else {
-			tempPercibida = tempAmbiente + this.calorRecibidoFuego;
+			if (tempExterior < 10.0) {
+				final double penetracionHumedad = 1.0 + Math.max(0.0, (humedad - 0.50) * 0.35);
+				final double frioEfectivo = (10.0 - tempExterior) * penetracionHumedad;
+				final double tempBaseHumedad = 10.0 - frioEfectivo;
+
+				tempPercibida = (tempBaseHumedad - vientoEfectivo) + (aislaFrio * 0.85) + this.calorRecibidoFuego;
+			} else if (tempExterior > 27.0) {
+				final double bochornoHumedad = Math.max(0.0, (humedad - 0.50) * 7.0);
+
+				tempPercibida = ((tempExterior + bochornoHumedad) - (aislaCalor * 0.85)) + (sofoco * 0.60)
+						+ this.calorRecibidoFuego;
+			} else {
+				tempPercibida = tempExterior + this.calorRecibidoFuego;
+			}
 		}
 
 		// 6. Transferencia e inercia térmica
@@ -115,6 +141,8 @@ public class GestorTermicoJugador {
 			velocidadCambio *= 2.5;
 		} else if (this.expuestoAIntemperieFria) {
 			velocidadCambio *= (nieve ? 2.2 : 1.8);
+		} else if (this.bajoTechoInterior) {
+			velocidadCambio *= 1.5; // El cuerpo se estabiliza más rápido en un refugio
 		}
 
 		double tempObjetivoCuerpo = TEMP_NOMINAL_CUERPO;
@@ -223,16 +251,12 @@ public class GestorTermicoJugador {
 			final FuenteLuz luz = Globales.GESTOR_LUZ.getLuzPorIndice(i);
 			if ((luz != null) && luz.isActiva()) {
 
-				// 1. Antorcha sostenida en la mano secundaria del propio jugador
 				if (luz.getEnteAnclado() == Globales.JUGADOR) {
 					if (luz.getTipo() == TipoLuz.ANTORCHA) {
-						this.calorRecibidoFuego = Math.max(this.calorRecibidoFuego, 12.0); // +12 °C radiantes directos
+						this.calorRecibidoFuego = Math.max(this.calorRecibidoFuego, 12.0);
 						this.cercaDeFuenteCalor = true;
 					}
-					// AURA_JUGADOR o LINTERNA_CONICA no aportan calor (0 °C)
-				}
-				// 2. Fuentes de calor externas en el mundo (Fogatas, antorchas de pared)
-				else {
+				} else {
 					final double dx = jx - luz.getPosX();
 					final double dy = jy - luz.getPosY();
 					final double dist = Math.sqrt((dx * dx) + (dy * dy));
@@ -307,6 +331,10 @@ public class GestorTermicoJugador {
 
 	public boolean isExpuestoAIntemperieFria() {
 		return this.expuestoAIntemperieFria;
+	}
+
+	public boolean isBajoTechoInterior() {
+		return this.bajoTechoInterior;
 	}
 
 	public void setTemperaturaCorporal(final double temp) {

@@ -8,16 +8,17 @@ import java.awt.Rectangle;
 
 import principal.clima.GestorTermicoJugador;
 import principal.clima.TipoClima;
+import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Componente visual del HUD para monitoreo térmico en tiempo real. Integra
- * micro-barra de mercurio, detección barométrica de tormentas, alerta temprana
- * pre-temporal en pantalla y cálculo Zero-GC (O(1)).
+ * Componente visual del HUD para monitoreo térmico en tiempo real con soporte
+ * de temperatura interior bajo techo, detección barométrica de tormentas y
+ * Zero-GC.
  * 
- * @version 3.3 (Vanilla Java 8 - Active Early Storm Warning Integration)
+ * @version 4.0 (Vanilla Java 8 - Sheltered Interior Readout & Dynamic State)
  */
 public class TermometroIGU {
 
@@ -40,6 +41,7 @@ public class TermometroIGU {
 	private static final Color COLOR_ALERTA_FRIO = new Color(100, 195, 255);
 	private static final Color COLOR_ALERTA_ACIDA = new Color(135, 240, 90);
 	private static final Color COLOR_ALERTA_ECLIPSE = new Color(220, 45, 65);
+	private static final Color COLOR_INTERIOR = new Color(175, 235, 160);
 
 	// Paleta de la Micro-Barra
 	private static final Color COLOR_BARRA_FONDO = new Color(10, 12, 16);
@@ -53,7 +55,7 @@ public class TermometroIGU {
 	private final StringBuilder sbWidget = new StringBuilder(64);
 	private final StringBuilder sbTooltip = new StringBuilder(160);
 
-	// Caché de estado (Zero-GC)
+	// Caché de estado
 	private int lastTempAmbInt = -999;
 	private int lastTempCorpInt = -999;
 	private int lastAislaFrio = -999;
@@ -61,6 +63,7 @@ public class TermometroIGU {
 	private int lastSofoco = -999;
 	private int lastPresionInt = -999;
 	private boolean lastCercaFuego = false;
+	private boolean lastBajoTecho = false;
 	private boolean lastEnAlertaTormenta = false;
 	private TipoClima lastClima = null;
 	private TipoClima lastPronostico = null;
@@ -85,7 +88,20 @@ public class TermometroIGU {
 			return;
 		}
 
-		final double tempAmb = Globales.GESTOR_CLIMA.getTemperaturaCelsius();
+		// 1. Detección de interior y temperatura ambiente efectiva
+		boolean esInterior = false;
+		double tempAmb = Globales.GESTOR_CLIMA.getTemperaturaCelsius();
+
+		if ((Globales.JUGADOR.getMundo() != null) && (Globales.JUGADOR.getMundo().getEscenario() != null)) {
+			final MetadatosEscenario meta = Globales.JUGADOR.getMundo().getEscenario().getMetadatos();
+			if (meta != null) {
+				esInterior = meta.esEspacioInterior();
+				if (esInterior && (meta.getPerfilBioma() != null)) {
+					tempAmb = meta.getPerfilBioma().getTemperaturaBase(); // Temperatura protegida del interior
+				}
+			}
+		}
+
 		final double tempCorp = Globales.GESTOR_TERMICO_JUGADOR.getTemperaturaCorporal();
 		final double tendencia = Globales.GESTOR_TERMICO_JUGADOR.getTendenciaTermica();
 		final double presion = Globales.GESTOR_CLIMA.getPresionHPa();
@@ -94,8 +110,8 @@ public class TermometroIGU {
 		final TipoClima climaPronosticado = Globales.GESTOR_CLIMA.getClimaPronosticado();
 		final double tiempoRestanteClima = Globales.GESTOR_CLIMA.getTiempoRestanteEstadoClima();
 
-		// Alerta activa si faltan 60s o menos para un clima peligroso
-		final boolean enAlertaTormenta = (tiempoRestanteClima <= 60.0) && this.esClimaPeligroso(climaPronosticado);
+		final boolean enAlertaTormenta = !esInterior && (tiempoRestanteClima <= 60.0)
+				&& this.esClimaPeligroso(climaPronosticado);
 
 		final int aislaFrio = (Globales.JUGADOR != null) ? Globales.JUGADOR.getAislamientoFrioTotal() : 0;
 		final int aislaCalor = (Globales.JUGADOR != null) ? Globales.JUGADOR.getAislamientoCalorTotal() : 0;
@@ -108,8 +124,8 @@ public class TermometroIGU {
 		if ((ambInt != this.lastTempAmbInt) || (corpInt != this.lastTempCorpInt) || (aislaFrio != this.lastAislaFrio)
 				|| (aislaCalor != this.lastAislaCalor) || (sofoco != this.lastSofoco)
 				|| (presInt != this.lastPresionInt) || (cercaFuego != this.lastCercaFuego)
-				|| (climaActual != this.lastClima) || (climaPronosticado != this.lastPronostico)
-				|| (enAlertaTormenta != this.lastEnAlertaTormenta)) {
+				|| (esInterior != this.lastBajoTecho) || (climaActual != this.lastClima)
+				|| (climaPronosticado != this.lastPronostico) || (enAlertaTormenta != this.lastEnAlertaTormenta)) {
 
 			this.lastTempAmbInt = ambInt;
 			this.lastTempCorpInt = corpInt;
@@ -118,6 +134,7 @@ public class TermometroIGU {
 			this.lastSofoco = sofoco;
 			this.lastPresionInt = presInt;
 			this.lastCercaFuego = cercaFuego;
+			this.lastBajoTecho = esInterior;
 			this.lastClima = climaActual;
 			this.lastPronostico = climaPronosticado;
 			this.lastEnAlertaTormenta = enAlertaTormenta;
@@ -142,7 +159,7 @@ public class TermometroIGU {
 
 			if (climaActual != null) {
 				this.sbTooltip.append("Clima: ").append(climaActual.getNombre());
-				if (presion < 1000.0) {
+				if (!esInterior && (presion < 1000.0)) {
 					this.sbTooltip.append(" [¡Baja Presión: ").append(presInt).append(" hPa!]");
 				}
 				this.sbTooltip.append(". ");
@@ -155,9 +172,23 @@ public class TermometroIGU {
 			this.sbTooltip.append(". Condición: ");
 
 			// =================================================================
-			// 1. PRIORIDAD MÁXIMA: ALERTA TEMPRANA PRE-TORMENTA (ÚLTIMO MINUTO)
+			// 1. REFUGIO BAJO TECHO / INTERIOR
 			// =================================================================
-			if (enAlertaTormenta && (climaPronosticado != null)) {
+			if (esInterior) {
+				if (cercaFuego) {
+					this.sbWidget.append("Fuego (+) | Refugio");
+					this.sbTooltip.append("Junto al fuego bajo techo. Ambiente cálido y protegido.");
+					this.cachedColorEstado = COLOR_FUEGO;
+				} else {
+					this.sbWidget.append("Bajo Techo (Confort)");
+					this.sbTooltip.append("Refugiado en interior. Aislado del viento y lluvia exterior.");
+					this.cachedColorEstado = COLOR_INTERIOR;
+				}
+			}
+			// =================================================================
+			// 2. ALERTA TEMPRANA PRE-TORMENTA (EXTERIOR)
+			// =================================================================
+			else if (enAlertaTormenta && (climaPronosticado != null)) {
 				switch (climaPronosticado) {
 				case LLUVIA_TORMENTA:
 					this.sbWidget.append("¡Alerta: Tormenta!");
@@ -188,7 +219,7 @@ public class TermometroIGU {
 						.append(" en menos de 1 min. ¡Busque refugio!");
 			}
 			// =================================================================
-			// 2. ESTADO TERMODINÁMICO HABITUAL
+			// 3. ESTADO TERMODINÁMICO HABITUAL EN EXTERIOR
 			// =================================================================
 			else if (tempAmb < 10.0) {
 				if (cercaFuego) {
@@ -273,7 +304,6 @@ public class TermometroIGU {
 		final GestorTermicoJugador termico = Globales.GESTOR_TERMICO_JUGADOR;
 		Color colorBordeEfectivo = COLOR_BORDE_BASE;
 
-		// Pulso de advertencia en el borde ante peligro térmico O alerta de tormenta
 		if (this.lastEnAlertaTormenta) {
 			final float alphaPulso = (float) (0.55 + (Math.sin(Globales.animacion * 0.25) * 0.40));
 			colorBordeEfectivo = new Color(1.0f, 0.8f, 0.2f, Math.max(0.2f, Math.min(1.0f, alphaPulso)));
@@ -293,7 +323,7 @@ public class TermometroIGU {
 
 		final int xTexto = x + 9;
 
-		final double tempAmb = Globales.GESTOR_CLIMA.getTemperaturaCelsius();
+		final double tempAmb = this.lastTempAmbInt / 10.0;
 		final Color colorAmb = (tempAmb < 10.0) ? COLOR_FRIO : ((tempAmb > 27.0) ? COLOR_CALOR : COLOR_TEMPLADO);
 		Render2D.dibujarStringConSombra(g, this.cachedAmbiente, xTexto, y + 9, colorAmb, Color.BLACK, 7f, true);
 

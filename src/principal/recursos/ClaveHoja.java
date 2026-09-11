@@ -10,7 +10,7 @@ package principal.recursos;
 public enum ClaveHoja {
 
 	// --- Entidades y Criaturas ---
-	JUGADOR("/imagenes/sprites/player_sprites.png", 32, 32), BANDIDO("/imagenes/sprites/bandido.png", 32, 32),
+	JUGADOR("/imagenes/sprites/player_sprites1.png", 32, 32), BANDIDO("/imagenes/sprites/bandido.png", 32, 32),
 	CHARACTER_2("/imagenes/sprites/player2_sprites.png", 32, 32),
 
 	// --- OBJETOS ---
@@ -39,7 +39,11 @@ public enum ClaveHoja {
 
 	// --- IGU -----
 	IGU_DISCO_CICLO_TIME("/imagenes/igu/disco_ciclo.png", 40, 40),
-	IGU_MARCO_TIME("/imagenes/igu/marco_reloj.png", 44, 44);
+	IGU_MARCO_TIME("/imagenes/igu/marco_reloj.png", 44, 44),
+
+	// Items equipados
+	EQUIPADO_CASCO1("/imagenes/sprites/objetos/equipados/equipado_casco0.png", 32, 32),
+	EQUIPADO_PETO1("/imagenes/sprites/objetos/equipados/equipado_peto0.png", 32, 32);
 
 	private final String ruta;
 	private final int anchoFrame;

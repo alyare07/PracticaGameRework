@@ -655,4 +655,12 @@ public class SlotManager {
 	public static int getLadoSlots() {
 		return LADO_SLOTS;
 	}
+
+	public SlotPiezaEquipo getSlotCasco() {
+		return this.slotCasco;
+	}
+
+	public SlotPiezaEquipo getSlotTorso() {
+		return this.slotTorso;
+	}
 }

@@ -67,6 +67,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 	private final GestorTiempo GT_AURA_REGEN;
 	private final Rectangle areaAuraCurativa = new Rectangle();
 	private final Rectangle areaContactoFuego = new Rectangle();
+	private final int radio;
 
 	// =========================================================================
 	// === 3. VISITORS PREASIGNADOS ZERO-GC
@@ -113,6 +114,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 		this.GT_AURA_REGEN = new GestorTiempo();
 
 		this.actualizarEstadoVisual();
+		this.radio = 45;
 	}
 
 	// =========================================================================
@@ -240,7 +242,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 
 			if ((this.luzAsignada == null) || !this.luzAsignada.isActiva()) {
 				if (Globales.GESTOR_LUZ != null) {
-					this.luzAsignada = Globales.GESTOR_LUZ.agregarLuzAnclada(this, tipoDeseado);
+					this.luzAsignada = Globales.GESTOR_LUZ.agregarLuzAnclada(this, tipoDeseado, this.radio);
 				}
 			} else if (this.luzAsignada.getTipo() != tipoDeseado) {
 				this.luzAsignada.setTipo(tipoDeseado);

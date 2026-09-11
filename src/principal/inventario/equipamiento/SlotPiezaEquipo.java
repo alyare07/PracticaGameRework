@@ -21,6 +21,7 @@ public class SlotPiezaEquipo extends SlotEquipamiento {
 	public SlotPiezaEquipo(final Rectangle area, final BufferedImage logo, final TipoEquipo tipoRequerido) {
 		super(area, logo);
 		this.tipoRequerido = (tipoRequerido != null) ? tipoRequerido : TipoEquipo.CASCO;
+
 	}
 
 	@Override
@@ -53,4 +54,5 @@ public class SlotPiezaEquipo extends SlotEquipamiento {
 	public TipoEquipo getTipoRequerido() {
 		return this.tipoRequerido;
 	}
+
 }

@@ -6,6 +6,7 @@ import org.json.simple.JSONObject;
 
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Portable;
+import principal.recursos.ClaveHoja;
 
 /**
  * Representa una pieza de equipamiento equipable con atributos RPG, precio de
@@ -30,6 +31,7 @@ public class PiezaEquipo extends Portable {
 	protected final int armaduraDefensa;
 	protected final TipoAislamiento tipoAislamiento;
 	protected final int valorAislamiento;
+	protected ClaveHoja hojaEquipado;
 
 	public PiezaEquipo(final String codModelo, final TipoEquipo tipoEquipo, final int bonifFuerza,
 			final int bonifAgilidad, final int bonifInteligencia, final int armaduraDefensa,
@@ -44,6 +46,14 @@ public class PiezaEquipo extends Portable {
 		this.valorAislamiento = Math.max(0, valorAislamiento);
 		this.asignarPrecioPorDefecto();
 		this.rellenarInfo(this.LISTA_INFO);
+
+		if (this.tipoEquipo == TipoEquipo.CASCO) {
+			this.hojaEquipado = ClaveHoja.EQUIPADO_CASCO1;
+		} else if (this.tipoEquipo == TipoEquipo.TORSO) {
+			this.hojaEquipado = ClaveHoja.EQUIPADO_PETO1;
+		} else {
+			this.hojaEquipado = null;
+		}
 	}
 
 	public PiezaEquipo(final int x, final int y, final String codModelo, final TipoEquipo tipoEquipo,
@@ -59,6 +69,14 @@ public class PiezaEquipo extends Portable {
 		this.valorAislamiento = Math.max(0, valorAislamiento);
 		this.asignarPrecioPorDefecto();
 		this.rellenarInfo(this.LISTA_INFO);
+
+		if (this.tipoEquipo == TipoEquipo.CASCO) {
+			this.hojaEquipado = ClaveHoja.EQUIPADO_CASCO1;
+		} else if (this.tipoEquipo == TipoEquipo.TORSO) {
+			this.hojaEquipado = ClaveHoja.EQUIPADO_PETO1;
+		} else {
+			this.hojaEquipado = null;
+		}
 	}
 
 	public PiezaEquipo(final String codModelo, final TipoEquipo tipoEquipo, final int bonifFuerza,
@@ -87,6 +105,14 @@ public class PiezaEquipo extends Portable {
 		} else {
 			this.precioBasePlata = 100L;
 		}
+	}
+
+	public ClaveHoja getHojaEquipado() {
+		return this.hojaEquipado;
+	}
+
+	public void setHojaEquipado(final ClaveHoja hoja) {
+		this.hojaEquipado = hoja;
 	}
 
 	public TipoEquipo getTipoEquipo() {

@@ -23,7 +23,7 @@ public class MenuPrincipal extends Menu {
 		});
 
 		this.agregarBoton("Cargar Partida", () -> {
-			this.GE.seleccionarMundo();
+			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU_CARGAR_PARTIDA);
 		});
 
 		this.agregarBoton("Configuracion", () -> {

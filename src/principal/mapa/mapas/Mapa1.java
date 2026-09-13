@@ -54,7 +54,7 @@ public class Mapa1 extends Mapa {
 
 	@Override
 	protected void establecerMundos(final GestorCarga gc, final int porcentajeCarga) {
-		final int cantMundos = 4; // 2 mundos: Exterior e Interior
+		final int cantMundos = 4;
 		final int porcentajeCargaParcial = porcentajeCarga / cantMundos;
 		final int porcentajeCargaEscenario = (75 * porcentajeCargaParcial) / 100;
 		final int porcentajeCargaMundo = (25 * porcentajeCargaParcial) / 100;
@@ -77,7 +77,7 @@ public class Mapa1 extends Mapa {
 		mInterior.setMapa(this);
 		this.MUNDOS.put(INTERIOR_CASA1, mInterior);
 
-		// 3. exterior desierto
+		// 3. Exterior Desierto
 		gc.setDetalleCarga("Generando mundo " + EXTERIOR_DESIERTO);
 		final Mundo mExt_desierto = new Mundo(
 				this.cargarEscenario(gc, porcentajeCargaEscenario, new File("mundos/ext_desierto.json")),
@@ -86,7 +86,7 @@ public class Mapa1 extends Mapa {
 		mExt_desierto.setMapa(this);
 		this.MUNDOS.put(EXTERIOR_DESIERTO, mExt_desierto);
 
-		// 4. exterior nieve
+		// 4. Exterior Nieve
 		gc.setDetalleCarga("Generando mundo " + EXTERIOR_NIEVE);
 		final Mundo mExt_nieve = new Mundo(
 				this.cargarEscenario(gc, porcentajeCargaEscenario, new File("mundos/ext_nieve.json")),
@@ -116,14 +116,12 @@ public class Mapa1 extends Mapa {
 		Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
 		new PuertaArea(new Rectangle(832, 333, 16, 16));
 
-		// Recursos Cosechables en el exterior
 		final Mundo mExt = this.MUNDOS.get(EXTERIOR);
 		if (mExt != null) {
 			mExt.meterEntidad(new ArbolCosechable(1789, 1854, ClaveHoja.ARBOLES_32, 0));
 			mExt.meterEntidad(new ArbolCosechable(1777, 1854, ClaveHoja.ARBOLES_32, 1));
 			mExt.meterEntidad(new RocaCosechable(1954, 1777, ClaveHoja.DUNGEON_16, 813));
 
-			// Cofre con herramientas y armamento
 			final ArbolCofre arbolcofre1 = new ArbolCofre(1800, 1900);
 			arbolcofre1.getInventario()
 					.agregarItem(new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
@@ -154,10 +152,7 @@ public class Mapa1 extends Mapa {
 			this.generarEnemigosParaPrueba(5);
 			mExt.notificarModificacionEstructura();
 
-			// Creamos al comerciante en el pueblo o cerca de una casa
 			final Comerciante mercader = new Comerciante(1850, 1750, "Mercader Aldeano", 120.0);
-
-			// Le asignamos su inventario inicial de venta
 			mercader.getInventario().agregarItem(new PocionVidaMenor(10));
 			mercader.getInventario().agregarItem(CajaMunicion.crear9mm(0, 0, 60));
 			mercader.getInventario().agregarItem(CajaMunicion.crearCartuchos12(0, 0, 30));
@@ -168,18 +163,12 @@ public class Mapa1 extends Mapa {
 			mercader.getInventario()
 					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5));
 
-			// Stock finito que se repone automáticamente cada 4 días de juego:
 			mercader.setStockInfinito(false);
 			mercader.setRenovacionAutomatica(true, 4);
-
-			// Registra la mercancía tanto para la venta como para su plantilla de
-			// reposición:
 			mercader.registrarMercanciaInicial(new PocionVidaMenor(10));
 			mercader.registrarMercanciaInicial(CajaMunicion.crear9mm(0, 0, 60));
 
-			// Lo añadimos al mundo exterior
 			this.mundoActual.meterEntidad(mercader);
-
 		}
 
 		Globales.JUGADOR.setModoDios(true);
@@ -191,7 +180,9 @@ public class Mapa1 extends Mapa {
 			return;
 		}
 
-		final Random random = new Random();
+		// Semilla determinista fija: garantiza las mismas posiciones iniciales para la
+		// persistencia del delta
+		final Random random = new Random(123456L);
 		final int anchoLimite = Math.max(1, mExt.getTerreno().getAncho() - 50);
 		final int altoLimite = Math.max(1, mExt.getTerreno().getAlto() - 50);
 		final int anchoBandido = 12;

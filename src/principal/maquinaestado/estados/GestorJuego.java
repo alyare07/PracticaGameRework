@@ -11,6 +11,9 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.VolatileImage;
 import java.util.ArrayList;
 
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+
 import principal.controles.Raton;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura.Direccion;
@@ -60,7 +63,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.GE = ge;
 		this.GP = gp;
 		this.GT_MOSTRAR_PANTALLA_MUERTE = new GestorTiempo();
-
 	}
 
 	@Override
@@ -73,8 +75,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			return;
 		}
 
-		// 1. Gestión de Pausa: Silencia tanto la música de fondo como el ambiente de
-		// lluvia
 		if (Globales.pausa) {
 			GestorMusica.actualizarMusicaFondoPrincipal(false);
 			GestorMusica.actualizarAmbienteClima(false);
@@ -136,7 +136,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	private void actualizarControlesDebug() {
 		this.actualizarCambioCamaraConEntesYZoom();
-
 	}
 
 	private void actualizarCambioCamaraConEntesYZoom() {
@@ -451,8 +450,107 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.auxFuenteLuzTempoPrueba = Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.AURA_JUGADOR,
 				75);
 		this.auxFuenteLuzTempoPrueba.setOffset(4, 3);
+	}
 
-		Globales.GESTOR_LUZ.getCiclo().setHora(21.5);
+	// =========================================================================
+	// RECONSTRUCCIÓN TOTAL DESDE PARTIDA GUARDADA (SAVE/LOAD ENGINE)
+	// =========================================================================
+
+	public void cargarPartidaGuardada(final GestorCarga gc, final JSONObject saveJson) {
+		if (saveJson == null) {
+			if (gc != null) {
+				gc.setCompleto(true);
+			}
+			return;
+		}
+
+		if (gc != null) {
+			gc.setPorcentajeCarga(15);
+			gc.setDetalleCarga("Leyendo metadatos de guardado");
+		}
+
+		final String nombreMapa = (saveJson.get("mapa") != null) ? saveJson.get("mapa").toString() : MapaManager.MAPA_1;
+		final String nombreMundo = (saveJson.get("mundo") != null) ? saveJson.get("mundo").toString() : "exterior";
+
+		Globales.GESTOR_LUZ.apagarTodasLasLuces();
+		Globales.GESTOR_PARTICULAS.limpiar();
+		Globales.GESTOR_ZONAS_AMBIENTE.limpiarZonas();
+		Globales.MOTOR_IGU.desvincularJefe();
+
+		if (gc != null) {
+			gc.setPorcentajeCarga(30);
+			gc.setDetalleCarga("Cargando escenario: " + nombreMapa);
+		}
+		this.mapa = MapaManager.cargarMapa(nombreMapa, gc);
+
+		if ((this.mapa == null) || (this.mapa.getMundo(nombreMundo) == null)) {
+			System.err.println("[GestorJuego] Error: No se pudo cargar el mapa o mundo guardado.");
+			if (gc != null) {
+				gc.setCompleto(true);
+			}
+			return;
+		}
+
+		this.mapa.establecerMundoActual(nombreMundo);
+		final Mundo mundoActivo = this.mapa.getMundoActual();
+
+		if (gc != null) {
+			gc.setPorcentajeCarga(60);
+			gc.setDetalleCarga("Restaurando mundo, tiempo y deltas");
+		}
+
+		// 1. Restaurar Calendario y Fotoperiodo
+		if ((saveJson.get("calendario") instanceof JSONObject) && (Globales.GESTOR_LUZ != null)
+				&& (Globales.GESTOR_LUZ.getCiclo() != null)) {
+			Globales.GESTOR_LUZ.getCiclo().importarJSON((JSONObject) saveJson.get("calendario"));
+		}
+
+		// 2. Restaurar Progreso e Historia (Flags)
+		if ((saveJson.get("progreso") instanceof JSONArray) && (Globales.GESTOR_PROGRESO != null)) {
+			Globales.GESTOR_PROGRESO.importarJSON((JSONArray) saveJson.get("progreso"));
+		}
+
+		// 3. Restaurar Deltas de Todos los Mundos
+		if (saveJson.get("deltas") instanceof JSONObject) {
+			Globales.GESTOR_DELTAS.importarJSON((JSONObject) saveJson.get("deltas"));
+		}
+
+		// 4. Aplicar Deltas al Mundo Activo (árboles talados, cofres, fogatas)
+		Globales.GESTOR_DELTAS.aplicarDelta(mundoActivo);
+		mundoActivo.aplicarMetadatosAtmosfericos();
+
+		if (gc != null) {
+			gc.setPorcentajeCarga(80);
+			gc.setDetalleCarga("Restaurando personaje e inventario");
+		}
+
+		// 5. Restaurar Jugador completo
+		Globales.JUGADOR.setMundo(mundoActivo);
+		if (saveJson.get("jugador") instanceof JSONObject) {
+			Globales.JUGADOR.importarDeJSON((JSONObject) saveJson.get("jugador"));
+		}
+
+		// 6. Configurar cámara y subsistemas activos
+		Globales.CAMARA.setEntidadEnfocada(Globales.JUGADOR);
+		Globales.CAMARA.habilitarGestorLimite();
+		Globales.GESTOR_INVENTARIO.getInventarioJugador().establecerMundo(mundoActivo);
+		Globales.RATON.soltar();
+
+		if (!Globales.TECLADO.TECLA_DIJKSTRA.presionado()) {
+			Globales.TECLADO.TECLA_DIJKSTRA.presionar();
+		}
+
+		Globales.partidaIniciada = true;
+
+		this.auxFuenteLuzTempoPrueba = Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.AURA_JUGADOR,
+				75);
+		this.auxFuenteLuzTempoPrueba.setOffset(4, 3);
+
+		if (gc != null) {
+			gc.setPorcentajeCarga(100);
+			gc.setDetalleCarga("¡Partida cargada con éxito!");
+			gc.setCompleto(true);
+		}
 	}
 
 	public void agregarObjetosAlMundo() {

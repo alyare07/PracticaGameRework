@@ -3,6 +3,8 @@ package principal.maquinaestado.estados;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
+import org.json.simple.JSONObject;
+
 import principal.mapa.Mundo;
 import principal.mapa.mapas.Mapa1;
 import principal.mapa.mapas.MapaManager;
@@ -13,6 +15,7 @@ import principal.maquinaestado.estados.pantallaCarga.PantallaCarga;
 import principal.utilidades.Globales;
 
 public class GestorPartida implements EstadoJuego {
+
 	@SuppressWarnings("unused")
 	private final GestorEstados GE;
 	private final GestorJuego GJ;
@@ -22,14 +25,27 @@ public class GestorPartida implements EstadoJuego {
 	private final BufferedImage FONDO_CARGA = Globales.FUNCIONES.CARGADOR_RECURSOS
 			.cargarImagenCompatibleOpaca("/imagenes/FondoCarga.png");
 
+	/**
+	 * Constructor para PARTIDA NUEVA (Genera mapa por defecto con reset=true).
+	 */
 	public GestorPartida(final GestorEstados ge) {
 		this.GE = ge;
 		this.GJ = new GestorJuego(ge, this);
 		MapaManager.setGestorPartida(this);
 		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, Mapa1.EXTERIOR, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true);
-//		this.GJ.partidaNueva("escenario1.json");
 		this.MP = new MenuPartida(ge, this);
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
+	}
+
+	/**
+	 * Constructor para CARGAR PARTIDA GUARDADA directamente desde JSON.
+	 */
+	public GestorPartida(final GestorEstados ge, final JSONObject saveJson) {
+		this.GE = ge;
+		this.GJ = new GestorJuego(ge, this);
+		MapaManager.setGestorPartida(this);
+		this.MP = new MenuPartida(ge, this);
+		this.cargarPartidaDesdeJSON(saveJson);
 	}
 
 	public GestorPartida(final GestorEstados ge, final String mapa, final String mundo, final String spawn,
@@ -79,10 +95,16 @@ public class GestorPartida implements EstadoJuego {
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 	}
 
+	public void cargarPartidaDesdeJSON(final JSONObject saveJson) {
+		if (saveJson != null) {
+			this.GCJ.cargarSave(this.GJ, this.GCJ, saveJson);
+			this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
+		}
+	}
+
 	public void reiniciar() {
 		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, Mapa1.EXTERIOR, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true);
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 		Globales.CAMARA.reiniciarZoom();
 	}
-
 }

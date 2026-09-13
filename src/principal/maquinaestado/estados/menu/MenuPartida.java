@@ -3,11 +3,15 @@ package principal.maquinaestado.estados.menu;
 import java.awt.Color;
 import java.awt.Graphics2D;
 
+import principal.igu.textos.TipoTextoFlotante;
 import principal.mapa.mapas.MapaManager;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.GestorPartida;
+import principal.persistencia.GestorGuardado;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
+import principal.utilidades.audio.sonido.GestorSonido;
+import principal.utilidades.audio.sonido.IDSonido;
 
 public class MenuPartida extends Menu {
 
@@ -33,10 +37,17 @@ public class MenuPartida extends Menu {
 		});
 
 		this.agregarBoton("Guardar Partida", () -> {
-			if ((this.GP != null) && (this.GP.getGestorJuego().getMapa() != null)) {
-				MapaManager.guardarMapaEnTemp(this.GP.getGestorJuego().getMapa());
-				Globales.GESTOR_TEXTOS.agregarTexto("Partida Guardada", Constantes.CENTROX, Constantes.CENTROY - 40,
-						principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+			if ((this.GP != null) && (this.GP.getGestorJuego() != null)) {
+				final boolean exito = GestorGuardado.guardarPartida(1, this.GP.getGestorJuego());
+				if (exito) {
+					GestorSonido.reproducir(IDSonido.SELECT);
+					Globales.GESTOR_TEXTOS.agregarTexto("¡Partida Guardada en Slot 1!", Constantes.CENTROX,
+							Constantes.CENTROY - 40, TipoTextoFlotante.ORO_EXP);
+				} else {
+					GestorSonido.reproducir(IDSonido.SIN_MUNICION);
+					Globales.GESTOR_TEXTOS.agregarTexto("Error al guardar partida", Constantes.CENTROX,
+							Constantes.CENTROY - 40, TipoTextoFlotante.DANIO_NORMAL);
+				}
 			}
 		});
 

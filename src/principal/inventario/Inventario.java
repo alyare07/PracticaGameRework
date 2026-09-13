@@ -6,6 +6,10 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 
 import principal.animaciones.Animaciones;
 import principal.controles.Raton;
@@ -13,6 +17,7 @@ import principal.entes.objetos.items.Consumible;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.Portable;
 import principal.entes.objetos.items.armas.Arma;
+import principal.inventario.equipamiento.SlotEquipamiento;
 import principal.inventario.equipamiento.SlotManager;
 import principal.inventario.slot.Slot;
 import principal.inventario.slot.SlotArrojadizo;
@@ -26,10 +31,10 @@ import principal.utilidades.inventario.ItemPuntero;
 
 /**
  * Ventana central del inventario del jugador con cabecera amplia, 8 slots de
- * equipamiento, Ficha de Atributos RPG en 2 columnas y Billetera (Zero-GC /
- * O(1)).
+ * equipamiento, Ficha de Atributos RPG en 2 columnas, Billetera y persistencia
+ * JSON.
  * 
- * @version 5.1 (Vanilla Java 8 - Crisp Plain m3x6 Font Alignment)
+ * @version 5.2 (Vanilla Java 8 - Full Inventory JSON Serialization)
  */
 public class Inventario {
 
@@ -220,7 +225,6 @@ public class Inventario {
 		}
 
 		final Font fuentePrevia = g.getFont();
-		// REGLA CLAVE: m3x6 DEBE ser PLAIN a 16f para evitar faux-bold empastado
 		g.setFont(Globales.GESTOR_FUENTES.getFuenteSmall(Font.PLAIN, 16f));
 
 		final int str = Globales.JUGADOR.getFuerzaTotal();
@@ -293,6 +297,120 @@ public class Inventario {
 			return this.SLOT_MANAGER.agregarPortable((Portable) item);
 		default:
 			return false;
+		}
+	}
+
+	// =========================================================================
+	// PERSISTENCIA JSON DEL INVENTARIO Y EQUIPAMIENTO
+	// =========================================================================
+
+	@SuppressWarnings("unchecked")
+	public JSONObject exportarInventarioJSON() {
+		final JSONObject json = new JSONObject();
+
+		// 1. Slots de Almacén General (30 casillas)
+		final JSONArray arrAlmacen = new JSONArray();
+		final ArrayList<Slot> slotsAlmacen = this.SLOT_MANAGER.getSlotsAlmacen();
+		for (int i = 0; i < slotsAlmacen.size(); i++) {
+			final Slot s = slotsAlmacen.get(i);
+			if (s.contieneItem()) {
+				final JSONObject itemEntry = new JSONObject();
+				itemEntry.put("slotIndex", Integer.valueOf(i));
+				itemEntry.put("item", s.getItem().getJsonItem());
+				arrAlmacen.add(itemEntry);
+			}
+		}
+		json.put("almacen", arrAlmacen);
+
+		// 2. Slots de Hotbar Principal (10 casillas)
+		final JSONArray arrHotbar = new JSONArray();
+		final ArrayList<Slot> slotsHotbar = this.SLOT_MANAGER.getSlotsPrincipales();
+		for (int i = 0; i < slotsHotbar.size(); i++) {
+			final Slot s = slotsHotbar.get(i);
+			if (s.contieneItem()) {
+				final JSONObject itemEntry = new JSONObject();
+				itemEntry.put("slotIndex", Integer.valueOf(i));
+				itemEntry.put("item", s.getItem().getJsonItem());
+				arrHotbar.add(itemEntry);
+			}
+		}
+		json.put("hotbar", arrHotbar);
+
+		// 3. Slots de Equipamiento (Arma, Mano Secundaria, Casco, Torso, Botas,
+		// Anillos)
+		final JSONArray arrEquipo = new JSONArray();
+		final ArrayList<SlotEquipamiento> slotsEquipo = this.SLOT_MANAGER.getSlotsEquipamiento();
+		for (int i = 0; i < slotsEquipo.size(); i++) {
+			final SlotEquipamiento s = slotsEquipo.get(i);
+			if (s.contieneItem()) {
+				final JSONObject itemEntry = new JSONObject();
+				itemEntry.put("slotIndex", Integer.valueOf(i));
+				itemEntry.put("item", s.getItem().getJsonItem());
+				arrEquipo.add(itemEntry);
+			}
+		}
+		json.put("equipamiento", arrEquipo);
+
+		return json;
+	}
+
+	public void importarInventarioJSON(final JSONObject json) {
+		if (json == null) {
+			return;
+		}
+
+		this.vaciar();
+
+		// 1. Restaurar Almacén
+		if (json.get("almacen") instanceof JSONArray) {
+			final JSONArray arr = (JSONArray) json.get("almacen");
+			final ArrayList<Slot> slotsAlmacen = this.SLOT_MANAGER.getSlotsAlmacen();
+			for (final Object obj : arr) {
+				if (obj instanceof JSONObject) {
+					final JSONObject entry = (JSONObject) obj;
+					final int idx = ((Number) entry.get("slotIndex")).intValue();
+					final Item item = Item.crearItemDesdeJson((JSONObject) entry.get("item"));
+					if ((item != null) && (idx >= 0) && (idx < slotsAlmacen.size())) {
+						slotsAlmacen.get(idx).establecerObjeto(item);
+					}
+				}
+			}
+		}
+
+		// 2. Restaurar Hotbar
+		if (json.get("hotbar") instanceof JSONArray) {
+			final JSONArray arr = (JSONArray) json.get("hotbar");
+			final ArrayList<Slot> slotsHotbar = this.SLOT_MANAGER.getSlotsPrincipales();
+			for (final Object obj : arr) {
+				if (obj instanceof JSONObject) {
+					final JSONObject entry = (JSONObject) obj;
+					final int idx = ((Number) entry.get("slotIndex")).intValue();
+					final Item item = Item.crearItemDesdeJson((JSONObject) entry.get("item"));
+					if ((item != null) && (idx >= 0) && (idx < slotsHotbar.size())) {
+						slotsHotbar.get(idx).establecerObjeto(item);
+					}
+				}
+			}
+		}
+
+		// 3. Restaurar Equipamiento
+		if (json.get("equipamiento") instanceof JSONArray) {
+			final JSONArray arr = (JSONArray) json.get("equipamiento");
+			final ArrayList<SlotEquipamiento> slotsEquipo = this.SLOT_MANAGER.getSlotsEquipamiento();
+			for (final Object obj : arr) {
+				if (obj instanceof JSONObject) {
+					final JSONObject entry = (JSONObject) obj;
+					final int idx = ((Number) entry.get("slotIndex")).intValue();
+					final Item item = Item.crearItemDesdeJson((JSONObject) entry.get("item"));
+					if ((item != null) && (idx >= 0) && (idx < slotsEquipo.size())) {
+						slotsEquipo.get(idx).establecerObjeto(item);
+					}
+				}
+			}
+		}
+
+		if (Globales.JUGADOR != null) {
+			Globales.JUGADOR.recalcularAtributos();
 		}
 	}
 

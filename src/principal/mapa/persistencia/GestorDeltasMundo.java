@@ -1,7 +1,7 @@
 package principal.mapa.persistencia;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import org.json.simple.JSONArray;
@@ -10,6 +10,8 @@ import org.json.simple.JSONObject;
 import principal.construccion.EstructuraConstruible;
 import principal.construccion.TipoEstructura;
 import principal.entes.Ente;
+import principal.entes.criaturas.Criatura;
+import principal.entes.criaturas.Jugador;
 import principal.entes.objetos.Fogata;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.recursos.RecursoCosechable;
@@ -19,10 +21,10 @@ import principal.utilidades.Globales;
 
 /**
  * Gestor centralizado de persistencia diferencial. Preserva recursos, cofres,
- * construcciones e ítems portables/equipamiento en suelo, descartando monedas
- * volátiles.
+ * construcciones, muertes de enemigos e ítems en suelo (Zero-GC /
+ * Concurrency-Safe).
  * 
- * @version 2.1 (Vanilla Java 8 - Currency Volatility Persistence Fix)
+ * @version 2.4 (Vanilla Java 8 - Two-Pass Snapshot Cleanup)
  */
 public class GestorDeltasMundo {
 
@@ -133,22 +135,40 @@ public class GestorDeltasMundo {
 			return;
 		}
 
-		// 1. Purga recursos y fogatas destruidas
-		final Iterator<Ente> it = mundo.getEntes().iterator();
-		while (it.hasNext()) {
-			final Ente e = it.next();
+		// =====================================================================
+		// FASE 1: RECOLECCIÓN SEGURA EN SNAPSHOT (Evita ConcurrentModification)
+		// =====================================================================
+		final ArrayList<Ente> aEliminar = new ArrayList<Ente>();
+
+		for (final Ente e : mundo.getEntes()) {
 			if ((e instanceof RecursoCosechable) || (e instanceof Fogata)) {
 				if (delta.isEntidadDestruida(e.getPosicionXInt(), e.getPosicionYInt())) {
-					e.eliminar();
-					it.remove();
+					aEliminar.add(e);
+				}
+			} else if ((e instanceof Criatura) && !(e instanceof Jugador)) {
+				final Criatura c = (Criatura) e;
+				if (delta.isEntidadDestruida(c.getPosicionXInicial(), c.getPosicionYInicial())
+						|| delta.isEntidadDestruida(c.getPosicionXInt(), c.getPosicionYInt())) {
+					aEliminar.add(c);
 				}
 			} else if (e instanceof Item) {
-				e.eliminar();
-				it.remove();
+				aEliminar.add(e);
 			}
 		}
 
-		// 2. Re-instancia construcciones y fogatas
+		// =====================================================================
+		// FASE 2: PURGA ATÓMICA DIRECTA (Sin disparar eventos de muerte en carga)
+		// =====================================================================
+		for (int i = 0; i < aEliminar.size(); i++) {
+			final Ente e = aEliminar.get(i);
+			mundo.eliminarEntidadRegistro(e);
+			e.desvincularDeZonas();
+			if (e.getLuzAsignada() != null) {
+				e.desvincularLuz();
+			}
+		}
+
+		// 3. Re-instancia construcciones y fogatas
 		for (int i = 0; i < delta.getEstructurasConstruidas().size(); i++) {
 			final JSONObject jEst = delta.getEstructurasConstruidas().get(i);
 			final String tipoStr = (jEst.get("tipo") != null) ? jEst.get("tipo").toString() : "";
@@ -170,7 +190,7 @@ public class GestorDeltasMundo {
 			}
 		}
 
-		// 3. Restaura contenidos de cofres
+		// 4. Restaura contenidos de cofres
 		for (final Ente e : mundo.getEntes()) {
 			if (e instanceof Contenedor) {
 				final Contenedor c = (Contenedor) e;
@@ -195,7 +215,7 @@ public class GestorDeltasMundo {
 			}
 		}
 
-		// 4. Re-instancia únicamente los ítems legítimos en suelo
+		// 5. Re-instancia únicamente los ítems legítimos en suelo
 		for (int i = 0; i < delta.getItemsEnSuelo().size(); i++) {
 			final JSONObject jItem = delta.getItemsEnSuelo().get(i);
 			final Item item = Item.crearItemDesdeJson(jItem);
@@ -207,5 +227,30 @@ public class GestorDeltasMundo {
 
 	public void limpiarTodosLosDeltas() {
 		this.deltasPorMundo.clear();
+	}
+
+	@SuppressWarnings("unchecked")
+	public JSONObject exportarJSON() {
+		final JSONObject json = new JSONObject();
+		for (final Map.Entry<String, DeltaMundo> entry : this.deltasPorMundo.entrySet()) {
+			json.put(entry.getKey(), entry.getValue().exportarJSON());
+		}
+		return json;
+	}
+
+	public void importarJSON(final JSONObject json) {
+		this.limpiarTodosLosDeltas();
+		if (json == null) {
+			return;
+		}
+
+		for (final Object key : json.keySet()) {
+			final String claveMundo = key.toString();
+			final Object val = json.get(key);
+			if (val instanceof JSONObject) {
+				final DeltaMundo delta = this.obtenerOCrearDelta(claveMundo, 0);
+				delta.importarJSON((JSONObject) val);
+			}
+		}
 	}
 }

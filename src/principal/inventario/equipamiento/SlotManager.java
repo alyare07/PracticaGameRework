@@ -31,7 +31,7 @@ import principal.utilidades.inventario.ItemPuntero;
  * Gestor maestro de casillas de inventario, equipamiento rápido, Hotbar
  * numérica 1-0 y proyección HUD de [ARM] y [SEC] (Zero-GC / O(1)).
  * 
- * @version 2.7 (Vanilla Java 8 - Offhand HUD Projection & Fast Unequip)
+ * @version 2.8 (Vanilla Java 8 - Storage & Hotbar Slot Accessors)
  */
 public class SlotManager {
 
@@ -176,11 +176,6 @@ public class SlotManager {
 		}
 	}
 
-	/**
-	 * Despachador universal de activación, consumo, equipamiento y venta rápida de
-	 * ítems. Unifica el comportamiento de teclas 1-0, HUD y ventana de inventario
-	 * (Zero-GC).
-	 */
 	public void activarItemDeSlot(final Slot slot) {
 		if ((slot == null) || !slot.contieneItem()) {
 			return;
@@ -188,14 +183,12 @@ public class SlotManager {
 
 		final Item i = slot.getItem();
 
-		// 1. Gancho de Tienda: Si hay tienda abierta, clic derecho vende el ítem
 		if (Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto() && (Globales.GESTOR_INVENTARIO
 				.getInventarioTercero() instanceof principal.inventario.tienda.InventarioTienda)) {
 
 			final principal.inventario.tienda.InventarioTienda tienda = (principal.inventario.tienda.InventarioTienda) Globales.GESTOR_INVENTARIO
 					.getInventarioTercero();
 
-			// Protección: No permite vender equipo que se encuentre puesto
 			if (slot instanceof SlotEquipamiento) {
 				GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 				tienda.mostrarNotificacion("¡Desequipa el objeto para venderlo!", new Color(255, 100, 100));
@@ -207,7 +200,6 @@ public class SlotManager {
 			return;
 		}
 
-		// 2. Arrojadizos (Granadas / Cuchillos)
 		if (i instanceof Arrojadizo) {
 			this.INVENTARIO.getSlotArrojadizo().establecerObjeto(i);
 			if (this.INVENTARIO.esVisible()) {
@@ -217,7 +209,6 @@ public class SlotManager {
 			return;
 		}
 
-		// 3. Armas Principales (Equipar / Intercambiar con SlotArma)
 		if (i instanceof Arma) {
 			if (slot == this.slotArma) {
 				this.desequiparArma();
@@ -230,21 +221,18 @@ public class SlotManager {
 			return;
 		}
 
-		// 4. Mano Secundaria (Desequipar)
 		if (slot == this.slotManoSecundaria) {
 			this.desequiparAAlmacen(this.slotManoSecundaria);
 			GestorSonido.reproducir(IDSonido.RECOGER);
 			return;
 		}
 
-		// 5. Piezas de Equipo (Cascos, Armaduras, Botas, Anillos)
 		if (i instanceof PiezaEquipo) {
 			this.equiparPiezaRapida(slot, (PiezaEquipo) i);
 			GestorSonido.reproducir(IDSonido.RECOGER);
 			return;
 		}
 
-		// 6. Consumibles y Desplegables (Pociones, Kit de Fogatas, etc.)
 		if (i instanceof Consumible) {
 			final Consumible c = (Consumible) i;
 			c.consumir(Globales.JUGADOR);
@@ -642,6 +630,14 @@ public class SlotManager {
 				this.LISTA_SLOTS_IGU.add(new SlotIGU(this.slotArma, xSlotArmaIGU, posIguY - this.MARGEN_GENERAL));
 			}
 		}
+	}
+
+	public ArrayList<Slot> getSlotsAlmacen() {
+		return this.LISTA_SLOTS_ALMACEN;
+	}
+
+	public ArrayList<Slot> getSlotsPrincipales() {
+		return this.LISTA_SLOTS_PRINCIPALES;
 	}
 
 	public ArrayList<SlotEquipamiento> getSlotsEquipamiento() {

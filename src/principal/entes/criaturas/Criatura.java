@@ -27,11 +27,10 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Base abstracta para todas las criaturas con motor de Efectos de Estado (Buffs
- * y Debuffs temporales e infinitos condicionados), Atributos RPG, Facciones y
- * física sub-píxel Zero-GC.
+ * Base abstracta para todas las criaturas con motor de Efectos de Estado,
+ * Atributos RPG, Facciones, persistencia y trazabilidad de spawn (Zero-GC).
  * 
- * @version 7.1 (Vanilla Java 8 - Constructor Initialization Order Fix)
+ * @version 7.2 (Vanilla Java 8 - Spawn Coordinates Tracking)
  */
 public abstract class Criatura extends Ente {
 
@@ -53,7 +52,6 @@ public abstract class Criatura extends Ente {
 	public enum Estado {
 		ESTANDAR("Estandar"), CAMINANDO("Caminando"), CORRIENDO("Corriendo"), ATACANDO("Atacando"),
 		ARROJANDO("Arrojando"), PERSIGUIENDO("Persiguiendo"), INVESTIGANDO("Investigando");
-		// ...
 
 		private final String DESCRIPCION;
 
@@ -68,7 +66,7 @@ public abstract class Criatura extends Ente {
 	}
 
 	// =========================================================================
-	// === 1. MOTOR DE EFECTOS DE ESTADO (ZERO-GC / ARREGLO PLANO PREASIGNADO)
+	// === 1. MOTOR DE EFECTOS DE ESTADO
 	// =========================================================================
 	protected final EfectoEstado[] efectosActivos = new EfectoEstado[TipoEfectoEstado.values().length];
 
@@ -111,6 +109,8 @@ public abstract class Criatura extends Ente {
 	protected double velocidad = 1.0;
 	private double x;
 	private double y;
+	protected final int xInicial;
+	protected final int yInicial;
 	protected boolean modoDios = false;
 
 	// =========================================================================
@@ -161,7 +161,6 @@ public abstract class Criatura extends Ente {
 	protected Criatura(final double x, final double y, final int ancho, final int alto, final double vida,
 			final double vidaMaxima, final double velocidadEstandar) {
 
-		// 1. INICIALIZACIÓN INMEDIATA DEL MOTOR DE EFECTOS (Debe ir primero)
 		for (final TipoEfectoEstado t : TipoEfectoEstado.values()) {
 			this.efectosActivos[t.ordinal()] = new EfectoEstado(t);
 		}
@@ -171,6 +170,8 @@ public abstract class Criatura extends Ente {
 		this.ALTO = alto;
 		this.x = x;
 		this.y = y;
+		this.xInicial = (int) Math.round(x);
+		this.yInicial = (int) Math.round(y);
 		this.velocidadEstandar = velocidadEstandar;
 		this.establecerVelocidadStardar();
 
@@ -193,9 +194,13 @@ public abstract class Criatura extends Ente {
 
 	public abstract String getNombre();
 
-	// =========================================================================
-	// === GESTIÓN DE EFECTOS DE ESTADO (API PÚBLICA EN O(1))
-	// =========================================================================
+	public int getPosicionXInicial() {
+		return this.xInicial;
+	}
+
+	public int getPosicionYInicial() {
+		return this.yInicial;
+	}
 
 	public void aplicarEfecto(final TipoEfectoEstado tipo, final double duracionSegundos, final double potencia,
 			final int maxStacks) {
@@ -247,10 +252,6 @@ public abstract class Criatura extends Ente {
 		return this.efectosActivos;
 	}
 
-	// =========================================================================
-	// === CICLO DE ACTUALIZACIÓN
-	// =========================================================================
-
 	@Override
 	public void actualizar() {
 		this.verificarZoneBox();
@@ -284,7 +285,6 @@ public abstract class Criatura extends Ente {
 			mult += 0.25;
 		}
 
-		// Ralentización progresiva por nivel de Hipotermia (-15% por stack/nivel)
 		final EfectoEstado efHipotermia = this.getEfecto(TipoEfectoEstado.HIPOTERMIA);
 		if ((efHipotermia != null) && efHipotermia.isActivo()) {
 			mult -= Math.min(0.60, 0.15 * efHipotermia.getStacks());
@@ -809,10 +809,6 @@ public abstract class Criatura extends Ente {
 		this.vida = this.vidaMaxima;
 		this.vidaLag = this.vidaMaxima;
 	}
-
-	// =========================================================================
-	// === GESTIÓN DE DAÑO DIRECTO (TRUE DAMAGE - ZERO-GC)
-	// =========================================================================
 
 	public void recibirDanioDirecto(final double damage) {
 		if (this.modoDios || (damage <= 0.0)) {

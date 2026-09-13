@@ -25,9 +25,10 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Base abstracta para todos los enemigos del juego con cinemática optimizada.
+ * Base abstracta para todos los enemigos con registro de muerte por coordenadas
+ * iniciales.
  * 
- * @version 3.7 (Java 8 - Fast Euclidean Math)
+ * @version 3.9 (Vanilla Java 8 - Robust Delta Death Logging)
  */
 public abstract class Enemigo extends Criatura {
 
@@ -95,19 +96,16 @@ public abstract class Enemigo extends Criatura {
 		super.actualizar();
 		this.curar();
 
-		// 1. La vista y el daño recibido siempre tienen prioridad sobre el sonido
 		this.actualizarPercepcionYObjetivo();
 
-		// 2. Máquina de estados limpia y sin duplicaciones
 		if (this.objetivoActual != null) {
-			this.actualizarAtaque(); // Combate visual directo
+			this.actualizarAtaque();
 		} else if (this.tieneEstado(Estado.INVESTIGANDO)) {
-			this.actualizarInvestigacion(); // Acudir al punto del disparo escuchado
+			this.actualizarInvestigacion();
 		} else {
-			this.tomarAccion(); // Patrulla pasiva estándar
+			this.tomarAccion();
 		}
 
-		// 3. Interacciones debug y oclusión
 		if (Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara().intersects(this.getArea())
 				&& Globales.RATON.presionadoClickDerUnicaAct()) {
 			this.curar(Globales.JUGADOR.getDamage());
@@ -116,10 +114,6 @@ public abstract class Enemigo extends Criatura {
 		this.atrasDeComplemento = (this.mundo != null)
 				&& this.mundo.colisionaConObjetoSolidoPeroEnZonaNoSolida(this.getArea());
 	}
-
-	// =========================================================================
-	// === SENSORIUM Y SELECCIÓN DE OBJETIVOS (ZERO-GC / O(1))
-	// =========================================================================
 
 	protected void actualizarPercepcionYObjetivo() {
 		if (this.objetivoActual != null) {
@@ -203,10 +197,6 @@ public abstract class Enemigo extends Criatura {
 		this.recorridoA.clear();
 		this.GE_FUERA_DE_RANGO.establecerReferenciaTiempoActual();
 	}
-
-	// =========================================================================
-	// === MÁQUINA DE COMBATE Y APROXIMACIÓN
-	// =========================================================================
 
 	protected void actualizarAtaque() {
 		if (this.objetivoActual == null) {
@@ -395,10 +385,6 @@ public abstract class Enemigo extends Criatura {
 		return null;
 	}
 
-	// =========================================================================
-	// === PATRULLA PASIVA
-	// =========================================================================
-
 	protected void tomarAccion() {
 		if (this.enAccion) {
 			if (this.accion == ACCION_ESPERAR) {
@@ -432,48 +418,40 @@ public abstract class Enemigo extends Criatura {
 	}
 
 	protected void actualizarInvestigacion() {
-		// 1. Si mientras viaja detecta visualmente al jugador, pasa a combate inmediato
 		if (this.objetivoActual != null) {
 			return;
 		}
 
-		// 2. Si todavía no llegó al punto del disparo, avanza con A*
 		if (!this.inspeccionandoPunto) {
 			if ((this.nodoADestino != null) || !this.recorridoA.isEmpty()) {
 				this.moverANodoADestino();
 			} else {
-				// Llegó al origen del disparo -> Inicia inspección de 3 segundos
 				this.inspeccionandoPunto = true;
 				this.GT_TIEMPO_INSPECCION.establecerReferenciaTiempoActual();
-				this.setEstadoEstandar(); // Queda quieto mirando
+				this.setEstadoEstandar();
 			}
-		} else // 3. Mira a los lados durante 3 segundos antes de volver a su rutina
-		if (this.GT_TIEMPO_INSPECCION.transcurrioMiliSegundos(3000)) {
+		} else if (this.GT_TIEMPO_INSPECCION.transcurrioMiliSegundos(3000)) {
 			this.inspeccionandoPunto = false;
-			this.desactivarModoAgresivo(); // Vuelve a patrulla ESTANDAR
+			this.desactivarModoAgresivo();
 		}
 	}
 
 	public void escucharRuido(final double origenX, final double origenY, final double radio, final Ente emisor) {
-		// 1. Si ya tiene objetivo de combate o no es hostil, ignora el sonido
 		if ((this.objetivoActual != null) || ((emisor instanceof Criatura) && !this.esHostilHacia((Criatura) emisor))) {
 			return;
 		}
 
-		// 2. Comprobación radial pura en O(1)
 		final double dx = this.getCentroX() - origenX;
 		final double dy = this.getCentroY() - origenY;
 		if (((dx * dx) + (dy * dy)) > (radio * radio)) {
 			return;
 		}
 
-		// 3. Cooldown de 1.2s contra ráfagas de armas automáticas (Anti-CPU Spike)
 		if (!this.GT_COOLDOWN_RUIDO.transcurrioMiliSegundos(1200)) {
 			return;
 		}
 		this.GT_COOLDOWN_RUIDO.establecerReferenciaTiempoActual();
 
-		// 4. Transición al estado INVESTIGANDO
 		this.setEstadoUnico(Estado.INVESTIGANDO);
 		this.posXInvestigacion = (int) origenX;
 		this.posYInvestigacion = (int) origenY;
@@ -506,7 +484,6 @@ public abstract class Enemigo extends Criatura {
 		int intentos = 0;
 		final Dimension dimNodoA = this.getMundo().getAEstrellaX12X20().getDimensionNodoA();
 		this.AREA_PRUEBA_DESTINO.setSize(dimNodoA.width, dimNodoA.height);
-		// usar this.AREA_PRUEBA_DESTINO en lugar de instanciar uno nuevo
 
 		while (!destinoFactible && (intentos < 20)) {
 			intentos++;
@@ -696,10 +673,15 @@ public abstract class Enemigo extends Criatura {
 		GestorSonido.reproducir(IDSonido.CRIATURA_MUERTA);
 		this.desactivarModoAgresivo();
 		if (this.mundo != null) {
-			// Arroja entre 5 y 25 monedas de plata al morir
 			final long loot = 5L + (long) (Math.random() * 20.0);
 			this.mundo.meterEntidad(principal.entes.objetos.items.monedas.ItemMoneda.crearPlata(this.getCentroX(),
 					this.getCentroY(), loot));
+
+			// Persiste la muerte en el delta utilizando sus coordenadas de spawn
+			if (Globales.GESTOR_DELTAS != null) {
+				Globales.GESTOR_DELTAS.registrarDestruccion(this.mundo, this.getPosicionXInicial(),
+						this.getPosicionYInicial());
+			}
 		}
 		super.eliminar();
 	}

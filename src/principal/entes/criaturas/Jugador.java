@@ -46,10 +46,10 @@ import principal.utilidades.audio.sonido.IDSonido;
 
 /**
  * Representa al personaje jugable con física diagonal normalizada, escalado
- * reactivo de Inteligencia (INT) en estamina y termodinámica clasificada
- * (Zero-GC).
+ * reactivo de Inteligencia (INT) en estamina, termodinámica clasificada y
+ * persistencia JSON completa.
  * 
- * @version 5.1 (Vanilla Java 8 - Intelligence Tactical Scaling)
+ * @version 5.2 (Vanilla Java 8 - Full Save/Load State Integration)
  */
 public class Jugador extends Criatura {
 
@@ -910,8 +910,6 @@ public class Jugador extends Criatura {
 	}
 
 	private void recuperarEstamina() {
-		// Escalado de Inteligencia (INT): Reduce el retraso de regeneración (de 2500 ms
-		// hasta 1200 ms)
 		final int esperaRegenInt = Math.max(1200,
 				TIEMPO_MS_ESPERA_REGEN_ESTAMINA_BASE - (this.getInteligenciaTotal() * 45));
 
@@ -919,7 +917,6 @@ public class Jugador extends Criatura {
 
 			final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
 
-			// Inteligencia acelera la tasa de recarga (+1.5% por punto de INT)
 			final double factorInteligencia = 1.0 + (this.getInteligenciaTotal() * 0.015);
 			double recuperacionPorTick = this.puntoRecuperarEstaminaXseg * factorInteligencia * dt;
 
@@ -1303,11 +1300,6 @@ public class Jugador extends Criatura {
 	}
 
 	@Override
-	public JSONObject exportarParaJSON() {
-		return null;
-	}
-
-	@Override
 	public String exportarTipoCriatura() {
 		return "Player";
 	}
@@ -1347,5 +1339,99 @@ public class Jugador extends Criatura {
 	@Override
 	public String getNombre() {
 		return NOMBRE;
+	}
+
+	// =========================================================================
+	// SERIALIZACIÓN Y DESERIALIZACIÓN COMPLETA DE ESTADO (SAVE/LOAD)
+	// =========================================================================
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public JSONObject exportarParaJSON() {
+		final JSONObject json = new JSONObject();
+		json.put("x", Double.valueOf(this.getPosicionX()));
+		json.put("y", Double.valueOf(this.getPosicionY()));
+		json.put("direccion", this.direccion.name());
+
+		json.put("vida", Double.valueOf(this.vida));
+		json.put("vidaMaxima", Double.valueOf(this.vidaMaxima));
+		json.put("estamina", Double.valueOf(this.estamina));
+		json.put("maxEstamina", Double.valueOf(this.maxEstamina));
+
+		json.put("fuerzaBase", Integer.valueOf(this.fuerzaBase));
+		json.put("agilidadBase", Integer.valueOf(this.agilidadBase));
+		json.put("inteligenciaBase", Integer.valueOf(this.inteligenciaBase));
+		json.put("dineroPlata", Long.valueOf(this.dineroPlata));
+		json.put("modoDios", Boolean.valueOf(this.modoDios));
+
+		// Serializar inventario completo
+		if ((Globales.GESTOR_INVENTARIO != null) && (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
+			json.put("inventario", Globales.GESTOR_INVENTARIO.getInventarioJugador().exportarInventarioJSON());
+		}
+
+		return json;
+	}
+
+	public void importarDeJSON(final JSONObject json) {
+		if (json == null) {
+			return;
+		}
+
+		this.eliminado = false;
+
+		if (json.get("x") != null) {
+			this.setPosicionXSinVerificarZonebox(((Number) json.get("x")).doubleValue());
+		}
+		if (json.get("y") != null) {
+			this.setPosicionYSinVerificarZonebox(((Number) json.get("y")).doubleValue());
+		}
+		if (json.get("direccion") != null) {
+			try {
+				this.direccion = Direccion.valueOf(json.get("direccion").toString());
+			} catch (final Exception ignored) {
+			}
+		}
+
+		if (json.get("fuerzaBase") != null) {
+			this.fuerzaBase = ((Number) json.get("fuerzaBase")).intValue();
+		}
+		if (json.get("agilidadBase") != null) {
+			this.agilidadBase = ((Number) json.get("agilidadBase")).intValue();
+		}
+		if (json.get("inteligenciaBase") != null) {
+			this.inteligenciaBase = ((Number) json.get("inteligenciaBase")).intValue();
+		}
+		if (json.get("dineroPlata") != null) {
+			this.dineroPlata = ((Number) json.get("dineroPlata")).longValue();
+		}
+		if (json.get("modoDios") != null) {
+			this.modoDios = Boolean.parseBoolean(json.get("modoDios").toString());
+		}
+
+		// Importar inventario y equipamiento
+		if ((json.get("inventario") instanceof JSONObject) && (Globales.GESTOR_INVENTARIO != null)
+				&& (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
+			Globales.GESTOR_INVENTARIO.getInventarioJugador()
+					.importarInventarioJSON((JSONObject) json.get("inventario"));
+		}
+
+		this.recalcularAtributos();
+
+		if (json.get("vidaMaxima") != null) {
+			this.vidaMaxima = ((Number) json.get("vidaMaxima")).doubleValue();
+		}
+		if (json.get("vida") != null) {
+			this.vida = ((Number) json.get("vida")).doubleValue();
+			this.vidaLag = this.vida;
+		}
+		if (json.get("maxEstamina") != null) {
+			this.maxEstamina = ((Number) json.get("maxEstamina")).doubleValue();
+		}
+		if (json.get("estamina") != null) {
+			this.estamina = ((Number) json.get("estamina")).doubleValue();
+		}
+
+		this.setFaccion(GestorFacciones.FACCION_JUGADOR);
+		this.setEstadoEstandar();
 	}
 }

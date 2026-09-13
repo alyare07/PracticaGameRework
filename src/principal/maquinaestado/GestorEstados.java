@@ -14,6 +14,8 @@ import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.editor.EditorMapa;
 import principal.maquinaestado.estados.menu.MenuConfiguracion;
 import principal.maquinaestado.estados.menu.MenuConfiguracionEnPartida;
+import principal.maquinaestado.estados.menu.MenuConfiguracionGrafica;
+import principal.maquinaestado.estados.menu.MenuConfiguracionSeleccion;
 import principal.maquinaestado.estados.menu.MenuEdirorSeleccion;
 import principal.maquinaestado.estados.menu.MenuEditorNuevo;
 import principal.maquinaestado.estados.menu.MenuPrincipal;
@@ -33,6 +35,8 @@ public class GestorEstados {
 	public static final int NUMERO_ESTADO_MENU_EDITOR_MAPA = 3;
 	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES = 4;
 	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA = 5;
+	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES_GRAFICAS = 6;
+	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES_CONTROLES = 7;
 
 	private static final EstadoJuego ESTADO_VACIO = new EstadoJuego() {
 		@Override
@@ -84,6 +88,12 @@ public class GestorEstados {
 			}
 			break;
 		case NUMERO_ESTADO_MENU_CONFIGURACIONES:
+			this.estadoActual = new MenuConfiguracionSeleccion(this);
+			break;
+		case NUMERO_ESTADO_MENU_CONFIGURACIONES_GRAFICAS:
+			this.estadoActual = new MenuConfiguracionGrafica(this);
+			break;
+		case NUMERO_ESTADO_MENU_CONFIGURACIONES_CONTROLES:
 			this.estadoActual = new MenuConfiguracion(this);
 			break;
 		case NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA:
@@ -144,9 +154,6 @@ public class GestorEstados {
 		Globales.GESTOR_INVENTARIO.getInventarioJugador().ocultar();
 	}
 
-	/**
-	 * ESTE METODO SELECCIONA UN MUNDO CUANDO EN REALIDAD DEBE SER UN MAPA
-	 */
 	public void seleccionarMundo() {
 		final File directorio = new File("mundos");
 		if (!directorio.exists()) {

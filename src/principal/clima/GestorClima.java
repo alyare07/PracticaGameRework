@@ -310,17 +310,42 @@ public class GestorClima {
 			}
 			this.tiempoRestanteEstadoClima = this.duracionEstadoClimaSegundos;
 			this.climaPronosticado = this.perfilBiomaActual.calcularSiguienteClima(this.climaActual);
+
+			// Conversión homóloga por temperatura estacional en el exterior
+			if (this.temperaturaActualCelsius <= 2.0) {
+				if (this.climaPronosticado == TipoClima.LLUVIA_LEVE) {
+					this.climaPronosticado = TipoClima.NIEVE;
+				} else if (this.climaPronosticado == TipoClima.LLUVIA_TORMENTA) {
+					this.climaPronosticado = TipoClima.VENTISCA;
+				}
+			} else if (this.temperaturaActualCelsius > 5.0) {
+				if (this.climaPronosticado == TipoClima.NIEVE) {
+					this.climaPronosticado = TipoClima.LLUVIA_LEVE;
+				} else if (this.climaPronosticado == TipoClima.VENTISCA) {
+					this.climaPronosticado = TipoClima.LLUVIA_TORMENTA;
+				}
+			}
 		}
 	}
 
 	private void actualizarTermodinamica(final double dt) {
 		double hora = 12.0;
+		double deltaEstacional = 0.0;
+
 		if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
-			hora = Globales.GESTOR_LUZ.getCiclo().getHoraActual();
+			final principal.iluminacion.CicloDiaNoche ciclo = Globales.GESTOR_LUZ.getCiclo();
+			hora = ciclo.getHoraActual();
+
+			// Curva térmica estacional continua según el día del año (0 a 111)
+			final int diaAnio = ciclo.getDiaDelAnio() - 1;
+			final double factorSolar = Math.sin(((diaAnio - 14.0) / 112.0) * (Math.PI * 2.0));
+
+			// Verano: hasta +7.5°C sobre la base | Invierno: hasta -9.5°C bajo la base
+			deltaEstacional = (factorSolar >= 0.0) ? (factorSolar * 7.5) : (factorSolar * 9.5);
 		}
 
 		final double cicloSolarTermico = Math.sin(((hora - 8.0) / 24.0) * Math.PI * 2.0) * 4.5;
-		double tempObjetivo = this.perfilBiomaActual.getTemperaturaBase() + cicloSolarTermico;
+		double tempObjetivo = this.perfilBiomaActual.getTemperaturaBase() + cicloSolarTermico + deltaEstacional;
 		double humObjetivo = this.perfilBiomaActual.getHumedadBase();
 		double presObjetivo = 1013.25;
 

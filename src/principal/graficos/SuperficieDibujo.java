@@ -6,7 +6,6 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.Toolkit;
 import java.awt.image.BufferStrategy;
 
 import principal.controles.Raton;
@@ -17,8 +16,9 @@ import principal.utilidades.Render2D;
 
 /**
  * Lienzo principal (Canvas) sobre el cual se renderizan los gráficos 2D del
- * juego. Implementa triple buffer y listeners de teclado, ratón y rueda de
- * scroll.
+ * juego con soporte de Letterboxing / Pillarboxing y Zero-GC.
+ * 
+ * @version 3.0 (Vanilla Java 8)
  */
 public class SuperficieDibujo extends Canvas {
 
@@ -26,18 +26,18 @@ public class SuperficieDibujo extends Canvas {
 	private static SuperficieDibujo instancia;
 
 	public final Raton RATON;
-
 	private static final Font FUENTE_DEBUG = new Font(Font.SANS_SERIF, Font.PLAIN, 9);
 
 	private SuperficieDibujo(final int ancho, final int alto) {
 		this.RATON = Globales.RATON;
 
 		this.setIgnoreRepaint(true);
+		this.setBackground(Color.BLACK);
 		this.setPreferredSize(new Dimension(ancho, alto));
 		this.addKeyListener(Globales.TECLADO);
 		this.addMouseListener(this.RATON);
 		this.addMouseMotionListener(this.RATON);
-		this.addMouseWheelListener(this.RATON); // <-- Habilita la captura de eventos de la rueda del ratón
+		this.addMouseWheelListener(this.RATON);
 
 		this.setFocusable(true);
 		this.requestFocus();
@@ -67,25 +67,38 @@ public class SuperficieDibujo extends Canvas {
 		final Graphics2D g = (Graphics2D) buffer.getDrawGraphics();
 
 		try {
+			// 1. Limpieza de pantalla física completa (Barras negras / Letterbox)
+			g.setColor(Color.BLACK);
+			g.fillRect(0, 0, this.getWidth(), this.getHeight());
+
+			// 2. Rendering Hints de rendimiento extremo
 			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 			g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 			g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
 
-			g.setFont(FUENTE_DEBUG);
+			// 3. Traslación para centrado (Offsets)
+			if ((Globales.DESPLAZAMIENTO_X != 0) || (Globales.DESPLAZAMIENTO_Y != 0)) {
+				g.translate(Globales.DESPLAZAMIENTO_X, Globales.DESPLAZAMIENTO_Y);
+			}
 
+			// 4. Escalado pixel-perfect / proporcional
 			if ((Globales.FACTOR_ESCALADO_X != 1.0) || (Globales.FACTOR_ESCALADO_Y != 1.0)) {
 				g.scale(Globales.FACTOR_ESCALADO_X, Globales.FACTOR_ESCALADO_Y);
 			}
 
-			// 1. Limpieza de fondo
+			// 5. Delimitación del viewport nativo (640x360)
+			g.setClip(0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
+
+			// 6. Fondo base de juego
 			Render2D.dibujarRectanguloRelleno(g, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO, Color.BLACK);
 
-			// 2. Renderizado del estado actual
+			// 7. Renderizado del estado del juego
 			if (ge != null) {
 				ge.pintar(g);
 			}
 
-			// 3. Información Debug
+			// 8. Información Debug
+			g.setFont(FUENTE_DEBUG);
 			g.setColor(Color.GREEN);
 			Render2D.dibujarString(g, "APS: " + Globales.aps, 20, 35);
 			Render2D.dibujarString(g, "FPS: " + Globales.fps, 20, 50);
@@ -97,7 +110,7 @@ public class SuperficieDibujo extends Canvas {
 
 		if (!buffer.contentsLost()) {
 			buffer.show();
-			Toolkit.getDefaultToolkit().sync();
+//			Toolkit.getDefaultToolkit().sync();
 		}
 	}
 }

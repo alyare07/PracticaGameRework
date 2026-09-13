@@ -149,5 +149,6 @@ public abstract class ArmaAutomatica extends Arma {
 		listaInfo.add("Cadencia: " + this.cadenciaMs + " ms.");
 		listaInfo.add("Tiempo de recarga: " + (this.tiempoRecargaMs / 1000.0) + " s.");
 		listaInfo.add("Dispersión: ±" + String.format("%.1f", Math.toDegrees(this.dispersionRad)) + "°.");
+
 	}
 }

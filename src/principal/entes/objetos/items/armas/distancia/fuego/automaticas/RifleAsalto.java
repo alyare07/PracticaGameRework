@@ -1,5 +1,7 @@
 package principal.entes.objetos.items.armas.distancia.fuego.automaticas;
 
+import java.util.ArrayList;
+
 import org.json.simple.JSONObject;
 
 import principal.entes.objetos.Objeto;
@@ -33,6 +35,12 @@ public class RifleAsalto extends ArmaAutomatica {
 	@Override
 	public String exportarTipoItem() {
 		return "RifleAsalto";
+	}
+
+	@Override
+	protected void rellenarInfo(final ArrayList<String> listaInfo) {
+		super.rellenarInfo(listaInfo);
+		listaInfo.add("Municion calibre 7.62mm.");
 	}
 
 	public static RifleAsalto crearDesdeJson(final JSONObject json) {

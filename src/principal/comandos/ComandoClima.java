@@ -13,7 +13,7 @@ import principal.utilidades.Globales;
  * remotas (Termux / Netcat).
  * </p>
  * 
- * @version 3.0
+ * @version 4.0 (Vanilla Java 8 - Seasonal Integration & Boreal Forest Support)
  */
 public class ComandoClima extends Comando {
 
@@ -37,16 +37,21 @@ public class ComandoClima extends Comando {
 
 		final GestorClima clima = Globales.GESTOR_CLIMA;
 
-		// 1. Consulta de Estado (sin argumentos)
+		// 1. Consulta de Estado Meteorológico Completo (sin argumentos)
 		if (args.length == 0) {
-			this.enviarInfo(emisor, "ESTADO METEOROLOGICO:" + "\n -> Clima Activo   : " + clima.getNombreClimaActual()
-					+ "\n -> Pronostico    : " + clima.getClimaPronosticado().getNombre() + " (en "
-					+ (int) clima.getTiempoRestanteEstadoClima() + "s)" + "\n -> Bioma Base    : "
-					+ clima.getPerfilBiomaActual().getNombreVisible() + "\n -> Temperatura   : "
-					+ String.format("%.1f", clima.getTemperaturaCelsius()) + " °C" + "\n -> Humedad Rel.  : "
-					+ (int) (clima.getHumedadRelativa() * 100) + " %" + "\n -> Presion Atm.  : "
-					+ (int) clima.getPresionHPa() + " hPa" + "\n -> Viento        : Fuerza " + clima.getFuerzaViento()
-					+ " | Ciclo Auto: " + (clima.isCicloAutomaticoHabilitado() ? "ON" : "OFF")
+			final String nombreEstacion = ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null))
+					? Globales.GESTOR_LUZ.getCiclo().getEstacionActual().getNombre()
+					: "Primavera";
+
+			this.enviarInfo(emisor, "ESTADO METEOROLOGICO Y AMBIENTAL:" + "\n -> Estacion Actual: " + nombreEstacion
+					+ "\n -> Clima Activo   : " + clima.getNombreClimaActual() + "\n -> Pronostico     : "
+					+ clima.getClimaPronosticado().getNombre() + " (en " + (int) clima.getTiempoRestanteEstadoClima()
+					+ "s)" + "\n -> Bioma Base     : " + clima.getPerfilBiomaActual().getNombreVisible()
+					+ "\n -> Temperatura    : " + String.format("%.1f", clima.getTemperaturaCelsius()) + " °C"
+					+ "\n -> Humedad Rel.   : " + (int) (clima.getHumedadRelativa() * 100) + " %"
+					+ "\n -> Presion Atm.   : " + (int) clima.getPresionHPa() + " hPa"
+					+ "\n -> Viento         : Fuerza " + clima.getFuerzaViento() + " | Ciclo Auto: "
+					+ (clima.isCicloAutomaticoHabilitado() ? "ON" : "OFF")
 					+ "\n (Escribe 'clima ayuda' para ver todos los comandos)");
 			return;
 		}
@@ -69,8 +74,7 @@ public class ComandoClima extends Comando {
 		// 4. Control de Viento (clima viento <fuerza> [angulo])
 		if (sub.equals("viento") || sub.equals("wind")) {
 			if (args.length < 2) {
-				this.enviarError(emisor,
-						"Uso: 'clima viento <fuerza>' o 'clima viento <fuerza> <grados_angulo>'\nEjemplo: 'clima viento 3.0 45'");
+				this.enviarError(emisor, "Uso: 'clima viento <fuerza>' o 'clima viento <fuerza> <grados_angulo>'");
 				return;
 			}
 			final double fuerza = this.parsearDouble(args[1], 1.0);
@@ -89,7 +93,7 @@ public class ComandoClima extends Comando {
 		if (sub.equals("bioma") || sub.equals("biome")) {
 			if (args.length < 2) {
 				this.enviarError(emisor,
-						"Indica el bioma. Opciones: TEMPLADO, DESIERTO, MONTANA, PANTANO, VOLCANICO, MISTICO");
+						"Indica el bioma. Opciones: TEMPLADO, BOREAL, DESIERTO, MONTANA, PANTANO, VOLCANICO, MISTICO");
 				return;
 			}
 			final PerfilClima biomaSeleccionado = this.parsearBioma(args[1]);
@@ -99,7 +103,7 @@ public class ComandoClima extends Comando {
 						+ " (Temp base: " + biomaSeleccionado.getTemperaturaBase() + "°C)");
 			} else {
 				this.enviarError(emisor, "Bioma desconocido: '" + args[1]
-						+ "'.\nOpciones: TEMPLADO, DESIERTO, MONTANA, PANTANO, VOLCANICO, MISTICO");
+						+ "'.\nOpciones: TEMPLADO, BOREAL, DESIERTO, MONTANA, PANTANO, VOLCANICO, MISTICO");
 			}
 			return;
 		}
@@ -124,8 +128,8 @@ public class ComandoClima extends Comando {
 			final double segsClima = (args.length >= 2) ? this.parsearDouble(args[1], 8.0) : 8.0;
 			final double segsTrans = (args.length >= 3) ? this.parsearDouble(args[2], 2.0) : 2.0;
 			clima.activarModoPruebaRapida(segsClima, segsTrans);
-			this.enviarInfo(emisor, "Modo Prueba Rapida activado: cada clima durara " + segsClima + "s con " + segsTrans
-					+ "s de transicion.");
+			this.enviarInfo(emisor,
+					"Modo Prueba Rapida activado: climas de " + segsClima + "s con " + segsTrans + "s de transicion.");
 			return;
 		}
 
@@ -138,21 +142,19 @@ public class ComandoClima extends Comando {
 			this.enviarInfo(emisor,
 					"Clima cambiado exitosamente a: " + tipoClima.getNombre() + " (Transicion: " + transicion + "s)");
 		} else {
-			this.enviarError(emisor, "Clima no reconocido: '" + args[0]
-					+ "'.\nEscribe 'clima ayuda' para ver la lista completa de opciones.");
+			this.enviarError(emisor,
+					"Clima no reconocido: '" + args[0] + "'.\nEscribe 'clima ayuda' para ver la lista de opciones.");
 		}
 	}
 
 	private TipoClima parsearTipoClima(final String str) {
 		final String clean = str.toUpperCase().trim().replace(" ", "_");
 
-		// Intentar coincidencia exacta de Enum
 		try {
 			return TipoClima.valueOf(clean);
 		} catch (final IllegalArgumentException ignored) {
 		}
 
-		// Alias tolerantes
 		switch (clean) {
 		case "DESPEJADO":
 		case "SOL":
@@ -218,6 +220,9 @@ public class ComandoClima extends Comando {
 
 	private PerfilClima parsearBioma(final String str) {
 		final String clean = str.toUpperCase().trim();
+		if (clean.contains("BOREAL") || clean.contains("PINO")) {
+			return PerfilClima.BOSQUE_BOREAL;
+		}
 		if (clean.contains("BOSQUE") || clean.contains("TEMPLADO")) {
 			return PerfilClima.TEMPLADO_BOSQUE;
 		}
@@ -249,7 +254,7 @@ public class ComandoClima extends Comando {
 				+ "\n   - clima viento 3.0          -> Fija fuerza 3.0"
 				+ "\n   - clima viento 2.5 90       -> Fuerza 2.5 y angulo 90° (Sur)"
 				+ "\n3. Perfil de Bioma (Cadenas de Markov):"
-				+ "\n   - clima bioma templado | desierto | montana | pantano | volcanico | mistico"
+				+ "\n   - clima bioma templado | boreal | desierto | montana | pantano | volcanico | mistico"
 				+ "\n4. Simulacion y Pruebas:" + "\n   - clima auto on/off         -> Activa/detiene cambio automatico"
 				+ "\n   - clima test 6              -> Cicla climas cada 6 segundos"
 				+ "\n   - clima siguiente           -> Salta al proximo clima previsto";

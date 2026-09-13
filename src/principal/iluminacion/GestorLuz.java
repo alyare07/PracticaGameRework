@@ -10,6 +10,7 @@ import java.awt.geom.Arc2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.VolatileImage;
 
+import principal.configuracion.ConfiguracionGrafica;
 import principal.entes.Ente;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
@@ -17,15 +18,12 @@ import principal.utilidades.Render2D;
 
 /**
  * Gestor maestro del subsistema de iluminación dinámica 2D, sombreado acelerado
- * en VRAM, ciclo solar de 24 horas y oclusión exclusiva para interiores.
+ * en VRAM, ciclo solar de 24 horas y soporte para Lightmap de baja resolución
+ * en hardware modesto (Zero-GC).
  * 
- * @version 17.1 (Vanilla Java 8 - Fast Culling & Math)
+ * @version 18.0 (Vanilla Java 8 - Dynamic Scale Fill-Rate Optimization)
  */
 public class GestorLuz {
-
-	// =========================================================================
-	// === 1. CAPACIDAD Y TEXTURIZADO
-	// =========================================================================
 
 	private static final int CAPACIDAD_LUCES = 256;
 	private static final int RESOLUCION_HALO_HD = 256;
@@ -50,10 +48,6 @@ public class GestorLuz {
 		}
 	}
 
-	// =========================================================================
-	// === 2. POOL DE MEMORIA Y SUBSISTEMAS
-	// =========================================================================
-
 	private final FuenteLuz[] pool;
 	private final int[] indicesLibres;
 	private int topePila;
@@ -71,10 +65,6 @@ public class GestorLuz {
 	private final BufferedImage[] texturasMascaraConoHD;
 	private final BufferedImage[][] texturasHaloColor;
 	private final BufferedImage[][] texturasHaloColorCono;
-
-	// =========================================================================
-	// === 3. ESTADOS DE AMBIENTE, CUEVAS Y BIOMAS
-	// =========================================================================
 
 	private boolean iluminacionHabilitada = true;
 	private boolean modoAmbienteFijo = false;
@@ -96,10 +86,6 @@ public class GestorLuz {
 
 	private int lastBaseR = -1, lastBaseG = -1, lastBaseB = -1, lastBaseA = -1;
 	private Color colorAmbienteCalculado = new Color(0, 0, 0, 0);
-
-	// =========================================================================
-	// === CONSTRUCTOR: INICIALIZACIÓN Y PRE-HORNEADO
-	// =========================================================================
 
 	public GestorLuz() {
 		this.pool = new FuenteLuz[CAPACIDAD_LUCES];
@@ -140,10 +126,6 @@ public class GestorLuz {
 			}
 		}
 	}
-
-	// =========================================================================
-	// === PRE-HORNEADO PROCEDURAL DE GRADIENTES
-	// =========================================================================
 
 	private BufferedImage hornearTexturaMascaraHD(final int alphaCentro) {
 		final BufferedImage img = new BufferedImage(RESOLUCION_HALO_HD, RESOLUCION_HALO_HD,
@@ -235,11 +217,9 @@ public class GestorLuz {
 
 		if (esAzul) {
 			if (nivel == 0) {
-				// Núcleo incandescente: destello cian eléctrico
 				g = Math.min(255, g + 40);
 				b = Math.min(255, b + 20);
 			} else {
-				// Brasa mística: tono zafiro / índigo profundo
 				r = Math.min(255, r + 25);
 				g = Math.max(0, g - 45);
 			}
@@ -255,9 +235,6 @@ public class GestorLuz {
 
 		return new Color(r, g, b);
 	}
-	// =========================================================================
-	// === POOL Y GESTIÓN DE LUCES (ZERO-GC)
-	// =========================================================================
 
 	public FuenteLuz agregarLuzEstatica(final double x, final double y, final TipoLuz tipo) {
 		return this.agregarLuzEstatica(x, y, tipo, (tipo != null) ? tipo.getRadioBase() : 75.0);
@@ -434,10 +411,8 @@ public class GestorLuz {
 
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
 
-		// 1. El reloj solar y calendario global SIEMPRE avanzan en segundo plano
 		this.ciclo.actualizar(dt);
 
-		// 2. Transición suave de color si entramos/salimos de un interior
 		if (this.modoAmbienteFijo && this.transicionActiva) {
 			this.tiempoTransicionActual += dt;
 			final double factor = Math.min(1.0, this.tiempoTransicionActual / this.tiempoTransicionTotal);
@@ -494,15 +469,19 @@ public class GestorLuz {
 	}
 
 	private void verificarLightmap(final Graphics2D g) {
-		if ((this.lightmap == null) || (this.lightmap.getWidth() != Constantes.ANCHO_JUEGO)
-				|| (this.lightmap.getHeight() != Constantes.ALTO_JUEGO)
+		final int lmAncho = ConfiguracionGrafica.OPT_LIGHTMAP_BAJA_RESOLUCION ? (Constantes.ANCHO_JUEGO / 2)
+				: Constantes.ANCHO_JUEGO;
+		final int lmAlto = ConfiguracionGrafica.OPT_LIGHTMAP_BAJA_RESOLUCION ? (Constantes.ALTO_JUEGO / 2)
+				: Constantes.ALTO_JUEGO;
+
+		if ((this.lightmap == null) || (this.lightmap.getWidth() != lmAncho) || (this.lightmap.getHeight() != lmAlto)
 				|| (this.lightmap.validate(g.getDeviceConfiguration()) == VolatileImage.IMAGE_INCOMPATIBLE)) {
 
 			if (this.lightmap != null) {
 				this.lightmap.flush();
 			}
-			this.lightmap = g.getDeviceConfiguration().createCompatibleVolatileImage(Constantes.ANCHO_JUEGO,
-					Constantes.ALTO_JUEGO, Transparency.TRANSLUCENT);
+			this.lightmap = g.getDeviceConfiguration().createCompatibleVolatileImage(lmAncho, lmAlto,
+					Transparency.TRANSLUCENT);
 		}
 	}
 
@@ -554,6 +533,10 @@ public class GestorLuz {
 
 			final Graphics2D gLight = this.lightmap.createGraphics();
 			try {
+				if (ConfiguracionGrafica.OPT_LIGHTMAP_BAJA_RESOLUCION) {
+					gLight.scale(0.5, 0.5);
+				}
+
 				gLight.setComposite(COMPOSITE_LIMPIEZA);
 				gLight.fillRect(0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
 
@@ -586,7 +569,8 @@ public class GestorLuz {
 				gLight.dispose();
 			}
 
-			Render2D.dibujarImagen(g, this.lightmap, 0, 0);
+			g.drawImage(this.lightmap, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO, null);
+			Render2D.registrarLlamadas(1);
 
 		} while (this.lightmap.contentsLost());
 	}

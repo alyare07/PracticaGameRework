@@ -123,18 +123,26 @@ public class GestorRayosSol {
 			final boolean hayTormenta) {
 		float opacidadObjetivo = 0.0f;
 
-		if (!esInterior && !hayTormenta) {
-			if ((horaActual >= 6.0) && (horaActual <= 11.0)) {
-				// Mañana: Haces de izquierda a derecha (Amanecer cálido)
-				final double f = (horaActual < 8.0) ? (horaActual - 6.0) / 2.0 : 1.0 - ((horaActual - 8.0) / 3.0);
+		if (!esInterior && !hayTormenta && (Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
+
+			final CicloDiaNoche ciclo = Globales.GESTOR_LUZ.getCiclo();
+			final double hAmanecer = ciclo.getHoraAmanecer();
+			final double hAtardecer = ciclo.getHoraAtardecer();
+
+			// Mañana Dinámica: Ventana de 3.5 horas a partir del amanecer real
+			if ((horaActual >= (hAmanecer - 0.5)) && (horaActual <= (hAmanecer + 3.5))) {
+				final double progreso = (horaActual - (hAmanecer - 0.5)) / 4.0;
+				final double f = (progreso < 0.5) ? (progreso / 0.5) : (1.0 - ((progreso - 0.5) / 0.5));
 				opacidadObjetivo = (float) Math.max(0.0, Math.min(1.0, f));
 				this.anguloRotacion = Math.toRadians(35.0);
 				this.esTarde = false;
 				this.colorTinteActual = COLOR_AMANECER;
 
-			} else if ((horaActual >= 15.5) && (horaActual <= 19.5)) {
-				// Tarde: Haces invertidos de derecha a izquierda (Atardecer ámbar)
-				final double f = (horaActual < 17.5) ? (horaActual - 15.5) / 2.0 : 1.0 - ((horaActual - 17.5) / 2.0);
+				// Tarde Dinámica: Ventana de 3.5 horas que concluye poco después del atardecer
+				// real
+			} else if ((horaActual >= (hAtardecer - 3.0)) && (horaActual <= (hAtardecer + 0.5))) {
+				final double progreso = (horaActual - (hAtardecer - 3.0)) / 3.5;
+				final double f = (progreso < 0.5) ? (progreso / 0.5) : (1.0 - ((progreso - 0.5) / 0.5));
 				opacidadObjetivo = (float) Math.max(0.0, Math.min(1.0, f));
 				this.anguloRotacion = Math.toRadians(145.0);
 				this.esTarde = true;

@@ -7,6 +7,7 @@ import principal.clima.GestorClima;
 import principal.clima.GestorTermicoJugador;
 import principal.clima.GestorZonasAmbiente;
 import principal.comandos.GestorComandos;
+import principal.configuracion.ConfiguracionGrafica;
 import principal.construccion.GestorConstruccion;
 import principal.controles.Raton;
 import principal.controles.Teclado;
@@ -51,12 +52,15 @@ public class Globales {
 	public static InventarioVault inventarioVault;
 
 	// =========================================================================
-	// === 2. RESOLUCIÓN Y ESCALADO DE PANTALLA
+	// === 2. RESOLUCIÓN, ESCALADO Y OFFSETS DE CENTRADO (ZERO-GC)
 	// =========================================================================
 	public static int ANCHO_PANTALLA_COMPLETA = Toolkit.getDefaultToolkit().getScreenSize().width;
 	public static int ALTO_PANTALLA_COMPLETA = Toolkit.getDefaultToolkit().getScreenSize().height;
 	public static double FACTOR_ESCALADO_X = ANCHO_PANTALLA_COMPLETA / (double) (Constantes.ANCHO_JUEGO);
 	public static double FACTOR_ESCALADO_Y = ALTO_PANTALLA_COMPLETA / (double) Constantes.ALTO_JUEGO;
+
+	public static int DESPLAZAMIENTO_X = 0;
+	public static int DESPLAZAMIENTO_Y = 0;
 
 	// =========================================================================
 	// === 3. SUBSISTEMAS BÁSICOS DE ENTRADA Y UTILIDADES (BOOTSTRAP FASE 1)
@@ -104,16 +108,7 @@ public class Globales {
 	// =========================================================================
 
 	public static void actualizarFactorEscalado() {
-		final int escalaX = ANCHO_PANTALLA_COMPLETA / Constantes.ANCHO_JUEGO;
-		final int escalaY = ALTO_PANTALLA_COMPLETA / Constantes.ALTO_JUEGO;
-		final int nuevaEscala = Math.max(1, Math.min(escalaX, escalaY));
-
-		if (nuevaEscala == (int) FACTOR_ESCALADO_X) {
-			return;
-		}
-
-		FACTOR_ESCALADO_X = nuevaEscala;
-		FACTOR_ESCALADO_Y = nuevaEscala;
+		ConfiguracionGrafica.recalcularEscaladoYOffsets();
 	}
 
 	public static int getCodActualizacion() {

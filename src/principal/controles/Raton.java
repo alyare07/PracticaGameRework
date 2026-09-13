@@ -17,10 +17,10 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Gestor centralizado de entrada del ratón con sincronización Lock-Free
- * (Zero-GC).
+ * Gestor centralizado de entrada del ratón con sincronización Lock-Free y
+ * compensación de offsets de centrado (Zero-GC).
  * 
- * @version 2.6 (Vanilla Java 8)
+ * @version 2.8 (Vanilla Java 8)
  */
 public class Raton extends MouseAdapter {
 
@@ -33,7 +33,6 @@ public class Raton extends MouseAdapter {
 	private volatile boolean latchIzq = false;
 	private volatile boolean latchDer = false;
 
-	// Acumulador concurrente de rueda del ratón
 	private volatile int rotacionRuedaEDT = 0;
 	private int rotacionRuedaConsumida = 0;
 
@@ -53,7 +52,6 @@ public class Raton extends MouseAdapter {
 
 	public void actualizar(final SuperficieDibujo sd) {
 		this.actualizarPresionadosUnicaVez();
-		// Transferencia atómica de la rueda del ratón al tick lógico actual
 		this.rotacionRuedaConsumida = this.rotacionRuedaEDT;
 		this.rotacionRuedaEDT = 0;
 	}
@@ -117,8 +115,8 @@ public class Raton extends MouseAdapter {
 			this.latchDer = true;
 		}
 
-		final int escX = (int) (this.posicion.x / Globales.FACTOR_ESCALADO_X);
-		final int escY = (int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y);
+		final int escX = (int) ((this.posicion.x - Globales.DESPLAZAMIENTO_X) / Globales.FACTOR_ESCALADO_X);
+		final int escY = (int) ((this.posicion.y - Globales.DESPLAZAMIENTO_Y) / Globales.FACTOR_ESCALADO_Y);
 		this.puntoPresionado.setBounds(escX, escY, 1, 1);
 	}
 
@@ -144,22 +142,22 @@ public class Raton extends MouseAdapter {
 	}
 
 	public Point getPuntoPosicionEscalado() {
-		this.puntoPosicionEscalado.setLocation((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X),
-				(int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y));
+		this.puntoPosicionEscalado.setLocation(
+				(int) ((this.posicion.x - Globales.DESPLAZAMIENTO_X) / Globales.FACTOR_ESCALADO_X),
+				(int) ((this.posicion.y - Globales.DESPLAZAMIENTO_Y) / Globales.FACTOR_ESCALADO_Y));
 		return this.puntoPosicionEscalado;
 	}
 
 	public int getPosicionXEscalada() {
-		return (int) (this.posicion.x / Globales.FACTOR_ESCALADO_X);
+		return (int) ((this.posicion.x - Globales.DESPLAZAMIENTO_X) / Globales.FACTOR_ESCALADO_X);
 	}
 
 	public int getPosicionYEscalada() {
-		return (int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y);
+		return (int) ((this.posicion.y - Globales.DESPLAZAMIENTO_Y) / Globales.FACTOR_ESCALADO_Y);
 	}
 
 	public Rectangle getRectanguloPosicionEscalado() {
-		this.rectanguloPosicionEscalado.setBounds((int) (this.posicion.x / Globales.FACTOR_ESCALADO_X),
-				(int) (this.posicion.y / Globales.FACTOR_ESCALADO_Y), 1, 1);
+		this.rectanguloPosicionEscalado.setBounds(this.getPosicionXEscalada(), this.getPosicionYEscalada(), 1, 1);
 		return this.rectanguloPosicionEscalado;
 	}
 
@@ -175,8 +173,8 @@ public class Raton extends MouseAdapter {
 		final double shakeY = (Globales.CAMARA != null) ? Globales.CAMARA.getGestorEfectos().getOffsetY() : 0.0;
 		final double rot = (Globales.CAMARA != null) ? Globales.CAMARA.getGestorEfectos().getAnguloRotacion() : 0.0;
 
-		final double xScreen = this.posicion.x / Globales.FACTOR_ESCALADO_X;
-		final double yScreen = this.posicion.y / Globales.FACTOR_ESCALADO_Y;
+		final double xScreen = (this.posicion.x - Globales.DESPLAZAMIENTO_X) / Globales.FACTOR_ESCALADO_X;
+		final double yScreen = (this.posicion.y - Globales.DESPLAZAMIENTO_Y) / Globales.FACTOR_ESCALADO_Y;
 
 		final double dx = xScreen - (Constantes.CENTROX + shakeX);
 		final double dy = yScreen - (Constantes.CENTROY + shakeY);

@@ -18,6 +18,8 @@ import principal.comandos.ComandoParticulas;
 import principal.comandos.ComandoSigilo;
 import principal.comandos.ComandoTeleport;
 import principal.comandos.ComandoVelocidad;
+import principal.configuracion.ConfiguracionGrafica;
+import principal.configuracion.LimiteFPS;
 import principal.graficos.SuperficieDibujo;
 import principal.graficos.Ventana;
 import principal.maquinaestado.GestorEstados;
@@ -28,37 +30,26 @@ import principal.utilidades.audio.sonido.GestorSonido;
 
 /**
  * Núcleo principal del juego (Game Loop). Mantiene las actualizaciones lógicas
- * (APS) clavadas a 60 Hz constantes y permite FPS limitados (60 FPS) o
- * ilimitados mediante teclado.
+ * (APS) clavadas a 60 Hz y sincroniza la tasa de cuadros dinámicamente con
+ * {@link ConfiguracionGrafica}.
+ * 
+ * @version 2.2 (Vanilla Java 8)
  */
 public class GestorPrincipal {
 
-	// --- Constantes de Tiempo ---
 	private static final long NS_POR_SEGUNDO = 1_000_000_000L;
-
-	// Objetivo de Lógica: 60 APS constantes
 	private static final int APS_OBJETIVO = 60;
 	private static final double NS_POR_ACTUALIZACION = (double) NS_POR_SEGUNDO / APS_OBJETIVO;
-
-	// Objetivo de Gráficos cuando los FPS están LIMITADOS (60 FPS)
-	private static final int FPS_OBJETIVO_LIMITADO = 60;
-	private static final double NS_POR_FRAME_LIMITADO = (double) NS_POR_SEGUNDO / FPS_OBJETIVO_LIMITADO;
-
-	// Límite de actualizaciones lógicas consecutivas para prevenir la "Espiral de
-	// la Muerte"
 	private static final int MAX_ACTUALIZACIONES_POR_FRAME = 5;
 
-	// --- Componentes Principales ---
 	private GestorEstados gestorEstados;
 	private SuperficieDibujo superficieDibujo;
 	private Ventana ventana;
 
-	// --- Estado del Motor ---
 	private boolean enFuncionamiento;
 	private int codActualizacion;
 	private long tiempoInicioSesionMs;
 
-	// --- Métricas de Rendimiento ---
 	private int actualizacionesAcumuladas = 0;
 	private int framesAcumulados = 0;
 
@@ -68,52 +59,39 @@ public class GestorPrincipal {
 		GestorMusica.cargarMusicasDesdeJSON("sonidos/Musicas.json");
 	}
 
-	/**
-	 * Inicializa los componentes principales e inicia el estado del motor.
-	 */
 	public void iniciarJuego() {
 		this.enFuncionamiento = true;
 		this.tiempoInicioSesionMs = System.currentTimeMillis();
+
 		this.gestorEstados = new GestorEstados();
 		this.superficieDibujo = SuperficieDibujo.obetenerSuperficieDibujo();
-		this.ventana = new Ventana("Juego", this.superficieDibujo);
+		this.ventana = new Ventana("Juego RPG", this.superficieDibujo);
 
-		// --- Registro de Comandos de Consola ---
+		// Inicializa la configuración gráfica, ejecuta la detección y aplica sobre la
+		// ventana
+		ConfiguracionGrafica.inicializar();
+
 		this.registrarComandos();
-
-		// Inicia el hilo en segundo plano
 		Globales.GESTOR_COMANDOS.iniciarEscuchaConsola();
-
-		// Inicia tanto la escucha del Scanner como el Servidor TCP de terminal remota
 		Globales.GESTOR_COMANDOS.iniciarServicios();
 	}
 
-	/**
-	 * Game Loop Principal.
-	 */
 	public void iniciarBuclePrincipal(final boolean Vsync) {
 		long referenciaActualizacion = System.nanoTime();
 		long referenciaContador = System.nanoTime();
 		double tiempoTranscurrido;
 		double delta = 0;
 
-		// El delta para físicas/movimiento lógicas a 60 Hz siempre es 1/60 de segundo
 		Globales.delta = 1.0 / APS_OBJETIVO;
-
-		// Si se solicita VSync y el límite no está activo, se activa
-		if (Vsync && !Globales.TECLADO.TECLA_FPS_LIMITE.presionado()) {
-			Globales.TECLADO.TECLA_FPS_LIMITE.presionar();
-		}
 
 		while (this.enFuncionamiento) {
 			final long inicioBucle = System.nanoTime();
 			tiempoTranscurrido = inicioBucle - referenciaActualizacion;
 			referenciaActualizacion = inicioBucle;
 
-			// Acumulador de delta para clavar las actualizaciones a 60 Hz
 			delta += tiempoTranscurrido / NS_POR_ACTUALIZACION;
 
-			// --- 1. LÓGICA (APS clavados en 60 + Control de Espiral de la Muerte) ---
+			// --- 1. LÓGICA (60 APS) ---
 			int actualizacionesEnEsteFrame = 0;
 			while ((delta >= 1.0) && (actualizacionesEnEsteFrame < MAX_ACTUALIZACIONES_POR_FRAME)) {
 				this.actualizar();
@@ -121,8 +99,6 @@ public class GestorPrincipal {
 				actualizacionesEnEsteFrame++;
 			}
 
-			// Si el lag fue severo y alcanzó el límite máximo, descartamos el retraso
-			// acumulado
 			if (actualizacionesEnEsteFrame >= MAX_ACTUALIZACIONES_POR_FRAME) {
 				delta = 0;
 			}
@@ -130,17 +106,17 @@ public class GestorPrincipal {
 			// --- 2. RENDERIZADO (FPS) ---
 			this.pintar();
 
-			// --- 3. CONTROL DE LÍMITE DE FPS (Sleep + ParkNanos para Java 8) ---
-			final boolean fpsLimitados = Globales.TECLADO.TECLA_FPS_LIMITE.presionado();
+			// --- 3. CONTROL DE TASA DE CUADROS DINÁMICO (ConfiguracionGrafica) ---
+			final LimiteFPS lim = ConfiguracionGrafica.getLimiteFps();
 
-			if (fpsLimitados) {
+			if (lim != LimiteFPS.ILIMITADO) {
+				final double nsPorFrameObjetivo = lim.getNsPorFrame();
 				final long tiempoFrame = System.nanoTime() - inicioBucle;
-				final double tiempoRestanteNS = NS_POR_FRAME_LIMITADO - tiempoFrame;
+				final double tiempoRestanteNS = nsPorFrameObjetivo - tiempoFrame;
 
 				if (tiempoRestanteNS > 0) {
 					final long finEsperado = System.nanoTime() + (long) tiempoRestanteNS;
 
-					// Dormimos la mayor parte del tiempo (margen de 2ms para la imprecisión del SO)
 					if (tiempoRestanteNS > 2_000_000) {
 						try {
 							final long msParaEsperar = (long) ((tiempoRestanteNS - 2_000_000) / 1_000_000);
@@ -150,17 +126,15 @@ public class GestorPrincipal {
 						}
 					}
 
-					// Espera activa de alta precisión con LockSupport
 					while (System.nanoTime() < finEsperado) {
 						LockSupport.parkNanos(1);
 					}
 				}
 			} else {
-				// Modo Ilimitado: Cede una fracción microscópica de CPU para no ahogar al SO
 				Thread.yield();
 			}
 
-			// --- 4. MÉTRICAS (Contador cada 1 segundo exacto sin deriva temporal) ---
+			// --- 4. MÉTRICAS CADA 1 SEGUNDO ---
 			if ((inicioBucle - referenciaContador) >= NS_POR_SEGUNDO) {
 				this.actualizarTiempoJugado();
 				Globales.aps = this.actualizacionesAcumuladas;
@@ -173,11 +147,8 @@ public class GestorPrincipal {
 		}
 	}
 
-	/**
-	 * Procesa las actualizaciones lógicas del motor.
-	 */
 	private void actualizar() {
-		Globales.GESTOR_COMANDOS.actualizar(); // <-- Procesa comandos pendientes de forma segura
+		Globales.GESTOR_COMANDOS.actualizar();
 		Globales.RATON.actualizar(this.superficieDibujo);
 		Globales.TECLADO.actualizar();
 		this.gestorEstados.actualizar();
@@ -188,9 +159,6 @@ public class GestorPrincipal {
 		this.actualizarCodActualizacion();
 	}
 
-	/**
-	 * Dibuja los gráficos en la ventana.
-	 */
 	private void pintar() {
 		this.superficieDibujo.pintar(this.gestorEstados);
 		this.framesAcumulados++;
@@ -204,9 +172,6 @@ public class GestorPrincipal {
 		}
 	}
 
-	/**
-	 * Calcula el tiempo total transcurrido mediante sellos de tiempo reales.
-	 */
 	private void actualizarTiempoJugado() {
 		final long totalSegundos = (System.currentTimeMillis() - this.tiempoInicioSesionMs) / 1000;
 
@@ -223,8 +188,6 @@ public class GestorPrincipal {
 		}
 	}
 
-	// --- Getters ---
-
 	public int getCodigoActualizacion() {
 		return this.codActualizacion;
 	}
@@ -238,9 +201,6 @@ public class GestorPrincipal {
 	}
 
 	private void registrarComandos() {
-		// =====================================================================
-		// === REGISTRO DE COMANDOS DE DESARROLLADOR
-		// =====================================================================
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoCurar());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoClima());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoTeleport());
@@ -257,5 +217,6 @@ public class GestorPrincipal {
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoJugador());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoCrafteo());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoEfecto());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoFPS());
 	}
 }

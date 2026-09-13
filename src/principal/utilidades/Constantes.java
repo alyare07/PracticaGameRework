@@ -1,14 +1,14 @@
 package principal.utilidades;
 
-public class Constantes {
+public final class Constantes {
 
 	private Constantes() {
-
 	}
 
 	public static final int ANCHO_JUEGO = 640;
 	public static final int ALTO_JUEGO = 360;
 	public static final int LADO_TILE = 16;
+
 	// --- PRESETS DE ESCALAS ENTERAS (PIXEL-PERFECT) ---
 	public static final int ESCALA_MINIMA = 1; // 640 x 360 (1x Base)
 	public static final int ESCALA_1X_640x360 = 1;
@@ -22,5 +22,4 @@ public class Constantes {
 	public static final int LIMITE_ANIMACION = 32767;
 	public static final int CENTROX = ANCHO_JUEGO / 2;
 	public static final int CENTROY = ALTO_JUEGO / 2;
-
 }

@@ -11,17 +11,16 @@ import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 
+import principal.configuracion.ConfiguracionGrafica;
+
 /**
  * Biblioteca centralizada de renderizado 2D, proyección de cámara, deformación
- * eólica de vegetación y telemetría gráfica de alto rendimiento (Zero-GC).
+ * eólica de vegetación y telemetría gráfica de alto rendimiento con bypass en
+ * perfil POTATO (Zero-GC).
  * 
- * @version 4.1 (Vanilla Java 8 - Zero-GC Transform Pipeline)
+ * @version 4.2 (Vanilla Java 8)
  */
 public final class Render2D {
-
-	// =========================================================================
-	// === 1. TELEMETRÍA GRÁFICA (OBJETOS POR FRAME / OPF)
-	// =========================================================================
 
 	private static int objetosDibujados = 0;
 
@@ -53,16 +52,19 @@ public final class Render2D {
 	}
 
 	// =========================================================================
-	// === 2. DIBUJO CON DEFORMACIÓN EÓLICA (ZERO-GC TRANSFORM INVERSION)
+	// === DEFORMACIÓN EÓLICA CON BYPASS O(1) PARA HARDWARE MODESTO
 	// =========================================================================
 
-	/**
-	 * Dibuja un sprite de vegetación en coordenadas de mundo deformando su copa con
-	 * el viento sin instanciar objetos AffineTransform en cada frame.
-	 */
 	public static void dibujarImagenConBalanceoRefCamara(final Graphics2D g, final Image img, final int x, final int y,
 			final double fuerzaBalanceo) {
 		if ((g == null) || (img == null)) {
+			return;
+		}
+
+		// Bypass ultra-rápido si el perfil desactiva el viento o la fuerza es
+		// insignificante
+		if (!ConfiguracionGrafica.OPT_BALANCEO_EOLICO || (Math.abs(fuerzaBalanceo) < 0.001)) {
+			dibujarImagenRefCamara(g, img, x, y);
 			return;
 		}
 
@@ -76,8 +78,6 @@ public final class Render2D {
 		final int pivotX = rx + (w / 2);
 		final int pivotY = ry + h;
 
-		// Transformación directa e inversión simétrica (CERO creación de objetos en
-		// Heap)
 		g.translate(pivotX, pivotY);
 		g.shear(fuerzaBalanceo, 0.0);
 		g.drawImage(img, -(w / 2), -h, null);
@@ -88,6 +88,11 @@ public final class Render2D {
 	public static void dibujarImagenConBalanceo(final Graphics2D g, final Image img, final int x, final int y,
 			final double fuerzaBalanceo) {
 		if ((g == null) || (img == null)) {
+			return;
+		}
+
+		if (!ConfiguracionGrafica.OPT_BALANCEO_EOLICO || (Math.abs(fuerzaBalanceo) < 0.001)) {
+			dibujarImagen(g, img, x, y);
 			return;
 		}
 
@@ -106,7 +111,7 @@ public final class Render2D {
 	}
 
 	// =========================================================================
-	// === 3. DIBUJO DIRECTO / ESPACIO DE PANTALLA (HUD 1:1)
+	// === DIBUJO DIRECTO / ESPACIO DE PANTALLA (HUD 1:1)
 	// =========================================================================
 
 	public static void dibujarFigura(final Graphics2D g2D, final Shape figura, final Color color) {
@@ -349,7 +354,7 @@ public final class Render2D {
 	}
 
 	// =========================================================================
-	// === 4. DIBUJO CON REFERENCIA A CÁMARA / ESPACIO DE MUNDO (RELATIVO)
+	// === DIBUJO CON REFERENCIA A CÁMARA / ESPACIO DE MUNDO (RELATIVO)
 	// =========================================================================
 
 	public static void dibujarFiguraEllipseRefCamara(final Graphics2D g, final Rectangle area, final Color color) {

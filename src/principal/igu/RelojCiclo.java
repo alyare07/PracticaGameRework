@@ -8,6 +8,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 
 import principal.iluminacion.CicloDiaNoche;
+import principal.iluminacion.Estacion;
 import principal.recursos.ClaveHoja;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
@@ -15,47 +16,75 @@ import principal.utilidades.HojaSprite;
 import principal.utilidades.Render2D;
 
 /**
- * Componente visual del HUD que renderiza el dial astrológico rotatorio de 24
- * horas libre de vibración tipográfica (Zero-GC / O(1)).
+ * Módulo visual del HUD que renderiza la tarjeta táctica del Ciclo Solar y
+ * Calendario. Integra marco biselado hermanado con el termómetro, astrolabio
+ * rotatorio empotrado a la derecha y telemetría micro pixel-art de 4 líneas a
+ * la izquierda (Zero-GC / O(1)).
  * 
- * @version 1.1 (Vanilla Java 8 - Anti-Jitter Matrix Restore)
+ * @version 5.1 (Vanilla Java 8 - Micro m3x6 Typography & Anti-Overlap Layout)
  */
 public class RelojCiclo {
 
-	private static final int ANCHO_MARCO = 44;
-	private static final int ALTO_MARCO = 44;
+	private static final int MARGEN_DERECHO = 6;
+	private static final int ANCHO_TARJETA = 120; // 120 px: otorga 70 px limpios para el texto
+	private static final int ALTO_TARJETA = 48;
+
+	private static final int DIAMETRO_MARCO = 44;
 	private static final int RADIO_DISCO = 20;
 
-	private final Rectangle areaMarco;
-	private final int centroX;
-	private final int centroY;
+	// Paleta cromática compartida con TermometroIGU
+	private static final Color COLOR_FONDO = new Color(16, 20, 26, 225);
+	private static final Color COLOR_BORDE = new Color(55, 60, 75, 240);
 
-	private final BufferedImage imgDisco;
+	private static final Color COLOR_ANIO_SEM = Color.WHITE;
+	private static final Color COLOR_DIA_SEMANA = new Color(210, 225, 240);
+	private static final Color COLOR_HORA = new Color(255, 215, 90);
+
+	private final Rectangle areaTarjeta;
+	private final int xMarco;
+	private final int yMarco;
+	private final int centroDialX;
+	private final int centroDialY;
+
+	private final HojaSprite hojaDisco;
+	private BufferedImage imgDisco;
 	private final BufferedImage imgMarco;
 
-	// Caché de texto (Zero-GC)
+	// Caché Dirty-Flag (Zero-GC)
 	private int lastMinuto = -1;
 	private int lastDia = -1;
-	private String cachedHora = "";
-	private String cachedDia = "";
+
+	private String cachedEstacion = "Primavera";
+	private Color cachedColorEstacion = Estacion.PRIMAVERA.getColorIdentificador();
+	private String cachedAnioSem = "Año 1 · Sem 1";
+	private String cachedDia = "Día 1 · Lun";
+	private String cachedHora = "12:00";
+
+	private boolean visible = true;
 
 	public RelojCiclo() {
-		final int posX = Constantes.ANCHO_JUEGO - ANCHO_MARCO - 6;
+		final int posX = Constantes.ANCHO_JUEGO - ANCHO_TARJETA - MARGEN_DERECHO; // 640 - 112 - 6 = 522
 		final int posY = 6;
 
-		this.areaMarco = new Rectangle(posX, posY, ANCHO_MARCO, ALTO_MARCO);
-		this.centroX = posX + (ANCHO_MARCO / 2);
-		this.centroY = posY + (ALTO_MARCO / 2);
+		this.areaTarjeta = new Rectangle(posX, posY, ANCHO_TARJETA, ALTO_TARJETA);
 
-		final HojaSprite hojaDisco = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.IGU_DISCO_CICLO_TIME);
+		// El marco de 44x44 queda empotrado a la derecha con 2 px de margen interior
+		this.xMarco = (posX + ANCHO_TARJETA) - DIAMETRO_MARCO - 2;
+		this.yMarco = posY + 2;
+
+		this.centroDialX = this.xMarco + (DIAMETRO_MARCO / 2);
+		this.centroDialY = this.yMarco + (DIAMETRO_MARCO / 2);
+
+		this.hojaDisco = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.IGU_DISCO_CICLO_TIME);
 		final HojaSprite hojaMarco = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.IGU_MARCO_TIME);
 
-		this.imgDisco = (hojaDisco != null) ? hojaDisco.getSprite(0) : Globales.GESTOR_TEXTURAS.getTexturaError();
+		this.imgDisco = (this.hojaDisco != null) ? this.hojaDisco.getSprite(0)
+				: Globales.GESTOR_TEXTURAS.getTexturaError();
 		this.imgMarco = (hojaMarco != null) ? hojaMarco.getSprite(0) : Globales.GESTOR_TEXTURAS.getTexturaError();
 	}
 
 	public void actualizar() {
-		if ((Globales.GESTOR_LUZ == null) || (Globales.GESTOR_LUZ.getCiclo() == null)) {
+		if (!this.visible || (Globales.GESTOR_LUZ == null) || (Globales.GESTOR_LUZ.getCiclo() == null)) {
 			return;
 		}
 
@@ -66,59 +95,96 @@ public class RelojCiclo {
 		if ((minutoActual != this.lastMinuto) || (diaActual != this.lastDia)) {
 			this.lastMinuto = minutoActual;
 			this.lastDia = diaActual;
+
+			final int anio = ciclo.getAnioActual();
+			final int semanaAnio = ciclo.getSemanaAnio();
+			final int diaAnio = ciclo.getDiaDelAnio();
+			final String diaSemanaCorto = ciclo.getNombreDiaSemanaCorto();
+			final Estacion est = ciclo.getEstacionActual();
+
+			this.cachedEstacion = est.getNombre();
+			this.cachedColorEstacion = est.getColorIdentificador();
+			this.cachedAnioSem = "Año " + anio + " · Sem " + semanaAnio;
+			this.cachedDia = "Día " + diaAnio + " · " + diaSemanaCorto;
 			this.cachedHora = ciclo.getHoraFormato24h();
-			this.cachedDia = ciclo.getTextoDia();
+
+			if (this.hojaDisco != null) {
+				this.imgDisco = this.hojaDisco.getSprite(est.ordinal());
+			}
 		}
 	}
 
 	public void pintar(final Graphics2D g) {
-		if ((Globales.GESTOR_LUZ == null) || (Globales.GESTOR_LUZ.getCiclo() == null)) {
+		if (!this.visible || (Globales.GESTOR_LUZ == null) || (Globales.GESTOR_LUZ.getCiclo() == null)) {
 			return;
 		}
 
+		final int x = this.areaTarjeta.x;
+		final int y = this.areaTarjeta.y;
+		final int w = this.areaTarjeta.width;
+		final int h = this.areaTarjeta.height;
+
+		// 1. Chasis táctico idéntico al termómetro
+		Render2D.dibujarRectanguloRelleno(g, x, y, w, h, COLOR_FONDO);
+		Render2D.dibujarRectanguloContorno(g, x, y, w, h, COLOR_BORDE);
+
+		// 2. Astrolabio Rotatorio empotrado a la derecha
 		final double horaActual = Globales.GESTOR_LUZ.getCiclo().getHoraActual();
 		final double anguloRadianes = -((horaActual / 24.0) * (Math.PI * 2.0));
 
-		// 1. Dibujado del Disco Rotatorio aislando la matriz para evitar contaminación
-		// de sub-píxel
 		final AffineTransform transformOriginal = g.getTransform();
 		try {
-			g.translate(this.centroX, this.centroY);
+			g.translate(this.centroDialX, this.centroDialY);
 			g.rotate(anguloRadianes);
 			Render2D.dibujarImagen(g, this.imgDisco, -RADIO_DISCO, -RADIO_DISCO);
 		} finally {
-			// Restaura la matriz 100% limpia para que las letras no vibren
 			g.setTransform(transformOriginal);
 		}
 
-		// 2. Dibujado del Marco Fijo Ornamental con Marcador
-		Render2D.dibujarImagen(g, this.imgMarco, this.areaMarco.x, this.areaMarco.y);
+		// 3. Bisel exterior ornamental dorado
+		Render2D.dibujarImagen(g, this.imgMarco, this.xMarco, this.yMarco);
 
-		// 3. Texto descriptivo nítido y estático a la izquierda del reloj
-		this.pintarInformacionTexto(g);
+		// 4. Telemetría micro pixel-art a la izquierda
+		this.pintarTelemetriaCompacta(g, x + 6, y);
 	}
 
-	private void pintarInformacionTexto(final Graphics2D g) {
+	private void pintarTelemetriaCompacta(final Graphics2D g, final int xTexto, final int yBase) {
 		final Font fontPrevia = g.getFont();
-		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 10f));
 
-		final int xTexto = this.areaMarco.x - 6;
+		// =====================================================================
+		// LÍNEAS 1, 2 Y 3: m5x7 Fina a 14f (Soporte nativo de 'ñ' y trazo nítido)
+		// =====================================================================
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, 14f));
 
-		// Línea 1: [Día X]
-		final int anchoDia = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, this.cachedDia);
-		Render2D.dibujarStringConSombra(g, this.cachedDia, xTexto - anchoDia, this.areaMarco.y + 16, Color.WHITE,
-				Color.BLACK, 10f, true);
+		// Línea 1: Estación
+		Render2D.dibujarStringConSombra(g, this.cachedEstacion, xTexto, yBase + 11, this.cachedColorEstacion,
+				Color.BLACK);
 
-		// Línea 2: [HH:MM]
-		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 12f));
-		final int anchoHora = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, this.cachedHora);
-		Render2D.dibujarStringConSombra(g, this.cachedHora, xTexto - anchoHora, this.areaMarco.y + 30,
-				new Color(255, 215, 90), Color.BLACK, 12f, true);
+		// Línea 2: Año y Semana (¡La 'ñ' se dibuja impecable!)
+		Render2D.dibujarStringConSombra(g, this.cachedAnioSem, xTexto, yBase + 21, COLOR_ANIO_SEM, Color.BLACK);
+
+		// Línea 3: Día y DíaSem
+		Render2D.dibujarStringConSombra(g, this.cachedDia, xTexto, yBase + 31, COLOR_DIA_SEMANA, Color.BLACK);
+
+		// =====================================================================
+		// LÍNEA 4: Hora Digital (Más grande y destacada en BOLD 16f)
+		// =====================================================================
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 16f));
+		Render2D.dibujarStringConSombra(g, this.cachedHora, xTexto, yBase + 44, COLOR_HORA, Color.BLACK);
 
 		g.setFont(fontPrevia);
 	}
 
-	public Rectangle getArea() {
-		return this.areaMarco;
+	public boolean isVisible() {
+		return this.visible;
 	}
+
+	public void setVisible(final boolean visible) {
+		this.visible = visible;
+	}
+
+	public Rectangle getArea() {
+		return this.areaTarjeta;
+	}
+
 }

@@ -23,7 +23,7 @@ import principal.utilidades.audio.sonido.IDSonido;
  * Menú de configuración de controles con foco unificado y scroll por rueda
  * (Zero-GC).
  * 
- * @version 3.3 (Vanilla Java 8)
+ * @version 3.4 (Vanilla Java 8)
  */
 public class MenuConfiguracion extends Menu {
 
@@ -94,19 +94,15 @@ public class MenuConfiguracion extends Menu {
 	public void actualizar() {
 		final Raton raton = Globales.RATON;
 
-		// 1. Scroll por rueda del ratón
 		final int rueda = raton.getRotacionRueda();
 		if (rueda != 0) {
 			this.scrollY = Math.max(0, Math.min(this.maxScrollY, this.scrollY + (rueda * 24)));
 		}
 
-		// 2. Actualizar cajas de teclas con scroll
 		for (int i = 0; i < this.cajasTeclas.size(); i++) {
 			this.cajasTeclas.get(i).actualizarConScroll(raton, this.scrollY);
 		}
 
-		// 3. Detección de movimiento del ratón para alternar foco entre Guardar y
-		// Volver
 		final int mx = raton.getPosicionXEscalada();
 		final int my = raton.getPosicionYEscalada();
 		final boolean mouseSeMovio = (mx != this.ultimoMouseX) || (my != this.ultimoMouseY);
@@ -123,7 +119,6 @@ public class MenuConfiguracion extends Menu {
 			}
 		}
 
-		// 4. Navegación por Teclado entre Guardar (0) y Volver (1)
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_LEFT)
 				|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_A)) {
 			this.establecerIndiceEnfocado(0);
@@ -147,7 +142,6 @@ public class MenuConfiguracion extends Menu {
 		this.botonGuardar.actualizar(raton);
 		this.botonVolver.actualizar(raton);
 
-		// 5. Atajo Escape
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
 			this.alPresionarEscape();
 		}
@@ -155,7 +149,7 @@ public class MenuConfiguracion extends Menu {
 
 	@Override
 	protected void alPresionarEscape() {
-		this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
+		this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU_CONFIGURACIONES);
 	}
 
 	@Override
@@ -165,11 +159,9 @@ public class MenuConfiguracion extends Menu {
 
 		final int panelX = Constantes.CENTROX - (PANEL_ANCHO / 2);
 
-		// 1. Panel de fondo
 		Render2D.dibujarRectanguloRelleno(g, panelX, VISTA_Y, PANEL_ANCHO, VISTA_ALTO, new Color(16, 20, 26, 220));
 		Render2D.dibujarRectanguloContorno(g, panelX, VISTA_Y, PANEL_ANCHO, VISTA_ALTO, new Color(55, 60, 75));
 
-		// 2. Lista recortada con scroll
 		final Graphics2D gClip = (Graphics2D) g.create();
 		try {
 			gClip.setClip(panelX + 2, VISTA_Y + 2, PANEL_ANCHO - 4, VISTA_ALTO - 4);
@@ -195,7 +187,6 @@ public class MenuConfiguracion extends Menu {
 			gClip.dispose();
 		}
 
-		// 3. Barra de scroll
 		if (this.maxScrollY > 0) {
 			final int trackX = (panelX + PANEL_ANCHO) - 6;
 			final int trackY = VISTA_Y + 4;
@@ -209,7 +200,6 @@ public class MenuConfiguracion extends Menu {
 			Render2D.dibujarRectanguloRelleno(g, trackX, thumbY, 3, thumbH, new Color(220, 180, 50));
 		}
 
-		// 4. Botones
 		this.botonGuardar.pintar(g);
 		this.botonVolver.pintar(g);
 

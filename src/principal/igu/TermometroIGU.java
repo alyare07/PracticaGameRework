@@ -14,15 +14,14 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Componente visual del HUD para monitoreo térmico en tiempo real con soporte
- * de temperatura interior bajo techo, detección barométrica de tormentas y
- * Zero-GC.
+ * Componente visual del HUD para monitoreo térmico en tiempo real en 3 líneas
+ * compactas con tipografía micro pixel-perfect 'm3x6' (Zero-GC).
  * 
- * @version 4.0 (Vanilla Java 8 - Sheltered Interior Readout & Dynamic State)
+ * @version 6.0 (Vanilla Java 8 - Micro-Pixel m3x6 Integration)
  */
 public class TermometroIGU {
 
-	private static final int ANCHO_WIDGET = 104;
+	private static final int ANCHO_WIDGET = 120; // Alineado a 120 px con RelojCiclo
 	private static final int ALTO_WIDGET = 34;
 
 	private static final Color COLOR_FONDO = new Color(16, 20, 26, 225);
@@ -78,8 +77,9 @@ public class TermometroIGU {
 	private boolean visible = true;
 
 	public TermometroIGU() {
-		final int posX = Constantes.ANCHO_JUEGO - ANCHO_WIDGET - 6;
-		final int posY = 52;
+		final int MARGEN_DERECHO = 6;
+		final int posX = Constantes.ANCHO_JUEGO - ANCHO_WIDGET - MARGEN_DERECHO; // 640 - 112 - 6 = 522
+		final int posY = 58; // 6 + 48 (alto reloj) + 4 (separación) = 58
 		this.areaWidget = new Rectangle(posX, posY, ANCHO_WIDGET, ALTO_WIDGET);
 	}
 
@@ -88,7 +88,6 @@ public class TermometroIGU {
 			return;
 		}
 
-		// 1. Detección de interior y temperatura ambiente efectiva
 		boolean esInterior = false;
 		double tempAmb = Globales.GESTOR_CLIMA.getTemperaturaCelsius();
 
@@ -97,7 +96,7 @@ public class TermometroIGU {
 			if (meta != null) {
 				esInterior = meta.esEspacioInterior();
 				if (esInterior && (meta.getPerfilBioma() != null)) {
-					tempAmb = meta.getPerfilBioma().getTemperaturaBase(); // Temperatura protegida del interior
+					tempAmb = meta.getPerfilBioma().getTemperaturaBase();
 				}
 			}
 		}
@@ -153,31 +152,28 @@ public class TermometroIGU {
 				this.cachedTendencia = "[-]";
 			}
 
-			// Composición Zero-GC con StringBuilder mutables
 			this.sbWidget.setLength(0);
 			this.sbTooltip.setLength(0);
 
 			if (climaActual != null) {
 				this.sbTooltip.append("Clima: ").append(climaActual.getNombre());
 				if (!esInterior && (presion < 1000.0)) {
-					this.sbTooltip.append(" [¡Baja Presión: ").append(presInt).append(" hPa!]");
+					this.sbTooltip.append(" [Baja Presion: ").append(presInt).append(" hPa!]");
 				}
 				this.sbTooltip.append(". ");
 			}
-			this.sbTooltip.append("Equipo: Frío +").append(aislaFrio).append("°C | Calor +").append(aislaCalor)
+			this.sbTooltip.append("Equipo: Frio +").append(aislaFrio).append("°C | Calor +").append(aislaCalor)
 					.append("°C");
 			if (sofoco > 0) {
 				this.sbTooltip.append(" | Sofoco +").append(sofoco).append("°C");
 			}
-			this.sbTooltip.append(". Condición: ");
+			this.sbTooltip.append(". Condicion: ");
 
-			// =================================================================
-			// 1. REFUGIO BAJO TECHO / INTERIOR
-			// =================================================================
+			// 1. Refugio bajo techo
 			if (esInterior) {
 				if (cercaFuego) {
 					this.sbWidget.append("Fuego (+) | Refugio");
-					this.sbTooltip.append("Junto al fuego bajo techo. Ambiente cálido y protegido.");
+					this.sbTooltip.append("Junto al fuego bajo techo. Ambiente calido y protegido.");
 					this.cachedColorEstado = COLOR_FUEGO;
 				} else {
 					this.sbWidget.append("Bajo Techo (Confort)");
@@ -185,42 +181,38 @@ public class TermometroIGU {
 					this.cachedColorEstado = COLOR_INTERIOR;
 				}
 			}
-			// =================================================================
-			// 2. ALERTA TEMPRANA PRE-TORMENTA (EXTERIOR)
-			// =================================================================
+			// 2. Alerta de Tormenta
 			else if (enAlertaTormenta && (climaPronosticado != null)) {
 				switch (climaPronosticado) {
 				case LLUVIA_TORMENTA:
-					this.sbWidget.append("¡Alerta: Tormenta!");
+					this.sbWidget.append("!Alerta: Tormenta!");
 					this.cachedColorEstado = COLOR_FUEGO;
 					break;
 				case VENTISCA:
-					this.sbWidget.append("¡Alerta: Ventisca!");
+					this.sbWidget.append("!Alerta: Ventisca!");
 					this.cachedColorEstado = COLOR_ALERTA_FRIO;
 					break;
 				case TORMENTA_ARENA:
-					this.sbWidget.append("¡Alerta: T. Arena!");
+					this.sbWidget.append("!Alerta: T. Arena!");
 					this.cachedColorEstado = COLOR_CALOR;
 					break;
 				case LLUVIA_ACIDA:
-					this.sbWidget.append("¡Alerta: L. Ácida!");
+					this.sbWidget.append("!Alerta: L. Acida!");
 					this.cachedColorEstado = COLOR_ALERTA_ACIDA;
 					break;
 				case ECLIPSE_SOLAR:
-					this.sbWidget.append("¡Alerta: Eclipse!");
+					this.sbWidget.append("!Alerta: Eclipse!");
 					this.cachedColorEstado = COLOR_ALERTA_ECLIPSE;
 					break;
 				default:
-					this.sbWidget.append("¡Alerta Temporal!");
+					this.sbWidget.append("!Alerta Temporal!");
 					this.cachedColorEstado = COLOR_FUEGO;
 					break;
 				}
-				this.sbTooltip.append("¡ALERTA TEMPRANA! Se avecina ").append(climaPronosticado.getNombre())
+				this.sbTooltip.append("ALERTA TEMPRANA: Se avecina ").append(climaPronosticado.getNombre())
 						.append(" en menos de 1 min. ¡Busque refugio!");
 			}
-			// =================================================================
-			// 3. ESTADO TERMODINÁMICO HABITUAL EN EXTERIOR
-			// =================================================================
+			// 3. Fisiología habitual
 			else if (tempAmb < 10.0) {
 				if (cercaFuego) {
 					this.sbWidget.append("Fuego (+) | ");
@@ -231,15 +223,15 @@ public class TermometroIGU {
 				}
 
 				if (aislaFrio > 0) {
-					this.sbWidget.append("Frío +").append(aislaFrio).append("°C");
-					this.sbTooltip.append("Protegido contra el frío.");
+					this.sbWidget.append("Frio +").append(aislaFrio).append("°C");
+					this.sbTooltip.append("Protegido contra el frio.");
 				} else {
-					this.sbWidget.append("¡Sin Abrigo!");
-					this.sbTooltip.append("¡Expuesto al frío sin aislamiento!");
+					this.sbWidget.append("!Sin Abrigo!");
+					this.sbTooltip.append("¡Expuesto al frio sin aislamiento!");
 				}
 			} else if (tempAmb > 27.0) {
 				if (sofoco > 0) {
-					this.sbWidget.append("¡Sofoco +").append(sofoco).append("°!");
+					this.sbWidget.append("!Sofoco +").append(sofoco).append("°!");
 					if (aislaCalor > 0) {
 						this.sbWidget.append(" | C+").append(aislaCalor);
 					}
@@ -256,14 +248,14 @@ public class TermometroIGU {
 				}
 			} else if (cercaFuego) {
 				this.sbWidget.append("Fuego (+) | Confort");
-				this.sbTooltip.append("Calentándose junto al fuego.");
+				this.sbTooltip.append("Calentandose junto al fuego.");
 				this.cachedColorEstado = COLOR_FUEGO;
 			} else if ((aislaFrio > 0) || (aislaCalor > 0)) {
 				this.sbWidget.append("Confort (F+").append(aislaFrio).append("/C+").append(aislaCalor).append(")");
 				this.sbTooltip.append("Temperatura agradable y confortable.");
 				this.cachedColorEstado = COLOR_CONFORT_CORP;
 			} else {
-				this.sbWidget.append("Confort Térmico");
+				this.sbWidget.append("Confort Termico");
 				this.sbTooltip.append("Temperatura agradable y confortable.");
 				this.cachedColorEstado = COLOR_CONFORT_CORP;
 			}
@@ -319,24 +311,25 @@ public class TermometroIGU {
 		this.pintarMicroBarraMercurio(g, x + 3, y + 4, 3, h - 8, termico.getTemperaturaCorporal());
 
 		final Font fontPrevia = g.getFont();
-		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 7f));
+		// Activamos la fuente micro nativa (m3x6 a 16f)
+		g.setFont(Globales.GESTOR_FUENTES.getFuenteSmall(Font.PLAIN, 16f));
 
 		final int xTexto = x + 9;
 
+		// Línea 1: Ambiente (Amb: XX.X °C)
 		final double tempAmb = this.lastTempAmbInt / 10.0;
 		final Color colorAmb = (tempAmb < 10.0) ? COLOR_FRIO : ((tempAmb > 27.0) ? COLOR_CALOR : COLOR_TEMPLADO);
-		Render2D.dibujarStringConSombra(g, this.cachedAmbiente, xTexto, y + 9, colorAmb, Color.BLACK, 7f, true);
+		Render2D.dibujarStringConSombra(g, this.cachedAmbiente, xTexto, y + 10, colorAmb, Color.BLACK);
 
+		// Línea 2: Corporal (Corp: XX.X °C [^])
 		final Color colorCorp = termico.isHipotermia() ? COLOR_HIPOTERMIA
 				: (termico.isHipertermia() ? COLOR_HIPERTERMIA : COLOR_CONFORT_CORP);
+		Render2D.dibujarStringConSombra(g, this.cachedCorporal, xTexto, y + 19, colorCorp, Color.BLACK);
+		Render2D.dibujarStringConSombra(g, this.cachedTendencia, (x + w) - 14, y + 19, colorCorp, Color.BLACK);
 
-		Render2D.dibujarStringConSombra(g, this.cachedCorporal, xTexto, y + 18, colorCorp, Color.BLACK, 7f, true);
-		Render2D.dibujarStringConSombra(g, this.cachedTendencia, (x + w) - 14, y + 18, colorCorp, Color.BLACK, 7f,
-				true);
-
-		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 6f));
-		Render2D.dibujarStringConSombra(g, this.cachedEstadoAislamiento, xTexto, y + 27, this.cachedColorEstado,
-				Color.BLACK, 6f, true);
+		// Línea 3: Estado Térmico / Alerta
+		Render2D.dibujarStringConSombra(g, this.cachedEstadoAislamiento, xTexto, y + 28, this.cachedColorEstado,
+				Color.BLACK);
 
 		g.setFont(fontPrevia);
 	}
@@ -378,7 +371,7 @@ public class TermometroIGU {
 
 		final Point pMouse = Globales.RATON.getPuntoPosicionEscalado();
 		if (this.areaWidget.contains(pMouse)) {
-			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipConCabecera(g, "Fisiología Térmica: ",
+			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltipConCabecera(g, "Fisiologia Termica: ",
 					this.cachedTooltipDesc, this.cachedColorEstado, COLOR_TEMPLADO, COLOR_FONDO);
 		}
 	}

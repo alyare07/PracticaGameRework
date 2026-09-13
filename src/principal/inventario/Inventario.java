@@ -25,11 +25,11 @@ import principal.utilidades.Render2D;
 import principal.utilidades.inventario.ItemPuntero;
 
 /**
- * Ventana central del inventario del jugador (240 px) con cabecera de 8 slots
- * de equipamiento, Atributos RPG, Resistencia Térmica y Billetera (Zero-GC /
+ * Ventana central del inventario del jugador con cabecera amplia, 8 slots de
+ * equipamiento, Ficha de Atributos RPG en 2 columnas y Billetera (Zero-GC /
  * O(1)).
  * 
- * @version 4.3 (Vanilla Java 8 - Thermal Resistance HUD Integration)
+ * @version 5.1 (Vanilla Java 8 - Crisp Plain m3x6 Font Alignment)
  */
 public class Inventario {
 
@@ -98,29 +98,30 @@ public class Inventario {
 
 	public Inventario() {
 		this.ANCHO = 240;
-		this.ALTO = 110;
+		this.ALTO = 116;
 		this.X = Constantes.CENTROX - (this.ANCHO / 2);
-		this.Y = Constantes.CENTROY;
+		this.Y = Constantes.CENTROY - 4;
 		this.MARGEN_GENERAL = 2;
 
 		this.AREA_TOTAL = new Rectangle(this.X, this.Y, this.ANCHO, this.ALTO);
-		this.ZONA_INFO_JUGADOR = new Rectangle(this.X, this.Y, this.ANCHO, 25);
-		this.ZONA_SLOTS_EQUIPAMIENTOS = new Rectangle(this.X + 26, this.Y + 3, 158, 18);
+
+		this.ZONA_INFO_JUGADOR = new Rectangle(this.X, this.Y, this.ANCHO, 32);
+		this.AREA_PERSONAJE = new Rectangle(this.X + 4, this.Y + 4, 24, 24);
+		this.ZONA_SLOTS_EQUIPAMIENTOS = new Rectangle(this.X + 31, this.Y + 7, 158, 18);
+
 		this.ZONA_SLOTS_ALMACEN = new Rectangle(this.X, this.ZONA_INFO_JUGADOR.y + this.ZONA_INFO_JUGADOR.height,
 				this.ANCHO, 62);
 		this.ZONA_SLOTS_PRINCIPALES = new Rectangle(this.X, this.ZONA_SLOTS_ALMACEN.y + this.ZONA_SLOTS_ALMACEN.height,
 				this.ANCHO, 22);
-		this.AREA_PERSONAJE = new Rectangle(this.X + 3, this.Y + 3, 20, 20);
 
-		final int xStats = this.X + 186;
-		final int yBase = this.Y + 5;
-		this.areaStatsFUE = new Rectangle(xStats, yBase - 4, 25, 5);
-		this.areaStatsAGI = new Rectangle(xStats, yBase + 1, 25, 5);
-		this.areaStatsINT = new Rectangle(xStats, yBase + 6, 25, 5);
-		this.areaStatsDEF = new Rectangle(xStats, yBase + 11, 25, 5);
+		final int xCol1 = this.X + 192;
+		final int xCol2 = this.X + 216;
 
-		final int xDinero = this.X + 213;
-		this.areaBilletera = new Rectangle(xDinero, yBase - 4, 25, 22);
+		this.areaStatsFUE = new Rectangle(xCol1, this.Y + 2, 23, 9);
+		this.areaStatsAGI = new Rectangle(xCol2, this.Y + 2, 23, 9);
+		this.areaStatsINT = new Rectangle(xCol1, this.Y + 11, 23, 9);
+		this.areaStatsDEF = new Rectangle(xCol2, this.Y + 11, 23, 9);
+		this.areaBilletera = new Rectangle(xCol1, this.Y + 20, 46, 11);
 
 		this.SLOT_MANAGER = new SlotManager(this, this.MARGEN_GENERAL, this.ZONA_SLOTS_ALMACEN,
 				this.ZONA_SLOTS_PRINCIPALES, this.ZONA_SLOTS_EQUIPAMIENTOS);
@@ -203,9 +204,9 @@ public class Inventario {
 
 		if ((Globales.JUGADOR != null) && (Animaciones.JUGADOR != null)) {
 			final int xAnim = ((this.AREA_PERSONAJE.x + ((this.AREA_PERSONAJE.width - Globales.JUGADOR.getAncho()) / 2))
-					- Globales.JUGADOR.getMargenXSprite()) + 1;
-			final int yAnim = (this.AREA_PERSONAJE.y - Globales.JUGADOR.getMargenYSprite())
-					+ ((this.AREA_PERSONAJE.height - Globales.JUGADOR.getAlto()) / 2) + 1;
+					- Globales.JUGADOR.getMargenXSprite());
+			final int yAnim = ((this.AREA_PERSONAJE.y + ((this.AREA_PERSONAJE.height - Globales.JUGADOR.getAlto()) / 2))
+					- Globales.JUGADOR.getMargenYSprite()) + 1;
 
 			Animaciones.JUGADOR.pintar(g, xAnim, yAnim);
 		}
@@ -219,21 +220,26 @@ public class Inventario {
 		}
 
 		final Font fuentePrevia = g.getFont();
-		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 7f));
+		// REGLA CLAVE: m3x6 DEBE ser PLAIN a 16f para evitar faux-bold empastado
+		g.setFont(Globales.GESTOR_FUENTES.getFuenteSmall(Font.PLAIN, 16f));
 
 		final int str = Globales.JUGADOR.getFuerzaTotal();
 		final int agi = Globales.JUGADOR.getAgilidadTotal();
 		final int intel = Globales.JUGADOR.getInteligenciaTotal();
 		final int def = Globales.JUGADOR.getDefensaTotal();
 
-		final int xStats = this.X + 186;
-		final int yBase = this.Y + 7;
+		final int xCol1 = this.X + 193;
+		final int xCol2 = this.X + 216;
 
-		Render2D.dibujarStringConSombra(g, "F: " + str, xStats, yBase, COLOR_TEXTO_FUE, Color.BLACK);
-		Render2D.dibujarStringConSombra(g, "A: " + agi, xStats, yBase + 5, COLOR_TEXTO_AGI, Color.BLACK);
-		Render2D.dibujarStringConSombra(g, "I: " + intel, xStats, yBase + 10, COLOR_TEXTO_INT, Color.BLACK);
-		Render2D.dibujarStringConSombra(g, "D: " + def, xStats, yBase + 15, COLOR_TEXTO_DEF, Color.BLACK);
+		// --- Fila 1: Fuerza y Agilidad ---
+		Render2D.dibujarString(g, "F " + str, xCol1, this.Y + 10, COLOR_TEXTO_FUE);
+		Render2D.dibujarString(g, "A " + agi, xCol2, this.Y + 10, COLOR_TEXTO_AGI);
 
+		// --- Fila 2: Inteligencia y Defensa ---
+		Render2D.dibujarString(g, "I " + intel, xCol1, this.Y + 19, COLOR_TEXTO_INT);
+		Render2D.dibujarString(g, "D " + def, xCol2, this.Y + 19, COLOR_TEXTO_DEF);
+
+		// --- Fila 3: Monedas (Oro y Plata) ---
 		final long dineroTotal = Globales.JUGADOR.getDineroPlata();
 		if (dineroTotal != this.lastDineroPlata) {
 			this.lastDineroPlata = dineroTotal;
@@ -241,19 +247,17 @@ public class Inventario {
 			this.cachedPlata = String.valueOf(dineroTotal % 100L);
 		}
 
-		final int xDinero = this.X + 213;
-
 		final BufferedImage iconOro = Globales.GESTOR_TEXTURAS.get(TexturaItem.ANILLO_ORO_MAPA);
 		if (iconOro != null) {
-			Render2D.dibujarImagen(g, iconOro, xDinero, this.Y + 2);
+			Render2D.dibujarImagen(g, iconOro, xCol1 - 1, this.Y + 22);
 		}
-		Render2D.dibujarStringConSombra(g, this.cachedOro, xDinero + 10, this.Y + 9, COLOR_TEXTO_ORO, Color.BLACK);
+		Render2D.dibujarString(g, this.cachedOro, xCol1 + 9, this.Y + 28, COLOR_TEXTO_ORO);
 
 		final BufferedImage iconPlata = Globales.GESTOR_TEXTURAS.get(TexturaItem.ANILLO_PLATA_MAPA);
 		if (iconPlata != null) {
-			Render2D.dibujarImagen(g, iconPlata, xDinero, this.Y + 11);
+			Render2D.dibujarImagen(g, iconPlata, xCol2 - 1, this.Y + 22);
 		}
-		Render2D.dibujarStringConSombra(g, this.cachedPlata, xDinero + 10, this.Y + 18, COLOR_TEXTO_PLATA, Color.BLACK);
+		Render2D.dibujarString(g, this.cachedPlata, xCol2 + 9, this.Y + 28, COLOR_TEXTO_PLATA);
 
 		g.setFont(fuentePrevia);
 	}

@@ -4,6 +4,7 @@ import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Jugador;
 import principal.mapa.Mundo;
 import principal.mapa.mapas.Mapa;
+import principal.utilidades.Globales;
 
 public class PuertaMundo extends PuertaTP {
 
@@ -27,8 +28,21 @@ public class PuertaMundo extends PuertaTP {
 		}
 
 		final Mapa mapaActual = mundoOrigen.getMapa();
-		if (mapaActual != null) {
-			mapaActual.cambiarMundoInterno(this.nombreMundoDestino, this.nombreSpawnDestino);
+		if (mapaActual == null) {
+			return;
+		}
+
+		// Guarda la posición en la puerta ANTES de cambiar de submundo
+		final double liderOrigenX = c.getCentroX();
+		final double liderOrigenY = c.getCentroY();
+
+		// 1. Transición del jugador al nuevo mundo del mapa
+		mapaActual.cambiarMundoInterno(this.nombreMundoDestino, this.nombreSpawnDestino);
+
+		// 2. Migración atómica en abanico evaluando cercanía real en la puerta
+		final Mundo mundoDestino = mapaActual.getMundo(this.nombreMundoDestino);
+		if ((mundoDestino != null) && (Globales.GESTOR_GRUPO != null)) {
+			Globales.GESTOR_GRUPO.migrarEscoltaSubmundo(mundoOrigen, mundoDestino, c, liderOrigenX, liderOrigenY, 64.0);
 		}
 	}
 

@@ -14,6 +14,7 @@ import principal.controles.Teclado;
 import principal.crafteo.GestorCrafteo;
 import principal.dialogos.GestorDialogos;
 import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.grupo.GestorGrupo;
 import principal.eventos.GestorEventos;
 import principal.igu.MotorIGU;
 import principal.igu.textos.GestorTextosFlotantes;
@@ -77,9 +78,10 @@ public class Globales {
 	public static final GestorTexturas GESTOR_TEXTURAS = new GestorTexturas();
 
 	// =========================================================================
-	// === 5. ENTES, INTERFAZ Y CÁMARA (BOOTSTRAP FASE 2)
+	// === 5. ENTES, INTERFAZ, GRUPO Y CÁMARA (BOOTSTRAP FASE 2)
 	// =========================================================================
 	public static final Jugador JUGADOR = new Jugador(0, 0);
+	public static final GestorGrupo GESTOR_GRUPO = new GestorGrupo();
 	public static final MotorIGU MOTOR_IGU = new MotorIGU();
 	public static final GestorInventario GESTOR_INVENTARIO = new GestorInventario();
 	public static final int LADO_CURSOR = 4;

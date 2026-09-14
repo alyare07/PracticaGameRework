@@ -11,19 +11,21 @@ import principal.mapa.Mundo;
 import principal.utilidades.Globales;
 
 /**
- * Acción táctica para acompañantes con banda muerta anti-vibraciones,
- * seguimiento directo mediante línea de paso volumétrica y navegación híbrida
- * (Zero-GC).
+ * Acción táctica para acompañantes con formación escalonada por ranuras
+ * (anti-dogpile), banda muerta anti-vibraciones y discriminación de
+ * teletransporte por dificultad (Zero-GC).
  * 
- * @version 2.1 (Vanilla Java 8 - Line-of-Walk & Hybrid Flowfield Navigation)
+ * @version 2.4 (Vanilla Java 8 - Multi-Follower Slot Staggering)
  */
 public class AccionSeguirLider implements NodoBT {
 
-	private static final double DIST_STOP = 26.0;
-	private static final double DIST_STOP_SQ = DIST_STOP * DIST_STOP;
-	private static final double DIST_START = 42.0;
-	private static final double DIST_START_SQ = DIST_START * DIST_START;
+	// Distancia de pérdida de paso / abandono táctico
+	private static final double DIST_ABANDONO = 280.0;
+	private static final double DIST_ABANDONO_SQ = DIST_ABANDONO * DIST_ABANDONO;
+
+	// Distancia para teletransporte forzado en modo fácil
 	private static final double DIST_TELEPORT_RESCATE_SQ = 360.0 * 360.0;
+
 	private static final double RADIO_LLEGADA_WAYPOINT = 4.0;
 
 	public AccionSeguirLider() {
@@ -40,6 +42,19 @@ public class AccionSeguirLider implements NodoBT {
 			return EstadoBT.FRACASO;
 		}
 
+		// Consulta la ranura en la escolta activa (0 a 4) para escalonar la distancia
+		// de parada
+		final int indiceEscolta = (Globales.GESTOR_GRUPO != null) ? Globales.GESTOR_GRUPO.obtenerIndiceEscolta(criatura)
+				: 0;
+		final int slotSeguro = Math.max(0, indiceEscolta);
+
+		// Escalonamiento: Slot 0 = 22 px, Slot 1 = 30 px, Slot 2 = 38 px, Slot 3 = 46
+		// px, Slot 4 = 54 px
+		final double distStop = 22.0 + (slotSeguro * 8.0);
+		final double distStopSq = distStop * distStop;
+		final double distStart = distStop + 12.0;
+		final double distStartSq = distStart * distStart;
+
 		final double targetX = lider.getPieX();
 		final double targetY = lider.getPieY();
 		final double miX = criatura.getPieX();
@@ -49,17 +64,31 @@ public class AccionSeguirLider implements NodoBT {
 		final double dy = targetY - miY;
 		final double distSq = (dx * dx) + (dy * dy);
 
-		// 1. Rescate por teletransporte si quedó excesivamente rezagada
-		if (distSq > DIST_TELEPORT_RESCATE_SQ) {
-			criatura.setPosicion(lider.getPosicionX(), lider.getPosicionY());
-			criatura.reiniciarRecorridoAEstrella();
-			criatura.detenerMovimiento();
-			criatura.setEstadoEstandar();
-			return EstadoBT.EXITO;
+		// 1. Evaluación de distancia excesiva / Abandono
+		if (distSq > DIST_ABANDONO_SQ) {
+			if (!bb.isPuedeTparseAlLider()) {
+				// MODO NORMAL / TÁCTICO: Se detiene, entra en reposo y espera al jugador
+				criatura.detenerMovimiento();
+				criatura.reiniciarRecorridoAEstrella();
+				if (!criatura.estaEstadoEstandar()) {
+					criatura.setEstadoEstandar();
+				}
+				criatura.setDireccionMirandoCriatura(lider);
+				return EstadoBT.EXITO;
+			}
+			// MODO FÁCIL: Teletransporte de rescate instantáneo al superar 360 px
+			if (distSq > DIST_TELEPORT_RESCATE_SQ) {
+				criatura.setPosicion(lider.getPosicionX(), lider.getPosicionY());
+				criatura.reiniciarRecorridoAEstrella();
+				criatura.detenerMovimiento();
+				criatura.setEstadoEstandar();
+				return EstadoBT.EXITO;
+			}
 		}
 
-		// 2. Zona de confort: Si está a distancia de parada, frena y mira al líder
-		if (distSq <= DIST_STOP_SQ) {
+		// 2. Zona de confort: Si está a distancia de parada escalonada de su ranura,
+		// frena
+		if (distSq <= distStopSq) {
 			criatura.detenerMovimiento();
 			criatura.reiniciarRecorridoAEstrella();
 			if (!criatura.estaEstadoEstandar()) {
@@ -69,9 +98,9 @@ public class AccionSeguirLider implements NodoBT {
 			return EstadoBT.EXITO;
 		}
 
-		// 3. Banda muerta (Hysteresis): Si estaba parada, solo arranca si el líder se
-		// alejó > DIST_START
-		if (!criatura.estaEnMovimientoFisico() && (distSq < DIST_START_SQ)) {
+		// 3. Banda muerta (Hysteresis): Si estaba parada, solo arranca si supera
+		// distStart
+		if (!criatura.estaEnMovimientoFisico() && (distSq < distStartSq)) {
 			criatura.setDireccionMirandoCriatura(lider);
 			return EstadoBT.EXITO;
 		}
@@ -88,7 +117,7 @@ public class AccionSeguirLider implements NodoBT {
 
 		if (pasoLimpio) {
 			criatura.reiniciarRecorridoAEstrella();
-			criatura.moverHaciaPuntoContinuo(targetX, targetY, DIST_STOP);
+			criatura.moverHaciaPuntoContinuo(targetX, targetY, distStop);
 			return EstadoBT.EN_PROCESO;
 		}
 

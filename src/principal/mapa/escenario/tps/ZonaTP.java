@@ -18,12 +18,11 @@ public class ZonaTP extends Ente {
 	private boolean eliminado;
 	private final Rectangle AREA;
 	private PuertaTP puertaTP;
-	private CondicionTP condicion; // <-- Condición opcional
+	private CondicionTP condicion;
 
 	private final GestorTiempo GT_COOLDOWN_TP = new GestorTiempo();
 	private static final int COOLDOWN_TP_MS = 600;
 
-	// Cooldown para no spamear el mensaje de rechazo 60 veces por segundo
 	private final GestorTiempo GT_FEEDBACK = new GestorTiempo();
 	private static final int COOLDOWN_FEEDBACK_MS = 1400;
 
@@ -44,7 +43,6 @@ public class ZonaTP extends Ente {
 		}
 
 		if (this.AREA.intersects(Globales.JUGADOR.getAreaInterseccionMovimiento())) {
-			// 1. Validar si cumple la condición
 			if ((this.condicion == null) || this.condicion.seCumple(Globales.JUGADOR)) {
 
 				if (this.GT_COOLDOWN_TP.transcurrioMiliSegundos(COOLDOWN_TP_MS)) {
@@ -54,11 +52,10 @@ public class ZonaTP extends Ente {
 						this.condicion.alCruzar(Globales.JUGADOR);
 					}
 
-					this.teletransportar(Globales.JUGADOR);
+					this.procesarTeletransporte();
 				}
 
-			} else // 2. Si no cumple, mostrar mensaje flotante y reproducir sonido de bloqueo
-			if (this.GT_FEEDBACK.transcurrioMiliSegundos(COOLDOWN_FEEDBACK_MS)) {
+			} else if (this.GT_FEEDBACK.transcurrioMiliSegundos(COOLDOWN_FEEDBACK_MS)) {
 				this.GT_FEEDBACK.establecerReferenciaTiempoActual();
 				GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 
@@ -69,13 +66,28 @@ public class ZonaTP extends Ente {
 		}
 	}
 
+	private void procesarTeletransporte() {
+		// Captura la posición exacta del jugador en la puerta ANTES de
+		// teletransportarlo
+		final double liderOrigenX = Globales.JUGADOR.getCentroX();
+		final double liderOrigenY = Globales.JUGADOR.getCentroY();
+
+		// 1. Teletransporta al jugador
+		this.teletransportar(Globales.JUGADOR);
+
+		// 2. Migra a los seguidores que estaban cerca en la puerta
+		if ((Globales.GESTOR_GRUPO != null) && !(this.puertaTP instanceof PuertaMundo)
+				&& !(this.puertaTP instanceof PuertaMapa)) {
+			Globales.GESTOR_GRUPO.migrarEscoltaLocal(this.puertaTP, liderOrigenX, liderOrigenY);
+		}
+	}
+
 	@Override
 	public void pintar(final Graphics2D g) {
 		if (this.puertaTP instanceof PuertaArea) {
 			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA, new Color(140, 134, 230, 110));
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.AREA, new Color(140, 134, 230, 220));
 		} else if ((this.puertaTP instanceof PuertaMundo) || (this.puertaTP instanceof PuertaZona)) {
-			// Si tiene candado/condición, la pintamos con borde dorado de alerta
 			final Color cFondo = (this.condicion != null) ? new Color(255, 180, 40, 110) : new Color(245, 20, 243, 110);
 			final Color cBorde = (this.condicion != null) ? new Color(255, 215, 50, 240) : new Color(245, 20, 243, 220);
 			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA, cFondo);

@@ -106,5 +106,6 @@ public class GestorPartida implements EstadoJuego {
 		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, Mapa1.EXTERIOR, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true);
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 		Globales.CAMARA.reiniciarZoom();
+		Globales.GESTOR_GRUPO.vaciar();
 	}
 }

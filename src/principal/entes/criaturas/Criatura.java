@@ -14,6 +14,7 @@ import java.util.Set;
 import org.json.simple.JSONObject;
 
 import principal.entes.Ente;
+import principal.entes.criaturas.grupo.TipoVinculo;
 import principal.entes.efectos.EfectoEstado;
 import principal.entes.efectos.TipoEfectoEstado;
 import principal.entes.facciones.GestorFacciones;
@@ -30,11 +31,12 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Base abstracta universal con amortiguación de histéresis de caminata
- * (anti-flicker), banda muerta angular de giro y aislamiento de empuje de
- * manada (Zero-GC / O(1)).
+ * Base abstracta universal con soporte nativo de vínculos de grupo y familia
+ * (TipoVinculo), amortiguación de histéresis de caminata y alineación de
+ * Clearance (Zero-GC / O(1)).
  * 
- * @version 16.2 (Vanilla Java 8 - Walk State Hysteresis & Directional Deadband)
+ * @version 16.3 (Vanilla Java 8 - Universal Player Affiliation & Bonding
+ *          Support)
  */
 public abstract class Criatura extends Ente {
 
@@ -72,6 +74,9 @@ public abstract class Criatura extends Ente {
 	protected final BlackboardIA blackboard = new BlackboardIA();
 	protected NodoBT arbolComportamiento;
 
+	// Naturaleza del vínculo con el jugador (por defecto sin vínculo)
+	protected TipoVinculo vinculo = TipoVinculo.NINGUNO;
+
 	protected final EfectoEstado[] efectosActivos = new EfectoEstado[TipoEfectoEstado.values().length];
 
 	private static final double HP_POR_CAPA = 50.0;
@@ -95,16 +100,12 @@ public abstract class Criatura extends Ente {
 	protected static final double RADIO_LLEGADA_WAYPOINT = 10.0;
 	private int ticksTrabadoEnNodo = 0;
 
-	// Seguimiento de desplazamiento físico real con histéresis
 	private double posicionXPrevioFrame;
 	private double posicionYPrevioFrame;
 	private boolean seMovioEnEsteFrame = false;
 	private int ticksSinMovimientoLocomocion = 0;
 	private static final int TICKS_GRACIA_DETENCION = 4;
 
-	// =========================================================================
-	// === COMUNICACIÓN DE MANADA ZERO-GC (LLAMADAS DE SOCORRO Y ALERTA)
-	// =========================================================================
 	private final Rectangle AREA_ALERTA_AUX = new Rectangle();
 	private Ente amenazaAlertaTemporal;
 
@@ -219,6 +220,22 @@ public abstract class Criatura extends Ente {
 		this.anchoColisionPies = Math.max(6, Math.min(this.ANCHO - 4, 8));
 		this.altoColisionPies = Math.max(6, Math.min(this.ALTO / 3, 8));
 		this.recalcularClearanceRequerido();
+	}
+
+	public TipoVinculo getVinculo() {
+		return this.vinculo;
+	}
+
+	public void setVinculo(final TipoVinculo vinculo) {
+		this.vinculo = (vinculo != null) ? vinculo : TipoVinculo.NINGUNO;
+	}
+
+	public boolean tieneVinculoConJugador() {
+		return this.vinculo.esVinculado();
+	}
+
+	public boolean esFamiliar() {
+		return this.vinculo.esFamiliar();
 	}
 
 	public void configurarFootprint(final int ancho, final int alto, final int offsetY) {
@@ -409,8 +426,6 @@ public abstract class Criatura extends Ente {
 		this.actualizarBarraFantasma(dt);
 		this.aplicarFuerzaSeparacion();
 
-		// Registra la posición de referencia DESPUÉS de la separación de manada
-		// para que los micro-empujes no activen falsas animaciones de caminar
 		this.posicionXPrevioFrame = this.x;
 		this.posicionYPrevioFrame = this.y;
 
@@ -428,8 +443,6 @@ public abstract class Criatura extends Ente {
 			this.ticksSinMovimientoLocomocion = 0;
 		} else {
 			this.ticksSinMovimientoLocomocion++;
-			// Amortiguación de histéresis: requiere 4 frames sin movimiento para consolidar
-			// parada
 			if (this.ticksSinMovimientoLocomocion >= TICKS_GRACIA_DETENCION) {
 				this.seMovioEnEsteFrame = false;
 				this.velActualX = 0.0;
@@ -501,11 +514,6 @@ public abstract class Criatura extends Ente {
 		return this.moverHaciaPuntoContinuo(targetX, targetY, distanciaMinimaFrenado, true);
 	}
 
-	/**
-	 * Desplaza a la criatura hacia un punto continuo con amortiguación inercial,
-	 * histéresis de orientación cardinal para eliminar el parpadeo en diagonales y
-	 * soporte de orientación fija para kiting táctico (Zero-GC).
-	 */
 	public boolean moverHaciaPuntoContinuo(final double targetX, final double targetY,
 			final double distanciaMinimaFrenado, final boolean actualizarDireccion) {
 		if (this.mundo == null) {
@@ -583,8 +591,6 @@ public abstract class Criatura extends Ente {
 				final double absX = Math.abs(this.velActualX);
 				final double absY = Math.abs(this.velActualY);
 
-				// Banda muerta de histéresis (Deadband): evita vibraciones alternadas en
-				// diagonales
 				if ((this.direccion == Direccion.ESTE) || (this.direccion == Direccion.OESTE)) {
 					if ((absY > (absX * 1.25)) && (absY > 0.05)) {
 						this.direccion = (this.velActualY > 0) ? Direccion.SUR : Direccion.NORTE;

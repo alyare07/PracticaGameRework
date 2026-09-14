@@ -5,14 +5,18 @@ import java.awt.Rectangle;
 import principal.entes.criaturas.Criatura;
 
 public class PuertaArea extends PuertaTP {
+
 	private final Rectangle AREA_DESTINO;
 
 	public PuertaArea(final Rectangle area) {
-		this.AREA_DESTINO = area;
+		this.AREA_DESTINO = (area != null) ? area : new Rectangle();
 	}
 
 	@Override
 	public void teletransportar(final Criatura c) {
+		if (c == null) {
+			return;
+		}
 		c.setPosicionX((this.AREA_DESTINO.x + (this.AREA_DESTINO.width / 2)) - (c.getArea().width / 2));
 		c.setPosicionY((this.AREA_DESTINO.y + (this.AREA_DESTINO.height / 2)) - (c.getArea().height / 2));
 	}
@@ -32,5 +36,4 @@ public class PuertaArea extends PuertaTP {
 	public int getHDestino() {
 		return this.AREA_DESTINO.height;
 	}
-
 }

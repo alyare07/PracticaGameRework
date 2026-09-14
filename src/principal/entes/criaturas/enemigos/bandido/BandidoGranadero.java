@@ -7,11 +7,15 @@ import principal.entes.objetos.items.arrojadizos.granadas.Granada;
 import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
 import principal.ia.arbol.FabricaArbolesIA;
 import principal.mapa.Mundo;
+import principal.utilidades.GestorTiempo;
 
 public class BandidoGranadero extends Bandido {
 
 	private static final String NOMBRE = "Bandido Granadero";
+	private static final int TIEMPO_MS_LANZAMIENTO = 450;
+
 	private final Granada granada;
+	private final GestorTiempo GT_LANZAMIENTO = new GestorTiempo();
 
 	public BandidoGranadero(final double x, final double y, final double vida, final double vidaMaxima,
 			final Mundo mundo) {
@@ -30,12 +34,20 @@ public class BandidoGranadero extends Bandido {
 		if (this.granada.getCantidad() <= 1) {
 			this.granada.establecerCantidad(100);
 		}
+
+		// Libera los estados transitorios de lanzamiento para permitir la vuelta a
+		// ESTANDAR
+		if (this.tieneEstado(Estado.ARROJANDO) && this.GT_LANZAMIENTO.transcurrioMiliSegundos(TIEMPO_MS_LANZAMIENTO)) {
+			this.removerEstado(Estado.ARROJANDO);
+			this.removerEstado(Estado.ATACANDO);
+		}
 	}
 
 	public void arrojarGranadaHacia(final int targetX, final int targetY) {
 		if ((this.granada != null) && (this.mundo != null)) {
 			this.meterEstado(Estado.ATACANDO);
 			this.meterEstado(Estado.ARROJANDO);
+			this.GT_LANZAMIENTO.establecerReferenciaTiempoActual();
 			this.granada.arrojar(targetX, targetY, this.direccion, this.mundo, this);
 		}
 	}

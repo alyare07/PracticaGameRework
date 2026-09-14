@@ -148,7 +148,6 @@ public class Mapa1 extends Mapa {
 					.agregarItem(new PiezaEquipo(PiezaEquipo.COD_ANILLO_ORO, TipoEquipo.ANILLO, 2, 2, 2, 0));
 
 			mExt.meterEntidad(arbolcofre1);
-			this.generarEnemigosParaPrueba(5);
 			mExt.notificarModificacionEstructura();
 
 			final Comerciante mercader = new Comerciante(1850, 1750, "Mercader Aldeano", 120.0);

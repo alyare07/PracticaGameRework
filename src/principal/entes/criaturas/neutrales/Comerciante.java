@@ -26,10 +26,9 @@ import principal.utilidades.Globales;
 
 /**
  * NPC Mercader con soporte de autopreservación, retorno a su tienda y catálogo
- * estacional (Zero-GC).
+ * estacional con huella física estándar de 8x8 (Zero-GC).
  * 
- * @version 6.0 (Vanilla Java 8 - Threat Evasion & Shop Return Anchor
- *          Integration)
+ * @version 6.1 (Vanilla Java 8 - Standard 8x8 Humanoid Footprint)
  */
 public class Comerciante extends Criatura implements Contenedor, Interactuable {
 
@@ -65,7 +64,8 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		this.direccion = Direccion.SUR;
 		this.setEstadoUnico(Estado.ESTANDAR);
 
-		this.configurarFootprint(10, 8, 0);
+		// Footprint estandarizado a 8x8 para coincidir exactamente con el jugador
+		this.configurarFootprint(8, 8, 0);
 		this.arbolComportamiento = FabricaArbolesIA.ARBOL_NPC_COMERCIANTE;
 
 		if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
@@ -225,7 +225,6 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 			return;
 		}
 
-		// Si está en peligro o huyendo, no abre la tienda y pide auxilio
 		if (this.tieneEstado(Estado.HUYENDO) || this.blackboard.isEnPanico()) {
 			this.setDireccionMirandoCriatura(jugador);
 			final MensajeDialogo dialogoPanico = new MensajeDialogo(this.nombre, new Color(255, 70, 70),

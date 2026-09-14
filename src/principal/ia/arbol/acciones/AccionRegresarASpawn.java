@@ -1,16 +1,17 @@
 package principal.ia.arbol.acciones;
 
 import principal.entes.criaturas.Criatura;
+import principal.entes.criaturas.mascotas.Mascota;
 import principal.ia.arbol.BlackboardIA;
 import principal.ia.arbol.EstadoBT;
 import principal.ia.arbol.NodoBT;
 import principal.mapa.Mundo;
 
 /**
- * Acción de retorno a la base / spawn original para NPCs, comerciantes y
- * guardias (Zero-GC).
+ * Acción de retorno a la base / spawn original o al anclaje de espera dinámico
+ * tras haber huido de un peligro (Zero-GC / O(1)).
  * 
- * @version 1.0 (Vanilla Java 8 - Home Anchor Leash Action)
+ * @version 2.1 (Vanilla Java 8 - Companion Anchor Verification)
  */
 public class AccionRegresarASpawn implements NodoBT {
 
@@ -33,35 +34,52 @@ public class AccionRegresarASpawn implements NodoBT {
 			return EstadoBT.FRACASO;
 		}
 
-		final double spawnX = criatura.getPosicionXInicial();
-		final double spawnY = criatura.getPosicionYInicial();
+		// Para mascotas, si no hay un ancla de retorno registrada, no debe regresar al
+		// spawn del mapa
+		if ((criatura instanceof Mascota) && !bb.tieneAnclaRetorno()) {
+			return EstadoBT.FRACASO;
+		}
 
-		final double dx = spawnX - criatura.getPieX();
-		final double dy = spawnY - criatura.getPieY();
+		// Si tiene ancla dinámica de retorno (punto de espera donde fue atacada), la
+		// usa; sino usa el spawn inicial
+		final double targetX = bb.tieneAnclaRetorno() ? bb.getXAnclaRetorno() : criatura.getPosicionXInicial();
+		final double targetY = bb.tieneAnclaRetorno() ? bb.getYAnclaRetorno() : criatura.getPosicionYInicial();
+
+		final double dx = targetX - criatura.getPieX();
+		final double dy = targetY - criatura.getPieY();
 		final double distSq = (dx * dx) + (dy * dy);
 
 		// Si ya está en su puesto
 		if (distSq <= this.distanciaToleranciaSq) {
 			criatura.detenerMovimiento();
+			if (bb.tieneAnclaRetorno()) {
+				bb.limpiarAnclaRetorno();
+			}
 			if (!criatura.estaEstadoEstandar()) {
 				criatura.setEstadoEstandar();
-
 			}
 			return EstadoBT.EXITO;
 		}
 
-		// 1. Si hay camino libre directo hacia su puesto
-		final boolean lineaLimpia = mundo.hayLineaDeTiroLimpia(criatura.getPieX(), criatura.getPieY(), spawnX, spawnY);
+		// 1. Si el paso físico está despejado para el cuerpo entero
+		final boolean pasoLimpio = mundo.hayLineaDePasoLimpia(criatura.getPieX(), criatura.getPieY(), targetX, targetY,
+				criatura.getAnchoColisionPies(), criatura.getAltoColisionPies());
 
-		if (lineaLimpia) {
+		if (pasoLimpio) {
 			criatura.reiniciarRecorridoAEstrella();
-			criatura.moverHaciaPuntoContinuo(spawnX, spawnY, this.distanciaTolerancia);
+			criatura.moverHaciaPuntoContinuo(targetX, targetY, this.distanciaTolerancia);
 			return EstadoBT.EN_PROCESO;
 		}
 
-		// 2. Si hay casas o árboles en medio, calcula camino A* de vuelta a casa
+		// 2. Si hay obstáculos o árboles en medio, calcula camino A* de vuelta al
+		// puesto
 		if ((criatura.getNodoADestino() == null) && criatura.getRecorridoA().isEmpty()) {
-			criatura.calcularRutaAEstrella((int) spawnX, (int) spawnY);
+			if (bb.puedeRecalcularRuta()) {
+				criatura.calcularRutaAEstrella((int) targetX, (int) targetY);
+				if ((criatura.getNodoADestino() == null) && criatura.getRecorridoA().isEmpty()) {
+					bb.setCooldownRecalculoRuta(0.5);
+				}
+			}
 		}
 
 		criatura.moverANodoADestino();

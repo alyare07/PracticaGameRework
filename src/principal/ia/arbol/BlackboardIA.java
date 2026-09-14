@@ -4,10 +4,10 @@ import principal.entes.Ente;
 
 /**
  * Memoria local preasignada para decisiones de Criaturas con soporte de agenda
- * de tiempo de juego, dirección de flanqueo táctico y válvula anti-spam de
- * pathfinding (Zero-GC / O(1)).
+ * de tiempo de juego, anclaje de retorno dinámico, modo agresivo y rescate por
+ * teletransporte (Zero-GC / O(1)).
  * 
- * @version 1.5 (Vanilla Java 8 - Flanking State Encapsulation)
+ * @version 1.7 (Vanilla Java 8 - Companion Rescue Teleport Flag)
  */
 public class BlackboardIA {
 
@@ -45,8 +45,19 @@ public class BlackboardIA {
 	private double timestampRetornoJuegoHoras = 0.0;
 	private double cooldownRecalculoRuta = 0.0;
 
-	// Dirección de flanqueo lateral táctico (1 = Derecha, -1 = Izquierda)
 	private int direccionFlanqueo = 1;
+
+	// Modo de temperamento (true = combate hostiles, false = pasivo/tranquilo)
+	private boolean modoAgresivo = false;
+
+	// Anclaje dinámico de regreso tras huida de emergencia
+	private double xAnclaRetorno = 0.0;
+	private double yAnclaRetorno = 0.0;
+	private boolean tieneAnclaRetorno = false;
+
+	// Permiso de teletransporte de rescate (true = Fácil / TP activo, false =
+	// Normal / Táctico)
+	private boolean puedeTparseAlLider = false;
 
 	public BlackboardIA() {
 		this.reiniciar();
@@ -155,6 +166,44 @@ public class BlackboardIA {
 		this.direccionFlanqueo = -this.direccionFlanqueo;
 	}
 
+	public boolean isModoAgresivo() {
+		return this.modoAgresivo;
+	}
+
+	public void setModoAgresivo(final boolean modoAgresivo) {
+		this.modoAgresivo = modoAgresivo;
+	}
+
+	public void fijarAnclaRetorno(final double x, final double y) {
+		this.xAnclaRetorno = x;
+		this.yAnclaRetorno = y;
+		this.tieneAnclaRetorno = true;
+	}
+
+	public void limpiarAnclaRetorno() {
+		this.tieneAnclaRetorno = false;
+	}
+
+	public boolean tieneAnclaRetorno() {
+		return this.tieneAnclaRetorno;
+	}
+
+	public double getXAnclaRetorno() {
+		return this.xAnclaRetorno;
+	}
+
+	public double getYAnclaRetorno() {
+		return this.yAnclaRetorno;
+	}
+
+	public boolean isPuedeTparseAlLider() {
+		return this.puedeTparseAlLider;
+	}
+
+	public void setPuedeTparseAlLider(final boolean puedeTparseAlLider) {
+		this.puedeTparseAlLider = puedeTparseAlLider;
+	}
+
 	public void reiniciar() {
 		for (int i = 0; i < MAX_COOLDOWNS; i++) {
 			this.timersCooldown[i] = 0.0;
@@ -176,6 +225,11 @@ public class BlackboardIA {
 		this.timestampRetornoJuegoHoras = 0.0;
 		this.cooldownRecalculoRuta = 0.0;
 		this.direccionFlanqueo = 1;
+		this.modoAgresivo = false;
+		this.tieneAnclaRetorno = false;
+		this.xAnclaRetorno = 0.0;
+		this.yAnclaRetorno = 0.0;
+		this.puedeTparseAlLider = false;
 	}
 
 	public boolean isSiguiendoLider() {

@@ -29,8 +29,8 @@ public class BandidoGarrote extends Bandido {
 		if (this.estaEstadoAtacando()) {
 			final Animacion anim = this.ANIMACION.getAnimacion(AnimacionesBandido.GARROTE_ATACANDO, this.direccion);
 			if (anim != null) {
-				anim.actualizar();
-
+				// super.actualizar() -> actualizarAnimacion() ya avanzó la animación a 1x tick.
+				// Aquí solo se audita el fotograma de impacto y el fin de ciclo.
 				if (!this.impactoRealizadoEnCiclo && (anim.getSpritePosicion() >= FOTOGRAMA_IMPACTO)) {
 					this.impactoRealizadoEnCiclo = true;
 				}

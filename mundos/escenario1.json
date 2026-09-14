@@ -2623,8 +2623,8 @@
             "x": 940,
             "y": 1586
         }
-    ],
-    "criaturas": [
+    ],"criaturas": [],
+    "criaturas2": [
         {
             "tipo": "Bandido",
             "entiti": {

@@ -24,6 +24,7 @@ import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.criaturas.Jugador;
 import principal.entes.criaturas.enemigos.Enemigo;
+import principal.entes.criaturas.mascotas.Mascota;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Fogata;
@@ -55,7 +56,7 @@ import principal.utilidades.audio.musica.GestorMusica;
  * Contenedor espacial de entidades, indexación uniforme ZoneBox y orquestación
  * acústica/térmica de interiores (Zero-GC / O(1)).
  * 
- * @version 4.2 (Vanilla Java 8 - Footprint Volume Line-of-Walk Integration)
+ * @version 4.3 (Vanilla Java 8 - Companion Spatial Registry Hook)
  */
 public class Mundo {
 
@@ -492,11 +493,6 @@ public class Mundo {
 		return true;
 	}
 
-	/**
-	 * Evalúa si una criatura con volumen físico de footprint puede desplazarse en
-	 * línea recta directa sin que sus flancos colisionen contra troncos o paredes
-	 * (Zero-GC).
-	 */
 	public boolean hayLineaDePasoLimpia(final double x0, final double y0, final double x1, final double y1,
 			final int anchoFootprint, final int altoFootprint) {
 
@@ -529,6 +525,18 @@ public class Mundo {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Localiza en O(N) la mascota activa registrada en este mundo (Zero-GC).
+	 */
+	public Mascota getMascotaActiva() {
+		for (final Ente e : this.ENTES_REGISTRADOS) {
+			if ((e instanceof Mascota) && !e.estaEliminado()) {
+				return (Mascota) e;
+			}
+		}
+		return null;
 	}
 
 	public void notificarModificacionEstructura() {

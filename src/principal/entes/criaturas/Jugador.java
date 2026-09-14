@@ -46,13 +46,20 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Jugador principal con registrador de rastro espacial de huellas continuas.
+ * Jugador principal con registrador de rastro espacial de huellas continuas y
+ * cálculo dinámico de capacidad de liderazgo según inteligencia (Zero-GC /
+ * O(1)).
  * 
- * @version 5.3 (Vanilla Java 8 - Trail Emitter Integration)
+ * @version 5.4 (Vanilla Java 8 - Scalable Intelligence-Based Leadership)
  */
 public class Jugador extends Criatura {
 
 	private static final String NOMBRE = "Alyare";
+
+	// --- CONFIGURACIÓN DE LIDERAZGO DE GRUPO ---
+	public static final int PUNTOS_INT_POR_SEGUIDOR = 10;
+	public static final int LIMITE_MAXIMO_SEGUIDORES = 5;
+
 	protected final int MARGENX;
 	protected final int MARGENY;
 	protected double desplazamientoX;
@@ -103,7 +110,6 @@ public class Jugador extends Criatura {
 
 	protected long dineroPlata = 0;
 
-	// Rastro de posiciones físicamente transitables por donde el jugador ya pasó
 	private final RastroPosicion rastro = new RastroPosicion();
 
 	private final AccionEntidad<Item> accionRecogidaItem = new AccionEntidad<Item>() {
@@ -226,6 +232,16 @@ public class Jugador extends Criatura {
 		return this.inteligenciaBase + this.modInteligenciaEquipo;
 	}
 
+	/**
+	 * Calcula el cupo de acompañantes activos según la Inteligencia total. Soporta
+	 * capacidad 0 si la inteligencia es menor al umbral de 1 seguidor.
+	 */
+	public int getCapacidadLiderazgo() {
+		final int intTotal = Math.max(0, this.getInteligenciaTotal());
+		final int cupo = intTotal / PUNTOS_INT_POR_SEGUIDOR;
+		return Math.min(LIMITE_MAXIMO_SEGUIDORES, Math.max(0, cupo));
+	}
+
 	public int getDefensaTotal() {
 		return this.defensaTotal;
 	}
@@ -290,7 +306,6 @@ public class Jugador extends Criatura {
 		this.actualizarRecarga();
 		this.actualizarAtaque();
 
-		// Actualiza el rastro de huellas seguras para acompañantes y perseguidores
 		this.rastro.actualizar(this.getCentroX(), this.getCentroY());
 
 		if (Animaciones.JUGADOR != null) {

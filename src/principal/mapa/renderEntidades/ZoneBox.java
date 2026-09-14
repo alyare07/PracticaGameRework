@@ -3,10 +3,14 @@ package principal.mapa.renderEntidades;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Shape;
+import java.awt.geom.Line2D;
 import java.util.ArrayList;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
+import principal.entes.modelos.complemento.ListaModeloComplemento;
+import principal.entes.modelos.complemento.ModeloComplemento;
+import principal.entes.modelos.complemento.ModeloComplementoT1;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
@@ -16,12 +20,11 @@ import principal.utilidades.AccionEntidad;
 import principal.utilidades.Globales;
 
 /**
- * Celda espacial de indexación de entidades (64x64 px). Realiza barrido
- * continuo, purga activa y despacho seguro de visitors en reversa para prevenir
- * ConcurrentModification e IndexOutOfBounds al eliminar entidades en caliente
- * (Zero-GC / O(1)).
+ * Celda espacial de indexación de entidades (64x64 px) con raycasting balístico
+ * preciso y evaluación de oclusión sobre colisiones sólidas reales (Zero-GC /
+ * O(1)).
  * 
- * @version 2.2 (Vanilla Java 8 - Mutation-Safe Visitor Suite)
+ * @version 2.4 (Vanilla Java 8 - Zero-Allocation Line-Intersection Pipeline)
  */
 public class ZoneBox extends Ente {
 
@@ -33,6 +36,9 @@ public class ZoneBox extends Ente {
 	protected final ArrayList<Objeto> OBJETOS = new ArrayList<>(4);
 	protected final ArrayList<Complemento> COMPLEMENTOS = new ArrayList<>(8);
 	protected final ArrayList<ZonaTP> ZONAS_TP = new ArrayList<>(2);
+
+	private final Line2D.Double LINEA_RAYCAST_AUX = new Line2D.Double();
+	private final Rectangle RECT_RAYCAST_AUX = new Rectangle();
 
 	public ZoneBox(final int x, final int y, final int ancho, final int alto, final Mundo mundo) {
 		this.AREA = new Rectangle(x, y, ancho, alto);
@@ -47,7 +53,6 @@ public class ZoneBox extends Ente {
 
 		final int codAct = this.mundo.getCodAct();
 
-		// 1. Actualización y Purgado de Objetos
 		for (int i = this.OBJETOS.size() - 1; i >= 0; i--) {
 			final Objeto o = this.OBJETOS.get(i);
 			if (o.estaEliminado()) {
@@ -61,7 +66,6 @@ public class ZoneBox extends Ente {
 			}
 		}
 
-		// 2. Actualización y Purgado de Criaturas
 		for (int i = this.CRIATURAS.size() - 1; i >= 0; i--) {
 			final Criatura c = this.CRIATURAS.get(i);
 			if (c.estaEliminado()) {
@@ -75,7 +79,6 @@ public class ZoneBox extends Ente {
 			}
 		}
 
-		// 3. Actualización y Purgado de Items
 		for (int i = this.ITEMS.size() - 1; i >= 0; i--) {
 			final Item item = this.ITEMS.get(i);
 			if (item.estaEliminado()) {
@@ -89,7 +92,6 @@ public class ZoneBox extends Ente {
 			}
 		}
 
-		// 4. Actualización y Purgado de Zonas TP
 		for (int i = this.ZONAS_TP.size() - 1; i >= 0; i--) {
 			final ZonaTP tp = this.ZONAS_TP.get(i);
 			if (tp.estaEliminado()) {
@@ -107,7 +109,6 @@ public class ZoneBox extends Ente {
 	public void recolectarEntidadesParaRender(final Mundo mundo) {
 		final int codPaint = mundo.getCodPintado();
 
-		// Complementos
 		for (int i = this.COMPLEMENTOS.size() - 1; i >= 0; i--) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
 			if (c.estaEliminado()) {
@@ -121,7 +122,6 @@ public class ZoneBox extends Ente {
 			}
 		}
 
-		// Objetos
 		for (int i = this.OBJETOS.size() - 1; i >= 0; i--) {
 			final Objeto o = this.OBJETOS.get(i);
 			if (o.estaEliminado()) {
@@ -135,7 +135,6 @@ public class ZoneBox extends Ente {
 			}
 		}
 
-		// Criaturas
 		for (int i = this.CRIATURAS.size() - 1; i >= 0; i--) {
 			final Criatura c = this.CRIATURAS.get(i);
 			if (c.estaEliminado()) {
@@ -149,7 +148,6 @@ public class ZoneBox extends Ente {
 			}
 		}
 
-		// Zonas TP
 		for (int i = this.ZONAS_TP.size() - 1; i >= 0; i--) {
 			final ZonaTP tp = this.ZONAS_TP.get(i);
 			if (tp.estaEliminado()) {
@@ -217,11 +215,14 @@ public class ZoneBox extends Ente {
 		}
 	}
 
-	// =========================================================================
-	// === EVALUACIÓN DE RAYCASTING / LÍNEA DE TIRO (ZERO-GC / O(1))
-	// =========================================================================
-
+	/**
+	 * Evalúa si un rayo intersecta colisiones sólidas reales (muros, cofres,
+	 * troncos). Optimizado con Zero-GC: descarta asignaciones en el Heap mediante
+	 * cálculo AABB directo.
+	 */
 	public boolean intersectaLineaSolida(final double x0, final double y0, final double x1, final double y1) {
+		this.LINEA_RAYCAST_AUX.setLine(x0, y0, x1, y1);
+
 		for (int i = this.OBJETOS.size() - 1; i >= 0; i--) {
 			final Objeto o = this.OBJETOS.get(i);
 			if (o.esSolido() && !o.estaEliminado() && o.getArea().intersectsLine(x0, y0, x1, y1)) {
@@ -231,17 +232,26 @@ public class ZoneBox extends Ente {
 
 		for (int i = this.COMPLEMENTOS.size() - 1; i >= 0; i--) {
 			final Complemento c = this.COMPLEMENTOS.get(i);
-			if (c.esSolido() && !c.estaEliminado() && c.getArea().intersectsLine(x0, y0, x1, y1)) {
-				return true;
+			if (c.esSolido() && !c.estaEliminado()) {
+				// Descarta primero en O(1) si la línea ni siquiera toca el bounding box general
+				if (c.getArea().intersectsLine(x0, y0, x1, y1)) {
+					final ModeloComplemento modelo = ListaModeloComplemento.getModeloComplemento(c.getCodigoModelo());
+					if (modelo instanceof ModeloComplementoT1) {
+						final Rectangle m = ((ModeloComplementoT1) modelo).getMargenesInterseccion();
+						this.RECT_RAYCAST_AUX.setBounds(c.getPosicionXInt() + m.x, c.getPosicionYInt() + m.y,
+								c.getAncho() - m.width - m.x, c.getAlto() - m.height - m.y);
+						if (this.RECT_RAYCAST_AUX.intersectsLine(x0, y0, x1, y1)) {
+							return true;
+						}
+					} else if (c.intersecta(this.LINEA_RAYCAST_AUX)) {
+						return true;
+					}
+				}
 			}
 		}
 
 		return false;
 	}
-
-	// =========================================================================
-	// === MÉTODOS VISITOR SEGUROS EN REVERSA (ZERO-GC / MUTATION-SAFE)
-	// =========================================================================
 
 	public void paraCadaCriatura(final Shape area, final AccionEntidad<Criatura> accion) {
 		if (!this.intersectaZona(area)) {
@@ -362,10 +372,6 @@ public class ZoneBox extends Ente {
 			}
 		}
 	}
-
-	// =========================================================================
-	// === EVALUACIÓN DE COLISIÓN DIRECTA O(1)
-	// =========================================================================
 
 	public boolean intersectaObjetoSolido(final Shape area) {
 		if (!this.intersectaZona(area)) {

@@ -55,7 +55,7 @@ import principal.utilidades.audio.musica.GestorMusica;
  * Contenedor espacial de entidades, indexación uniforme ZoneBox y orquestación
  * acústica/térmica de interiores (Zero-GC / O(1)).
  * 
- * @version 4.1 (Vanilla Java 8 - Audio Attenuation & Biome Adaptation)
+ * @version 4.2 (Vanilla Java 8 - Footprint Volume Line-of-Walk Integration)
  */
 public class Mundo {
 
@@ -153,12 +153,10 @@ public class Mundo {
 			return;
 		}
 
-		// 1. Música de fondo
 		if (meta.getMusicaFondo() != null) {
 			GestorMusica.reproducirMusicaFondoPrincipal(meta.getMusicaFondo());
 		}
 
-		// 2. Iluminación según el Tipo de Ambiente
 		if (Globales.GESTOR_LUZ != null) {
 			if (meta.esEspacioInterior()) {
 				final Color colorLuz = meta.resolverColorLuzEfectivo();
@@ -168,21 +166,16 @@ public class Mundo {
 			}
 		}
 
-		// 3. Atenuación Acústica de Clima (20% en Casa, 0% en Cueva/Subterráneo, 100%
-		// en Exterior)
 		if (meta.esEspacioInterior()) {
 			final String nombreLower = this.getNombreMundo().toLowerCase();
 			final boolean esCueva = nombreLower.contains("cueva") || nombreLower.contains("mina")
 					|| nombreLower.contains("subterraneo") || nombreLower.contains("dungeon");
 
-			// Si es cueva silenciado (0.0), si es casa con techo atenuado al 20% (0.20)
 			GestorMusica.setFactorAtenuacionAmbiente(esCueva ? 0.0 : 0.20);
 		} else {
-			// Exterior al 100%
 			GestorMusica.setFactorAtenuacionAmbiente(1.0);
 		}
 
-		// 4. Bioma y Clima (Simulación Continua)
 		if (Globales.GESTOR_CLIMA != null) {
 			Globales.GESTOR_CLIMA.setCicloAutomaticoHabilitado(true);
 
@@ -249,8 +242,8 @@ public class Mundo {
 		@Override
 		public void ejecutar(final Criatura c) {
 			if ((c instanceof Enemigo) && !c.estaEliminado()) {
-				((Enemigo) c).escucharRuido(Mundo.this.origenRuidoX, Mundo.this.origenRuidoY,
-						Mundo.this.radioRuidoActual, Mundo.this.emisorRuidoActual);
+				c.escucharRuido(Mundo.this.origenRuidoX, Mundo.this.origenRuidoY, Mundo.this.radioRuidoActual,
+						Mundo.this.emisorRuidoActual);
 			}
 		}
 	};
@@ -494,6 +487,45 @@ public class Mundo {
 					return false;
 				}
 			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Evalúa si una criatura con volumen físico de footprint puede desplazarse en
+	 * línea recta directa sin que sus flancos colisionen contra troncos o paredes
+	 * (Zero-GC).
+	 */
+	public boolean hayLineaDePasoLimpia(final double x0, final double y0, final double x1, final double y1,
+			final int anchoFootprint, final int altoFootprint) {
+
+		if (!this.hayLineaDeTiroLimpia(x0, y0, x1, y1)) {
+			return false;
+		}
+
+		final double dx = x1 - x0;
+		final double dy = y1 - y0;
+		final double dist = Math.sqrt((dx * dx) + (dy * dy));
+
+		if (dist < 1.0) {
+			return true;
+		}
+
+		final double medioAncho = Math.max(1.0, (anchoFootprint / 2.0) - 1.0);
+		final double medioAlto = Math.max(1.0, (altoFootprint / 2.0) - 1.0);
+
+		final double nx = -dy / dist;
+		final double ny = dx / dist;
+
+		final double offX = nx * medioAncho;
+		final double offY = ny * medioAlto;
+
+		if (!this.hayLineaDeTiroLimpia(x0 + offX, y0 + offY, x1 + offX, y1 + offY)) {
+			return false;
+		}
+		if (!this.hayLineaDeTiroLimpia(x0 - offX, y0 - offY, x1 - offX, y1 - offY)) {
+			return false;
 		}
 
 		return true;
@@ -869,7 +901,7 @@ public class Mundo {
 	}
 
 	private void actualizarDijkstra() {
-		if (this.dijkstra.hayEntidadesAlPendiente() || this.forzarUnaActualizacionDijkstra) {
+		if (this.dijkstra != null) {
 			this.dijkstra.actualizar(Globales.JUGADOR.getPosicionParado());
 			this.forzarUnaActualizacionDijkstra = false;
 		}

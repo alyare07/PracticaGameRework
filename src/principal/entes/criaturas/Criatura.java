@@ -18,19 +18,23 @@ import principal.entes.efectos.EfectoEstado;
 import principal.entes.efectos.TipoEfectoEstado;
 import principal.entes.facciones.GestorFacciones;
 import principal.ia.aEstrella.NodoA;
+import principal.ia.arbol.BlackboardIA;
+import principal.ia.arbol.NodoBT;
 import principal.mapa.Mundo;
 import principal.mapa.renderEntidades.ZoneBox;
 import principal.recursos.TexturaItem;
+import principal.utilidades.AccionEntidad;
 import principal.utilidades.Constantes;
 import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Base abstracta para todas las criaturas con motor de Efectos de Estado,
- * Atributos RPG, Facciones, persistencia y trazabilidad de spawn (Zero-GC).
+ * Base abstracta universal con amortiguación de histéresis de caminata
+ * (anti-flicker), banda muerta angular de giro y aislamiento de empuje de
+ * manada (Zero-GC / O(1)).
  * 
- * @version 7.2 (Vanilla Java 8 - Spawn Coordinates Tracking)
+ * @version 16.2 (Vanilla Java 8 - Walk State Hysteresis & Directional Deadband)
  */
 public abstract class Criatura extends Ente {
 
@@ -51,7 +55,7 @@ public abstract class Criatura extends Ente {
 
 	public enum Estado {
 		ESTANDAR("Estandar"), CAMINANDO("Caminando"), CORRIENDO("Corriendo"), ATACANDO("Atacando"),
-		ARROJANDO("Arrojando"), PERSIGUIENDO("Persiguiendo"), INVESTIGANDO("Investigando");
+		ARROJANDO("Arrojando"), PERSIGUIENDO("Persiguiendo"), INVESTIGANDO("Investigando"), HUYENDO("Huyendo");
 
 		private final String DESCRIPCION;
 
@@ -65,14 +69,11 @@ public abstract class Criatura extends Ente {
 		}
 	}
 
-	// =========================================================================
-	// === 1. MOTOR DE EFECTOS DE ESTADO
-	// =========================================================================
+	protected final BlackboardIA blackboard = new BlackboardIA();
+	protected NodoBT arbolComportamiento;
+
 	protected final EfectoEstado[] efectosActivos = new EfectoEstado[TipoEfectoEstado.values().length];
 
-	// =========================================================================
-	// === 2. PALETA MULTICAPA DE SALUD (50 HP POR CAPA)
-	// =========================================================================
 	private static final double HP_POR_CAPA = 50.0;
 	private static final Color COLOR_FONDO_BARRA = Color.BLACK;
 	private static final Color COLOR_BARRA_LAG = new Color(255, 205, 40);
@@ -80,9 +81,6 @@ public abstract class Criatura extends Ente {
 	private static final Color[] COLORES_CAPAS_VIDA = { new Color(235, 30, 30), new Color(255, 120, 0),
 			new Color(40, 235, 100), new Color(16, 109, 54), new Color(150, 20, 200), new Color(255, 200, 40) };
 
-	// =========================================================================
-	// === 3. ATRIBUTOS RPG Y FACCIONES
-	// =========================================================================
 	protected int fuerzaBase = 10;
 	protected int agilidadBase = 10;
 	protected int inteligenciaBase = 10;
@@ -90,14 +88,42 @@ public abstract class Criatura extends Ente {
 	protected int faccionBit = GestorFacciones.FACCION_NEUTRAL;
 	protected int mascaraHostilidad = 0;
 
-	// =========================================================================
-	// === 4. CINEMÁTICA Y FÍSICA DE MANADAS
-	// =========================================================================
 	protected double velActualX = 0.0;
 	protected double velActualY = 0.0;
 	protected double agilidadGiro = 0.25;
 	protected static final double RADIO_ANTICIPACION_ESQUINA = 12.0;
-	protected static final double RADIO_LLEGADA_WAYPOINT = 4.0;
+	protected static final double RADIO_LLEGADA_WAYPOINT = 10.0;
+	private int ticksTrabadoEnNodo = 0;
+
+	// Seguimiento de desplazamiento físico real con histéresis
+	private double posicionXPrevioFrame;
+	private double posicionYPrevioFrame;
+	private boolean seMovioEnEsteFrame = false;
+	private int ticksSinMovimientoLocomocion = 0;
+	private static final int TICKS_GRACIA_DETENCION = 4;
+
+	// =========================================================================
+	// === COMUNICACIÓN DE MANADA ZERO-GC (LLAMADAS DE SOCORRO Y ALERTA)
+	// =========================================================================
+	private final Rectangle AREA_ALERTA_AUX = new Rectangle();
+	private Ente amenazaAlertaTemporal;
+
+	private final AccionEntidad<Criatura> visitorAlertaAliados = new AccionEntidad<Criatura>() {
+		@Override
+		public void ejecutar(final Criatura aliada) {
+			if ((aliada == Criatura.this) || aliada.estaEliminado()) {
+				return;
+			}
+			if (aliada.getFaccionBit() == Criatura.this.getFaccionBit()) {
+				aliada.recibirLlamadaSocorro(Criatura.this.amenazaAlertaTemporal, Criatura.this);
+			}
+		}
+	};
+
+	protected int anchoColisionPies = 8;
+	protected int altoColisionPies = 8;
+	protected int offsetColisionPiesY = 0;
+	protected byte clearanceRequerido = 1;
 
 	protected final Rectangle AREA_COLISION_MOVIMIENTO_AUX = new Rectangle();
 	private static final Criatura[] EVALUADOS_SEPARACION = new Criatura[32];
@@ -113,9 +139,6 @@ public abstract class Criatura extends Ente {
 	protected final int yInicial;
 	protected boolean modoDios = false;
 
-	// =========================================================================
-	// === 5. VIDA, HIT-FLASH Y TIEMPOS
-	// =========================================================================
 	protected double vida;
 	protected double vidaLag;
 	protected double vidaMaxima;
@@ -170,6 +193,8 @@ public abstract class Criatura extends Ente {
 		this.ALTO = alto;
 		this.x = x;
 		this.y = y;
+		this.posicionXPrevioFrame = x;
+		this.posicionYPrevioFrame = y;
 		this.xInicial = (int) Math.round(x);
 		this.yInicial = (int) Math.round(y);
 		this.velocidadEstandar = velocidadEstandar;
@@ -190,6 +215,129 @@ public abstract class Criatura extends Ente {
 
 		this.faccionBit = GestorFacciones.FACCION_NEUTRAL;
 		this.mascaraHostilidad = GestorFacciones.getMascaraHostilidadPorDefecto(this.faccionBit);
+
+		this.anchoColisionPies = Math.max(6, Math.min(this.ANCHO - 4, 8));
+		this.altoColisionPies = Math.max(6, Math.min(this.ALTO / 3, 8));
+		this.recalcularClearanceRequerido();
+	}
+
+	public void configurarFootprint(final int ancho, final int alto, final int offsetY) {
+		this.anchoColisionPies = Math.max(4, ancho);
+		this.altoColisionPies = Math.max(4, alto);
+		this.offsetColisionPiesY = offsetY;
+		this.recalcularClearanceRequerido();
+	}
+
+	public void recalcularClearanceRequerido() {
+		final int maxLado = Math.max(this.anchoColisionPies, this.altoColisionPies);
+		this.clearanceRequerido = (byte) Math.max(1, (int) Math.ceil((double) maxLado / (double) Constantes.LADO_TILE));
+	}
+
+	public double getPieX() {
+		return this.x + (this.ANCHO / 2.0);
+	}
+
+	public double getPieY() {
+		return (this.y + this.ALTO) - (this.altoColisionPies / 2.0);
+	}
+
+	public int getPieXInt() {
+		return (int) Math.round(this.getPieX());
+	}
+
+	public int getPieYInt() {
+		return (int) Math.round(this.getPieY());
+	}
+
+	public double getVelActualX() {
+		return this.velActualX;
+	}
+
+	public double getVelActualY() {
+		return this.velActualY;
+	}
+
+	public boolean estaEnMovimientoFisico() {
+		return this.seMovioEnEsteFrame;
+	}
+
+	public void detenerMovimiento() {
+		this.velActualX = 0.0;
+		this.velActualY = 0.0;
+		this.ticksSinMovimientoLocomocion = TICKS_GRACIA_DETENCION;
+		this.seMovioEnEsteFrame = false;
+		this.removerEstado(Estado.CAMINANDO);
+		this.removerEstado(Estado.CORRIENDO);
+	}
+
+	public void alertarAliadosCercanos(final Ente amenaza, final double radioAlerta) {
+		if ((this.mundo == null) || (amenaza == null) || amenaza.estaEliminado()) {
+			return;
+		}
+
+		this.amenazaAlertaTemporal = amenaza;
+		final int r = (int) Math.ceil(radioAlerta);
+		this.AREA_ALERTA_AUX.setBounds(this.getCentroX() - r, this.getCentroY() - r, r * 2, r * 2);
+
+		this.mundo.paraCadaCriaturaEn(this.AREA_ALERTA_AUX, false, this.visitorAlertaAliados);
+		this.amenazaAlertaTemporal = null;
+	}
+
+	public void recibirLlamadaSocorro(final Ente amenaza, final Criatura aliadoEnPeligro) {
+		if ((amenaza == null) || amenaza.estaEliminado()) {
+			return;
+		}
+
+		final Ente objActual = this.blackboard.getObjetivoActual();
+		if ((objActual == null) || objActual.estaEliminado()) {
+			this.blackboard.setObjetivoActual(amenaza);
+			this.blackboard.memorizarPosicionObjetivo(amenaza.getCentroX(), amenaza.getCentroY());
+			this.meterEstado(Estado.PERSIGUIENDO);
+			this.removerEstado(Estado.ESTANDAR);
+		}
+	}
+
+	public byte getClearanceRequerido() {
+		return this.clearanceRequerido;
+	}
+
+	public int getAnchoColisionPies() {
+		return this.anchoColisionPies;
+	}
+
+	public int getAltoColisionPies() {
+		return this.altoColisionPies;
+	}
+
+	public BlackboardIA getBlackboard() {
+		return this.blackboard;
+	}
+
+	public NodoBT getArbolComportamiento() {
+		return this.arbolComportamiento;
+	}
+
+	public void setArbolComportamiento(final NodoBT arbol) {
+		this.arbolComportamiento = arbol;
+	}
+
+	public ArrayDeque<NodoA> getRecorridoA() {
+		return this.recorridoA;
+	}
+
+	public NodoA getNodoADestino() {
+		return this.nodoADestino;
+	}
+
+	public void escucharRuido(final double origenX, final double origenY, final double radio, final Ente emisor) {
+		final double dx = this.getCentroX() - origenX;
+		final double dy = this.getCentroY() - origenY;
+
+		if (((dx * dx) + (dy * dy)) <= (radio * radio)) {
+			if ((this.blackboard.getObjetivoActual() == null) || this.blackboard.getObjetivoActual().estaEliminado()) {
+				this.blackboard.registrarSospechaRuido(origenX, origenY);
+			}
+		}
 	}
 
 	public abstract String getNombre();
@@ -260,6 +408,41 @@ public abstract class Criatura extends Ente {
 		this.actualizarEfectosEstado(dt);
 		this.actualizarBarraFantasma(dt);
 		this.aplicarFuerzaSeparacion();
+
+		// Registra la posición de referencia DESPUÉS de la separación de manada
+		// para que los micro-empujes no activen falsas animaciones de caminar
+		this.posicionXPrevioFrame = this.x;
+		this.posicionYPrevioFrame = this.y;
+
+		if (this.arbolComportamiento != null) {
+			this.blackboard.actualizar(dt);
+			this.arbolComportamiento.ejecutar(this, this.blackboard, dt);
+		}
+
+		final double despX = this.x - this.posicionXPrevioFrame;
+		final double despY = this.y - this.posicionYPrevioFrame;
+		final boolean huboLocomocion = ((despX * despX) + (despY * despY)) > 0.001;
+
+		if (huboLocomocion) {
+			this.seMovioEnEsteFrame = true;
+			this.ticksSinMovimientoLocomocion = 0;
+		} else {
+			this.ticksSinMovimientoLocomocion++;
+			// Amortiguación de histéresis: requiere 4 frames sin movimiento para consolidar
+			// parada
+			if (this.ticksSinMovimientoLocomocion >= TICKS_GRACIA_DETENCION) {
+				this.seMovioEnEsteFrame = false;
+				this.velActualX = 0.0;
+				this.velActualY = 0.0;
+				this.removerEstado(Estado.CAMINANDO);
+				this.removerEstado(Estado.CORRIENDO);
+
+				if (!this.tieneEstado(Estado.ATACANDO) && !this.tieneEstado(Estado.ARROJANDO)
+						&& !this.tieneEstado(Estado.HUYENDO)) {
+					this.meterEstado(Estado.ESTANDAR);
+				}
+			}
+		}
 	}
 
 	protected void actualizarEfectosEstado(final double dt) {
@@ -305,13 +488,125 @@ public abstract class Criatura extends Ente {
 	}
 
 	public Rectangle getAreaColisionMovimiento(final double desplazamientoX, final double desplazamientoY) {
-		final int anchoPies = Math.min(10, this.ANCHO);
-		final int altoPies = 6;
-		final int pieX = (int) Math.round(this.x + ((this.ANCHO - anchoPies) / 2.0) + desplazamientoX);
-		final int pieY = (int) Math.round(((this.y + this.ALTO) - altoPies) + desplazamientoY);
+		final int pieX = (int) Math.round(this.x + ((this.ANCHO - this.anchoColisionPies) / 2.0) + desplazamientoX);
+		final int pieY = (int) Math
+				.round(((this.y + this.ALTO) - this.altoColisionPies - this.offsetColisionPiesY) + desplazamientoY);
 
-		this.AREA_COLISION_MOVIMIENTO_AUX.setBounds(pieX, pieY, anchoPies, altoPies);
+		this.AREA_COLISION_MOVIMIENTO_AUX.setBounds(pieX, pieY, this.anchoColisionPies, this.altoColisionPies);
 		return this.AREA_COLISION_MOVIMIENTO_AUX;
+	}
+
+	public boolean moverHaciaPuntoContinuo(final double targetX, final double targetY,
+			final double distanciaMinimaFrenado) {
+		return this.moverHaciaPuntoContinuo(targetX, targetY, distanciaMinimaFrenado, true);
+	}
+
+	/**
+	 * Desplaza a la criatura hacia un punto continuo con amortiguación inercial,
+	 * histéresis de orientación cardinal para eliminar el parpadeo en diagonales y
+	 * soporte de orientación fija para kiting táctico (Zero-GC).
+	 */
+	public boolean moverHaciaPuntoContinuo(final double targetX, final double targetY,
+			final double distanciaMinimaFrenado, final boolean actualizarDireccion) {
+		if (this.mundo == null) {
+			return false;
+		}
+
+		final double pieX = this.getPieX();
+		final double pieY = this.getPieY();
+
+		final double dx = targetX - pieX;
+		final double dy = targetY - pieY;
+		final double dist = Math.sqrt((dx * dx) + (dy * dy));
+
+		if (dist <= distanciaMinimaFrenado) {
+			this.velActualX = 0.0;
+			this.velActualY = 0.0;
+			this.removerEstado(Estado.CAMINANDO);
+			if (!this.estaEstadoEstandar()) {
+				this.setEstadoEstandar();
+			}
+			return false;
+		}
+
+		final double paso = Math.min(this.velocidad, dist);
+		final double dirDeseadaX = (dx / dist) * paso;
+		final double dirDeseadaY = (dy / dist) * paso;
+
+		this.velActualX += (dirDeseadaX - this.velActualX) * this.agilidadGiro;
+		this.velActualY += (dirDeseadaY - this.velActualY) * this.agilidadGiro;
+
+		boolean movioX = false;
+		boolean movioY = false;
+
+		if (Math.abs(this.velActualX) > 0.001) {
+			if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(this.velActualX, 0.0))) {
+				this.modificarPosicionX(this.velActualX);
+				movioX = true;
+			} else {
+				this.velActualX = 0.0;
+			}
+		}
+
+		if (Math.abs(this.velActualY) > 0.001) {
+			if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(0.0, this.velActualY))) {
+				this.modificarPosicionY(this.velActualY);
+				movioY = true;
+			} else {
+				this.velActualY = 0.0;
+			}
+		}
+
+		if (!movioX && !movioY && (dist > 8.0)) {
+			final double nudge = this.velocidad * 0.75;
+			if (Math.abs(dx) > Math.abs(dy)) {
+				if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(0.0, nudge))) {
+					this.modificarPosicionY(nudge);
+					movioY = true;
+				} else if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(0.0, -nudge))) {
+					this.modificarPosicionY(-nudge);
+					movioY = true;
+				}
+			} else if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(nudge, 0.0))) {
+				this.modificarPosicionX(nudge);
+				movioX = true;
+			} else if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(-nudge, 0.0))) {
+				this.modificarPosicionX(-nudge);
+				movioX = true;
+			}
+		}
+
+		final boolean seMovio = movioX || movioY;
+
+		if (seMovio) {
+			if (actualizarDireccion) {
+				final double absX = Math.abs(this.velActualX);
+				final double absY = Math.abs(this.velActualY);
+
+				// Banda muerta de histéresis (Deadband): evita vibraciones alternadas en
+				// diagonales
+				if ((this.direccion == Direccion.ESTE) || (this.direccion == Direccion.OESTE)) {
+					if ((absY > (absX * 1.25)) && (absY > 0.05)) {
+						this.direccion = (this.velActualY > 0) ? Direccion.SUR : Direccion.NORTE;
+					} else if (absX > 0.01) {
+						this.direccion = (this.velActualX > 0) ? Direccion.ESTE : Direccion.OESTE;
+					}
+				} else if ((absX > (absY * 1.25)) && (absX > 0.05)) {
+					this.direccion = (this.velActualX > 0) ? Direccion.ESTE : Direccion.OESTE;
+				} else if (absY > 0.01) {
+					this.direccion = (this.velActualY > 0) ? Direccion.SUR : Direccion.NORTE;
+				}
+			}
+
+			if (!this.estaEstadoCaminando()) {
+				this.setEstadoCaminando();
+			}
+		} else {
+			this.velActualX *= 0.5;
+			this.velActualY *= 0.5;
+		}
+
+		return seMovio;
 	}
 
 	public int getFuerzaTotal() {
@@ -371,9 +666,9 @@ public abstract class Criatura extends Ente {
 
 		cantEvaluados = 0;
 
-		final double miCentroX = this.x + (this.ANCHO / 2.0);
-		final double miCentroY = this.y + (this.ALTO / 2.0);
-		final double miRadio = (this.ANCHO + this.ALTO) / 4.0;
+		final double miCentroX = this.getPieX();
+		final double miCentroY = this.getPieY();
+		final double miRadio = Math.max(4.0, (this.anchoColisionPies + this.altoColisionPies) / 4.0);
 
 		double acumuladoEmpujeX = 0.0;
 		double acumuladoEmpujeY = 0.0;
@@ -404,9 +699,9 @@ public abstract class Criatura extends Ente {
 					EVALUADOS_SEPARACION[cantEvaluados++] = otra;
 				}
 
-				final double otroCentroX = otra.x + (otra.ANCHO / 2.0);
-				final double otroCentroY = otra.y + (otra.ALTO / 2.0);
-				final double otroRadio = (otra.ANCHO + otra.ALTO) / 4.0;
+				final double otroCentroX = otra.getPieX();
+				final double otroCentroY = otra.getPieY();
+				final double otroRadio = Math.max(4.0, (otra.anchoColisionPies + otra.altoColisionPies) / 4.0);
 
 				final double dx = miCentroX - otroCentroX;
 				final double dy = miCentroY - otroCentroY;
@@ -436,12 +731,12 @@ public abstract class Criatura extends Ente {
 			acumuladoEmpujeY = (acumuladoEmpujeY / distEmpuje) * maxEmpujePorTick;
 		}
 
-		if ((this.mundo != null) && (Math.abs(acumuladoEmpujeX) > 0.0001)) {
+		if ((this.mundo != null) && (Math.abs(acumuladoEmpujeX) > 0.001)) {
 			if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(acumuladoEmpujeX, 0.0))) {
 				this.modificarPosicionX(acumuladoEmpujeX);
 			}
 		}
-		if ((this.mundo != null) && (Math.abs(acumuladoEmpujeY) > 0.0001)) {
+		if ((this.mundo != null) && (Math.abs(acumuladoEmpujeY) > 0.001)) {
 			if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(0.0, acumuladoEmpujeY))) {
 				this.modificarPosicionY(acumuladoEmpujeY);
 			}
@@ -492,6 +787,10 @@ public abstract class Criatura extends Ente {
 		}
 
 		if (this.mundo != null) {
+			if (causante != null) {
+				this.alertarAliadosCercanos(causante, 150.0);
+			}
+
 			final double dx = (causante != null) ? (this.getCentroX() - causante.getCentroX()) : 0.0;
 			final double dy = (causante != null) ? (this.getCentroY() - causante.getCentroY()) : 0.0;
 			final double dist = Math.sqrt((dx * dx) + (dy * dy));
@@ -638,108 +937,48 @@ public abstract class Criatura extends Ente {
 		return Math.max(0.0, Math.min(1.0, hpEnEstaCapa / capacidadEstaCapa));
 	}
 
-	protected void moverANodoADestino() {
+	public void moverANodoADestino() {
 		if (this.nodoADestino == null) {
 			this.nodoADestino = this.recorridoA.poll();
 			if (this.nodoADestino == null) {
-				this.velActualX = 0.0;
-				this.velActualY = 0.0;
+				this.detenerMovimiento();
 				return;
 			}
 		}
-
-		final double pieX = this.x + (this.ANCHO / 2.0);
-		final double pieY = (this.y + this.ALTO) - 3.0;
 
 		double targetX = this.nodoADestino.getXMundo() + (this.nodoADestino.getAncho() / 2.0);
 		double targetY = this.nodoADestino.getYMundo() + (this.nodoADestino.getAlto() / 2.0);
 
-		double diffX = targetX - pieX;
-		double diffY = targetY - pieY;
-		double distAlNodo = Math.sqrt((diffX * diffX) + (diffY * diffY));
+		final double pieX = this.getPieX();
+		final double pieY = this.getPieY();
 
-		NodoA siguienteNodo = this.recorridoA.peek();
-		boolean avanzarNodo = (distAlNodo <= Math.max(RADIO_LLEGADA_WAYPOINT, this.velocidad));
+		final double diffX = targetX - pieX;
+		final double dy = targetY - pieY;
+		final double distAlNodo = Math.sqrt((diffX * diffX) + (dy * dy));
 
-		if (!avanzarNodo && (siguienteNodo != null)) {
-			final double sigX = siguienteNodo.getXMundo() + (siguienteNodo.getAncho() / 2.0);
-			final double sigY = siguienteNodo.getYMundo() + (siguienteNodo.getAlto() / 2.0);
-
-			final double segX = sigX - targetX;
-			final double segY = sigY - targetY;
-			final double posRelX = pieX - targetX;
-			final double posRelY = pieY - targetY;
-
-			final double dot = (segX * posRelX) + (segY * posRelY);
-			if (dot > 0) {
-				avanzarNodo = true;
-			}
-		}
+		final boolean avanzarNodo = (distAlNodo <= Math.max(RADIO_LLEGADA_WAYPOINT, this.velocidad));
 
 		if (avanzarNodo) {
+			this.ticksTrabadoEnNodo = 0;
 			this.nodoADestino = this.recorridoA.poll();
 			if (this.nodoADestino == null) {
-				this.velActualX = 0.0;
-				this.velActualY = 0.0;
+				this.detenerMovimiento();
 				return;
 			}
-
 			targetX = this.nodoADestino.getXMundo() + (this.nodoADestino.getAncho() / 2.0);
 			targetY = this.nodoADestino.getYMundo() + (this.nodoADestino.getAlto() / 2.0);
-			diffX = targetX - pieX;
-			diffY = targetY - pieY;
-			distAlNodo = Math.sqrt((diffX * diffX) + (diffY * diffY));
-			siguienteNodo = this.recorridoA.peek();
 		}
 
-		if ((siguienteNodo != null) && (distAlNodo < RADIO_ANTICIPACION_ESQUINA)) {
-			final double sigX = siguienteNodo.getXMundo() + (siguienteNodo.getAncho() / 2.0);
-			final double sigY = siguienteNodo.getYMundo() + (siguienteNodo.getAlto() / 2.0);
+		final boolean seMovio = this.moverHaciaPuntoContinuo(targetX, targetY, 2.0);
 
-			final double t = 1.0 - (distAlNodo / RADIO_ANTICIPACION_ESQUINA);
-			targetX = targetX + ((sigX - targetX) * t);
-			targetY = targetY + ((sigY - targetY) * t);
-
-			diffX = targetX - pieX;
-			diffY = targetY - pieY;
-			distAlNodo = Math.sqrt((diffX * diffX) + (diffY * diffY));
-		}
-
-		if (distAlNodo > 0.001) {
-			final double paso = Math.min(this.velocidad, distAlNodo);
-			final double dirDeseadaX = (diffX / distAlNodo) * paso;
-			final double dirDeseadaY = (diffY / distAlNodo) * paso;
-
-			this.velActualX += (dirDeseadaX - this.velActualX) * this.agilidadGiro;
-			this.velActualY += (dirDeseadaY - this.velActualY) * this.agilidadGiro;
-
-			if (Math.abs(this.velActualX) > 0.001) {
-				if ((this.mundo != null) && !this.mundo
-						.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(this.velActualX, 0.0))) {
-					this.modificarPosicionX(this.velActualX);
-				} else {
-					this.velActualX = 0.0;
-				}
+		if (!seMovio && (distAlNodo < 16.0)) {
+			this.ticksTrabadoEnNodo++;
+			if (this.ticksTrabadoEnNodo > 15) {
+				this.ticksTrabadoEnNodo = 0;
+				this.nodoADestino = this.recorridoA.poll();
 			}
-			if (Math.abs(this.velActualY) > 0.001) {
-				if ((this.mundo != null) && !this.mundo
-						.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(0.0, this.velActualY))) {
-					this.modificarPosicionY(this.velActualY);
-				} else {
-					this.velActualY = 0.0;
-				}
-			}
-
-			if (Math.abs(this.velActualX) > Math.abs(this.velActualY)) {
-				this.direccion = (this.velActualX > 0) ? Direccion.ESTE : Direccion.OESTE;
-			} else if (Math.abs(this.velActualY) > 0.01) {
-				this.direccion = (this.velActualY > 0) ? Direccion.SUR : Direccion.NORTE;
-			}
-
-			this.setEstadoCaminando();
 		} else {
-			this.velActualX = 0.0;
-			this.velActualY = 0.0;
+			this.ticksTrabadoEnNodo = 0;
 		}
 	}
 
@@ -850,8 +1089,12 @@ public abstract class Criatura extends Ente {
 		if (this.mundo == null) {
 			return;
 		}
-		this.mundo.getAEstrellaX12X20().getRecorrido(this.getPosicionXInt(), this.getPosicionYInt(), xObjetivo,
-				yObjetivo, this.recorridoA);
+
+		final int startX = (int) Math.round(this.getPieX() - (this.anchoColisionPies / 2.0));
+		final int startY = (int) Math.round(this.getPieY() - (this.altoColisionPies / 2.0));
+
+		this.mundo.getAEstrellaX12X20().getRecorrido(startX, startY, xObjetivo, yObjetivo, this.clearanceRequerido,
+				this.recorridoA);
 		this.nodoADestino = this.recorridoA.poll();
 	}
 
@@ -888,19 +1131,19 @@ public abstract class Criatura extends Ente {
 		this.estados.clear();
 	}
 
-	protected void setEstadoCaminando() {
+	public void setEstadoCaminando() {
 		this.removerEstado(Estado.ESTANDAR);
 		this.removerEstado(Estado.CORRIENDO);
 		this.meterEstado(Estado.CAMINANDO);
 	}
 
-	protected void setEstadoCorriendo() {
+	public void setEstadoCorriendo() {
 		this.removerEstado(Estado.ESTANDAR);
 		this.removerEstado(Estado.CAMINANDO);
 		this.meterEstado(Estado.CORRIENDO);
 	}
 
-	protected void setEstadoEstandar() {
+	public void setEstadoEstandar() {
 		this.setEstadoUnico(Estado.ESTANDAR);
 	}
 
@@ -946,6 +1189,12 @@ public abstract class Criatura extends Ente {
 
 	public Direccion getDireccion() {
 		return this.direccion;
+	}
+
+	public void setDireccion(final Direccion direccion) {
+		if (direccion != null) {
+			this.direccion = direccion;
+		}
 	}
 
 	public boolean atrasDeComplemento() {
@@ -1028,32 +1277,23 @@ public abstract class Criatura extends Ente {
 
 	@Override
 	public void modificarPosicionX(final double desplazamientoX) {
-		if (desplazamientoX > 0) {
-			this.direccion = Direccion.ESTE;
-		} else if (desplazamientoX < 0) {
-			this.direccion = Direccion.OESTE;
-		}
 		this.x += desplazamientoX;
 		this.marcarPosicionModificada();
 	}
 
 	@Override
 	public void modificarPosicionY(final double desplazamientoY) {
-		if (desplazamientoY > 0) {
-			this.direccion = Direccion.SUR;
-		} else if (desplazamientoY < 0) {
-			this.direccion = Direccion.NORTE;
-		}
 		this.y += desplazamientoY;
 		this.marcarPosicionModificada();
 	}
 
-	protected void reiniciarRecorridoAEstrella() {
+	public void reiniciarRecorridoAEstrella() {
 		this.recorridoA.clear();
 		this.nodoADestino = null;
+		this.ticksTrabadoEnNodo = 0;
 	}
 
-	protected void setDireccionMirandoCriatura(final Criatura c) {
+	public void setDireccionMirandoCriatura(final Criatura c) {
 		if (c != null) {
 			this.direccion = Globales.FUNCIONES.getDireccionMirando(this.getPosicionXInt(), this.getPosicionYInt(),
 					c.getPosicionXInt(), c.getPosicionYInt());

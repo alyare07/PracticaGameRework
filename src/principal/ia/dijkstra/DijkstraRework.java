@@ -55,7 +55,6 @@ public class DijkstraRework {
 
 	public DijkstraRework(final Mundo mundo, final Dimension dimension) {
 		this.mundo = mundo;
-		// Alineacion estricta con el terreno
 		this.dimensionNodo = new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE);
 
 		final double radioPx = Math.hypot(Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO) * 1.35;
@@ -201,7 +200,6 @@ public class DijkstraRework {
 
 				final NodoD nodoAct = this.nodos[nx][ny];
 
-				// LECTURA LOCK-FREE: No accede a ZoneBox ni a colecciones dinámicas
 				if ((nodoAct == null) || (nodoAct.getClearance() < 1)) {
 					continue;
 				}
@@ -278,6 +276,10 @@ public class DijkstraRework {
 		return this.nodos[nx][ny];
 	}
 
+	/**
+	 * Retorna la celda en la grilla que ocupa la posición dada (o la celda
+	 * transitable contigua con menor distancia calculada si la actual es sólida).
+	 */
 	public NodoD getNodoCercano(final int x, final int y) {
 		final int targetCodAct = this.codActCompleto;
 		final int readBuf = Math.abs(targetCodAct % 2);
@@ -294,12 +296,7 @@ public class DijkstraRework {
 
 		if ((nodoActual != null) && (nodoActual.getCodAct(readBuf) == targetCodAct)
 				&& (nodoActual.getDistancia(readBuf) != Double.MAX_VALUE)) {
-			if (nodoActual.getDistancia(readBuf) == 0) {
-				return nodoActual;
-			}
-			if (nodoActual.getNodoProcedente(readBuf) != null) {
-				return nodoActual.getNodoProcedente(readBuf);
-			}
+			return nodoActual;
 		}
 
 		NodoD nodoCercano = null;

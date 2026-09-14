@@ -27,6 +27,7 @@ import principal.entes.objetos.items.equipamiento.PiezaEquipo;
 import principal.entes.objetos.items.equipamiento.TipoAislamiento;
 import principal.entes.proyectil.GolpeMele;
 import principal.ia.Lista;
+import principal.ia.RastroPosicion;
 import principal.ia.aEstrella.NodoA;
 import principal.ia.dijkstra.DijkstraRework;
 import principal.ia.dijkstra.NodoD;
@@ -45,11 +46,9 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Representa al personaje jugable con física diagonal normalizada, escalado
- * reactivo de Inteligencia (INT) en estamina, termodinámica clasificada y
- * persistencia JSON completa.
+ * Jugador principal con registrador de rastro espacial de huellas continuas.
  * 
- * @version 5.2 (Vanilla Java 8 - Full Save/Load State Integration)
+ * @version 5.3 (Vanilla Java 8 - Trail Emitter Integration)
  */
 public class Jugador extends Criatura {
 
@@ -103,6 +102,9 @@ public class Jugador extends Criatura {
 	private final Point PUNTO_AUXILIAR = new Point();
 
 	protected long dineroPlata = 0;
+
+	// Rastro de posiciones físicamente transitables por donde el jugador ya pasó
+	private final RastroPosicion rastro = new RastroPosicion();
 
 	private final AccionEntidad<Item> accionRecogidaItem = new AccionEntidad<Item>() {
 		@Override
@@ -288,9 +290,16 @@ public class Jugador extends Criatura {
 		this.actualizarRecarga();
 		this.actualizarAtaque();
 
+		// Actualiza el rastro de huellas seguras para acompañantes y perseguidores
+		this.rastro.actualizar(this.getCentroX(), this.getCentroY());
+
 		if (Animaciones.JUGADOR != null) {
 			Animaciones.JUGADOR.actualizar(this);
 		}
+	}
+
+	public RastroPosicion getRastro() {
+		return this.rastro;
 	}
 
 	private void actualizarRecarga() {
@@ -1341,10 +1350,6 @@ public class Jugador extends Criatura {
 		return NOMBRE;
 	}
 
-	// =========================================================================
-	// SERIALIZACIÓN Y DESERIALIZACIÓN COMPLETA DE ESTADO (SAVE/LOAD)
-	// =========================================================================
-
 	@SuppressWarnings("unchecked")
 	@Override
 	public JSONObject exportarParaJSON() {
@@ -1364,7 +1369,6 @@ public class Jugador extends Criatura {
 		json.put("dineroPlata", Long.valueOf(this.dineroPlata));
 		json.put("modoDios", Boolean.valueOf(this.modoDios));
 
-		// Serializar inventario completo
 		if ((Globales.GESTOR_INVENTARIO != null) && (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
 			json.put("inventario", Globales.GESTOR_INVENTARIO.getInventarioJugador().exportarInventarioJSON());
 		}
@@ -1408,7 +1412,6 @@ public class Jugador extends Criatura {
 			this.modoDios = Boolean.parseBoolean(json.get("modoDios").toString());
 		}
 
-		// Importar inventario y equipamiento
 		if ((json.get("inventario") instanceof JSONObject) && (Globales.GESTOR_INVENTARIO != null)
 				&& (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
 			Globales.GESTOR_INVENTARIO.getInventarioJugador()

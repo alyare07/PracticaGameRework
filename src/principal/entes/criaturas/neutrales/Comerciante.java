@@ -15,22 +15,21 @@ import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Jugador;
 import principal.entes.facciones.GestorFacciones;
 import principal.entes.objetos.items.Item;
+import principal.ia.arbol.FabricaArbolesIA;
 import principal.iluminacion.CicloDiaNoche;
 import principal.iluminacion.Estacion;
 import principal.interaccion.Interactuable;
 import principal.inventario.Contenedor;
 import principal.inventario.tienda.InventarioTienda;
 import principal.inventario.vault.InventarioVault;
-import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 
 /**
- * NPC Mercader con soporte para stock infinito o finito, catálogo plantilla
- * perenne, catálogos estacionales dedicados (Primavera, Verano, Otoño,
- * Invierno) y renovación inteligente por calendario (Lunes / Estación /
- * Intervalo) con persistencia íntegra.
+ * NPC Mercader con soporte de autopreservación, retorno a su tienda y catálogo
+ * estacional (Zero-GC).
  * 
- * @version 4.0 (Vanilla Java 8 - Seasonal Catalog & Canonical Restock Engine)
+ * @version 6.0 (Vanilla Java 8 - Threat Evasion & Shop Return Anchor
+ *          Integration)
  */
 public class Comerciante extends Criatura implements Contenedor, Interactuable {
 
@@ -38,21 +37,16 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 	private final InventarioTienda INVENTARIO;
 	private final AnimacionesComerciante ANIMACION;
 
-	// 1. Catálogo Base (Mercancía perenne vendida todo el año: comida, munición,
-	// antorchas)
 	private final ArrayList<Item> catalogoPlantilla = new ArrayList<Item>();
 
-	// 2. Catálogos Estacionales en O(1) indexados por Estacion.ordinal()
 	@SuppressWarnings("unchecked")
 	private final ArrayList<Item>[] catalogosEstacionales = new ArrayList[4];
 
-	// 3. Configuración de renovación automática
 	private boolean renovacionAutomatica = false;
 	private ModoRenovacion modoRenovacion = ModoRenovacion.POR_INTERVALO_DIAS;
-	private int intervaloDiasRenovacion = 3; // Usado solo en ModoRenovacion.POR_INTERVALO_DIAS
+	private int intervaloDiasRenovacion = 3;
 	private int ultimoDiaRenovado = 1;
 
-	private final GestorTiempo GT_PAUSA_MIRADA = new GestorTiempo();
 	private static final Random RANDOM = new Random();
 
 	public Comerciante(final double x, final double y, final String nombre, final double vidaMaxima) {
@@ -70,7 +64,9 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 
 		this.direccion = Direccion.SUR;
 		this.setEstadoUnico(Estado.ESTANDAR);
-		this.GT_PAUSA_MIRADA.establecerReferenciaTiempoActual();
+
+		this.configurarFootprint(10, 8, 0);
+		this.arbolComportamiento = FabricaArbolesIA.ARBOL_NPC_COMERCIANTE;
 
 		if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
 			this.ultimoDiaRenovado = Globales.GESTOR_LUZ.getCiclo().getDiaActual();
@@ -86,17 +82,9 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		super.actualizar();
 
 		this.INVENTARIO.actualizarEstadoCofre();
-
-		// Comprobar renovación periódica de stock por calendario
 		this.actualizarRenovacionStock();
 
-		// Mirar a diferentes lados periódicamente si está ocioso
-		if (!this.estaEstadoCaminando() && this.GT_PAUSA_MIRADA.transcurrioMiliSegundos(4000 + RANDOM.nextInt(3000))) {
-			this.GT_PAUSA_MIRADA.establecerReferenciaTiempoActual();
-			this.direccion = DIRECCIONES_ARRAY[RANDOM.nextInt(DIRECCIONES_ARRAY.length)];
-		}
-
-		final int tipoAnim = this.estaEstadoCaminando() ? AnimacionesComerciante.CAMINANDO
+		final int tipoAnim = this.estaEnMovimientoFisico() ? AnimacionesComerciante.CAMINANDO
 				: AnimacionesComerciante.ESTANDAR;
 		this.ANIMACION.actualizar(this.direccion, tipoAnim);
 
@@ -105,10 +93,6 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		}
 	}
 
-	/**
-	 * Evalúa en O(1) si corresponde renovar el stock según la estrategia
-	 * configurada.
-	 */
 	private void actualizarRenovacionStock() {
 		if (!this.renovacionAutomatica || (Globales.GESTOR_LUZ == null) || (Globales.GESTOR_LUZ.getCiclo() == null)) {
 			return;
@@ -121,16 +105,11 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 
 		switch (this.modoRenovacion) {
 		case CADA_LUNES:
-			// Se reabastece los lunes (índice 0) solo si no se reabasteció ya este mismo
-			// día
 			debeRenovar = (ciclo.getIndiceDiaSemana() == 0) && (diaActual != this.ultimoDiaRenovado);
 			break;
-
 		case CADA_ESTACION:
-			// Se reabastece el día 1 de cada estación (Días 1, 29, 57, 85)
 			debeRenovar = (ciclo.getDiaDeLaEstacion() == 1) && (diaActual != this.ultimoDiaRenovado);
 			break;
-
 		case POR_INTERVALO_DIAS:
 		default:
 			debeRenovar = (diaActual - this.ultimoDiaRenovado) >= this.intervaloDiasRenovacion;
@@ -143,9 +122,6 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		}
 	}
 
-	/**
-	 * Añade un ítem que se venderá todo el año y lo guarda en la plantilla perenne.
-	 */
 	public void registrarMercanciaInicial(final Item item) {
 		if (item != null) {
 			this.INVENTARIO.agregarItem(item);
@@ -153,19 +129,10 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		}
 	}
 
-	/**
-	 * Registra un ítem exclusivo que solo aparecerá a la venta durante una estación
-	 * específica.
-	 * 
-	 * @param estacion Estación en la que estará disponible.
-	 * @param item     Ítem a vender (se copiará de forma segura).
-	 */
 	public void registrarMercanciaEstacional(final Estacion estacion, final Item item) {
 		if ((estacion != null) && (item != null)) {
 			this.catalogosEstacionales[estacion.ordinal()].add((Item) item.copiar());
 
-			// Si el comerciante está en esa estación actualmente, ponerlo a la venta de
-			// inmediato
 			if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
 				if (Globales.GESTOR_LUZ.getCiclo().getEstacionActual() == estacion) {
 					this.INVENTARIO.agregarItem((Item) item.copiar());
@@ -174,19 +141,13 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		}
 	}
 
-	/**
-	 * Restablece la tienda cargando el Catálogo Base + el Catálogo de la Estación
-	 * activa.
-	 */
 	public void renovarMercancia() {
 		this.INVENTARIO.vaciar();
 
-		// 1. Cargar catálogo perenne (todo el año)
 		for (int i = 0; i < this.catalogoPlantilla.size(); i++) {
 			this.INVENTARIO.agregarItem((Item) this.catalogoPlantilla.get(i).copiar());
 		}
 
-		// 2. Cargar catálogo de la estación activa (si tiene ítems registrados)
 		if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
 			final Estacion est = Globales.GESTOR_LUZ.getCiclo().getEstacionActual();
 			final ArrayList<Item> listaEstacional = this.catalogosEstacionales[est.ordinal()];
@@ -195,10 +156,6 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 			}
 		}
 	}
-
-	// =========================================================================
-	// CONFIGURACIÓN DE RENOVACIÓN Y STOCK
-	// =========================================================================
 
 	public void setStockInfinito(final boolean infinito) {
 		this.INVENTARIO.setStockInfinito(infinito);
@@ -254,12 +211,11 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		this.ultimoDiaRenovado = dia;
 	}
 
-	// =========================================================================
-	// INTERACCIÓN Y DIÁLOGOS ESTACIONALES / CONTEXTUALES
-	// =========================================================================
-
 	@Override
 	public String getTextoPrompt() {
+		if (this.tieneEstado(Estado.HUYENDO) || this.blackboard.isEnPanico()) {
+			return "¡" + this.nombre + " está huyendo!";
+		}
 		return "Hablar con " + this.nombre;
 	}
 
@@ -269,8 +225,16 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 			return;
 		}
 
-		this.setDireccionMirandoCriatura(jugador);
+		// Si está en peligro o huyendo, no abre la tienda y pide auxilio
+		if (this.tieneEstado(Estado.HUYENDO) || this.blackboard.isEnPanico()) {
+			this.setDireccionMirandoCriatura(jugador);
+			final MensajeDialogo dialogoPanico = new MensajeDialogo(this.nombre, new Color(255, 70, 70),
+					"¡Por los cielos, me están atacando! ¡No puedo comerciar ahora, ayúdame!", null);
+			Globales.GESTOR_DIALOGOS.iniciarDialogo(dialogoPanico);
+			return;
+		}
 
+		this.setDireccionMirandoCriatura(jugador);
 		final String saludo = this.obtenerSaludoContextual();
 
 		final MensajeDialogo dialogoComercio = new MensajeDialogo(this.nombre, new Color(255, 215, 80), saludo, null);
@@ -331,11 +295,10 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		final int drawX = this.getPosicionXIntDibujado();
 		final int drawY = this.getPosicionYIntDibujado();
 		final boolean flash = this.estaEnFlashDanio();
-		final int tipoAnim = this.estaEstadoCaminando() ? AnimacionesComerciante.CAMINANDO
+		final int tipoAnim = this.estaEnMovimientoFisico() ? AnimacionesComerciante.CAMINANDO
 				: AnimacionesComerciante.ESTANDAR;
 
 		this.ANIMACION.pintar(g, drawX, drawY, this.direccion, tipoAnim, this.atrasDeComplemento, true, flash);
-
 		super.pintar(g);
 	}
 
@@ -371,10 +334,6 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		return this.nombre;
 	}
 
-	// =========================================================================
-	// PERSISTENCIA JSON CON SOPORTE DE CALENDARIO
-	// =========================================================================
-
 	@SuppressWarnings("unchecked")
 	@Override
 	protected JSONObject exportarParaJSON() {
@@ -389,14 +348,12 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		json.put("intervaloRenovacion", Integer.valueOf(this.intervaloDiasRenovacion));
 		json.put("ultimoDiaRenovado", Integer.valueOf(this.ultimoDiaRenovado));
 
-		// 1. Stock activo actual
 		final JSONArray itemsArray = new JSONArray();
 		for (final Item i : this.INVENTARIO.getItems()) {
 			itemsArray.add(i.getJsonItem());
 		}
 		json.put("stock", itemsArray);
 
-		// 2. Catálogos estacionales registrados (opcional)
 		final JSONObject jsonEstacional = new JSONObject();
 		for (int est = 0; est < 4; est++) {
 			final ArrayList<Item> lista = this.catalogosEstacionales[est];
@@ -446,7 +403,6 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 			comerciante.setUltimoDiaRenovado(((Number) json.get("ultimoDiaRenovado")).intValue());
 		}
 
-		// 1. Cargar stock perenne activo (100% retrocompatible con mapas existentes)
 		if (json.get("stock") instanceof JSONArray) {
 			final JSONArray itemsArray = (JSONArray) json.get("stock");
 			for (final Object obj : itemsArray) {
@@ -459,7 +415,6 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 			}
 		}
 
-		// 2. Cargar catálogos estacionales si existen
 		if (json.get("stockEstacional") instanceof JSONObject) {
 			final JSONObject jEst = (JSONObject) json.get("stockEstacional");
 			for (final Estacion est : Estacion.VALORES) {

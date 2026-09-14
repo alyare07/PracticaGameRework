@@ -7,22 +7,17 @@ import java.util.ArrayDeque;
 import principal.mapa.Mundo;
 
 /**
- * Sistema de búsqueda de caminos óptimos punto a punto mediante A* (A-Star).
+ * Motor A* con tolerancia geométrica de paso en pasillos estrechos y
+ * autorrecuperación de origen para agentes de hasta 64x64 (Zero-GC).
  * 
- * Optimizaciones Aplicadas: 1. Zero-Allocation (0 bytes GC): Montículo binario
- * plano (`MinHeapAEstrella`) reutilizable sin instanciar objetos intermedios.
- * 2. Reconstrucción de camino en 1 pasada O(N) con `ArrayDeque.addFirst()`,
- * eliminando listas temporales intermedias. 3. Filtrado instantáneo de
- * obstáculos fijos (`inmodificable`) y distancias al cuadrado sin cálculo de
- * raíces cuadradas (`Math.hypot`). 4. Precisión espacial en coordenadas
- * negativas con `Math.floorDiv`.
+ * @version 3.2 (Vanilla Java 8 - Bi-Directional Clearance Snapping)
  */
 public class AEstrella {
 
 	private static final float COSTO_DIAGONAL = 1.41421356f;
 	private static final float COSTO_ORTOGONAL = 1.0f;
+	private static final int MAX_NODOS_EXPANDIDOS = 750;
 
-	// Desplazamientos de 8 direcciones adyacentes
 	private static final int[] OFFSET_X = { -1, 0, 1, -1, 1, -1, 0, 1 };
 	private static final int[] OFFSET_Y = { -1, -1, -1, 0, 0, 1, 1, 1 };
 
@@ -42,40 +37,43 @@ public class AEstrella {
 		this.cajaColisionAux = new Rectangle();
 
 		this.generarNodos();
-		// Capacidad estimada inicial para cubrir búsquedas de tamaño medio/grande
+		this.calcularMatrizClearance();
+
 		this.listaAbierta = new MinHeapAEstrella(
 				Math.min(4096, Math.max(512, (this.anchoMatriz * this.altoMatriz) / 4)));
 	}
 
-	/**
-	 * Calcula el camino óptimo desde una posición inicial en píxeles hasta el
-	 * destino. Escribe la ruta en el contenedor `recorrido` pasado por referencia
-	 * (0 asignaciones).
-	 *
-	 * @param xInicial  Posición X inicial en píxeles del mundo.
-	 * @param yInicial  Posición Y inicial en píxeles del mundo.
-	 * @param xObjetivo Posición X objetivo en píxeles del mundo.
-	 * @param yObjetivo Posición Y objetivo en píxeles del mundo.
-	 * @param recorrido Contenedor de salida donde se insertará la secuencia de
-	 *                  nodos.
-	 */
 	public void getRecorrido(final int xInicial, final int yInicial, final int xObjetivo, final int yObjetivo,
 			final ArrayDeque<NodoA> recorrido) {
+		this.getRecorrido(xInicial, yInicial, xObjetivo, yObjetivo, (byte) 1, recorrido);
+	}
+
+	public void getRecorrido(final int xInicial, final int yInicial, final int xObjetivo, final int yObjetivo,
+			final int clearanceRequerido, final ArrayDeque<NodoA> recorrido) {
 
 		recorrido.clear();
 
-		final NodoA nodoInicial = this.getNodoRef(xInicial, yInicial);
+		final int clearanceEfectivo = Math.max(1, clearanceRequerido);
+		NodoA nodoInicial = this.getNodoRef(xInicial, yInicial);
 		NodoA nodoObjetivo = this.getNodoRef(xObjetivo, yObjetivo);
 
 		if ((nodoInicial == null) || (nodoObjetivo == null) || (nodoInicial == nodoObjetivo)) {
 			return;
 		}
 
-		// Si el destino exacto es sólido, buscamos la casilla libre contigua más
-		// cercana
-		if (this.colisiona(nodoObjetivo)) {
-			nodoObjetivo = this.obtenerVecinoTransitableMasCercano(nodoObjetivo, nodoInicial);
+		// 1. Autorrecuperación del Nodo Objetivo si este cae en un obstáculo o carece
+		// de clearance
+		if (!nodoObjetivo.admiteClearance(clearanceEfectivo)) {
+			nodoObjetivo = this.obtenerVecinoTransitableConClearance(nodoObjetivo, nodoInicial, clearanceEfectivo);
 			if ((nodoObjetivo == null) || (nodoObjetivo == nodoInicial)) {
+				return;
+			}
+		}
+
+		// 2. Autorrecuperación del Nodo Inicial si la criatura roza una pared o árbol
+		if (!nodoInicial.admiteClearance(clearanceEfectivo)) {
+			nodoInicial = this.obtenerVecinoTransitableConClearance(nodoInicial, nodoObjetivo, clearanceEfectivo);
+			if ((nodoInicial == null) || (nodoInicial == nodoObjetivo)) {
 				return;
 			}
 		}
@@ -88,10 +86,13 @@ public class AEstrella {
 		nodoInicial.setEstado(NodoA.ESTADO_ABIERTA);
 		this.listaAbierta.push(nodoInicial, nodoInicial.getCostoF(), nodoInicial.getCostoH());
 
+		int nodosProcesados = 0;
+		NodoA nodoMasCercanoAlcanzado = nodoInicial;
+		float menorCostoH = nodoInicial.getCostoH();
+
 		while (!this.listaAbierta.isEmpty()) {
 			final NodoA nodoAct = this.listaAbierta.poll();
 
-			// Lazy Deletion: Ignoramos entradas obsoletas si el nodo ya fue cerrado
 			if (nodoAct.getEstado() == NodoA.ESTADO_CERRADA) {
 				continue;
 			}
@@ -101,7 +102,20 @@ public class AEstrella {
 				return;
 			}
 
+			nodosProcesados++;
+			if (nodosProcesados >= MAX_NODOS_EXPANDIDOS) {
+				if ((nodoMasCercanoAlcanzado != null) && (nodoMasCercanoAlcanzado != nodoInicial)) {
+					this.reconstruirCamino(recorrido, nodoMasCercanoAlcanzado);
+				}
+				return;
+			}
+
 			nodoAct.setEstado(NodoA.ESTADO_CERRADA);
+
+			if (nodoAct.getCostoH() < menorCostoH) {
+				menorCostoH = nodoAct.getCostoH();
+				nodoMasCercanoAlcanzado = nodoAct;
+			}
 
 			final int xAct = nodoAct.getXNodo();
 			final int yAct = nodoAct.getYNodo();
@@ -121,13 +135,13 @@ public class AEstrella {
 				}
 
 				if ((vecino.getEstado() == NodoA.ESTADO_CERRADA) || vecino.isInmodificable()
-						|| this.colisiona(vecino)) {
+						|| !vecino.admiteClearance(clearanceEfectivo)) {
 					continue;
 				}
 
 				final boolean esDiagonal = (OFFSET_X[i] != 0) && (OFFSET_Y[i] != 0);
 
-				if (esDiagonal && this.cortaEsquina(nodoAct, nx, ny)) {
+				if (esDiagonal && this.cortaEsquina(nodoAct, nx, ny, clearanceEfectivo)) {
 					continue;
 				}
 
@@ -141,14 +155,14 @@ public class AEstrella {
 				}
 			}
 		}
+
+		if ((nodoMasCercanoAlcanzado != null) && (nodoMasCercanoAlcanzado != nodoInicial)) {
+			this.reconstruirCamino(recorrido, nodoMasCercanoAlcanzado);
+		}
 	}
 
-	/**
-	 * Si la casilla destino está bloqueada, busca el vecino transitable más próximo
-	 * al origen. Utiliza distancias al cuadrado para evitar el cálculo de raíces
-	 * cuadradas (Math.hypot).
-	 */
-	private NodoA obtenerVecinoTransitableMasCercano(final NodoA objetivoSolido, final NodoA origen) {
+	private NodoA obtenerVecinoTransitableConClearance(final NodoA objetivoSolido, final NodoA origen,
+			final int clearanceRequerido) {
 		NodoA mejorVecino = null;
 		int menorDistSq = Integer.MAX_VALUE;
 
@@ -160,7 +174,7 @@ public class AEstrella {
 			final int ny = objetivoSolido.getYNodo() + OFFSET_Y[i];
 			final NodoA v = this.getNodo(nx, ny);
 
-			if ((v != null) && !v.isInmodificable() && !this.colisiona(v)) {
+			if ((v != null) && !v.isInmodificable() && v.admiteClearance(clearanceRequerido)) {
 				final int dx = v.getXNodo() - origenX;
 				final int dy = v.getYNodo() - origenY;
 				final int distSq = (dx * dx) + (dy * dy);
@@ -174,29 +188,28 @@ public class AEstrella {
 		return mejorVecino;
 	}
 
-	private boolean cortaEsquina(final NodoA origen, final int vecinoX, final int vecinoY) {
+	private boolean cortaEsquina(final NodoA origen, final int vecinoX, final int vecinoY,
+			final int clearanceRequerido) {
 		final NodoA ortogonal1 = this.getNodo(vecinoX, origen.getYNodo());
 		final NodoA ortogonal2 = this.getNodo(origen.getXNodo(), vecinoY);
 
-		return (ortogonal1 == null) || ortogonal1.isInmodificable() || this.colisiona(ortogonal1)
-				|| (ortogonal2 == null) || ortogonal2.isInmodificable() || this.colisiona(ortogonal2);
+		final boolean lado1Bloqueado = (ortogonal1 == null) || ortogonal1.isInmodificable()
+				|| !ortogonal1.admiteClearance(clearanceRequerido);
+		final boolean lado2Bloqueado = (ortogonal2 == null) || ortogonal2.isInmodificable()
+				|| !ortogonal2.admiteClearance(clearanceRequerido);
+
+		return lado1Bloqueado && lado2Bloqueado;
 	}
 
-	/**
-	 * Reconstruye el camino excluyendo el nodo de partida (nodoInicial) para que el
-	 * primer destino sea directamente el primer paso hacia adelante.
-	 */
 	private void reconstruirCamino(final ArrayDeque<NodoA> destino, final NodoA nodoObjetivo) {
 		NodoA actual = nodoObjetivo;
-		// El nodo inicial tiene nodoProcedente == null, por lo que este bucle lo
-		// excluye automáticamente
 		while ((actual != null) && (actual.getNodoProcedente() != null)) {
 			destino.addFirst(actual);
 			actual = actual.getNodoProcedente();
 		}
 	}
 
-	private boolean colisiona(final NodoA n) {
+	public boolean colisiona(final NodoA n) {
 		if (n == null) {
 			return true;
 		}
@@ -204,7 +217,9 @@ public class AEstrella {
 			return true;
 		}
 
-		this.cajaColisionAux.setBounds(n.getXMundo(), n.getYMundo(), n.getAncho(), n.getAlto());
+		final int margen = 2;
+		this.cajaColisionAux.setBounds(n.getXMundo() + margen, n.getYMundo() + margen, n.getAncho() - (margen * 2),
+				n.getAlto() - (margen * 2));
 
 		return this.mundo.getTerreno().intersectaSolidoDijkstra(this.cajaColisionAux)
 				|| this.mundo.colisionaConObjetoSolido(this.cajaColisionAux);
@@ -225,6 +240,7 @@ public class AEstrella {
 
 	public void recalcularGrilla() {
 		this.generarNodos();
+		this.calcularMatrizClearance();
 	}
 
 	public NodoA getNodoRef(final int xRef, final int yRef) {
@@ -254,10 +270,6 @@ public class AEstrella {
 		}
 	}
 
-	/**
-	 * Recalcula en O(W x H) la holgura espacial (Clearance) de cada celda ante
-	 * cambios dinámicos en el mapa (muros construidos o destruidos).
-	 */
 	public void calcularMatrizClearance() {
 		for (int y = this.altoMatriz - 1; y >= 0; y--) {
 			for (int x = this.anchoMatriz - 1; x >= 0; x--) {
@@ -283,7 +295,7 @@ public class AEstrella {
 		final int xPx = xMatriz * this.dimensionNodo.width;
 		final int yPx = yMatriz * this.dimensionNodo.height;
 
-		this.cajaColisionAux.setBounds(xPx, yPx, this.dimensionNodo.width, this.dimensionNodo.height);
+		this.cajaColisionAux.setBounds(xPx + 2, yPx + 2, this.dimensionNodo.width - 4, this.dimensionNodo.height - 4);
 		return this.mundo.getTerreno().intersectaSolidoDijkstra(this.cajaColisionAux)
 				|| this.mundo.colisionaConAlgoSolidoPermanente(this.cajaColisionAux);
 	}

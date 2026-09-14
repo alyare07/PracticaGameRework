@@ -7,6 +7,12 @@ import principal.entes.criaturas.enemigos.Enemigo;
 import principal.entes.facciones.GestorFacciones;
 import principal.mapa.Mundo;
 
+/**
+ * Base abstracta para la facción de Bandidos con sincronización de pasos
+ * físicos reales y footprint estándar equiparado al jugador (8x8).
+ * 
+ * @version 4.1 (Vanilla Java 8 - Standard 8x8 Humanoid Footprint)
+ */
 public abstract class Bandido extends Enemigo {
 
 	protected final AnimacionesBandido ANIMACION;
@@ -16,6 +22,7 @@ public abstract class Bandido extends Enemigo {
 
 		this.setFaccion(GestorFacciones.FACCION_BANDIDOS);
 		this.ANIMACION = new AnimacionesBandido();
+		this.configurarFootprint(8, 8, 0);
 	}
 
 	@Override
@@ -30,7 +37,7 @@ public abstract class Bandido extends Enemigo {
 	}
 
 	protected int obtenerClaveAnimacionActiva() {
-		return this.estaEstadoCaminando() ? AnimacionesBandido.CAMINANDO : AnimacionesBandido.ESTANDAR;
+		return this.estaEnMovimientoFisico() ? AnimacionesBandido.CAMINANDO : AnimacionesBandido.ESTANDAR;
 	}
 
 	@Override
@@ -58,30 +65,5 @@ public abstract class Bandido extends Enemigo {
 	@Override
 	public String exportarTipoCriatura() {
 		return "Bandido";
-	}
-
-	@Override
-	protected int getTiempoMsEsperaRegenVida() {
-		return 10000;
-	}
-
-	@Override
-	protected int getTiempoMsEsperaAtacado() {
-		return 7000;
-	}
-
-	@Override
-	protected int getTiempoMsBusquedaFueraRango() {
-		return 8000;
-	}
-
-	@Override
-	protected int getTiempoMsEsperaAtaqueInicial() {
-		return 1000;
-	}
-
-	@Override
-	protected int getTiempoMsEsperaRetomarAtaque() {
-		return 750;
 	}
 }

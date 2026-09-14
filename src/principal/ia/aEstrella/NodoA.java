@@ -4,7 +4,9 @@ import java.awt.Dimension;
 
 /**
  * Representa una celda individual dentro de la grilla de búsqueda del algoritmo
- * A*. Soporta Clearance (Holgura de tamaño de agente) en O(1).
+ * A*. Soporta Clearance (Holgura de tamaño de agente de 1 a 4 tiles) en O(1).
+ * 
+ * @version 3.0 (Vanilla Java 8 - Dynamic Multi-Size Clearance)
  */
 public class NodoA {
 
@@ -29,7 +31,10 @@ public class NodoA {
 	private byte estado;
 	private NodoA nodoProcedente;
 
-	/** Holgura espacial de paso (1 = 16x16, 2 = 32x32, 4 = 64x64) */
+	/**
+	 * Holgura espacial de paso en celdas (1 = 16x16, 2 = 32x32, 3 = 48x48, 4 =
+	 * 64x64). Representa el tamaño de la caja libre hacia la derecha y hacia abajo.
+	 */
 	private byte clearance = 1;
 
 	public NodoA(final int xNodo, final int yNodo, final Dimension dimension, final boolean inmodificable) {
@@ -66,6 +71,7 @@ public class NodoA {
 		final float dx = Math.abs(this.xNodo - objetivo.xNodo);
 		final float dy = Math.abs(this.yNodo - objetivo.yNodo);
 
+		// Heurística Octile optimizada
 		this.costoH = Math.max(dx, dy) + (SQRT_2_MINUS_ONE * Math.min(dx, dy));
 		this.costoF = this.costoG + this.costoH;
 	}
@@ -83,6 +89,10 @@ public class NodoA {
 
 	public void setClearance(final byte clearance) {
 		this.clearance = clearance;
+	}
+
+	public boolean admiteClearance(final int clearanceRequerido) {
+		return this.clearance >= clearanceRequerido;
 	}
 
 	public int getXNodo() {

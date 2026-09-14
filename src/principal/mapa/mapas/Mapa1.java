@@ -9,8 +9,8 @@ import org.json.simple.JSONObject;
 
 import principal.entes.criaturas.enemigos.bandido.Bandido;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
+import principal.entes.criaturas.mascotas.Mascota;
 import principal.entes.criaturas.neutrales.Comerciante;
-import principal.entes.facciones.GestorFacciones;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.items.armas.distancia.fuego.automaticas.AmetralladoraPesada;
 import principal.entes.objetos.items.armas.distancia.fuego.automaticas.RifleAsalto;
@@ -113,7 +113,6 @@ public class Mapa1 extends Mapa {
 	@Override
 	protected void cargarFuncionalidadesPropias() {
 		final GestorJuego jg = this.GP.getGestorJuego();
-		Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
 		new PuertaArea(new Rectangle(832, 333, 16, 16));
 
 		final Mundo mExt = this.MUNDOS.get(EXTERIOR);
@@ -169,6 +168,9 @@ public class Mapa1 extends Mapa {
 			mercader.registrarMercanciaInicial(CajaMunicion.crear9mm(0, 0, 60));
 
 			this.mundoActual.meterEntidad(mercader);
+			// Instanciar la mascota cerca del jugador en el mapa exterior
+			final Mascota companiero = new Mascota(1885, 1800, "Loki", 100.0);
+			mExt.meterEntidad(companiero);
 		}
 
 		Globales.JUGADOR.setModoDios(true);

@@ -439,6 +439,14 @@ public class CicloDiaNoche {
 		return this.duracionDiaSegundos;
 	}
 
+	/**
+	 * Métrica continua monótona de tiempo de juego en horas. Inmune a reinicios de
+	 * medianoche o descansos en cama (Zero-GC / O(1)).
+	 */
+	public double getHorasTotalesJuego() {
+		return ((this.diaActual - 1) * 24.0) + this.horaActual;
+	}
+
 	/** Método de retrocompatibilidad. */
 	public String getTextoDia() {
 		return this.cachedTextoLinea1HUD;

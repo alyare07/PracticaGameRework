@@ -135,6 +135,7 @@ public class GestorEstados {
 	public void abrirMenuConfiguracionGrafica(final boolean esDesdePausa) {
 		Globales.RATON.soltar();
 		final MenuConfiguracionGrafica m = new MenuConfiguracionGrafica(this);
+		m.setEsDesdePausa(esDesdePausa); // <--- CONECTAR ESTA LÍNEA
 		this.estadoActual = m;
 	}
 
@@ -235,11 +236,63 @@ public class GestorEstados {
 		}
 	}
 
+	/**
+	 * Destructor maestro de sesión: purga audio de ambiente, música, clima, luz,
+	 * termorregulación, efectos del jugador y estructuras volátiles antes de
+	 * regresar al Menú Principal (Zero-GC / O(1)).
+	 */
 	public void disposePartida() {
-		this.estados[0] = ESTADO_VACIO;
-		if (this.estadoActual == this.estados[0]) {
-			this.establecerEstadoActual(NUMERO_ESTADO_MENU);
+		// 1. Audio: Detener sonido ambiental de clima y música de fondo de partida
+		principal.utilidades.audio.musica.GestorMusica.detenerAmbienteClima();
+		principal.utilidades.audio.musica.GestorMusica.detenerMusicaFondoPrincipal();
+
+		// 2. Clima y Atmósfera: Regresar a cielo despejado y apagar penumbra
+		if (Globales.GESTOR_CLIMA != null) {
+			Globales.GESTOR_CLIMA.setClima(principal.clima.TipoClima.DESPEJADO, 0.0);
 		}
+		if (Globales.GESTOR_LUZ != null) {
+			Globales.GESTOR_LUZ.apagarTodasLasLuces();
+			Globales.GESTOR_LUZ.restablecerModoExterior();
+		}
+
+		// 3. Fisiología y Jugador
+		if (Globales.GESTOR_TERMICO_JUGADOR != null) {
+			Globales.GESTOR_TERMICO_JUGADOR.reiniciar();
+		}
+		if (Globales.JUGADOR != null) {
+			Globales.JUGADOR.reiniciarEstadoCompleto();
+		}
+
+		// 4. Memoria Espacial, Grupos y Telemetría
+		if (Globales.GESTOR_ZONAS_AMBIENTE != null) {
+			Globales.GESTOR_ZONAS_AMBIENTE.limpiarZonas();
+		}
+		if (Globales.GESTOR_GRUPO != null) {
+			Globales.GESTOR_GRUPO.vaciar();
+		}
+		if (Globales.GESTOR_PARTICULAS != null) {
+			Globales.GESTOR_PARTICULAS.limpiar();
+		}
+		if (Globales.GESTOR_TEXTOS != null) {
+			Globales.GESTOR_TEXTOS.limpiar();
+		}
+		if (Globales.MOTOR_IGU != null) {
+			Globales.MOTOR_IGU.desvincularJefe();
+		}
+		if (Globales.CAMARA != null) {
+			Globales.CAMARA.reiniciarZoom();
+			Globales.CAMARA.getGestorEfectos().detenerTodosLosEfectos();
+		}
+
+		// 5. Limpieza de mapas temporales y flags globales
+		principal.mapa.mapas.MapaManager.vaciarTemp();
+		Globales.partidaIniciada = false;
+		Globales.pausa = false;
+		Globales.RATON.soltar();
+
+		// 6. Anular estado de partida y conmutar formalmente al Menú Principal
+		this.estados[0] = ESTADO_VACIO;
+		this.establecerEstadoActual(NUMERO_ESTADO_MENU);
 	}
 
 	public EstadoJuego getEstadoActual() {

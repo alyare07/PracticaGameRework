@@ -16,7 +16,7 @@ import principal.utilidades.Globales;
  * @version 5.0 (Vanilla Java 8 - Difficulty-Scaled Thermodynamics)
  */
 public class GestorTermicoJugador {
-
+	private boolean simulacionHabilitada = true;
 	public static final double TEMP_NOMINAL_CUERPO = 37.0;
 
 	// Umbrales de Hipotermia Escalonada
@@ -50,6 +50,9 @@ public class GestorTermicoJugador {
 	}
 
 	public void actualizar(final double dt) {
+		if (!this.simulacionHabilitada) {
+			return; // Simulación apagada para pruebas: 0 cálculo y 0 interferencia
+		}
 		if ((Globales.JUGADOR == null) || Globales.JUGADOR.estaEliminado()) {
 			return;
 		}
@@ -343,6 +346,19 @@ public class GestorTermicoJugador {
 		}
 	}
 
+	/**
+	 * Restablece la fisiología térmica a 37.0°C y apaga todos los flags de
+	 * intemperie, fuego y refugio (Zero-GC).
+	 */
+	public void reiniciar() {
+		this.temperaturaCorporal = TEMP_NOMINAL_CUERPO;
+		this.calorRecibidoFuego = 0.0;
+		this.tendenciaTermica = 0.0;
+		this.cercaDeFuenteCalor = false;
+		this.expuestoAIntemperieFria = false;
+		this.bajoTechoInterior = false;
+	}
+
 	public void aportarCalor(final TipoLuz tipo, final double distancia) {
 		if (tipo == null) {
 			return;
@@ -378,6 +394,26 @@ public class GestorTermicoJugador {
 			final double factorDistancia = 1.0 - (distancia / radioCalor);
 			this.calorRecibidoFuego = Math.max(this.calorRecibidoFuego, calorBase * factorDistancia);
 			this.cercaDeFuenteCalor = true;
+		}
+	}
+
+	public boolean isSimulacionHabilitada() {
+		return this.simulacionHabilitada;
+	}
+
+	public void setSimulacionHabilitada(final boolean habilitada) {
+		this.simulacionHabilitada = habilitada;
+		if (!habilitada) {
+			// Al apagar la simulación, resetea a 37°C y limpia temblores/debuffs
+			this.reiniciar();
+			if (Globales.JUGADOR != null) {
+				Globales.JUGADOR.removerEfecto(principal.entes.efectos.TipoEfectoEstado.HIPOTERMIA);
+				Globales.JUGADOR.removerEfecto(principal.entes.efectos.TipoEfectoEstado.HIPERTERMIA);
+			}
+			if ((Globales.CAMARA != null) && Globales.CAMARA.getGestorEfectos()
+					.getEfecto(principal.mapa.renderEntidades.camara.efectos.TipoEfectoCamara.BORRACHO).isActivo()) {
+				Globales.CAMARA.activarModoBorracho(false);
+			}
 		}
 	}
 

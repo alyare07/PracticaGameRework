@@ -756,6 +756,19 @@ public abstract class Criatura extends Ente {
 		this.mascaraHostilidad = GestorFacciones.getMascaraHostilidadPorDefecto(faccionBit);
 	}
 
+	/**
+	 * Apaga y purga todos los efectos activos de la criatura y restablece la
+	 * velocidad física estándar (Zero-GC).
+	 */
+	public void limpiarEfectos() {
+		for (int i = 0; i < this.efectosActivos.length; i++) {
+			if (this.efectosActivos[i] != null) {
+				this.efectosActivos[i].apagar();
+			}
+		}
+		this.establecerVelocidadStardar();
+	}
+
 	public int getMascaraHostilidad() {
 		return this.mascaraHostilidad;
 	}

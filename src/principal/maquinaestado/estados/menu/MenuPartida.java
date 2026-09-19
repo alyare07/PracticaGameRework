@@ -3,10 +3,8 @@ package principal.maquinaestado.estados.menu;
 import java.awt.Color;
 import java.awt.Graphics2D;
 
-import principal.mapa.mapas.MapaManager;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.GestorPartida;
-import principal.utilidades.Globales;
 
 public class MenuPartida extends Menu {
 
@@ -44,9 +42,6 @@ public class MenuPartida extends Menu {
 		});
 
 		this.agregarBoton("Salir al Menu", () -> {
-			MapaManager.vaciarTemp();
-			Globales.CAMARA.reiniciarZoom();
-			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
 			this.GE.disposePartida();
 		});
 

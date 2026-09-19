@@ -141,6 +141,26 @@ public class Jugador extends Criatura {
 		this.ALTO_INTERACCION_COFRE = this.ALTO + 2;
 	}
 
+	/**
+	 * Restablece al jugador a su estado nominal para regresar al menú principal:
+	 * purga buffs/debuffs, limpia estados de animación, restaura salud/estamina y
+	 * desvincula luces y celdas espaciales (Zero-GC).
+	 */
+	public void reiniciarEstadoCompleto() {
+		this.eliminado = false;
+		this.limpiarEfectos();
+		this.limpiarEstados();
+		this.setEstadoEstandar();
+		this.detenerMovimiento();
+		this.detenerMovimientoPathfinding();
+		this.sanar();
+		this.estamina = this.maxEstamina;
+		this.recalcularAtributos();
+		this.desvincularLuz();
+		this.desvincularDeZonas();
+		this.setMundo(null);
+	}
+
 	public void recalcularAtributos() {
 		int f = 0;
 		int a = 0;

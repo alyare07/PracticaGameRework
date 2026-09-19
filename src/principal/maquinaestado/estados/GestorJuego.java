@@ -7,6 +7,7 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Transparency;
 import java.awt.event.KeyEvent;
+import java.awt.geom.AffineTransform;
 import java.awt.image.VolatileImage;
 import java.util.ArrayList;
 
@@ -63,6 +64,12 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	private int lastSegundosJugados = -1;
 	private String cachedTextoTiempoJugado = "0h 0m 0s";
+	// --- Caché de Matriz de Pantalla Zero-GC (Anti-Jitter) ---
+	private AffineTransform transformPantallaBase = null;
+	private int lastDespX = Integer.MIN_VALUE;
+	private int lastDespY = Integer.MIN_VALUE;
+	private double lastFactorEscalaX = -1.0;
+	private double lastFactorEscalaY = -1.0;
 
 	public GestorJuego(final GestorEstados ge, final GestorPartida gp) {
 		this.GE = ge;
@@ -240,15 +247,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.mostrarPantallaMuerte = false;
 		this.botonMuerte = null;
 
-		MapaManager.vaciarTemp();
-		Globales.CAMARA.reiniciarZoom();
-		Globales.CAMARA.getGestorEfectos().detenerTodosLosEfectos();
-
-		if (Globales.GESTOR_GRUPO != null) {
-			Globales.GESTOR_GRUPO.vaciar();
-		}
-
-		this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
 		this.GE.disposePartida();
 	}
 
@@ -292,6 +290,9 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		final int offsetMundoX = centroBufX - Constantes.CENTROX;
 		final int offsetMundoY = centroBufY - Constantes.CENTROY;
 
+		// =========================================================================
+		// 1. RENDERIZADO DEL ESCENARIO Y ENTIDADES AL BUFFER DE MUNDO (VRAM)
+		// =========================================================================
 		final Graphics2D gMundo = this.bufferMundo.createGraphics();
 		try {
 			gMundo.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
@@ -324,50 +325,54 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		// =========================================================================
-		// RENDER DEL BUFFER DE MUNDO: TRANSFORMACIÓN INVERSA MANUAL (ZERO-GC)
+		// 2. SINCRONIZACIÓN DE LA MATRIZ LIMPIA DE PANTALLA (ZERO-GC DIRTY FLAG)
+		// =========================================================================
+		if ((this.transformPantallaBase == null) || (this.lastDespX != Globales.DESPLAZAMIENTO_X)
+				|| (this.lastDespY != Globales.DESPLAZAMIENTO_Y)
+				|| (this.lastFactorEscalaX != Globales.FACTOR_ESCALADO_X)
+				|| (this.lastFactorEscalaY != Globales.FACTOR_ESCALADO_Y)) {
+
+			this.lastDespX = Globales.DESPLAZAMIENTO_X;
+			this.lastDespY = Globales.DESPLAZAMIENTO_Y;
+			this.lastFactorEscalaX = Globales.FACTOR_ESCALADO_X;
+			this.lastFactorEscalaY = Globales.FACTOR_ESCALADO_Y;
+			this.transformPantallaBase = g.getTransform(); // Se captura 1 sola vez en el inicio o al cambiar ventana
+		}
+
+		// =========================================================================
+		// 3. PRESENTACIÓN DEL MUNDO CON TRANSFORMACIÓN CINEMÁTICA
 		// =========================================================================
 		final boolean hayTransformacionMundo = (zoomFinal != 1.0) || (shakeX != 0.0) || (shakeY != 0.0)
 				|| (rotacion != 0.0);
 
-		if (hayTransformacionMundo) {
-			final double transX = Constantes.CENTROX + shakeX;
-			final double transY = Constantes.CENTROY + shakeY;
+		try {
+			if (hayTransformacionMundo) {
+				g.translate(Constantes.CENTROX + shakeX, Constantes.CENTROY + shakeY);
+				g.scale(zoomFinal, zoomFinal);
+				g.rotate(rotacion);
+			} else {
+				g.translate(Constantes.CENTROX, Constantes.CENTROY);
+			}
 
-			// 1. Transformación directa: Translate -> Scale -> Rotate
-			g.translate(transX, transY);
-			g.scale(zoomFinal, zoomFinal);
-			g.rotate(rotacion);
-			try {
-				g.drawImage(this.bufferMundo, -centroBufX, -centroBufY, null);
-			} finally {
-				// 2. Transformación inversa LIFO: Rotate^-1 -> Scale^-1 -> Translate^-1
-				g.rotate(-rotacion);
-				g.scale(1.0 / zoomFinal, 1.0 / zoomFinal);
-				g.translate(-transX, -transY);
-			}
-		} else {
-			g.translate(Constantes.CENTROX, Constantes.CENTROY);
-			try {
-				g.drawImage(this.bufferMundo, -centroBufX, -centroBufY, null);
-			} finally {
-				g.translate(-Constantes.CENTROX, -Constantes.CENTROY);
-			}
+			g.drawImage(this.bufferMundo, -centroBufX, -centroBufY, null);
+
+		} finally {
+			// RESTAURACIÓN EXACTA BIT-FOR-BIT: Cero decimales residuales, cero vibración
+			g.setTransform(this.transformPantallaBase);
 		}
 
 		// =========================================================================
-		// CAPAS DE PANTALLA FIJAS (CLIMA, LUZ, HUD Y DIÁLOGOS EN COORDENADAS 1:1)
+		// 4. CAPAS DE PANTALLA FIJAS (1:1 PIXEL-PERFECT EN COORDENADAS LIMPIAS)
 		// =========================================================================
 		Globales.GESTOR_CLIMA.pintar(g);
 		Globales.GESTOR_LUZ.pintar(g);
 
 		if (!Globales.JUGADOR.estaEliminado()) {
 			this.pintarInventarios(g);
-			Globales.MOTOR_IGU.pintar(g);
+			Globales.MOTOR_IGU.pintar(g); // Ahora el HUD queda 100% inmóvil y nítido
 		}
 
-		// Pantalla de derrota con botón de acción en el centro-inferior
 		this.pintarPantallaDerrota(g);
-
 		Globales.CAMARA.pintarLetterbox(g);
 		this.pintarDebug(g);
 
@@ -379,6 +384,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 						Color.BLACK);
 			}
 		}
+
 		Globales.GESTOR_DIALOGOS.pintar(g);
 	}
 

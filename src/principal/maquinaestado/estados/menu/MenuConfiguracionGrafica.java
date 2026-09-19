@@ -41,7 +41,7 @@ public class MenuConfiguracionGrafica extends Menu {
 	private SelectorOpcionPixel selectorEscalado;
 	private SelectorOpcionPixel selectorPerfil;
 	private SelectorOpcionPixel selectorFps;
-
+	private boolean esDesdePausa = false;
 	private final ArrayList<SelectorOpcionPixel> selectores = new ArrayList<SelectorOpcionPixel>();
 
 	private BotonPixel botonAutoDetectar;
@@ -185,6 +185,11 @@ public class MenuConfiguracionGrafica extends Menu {
 		ConfiguracionGrafica.setLimiteFps(LimiteFPS.values()[this.selectorFps.getIndiceSeleccionado()]);
 	}
 
+	public void setEsDesdePausa(final boolean desdePausa) {
+		this.esDesdePausa = desdePausa;
+		this.colorFondo = desdePausa ? new Color(6, 8, 12, 220) : new Color(10, 12, 16, 255);
+	}
+
 	@Override
 	public void actualizar() {
 		final Raton raton = Globales.RATON;
@@ -299,11 +304,25 @@ public class MenuConfiguracionGrafica extends Menu {
 
 	@Override
 	protected void alPresionarEscape() {
-		this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU_CONFIGURACIONES);
+		if (this.esDesdePausa) {
+			// Vuelve al hub de configuraciones pero MANTENIENDO el contexto de pausa
+			this.GE.abrirMenuConfiguracionesSeleccionEnPausa();
+		} else {
+			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU_CONFIGURACIONES);
+		}
 	}
 
 	@Override
 	public void pintar(final Graphics2D g) {
+		// Si está en pausa, dibuja el juego congelado detrás del menú
+		if (this.esDesdePausa && (this.GE.getEstadoActual() instanceof principal.maquinaestado.estados.GestorPartida)) {
+			final principal.maquinaestado.estados.GestorPartida gp = (principal.maquinaestado.estados.GestorPartida) this.GE
+					.getEstadoActual();
+			if (gp.getGestorJuego() != null) {
+				gp.getGestorJuego().pintar(g);
+			}
+		}
+
 		this.pintarFondo(g);
 		this.pintarCabecera(g);
 

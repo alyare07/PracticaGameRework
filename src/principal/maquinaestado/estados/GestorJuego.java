@@ -7,16 +7,17 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Transparency;
 import java.awt.event.KeyEvent;
-import java.awt.geom.AffineTransform;
 import java.awt.image.VolatileImage;
 import java.util.ArrayList;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
+import principal.configuracion.Dificultad;
 import principal.controles.Raton;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura.Direccion;
+import principal.entes.facciones.GestorFacciones;
 import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
@@ -31,6 +32,7 @@ import principal.mapa.escenario.tps.ZonaTP;
 import principal.mapa.mapas.Mapa;
 import principal.mapa.mapas.MapaManager;
 import principal.maquinaestado.GestorEstados;
+import principal.maquinaestado.estados.menu.herramientas.BotonPixel;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.maquinaestado.estados.pantallaCarga.cargaMapa;
 import principal.utilidades.Constantes;
@@ -38,6 +40,8 @@ import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 import principal.utilidades.audio.musica.GestorMusica;
+import principal.utilidades.audio.sonido.GestorSonido;
+import principal.utilidades.audio.sonido.IDSonido;
 
 public final class GestorJuego implements EstadoJuego, cargaMapa {
 
@@ -50,8 +54,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	protected Mapa mapa;
 
 	protected final GestorTiempo GT_MOSTRAR_PANTALLA_MUERTE;
-	protected final int TIEMPO_MS_ESPERA_MOSTRAR_PANTALLA_MUERTE = 1500;
+	protected final int TIEMPO_MS_ESPERA_MOSTRAR_PANTALLA_MUERTE = 800;
 	private boolean mostrarPantallaMuerte;
+	private BotonPixel botonMuerte;
+
 	private Tile tilePisado = null;
 	private FuenteLuz auxFuenteLuzTempoPrueba;
 
@@ -74,27 +80,39 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			return;
 		}
 
+		// Si el jugador murió, se procesa la pantalla y el botón de muerte/reaparición
+		if (Globales.JUGADOR.estaEliminado()) {
+			this.verificarPantallaMuerte();
+			if (this.mostrarPantallaMuerte && (this.botonMuerte != null)) {
+				this.botonMuerte.actualizar(this.RATON);
+				if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ENTER)
+						|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_SPACE)
+						|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_E)) {
+					this.botonMuerte.accionar();
+				}
+			}
+			return;
+		}
+
 		if (Globales.pausa) {
 			GestorMusica.actualizarMusicaFondoPrincipal(false);
 			GestorMusica.actualizarAmbienteClima(false);
 			return;
 		}
+
 		this.actualizarControlesDebug();
 		GestorMusica.actualizarMusicaFondoPrincipal(true);
 
-		if (Globales.JUGADOR.estaEliminado()) {
-			return;
-		}
 		Globales.GESTOR_INVENTARIO.actualizar(this.RATON, this.mapa.getMundoActual());
 		this.mapa.actualizar();
 
-//		if (Globales.TECLADO.TECLA_DIJKSTRA.presionadoUnicaActualizacion()) {
-//			if (Globales.JUGADOR.getFaccionBit() == GestorFacciones.FACCION_JUGADOR) {
-//				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
-//			} else {
-//				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_JUGADOR);
-//			}
-//		}
+		if (Globales.TECLADO.TECLA_DIJKSTRA.presionadoUnicaActualizacion()) {
+			if (Globales.JUGADOR.getFaccionBit() == GestorFacciones.FACCION_JUGADOR) {
+				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
+			} else {
+				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_JUGADOR);
+			}
+		}
 
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
 
@@ -108,7 +126,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			Globales.GESTOR_CONSTRUCCION.actualizar(this.RATON, this.mapa.getMundoActual());
 		}
 
-		this.verificarPantallaMuerte();
 		Globales.MOTOR_IGU.actualizar();
 
 		final Rectangle areaMovimiento = Globales.JUGADOR.getAreaInterseccionMovimiento();
@@ -135,6 +152,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	private void actualizarControlesDebug() {
 		this.actualizarCambioCamaraConEntesYZoom();
+		if (Globales.RATON.presionadoClickIzqUnicaAct()) {
+			final Rectangle puntoR = Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
+			Globales.JUGADOR.setPosicion(puntoR.getX(), puntoR.getY());
+		}
 	}
 
 	private void actualizarCambioCamaraConEntesYZoom() {
@@ -148,15 +169,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			Globales.CAMARA.reiniciarZoom();
 		}
 
-		if (Globales.RATON.presionadoClickIzqUnicaAct() && (this.mapa != null)
-				&& (this.mapa.getMundoActual() != null)) {
-			final Rectangle areaMouseMundo = Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
-			for (final Ente e : this.mapa.getMundoActual().getEnteIntersectados(areaMouseMundo, true, true)) {
-				Globales.CAMARA.setEntidadEnfocada(e);
-				Globales.CAMARA.habilitarGestorLimite();
-				break;
-			}
-		}
 	}
 
 	private void actualizarEventos(final double dt) {
@@ -181,12 +193,63 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		return false;
 	}
 
+	// =========================================================================
+	// GESTIÓN DE PANTALLA Y BOTÓN DE MUERTE POR DIFICULTAD
+	// =========================================================================
+
 	protected void verificarPantallaMuerte() {
 		if (Globales.JUGADOR.estaEliminado() && !this.mostrarPantallaMuerte) {
 			this.mostrarPantallaMuerte = true;
 			this.GT_MOSTRAR_PANTALLA_MUERTE.establecerReferenciaTiempoActual();
 			Globales.CAMARA.getGestorEfectos().detenerTodosLosEfectos();
+
+			final int btnW = 140;
+			final int btnH = 22;
+			final int btnX = Constantes.CENTROX - (btnW / 2);
+			final int btnY = Constantes.ALTO_JUEGO - 65;
+
+			if (Globales.dificultad == Dificultad.DIFICIL) {
+				this.botonMuerte = new BotonPixel("Fin del Juego", new Rectangle(btnX, btnY, btnW, btnH), () -> {
+					this.ejecutarFinDelJuego();
+				});
+			} else {
+				this.botonMuerte = new BotonPixel("Reaparecer", new Rectangle(btnX, btnY, btnW, btnH), () -> {
+					this.ejecutarReaparicion();
+				});
+			}
+			this.botonMuerte.setEnfocado(true);
 		}
+	}
+
+	private void ejecutarReaparicion() {
+		this.mostrarPantallaMuerte = false;
+		this.botonMuerte = null;
+
+		final Mundo mundoActual = (this.mapa != null) ? this.mapa.getMundoActual() : null;
+		if (mundoActual != null) {
+			Globales.JUGADOR.reaparecer(mundoActual);
+		}
+
+		Globales.CAMARA.setEntidadEnfocada(Globales.JUGADOR);
+		Globales.CAMARA.habilitarGestorLimite();
+		Globales.CAMARA.getGestorEfectos().detenerTodosLosEfectos();
+		GestorSonido.reproducir(IDSonido.SELECT);
+	}
+
+	private void ejecutarFinDelJuego() {
+		this.mostrarPantallaMuerte = false;
+		this.botonMuerte = null;
+
+		MapaManager.vaciarTemp();
+		Globales.CAMARA.reiniciarZoom();
+		Globales.CAMARA.getGestorEfectos().detenerTodosLosEfectos();
+
+		if (Globales.GESTOR_GRUPO != null) {
+			Globales.GESTOR_GRUPO.vaciar();
+		}
+
+		this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU);
+		this.GE.disposePartida();
 	}
 
 	private void verificarBufferMundo(final Graphics2D g, final double zoomFinal) {
@@ -260,33 +323,49 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			gMundo.dispose();
 		}
 
-		final AffineTransform transformOriginal = g.getTransform();
-		try {
-			final boolean hayTransformacionMundo = (zoomFinal != 1.0) || (shakeX != 0.0) || (shakeY != 0.0)
-					|| (rotacion != 0.0);
+		// =========================================================================
+		// RENDER DEL BUFFER DE MUNDO: TRANSFORMACIÓN INVERSA MANUAL (ZERO-GC)
+		// =========================================================================
+		final boolean hayTransformacionMundo = (zoomFinal != 1.0) || (shakeX != 0.0) || (shakeY != 0.0)
+				|| (rotacion != 0.0);
 
-			if (hayTransformacionMundo) {
-				g.translate(Constantes.CENTROX + shakeX, Constantes.CENTROY + shakeY);
-				g.scale(zoomFinal, zoomFinal);
-				g.rotate(rotacion);
-			} else {
-				g.translate(Constantes.CENTROX, Constantes.CENTROY);
+		if (hayTransformacionMundo) {
+			final double transX = Constantes.CENTROX + shakeX;
+			final double transY = Constantes.CENTROY + shakeY;
+
+			// 1. Transformación directa: Translate -> Scale -> Rotate
+			g.translate(transX, transY);
+			g.scale(zoomFinal, zoomFinal);
+			g.rotate(rotacion);
+			try {
+				g.drawImage(this.bufferMundo, -centroBufX, -centroBufY, null);
+			} finally {
+				// 2. Transformación inversa LIFO: Rotate^-1 -> Scale^-1 -> Translate^-1
+				g.rotate(-rotacion);
+				g.scale(1.0 / zoomFinal, 1.0 / zoomFinal);
+				g.translate(-transX, -transY);
 			}
-
-			g.drawImage(this.bufferMundo, -centroBufX, -centroBufY, null);
-
-		} finally {
-			g.setTransform(transformOriginal);
+		} else {
+			g.translate(Constantes.CENTROX, Constantes.CENTROY);
+			try {
+				g.drawImage(this.bufferMundo, -centroBufX, -centroBufY, null);
+			} finally {
+				g.translate(-Constantes.CENTROX, -Constantes.CENTROY);
+			}
 		}
 
+		// =========================================================================
+		// CAPAS DE PANTALLA FIJAS (CLIMA, LUZ, HUD Y DIÁLOGOS EN COORDENADAS 1:1)
+		// =========================================================================
 		Globales.GESTOR_CLIMA.pintar(g);
 		Globales.GESTOR_LUZ.pintar(g);
 
 		if (!Globales.JUGADOR.estaEliminado()) {
 			this.pintarInventarios(g);
+			Globales.MOTOR_IGU.pintar(g);
 		}
 
-		Globales.MOTOR_IGU.pintar(g);
+		// Pantalla de derrota con botón de acción en el centro-inferior
 		this.pintarPantallaDerrota(g);
 
 		Globales.CAMARA.pintarLetterbox(g);
@@ -312,18 +391,45 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		if (this.mostrarPantallaMuerte && this.GT_MOSTRAR_PANTALLA_MUERTE
 				.transcurrioMiliSegundos(this.TIEMPO_MS_ESPERA_MOSTRAR_PANTALLA_MUERTE)) {
 
-			final String texto = "DERROTA";
-			final float tamanoLetra = 48f;
-			final Color color = Color.RED;
+			// 1. Fondo sombreado oscuro
+			Render2D.dibujarRectanguloRelleno(g, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO,
+					new Color(10, 5, 8, 185));
 
-			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, tamanoLetra));
+			final Font fontPrevia = g.getFont();
 
+			// 2. Título principal de muerte
+			final String texto = (Globales.dificultad == Dificultad.DIFICIL) ? "FIN DEL JUEGO" : "HAS MUERTO";
+			final Color color = (Globales.dificultad == Dificultad.DIFICIL) ? new Color(255, 30, 40)
+					: new Color(235, 45, 45);
+
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 36f));
 			final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, texto);
-			final int altoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAltoPixeles(g, texto);
 			final int x = Constantes.CENTROX - (anchoTexto / 2);
-			final int y = Constantes.CENTROY - (altoTexto / 2);
+			final int y = Constantes.CENTROY - 25;
 
-			Render2D.dibujarString(g, texto, x, y, color);
+			Render2D.dibujarStringConSombra(g, texto, x, y, color, Color.BLACK);
+
+			// 3. Subtítulo explicativo según la dificultad
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, 14f));
+			final String subtitulo;
+			if (Globales.dificultad == Dificultad.FACIL) {
+				subtitulo = "Dificultad Fácil · Inventario y equipo conservados";
+			} else if (Globales.dificultad == Dificultad.NORMAL) {
+				subtitulo = "Dificultad Normal · 70% de tus ítems cayeron en el lugar de tu muerte";
+			} else {
+				subtitulo = "Dificultad Difícil · Muerte permanente";
+			}
+
+			final int anchoSub = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, subtitulo);
+			final int xSub = Constantes.CENTROX - (anchoSub / 2);
+			Render2D.dibujarStringConSombra(g, subtitulo, xSub, y + 18, new Color(200, 205, 220), Color.BLACK);
+
+			g.setFont(fontPrevia);
+
+			// 4. Botón centrado en la parte baja
+			if (this.botonMuerte != null) {
+				this.botonMuerte.pintar(g);
+			}
 		}
 	}
 
@@ -403,6 +509,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.GESTOR_ZONAS_AMBIENTE.limpiarZonas();
 		Globales.MOTOR_IGU.desvincularJefe();
 
+		if (reset && (Globales.GESTOR_GRUPO != null)) {
+			Globales.GESTOR_GRUPO.vaciar();
+		}
+
 		this.mapa = MapaManager.cargarMapa(nombreMapa, gc);
 
 		if ((this.mapa == null) || (this.mapa.getMundoActual() == null)) {
@@ -451,10 +561,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.auxFuenteLuzTempoPrueba.setOffset(4, 3);
 	}
 
-	// =========================================================================
-	// RECONSTRUCCIÓN TOTAL DESDE PARTIDA GUARDADA (SAVE/LOAD ENGINE)
-	// =========================================================================
-
 	public void cargarPartidaGuardada(final GestorCarga gc, final JSONObject saveJson) {
 		if (saveJson == null) {
 			if (gc != null) {
@@ -475,6 +581,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.GESTOR_PARTICULAS.limpiar();
 		Globales.GESTOR_ZONAS_AMBIENTE.limpiarZonas();
 		Globales.MOTOR_IGU.desvincularJefe();
+
+		if (Globales.GESTOR_GRUPO != null) {
+			Globales.GESTOR_GRUPO.vaciar();
+		}
 
 		if (gc != null) {
 			gc.setPorcentajeCarga(30);
@@ -498,23 +608,30 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			gc.setDetalleCarga("Restaurando mundo, tiempo y deltas");
 		}
 
-		// 1. Restaurar Calendario y Fotoperiodo
+		// Restaurar dificultad guardada
+		if (saveJson.get("dificultad") != null) {
+			try {
+				Globales.dificultad = Dificultad.valueOf(saveJson.get("dificultad").toString());
+			} catch (final Exception ignored) {
+			}
+		}
+
+		// Restaurar Calendario
 		if ((saveJson.get("calendario") instanceof JSONObject) && (Globales.GESTOR_LUZ != null)
 				&& (Globales.GESTOR_LUZ.getCiclo() != null)) {
 			Globales.GESTOR_LUZ.getCiclo().importarJSON((JSONObject) saveJson.get("calendario"));
 		}
 
-		// 2. Restaurar Progreso e Historia (Flags)
+		// Restaurar Progreso
 		if ((saveJson.get("progreso") instanceof JSONArray) && (Globales.GESTOR_PROGRESO != null)) {
 			Globales.GESTOR_PROGRESO.importarJSON((JSONArray) saveJson.get("progreso"));
 		}
 
-		// 3. Restaurar Deltas de Todos los Mundos
+		// Restaurar Deltas
 		if (saveJson.get("deltas") instanceof JSONObject) {
 			Globales.GESTOR_DELTAS.importarJSON((JSONObject) saveJson.get("deltas"));
 		}
 
-		// 4. Aplicar Deltas al Mundo Activo (árboles talados, cofres, fogatas)
 		Globales.GESTOR_DELTAS.aplicarDelta(mundoActivo);
 		mundoActivo.aplicarMetadatosAtmosfericos();
 
@@ -523,13 +640,17 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			gc.setDetalleCarga("Restaurando personaje e inventario");
 		}
 
-		// 5. Restaurar Jugador completo
+		// Restaurar Jugador
 		Globales.JUGADOR.setMundo(mundoActivo);
 		if (saveJson.get("jugador") instanceof JSONObject) {
 			Globales.JUGADOR.importarDeJSON((JSONObject) saveJson.get("jugador"));
 		}
 
-		// 6. Configurar cámara y subsistemas activos
+		// Restaurar Séquito / Grupo
+		if ((saveJson.get("grupo") instanceof JSONObject) && (Globales.GESTOR_GRUPO != null)) {
+			Globales.GESTOR_GRUPO.importarJSON((JSONObject) saveJson.get("grupo"), mundoActivo);
+		}
+
 		Globales.CAMARA.setEntidadEnfocada(Globales.JUGADOR);
 		Globales.CAMARA.habilitarGestorLimite();
 		Globales.GESTOR_INVENTARIO.getInventarioJugador().establecerMundo(mundoActivo);
@@ -558,7 +679,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		final Mundo mundoActual = this.mapa.getMundoActual();
-
 		mundoActual.crearProyectil(
 				new BolaFuego(25, 0.25, 100000000, false, mundoActual, 1005, 392, 40, Direccion.OESTE, null));
 
@@ -570,7 +690,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 		mundoActual.meterEntidad(zonaTP);
 		mundoActual.meterEntidad(zonaTP2);
-
 		mundoActual.meterEntidad(new Complemento(773, 177, ListaModeloComplemento.COD_CASA_1));
 	}
 

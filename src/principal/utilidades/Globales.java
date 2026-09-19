@@ -8,6 +8,7 @@ import principal.clima.GestorTermicoJugador;
 import principal.clima.GestorZonasAmbiente;
 import principal.comandos.GestorComandos;
 import principal.configuracion.ConfiguracionGrafica;
+import principal.configuracion.Dificultad;
 import principal.construccion.GestorConstruccion;
 import principal.controles.Raton;
 import principal.controles.Teclado;
@@ -59,7 +60,8 @@ public class Globales {
 	public static int ALTO_PANTALLA_COMPLETA = Toolkit.getDefaultToolkit().getScreenSize().height;
 	public static double FACTOR_ESCALADO_X = ANCHO_PANTALLA_COMPLETA / (double) (Constantes.ANCHO_JUEGO);
 	public static double FACTOR_ESCALADO_Y = ALTO_PANTALLA_COMPLETA / (double) Constantes.ALTO_JUEGO;
-
+	// Dificultad activa de la partida en curso
+	public static Dificultad dificultad = Dificultad.NORMAL;
 	public static int DESPLAZAMIENTO_X = 0;
 	public static int DESPLAZAMIENTO_Y = 0;
 

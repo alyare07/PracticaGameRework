@@ -10,20 +10,19 @@ import principal.clima.TipoClima;
 import principal.utilidades.audio.musica.IDMusica;
 
 /**
- * Contenedor de configuración atmosférica y ambiental del mapa (Música BGM,
- * Bioma, Clima inicial e Iluminación interior/exterior).
+ * Contenedor maestro de configuración atmosférica y ambiental del mapa.
+ * Clasifica los espacios en EXTERIOR, INTERIOR (Casas/Tabernas) y CUEVA
+ * (Blackout).
  * 
- * @version 2.0 (Vanilla Java 8 - Dedicated World Atmosphere Presets)
+ * @version 3.0 (Vanilla Java 8 - Dedicated 3-Tier Environment Architecture)
  */
 public class MetadatosEscenario implements Serializable {
 
-	private static final long serialVersionUID = 2L;
+	private static final long serialVersionUID = 3L;
 
 	public enum TipoAmbiente {
-		EXTERIOR("Exterior (Ciclo Solar 24h y Clima)"), CUEVA_OSCURA("Cueva / Mazmorra (Oscuridad Total - Blackout)"),
-		INTERIOR_TENUE("Interior Abandonado / Oscuro (Requiere Linterna)"),
-		INTERIOR_HOGARENO("Interior Hogareño (Luz Cálida y Acogedora)"),
-		INTERIOR_ILUMINADO("Interior Plenamente Iluminado");
+		EXTERIOR("Exterior (Ciclo Solar 24h y Clima)"), INTERIOR("Interior (Hogares, Casas, Tabernas)"),
+		CUEVA("Cueva / Mazmorra (Blackout y Oscuridad Total)");
 
 		private final String descripcion;
 
@@ -40,41 +39,74 @@ public class MetadatosEscenario implements Serializable {
 	private PerfilClima perfilBioma;
 	private TipoClima climaInicial;
 	private TipoAmbiente tipoAmbiente;
+	private TipoIluminacionInterior iluminacionInterior;
 	private Color colorLuzPersonalizado;
 
 	public MetadatosEscenario() {
 		this(IDMusica.FONDO_RELAX, PerfilClima.TEMPLADO_BOSQUE, TipoClima.DESPEJADO, TipoAmbiente.EXTERIOR,
-				new Color(0, 0, 0, 255));
+				TipoIluminacionInterior.HOGARENA, new Color(255, 215, 140, 40));
 	}
 
 	public MetadatosEscenario(final IDMusica musicaFondo, final PerfilClima perfilBioma, final TipoClima climaInicial,
-			final TipoAmbiente tipoAmbiente, final Color colorLuzPersonalizado) {
+			final TipoAmbiente tipoAmbiente, final TipoIluminacionInterior iluminacionInterior,
+			final Color colorLuzPersonalizado) {
 		this.musicaFondo = (musicaFondo != null) ? musicaFondo : IDMusica.FONDO_FOREST;
 		this.perfilBioma = (perfilBioma != null) ? perfilBioma : PerfilClima.TEMPLADO_BOSQUE;
 		this.climaInicial = (climaInicial != null) ? climaInicial : TipoClima.DESPEJADO;
 		this.tipoAmbiente = (tipoAmbiente != null) ? tipoAmbiente : TipoAmbiente.EXTERIOR;
-		this.colorLuzPersonalizado = (colorLuzPersonalizado != null) ? colorLuzPersonalizado : new Color(0, 0, 0, 255);
+		this.iluminacionInterior = (iluminacionInterior != null) ? iluminacionInterior
+				: TipoIluminacionInterior.HOGARENA;
+		this.colorLuzPersonalizado = (colorLuzPersonalizado != null) ? colorLuzPersonalizado
+				: new Color(255, 215, 140, 40);
 	}
 
+	public boolean esExterior() {
+		return this.tipoAmbiente == TipoAmbiente.EXTERIOR;
+	}
+
+	public boolean esInterior() {
+		return this.tipoAmbiente == TipoAmbiente.INTERIOR;
+	}
+
+	public boolean esCueva() {
+		return this.tipoAmbiente == TipoAmbiente.CUEVA;
+	}
+
+	/**
+	 * Retorna true para cualquier espacio cerrado bajo techo (Interiores o Cuevas)
+	 * para evitar que las partículas de clima exterior (lluvia, nieve, tormentas)
+	 * se rendericen.
+	 */
 	public boolean esEspacioInterior() {
 		return this.tipoAmbiente != TipoAmbiente.EXTERIOR;
 	}
 
+	/**
+	 * Resuelve la capa de luz ambiental fija que baña uniformemente todo el mapa.
+	 */
 	public Color resolverColorLuzEfectivo() {
 		switch (this.tipoAmbiente) {
-		case CUEVA_OSCURA:
-			return new Color(0, 0, 0, 255); // Oscuridad absoluta (Blackout)
-		case INTERIOR_TENUE:
-			return new Color(10, 15, 30, 235); // Penumbra azulada
-		case INTERIOR_HOGARENO:
-			return new Color(255, 220, 150, 45); // Tinte cálido y relajante
-		case INTERIOR_ILUMINADO:
-			return new Color(0, 0, 0, 0); // Sin sombra ambiental
+		case CUEVA:
+			return new Color(0, 0, 0, 255); // Oscuridad absoluta (Blackout completo)
+
+		case INTERIOR:
+			if ((this.iluminacionInterior == TipoIluminacionInterior.PERSONALIZADA)
+					&& (this.colorLuzPersonalizado != null)) {
+				return this.colorLuzPersonalizado;
+			}
+			return ((this.iluminacionInterior != null) && (this.iluminacionInterior.getColorAmbiente() != null))
+					? this.iluminacionInterior.getColorAmbiente()
+					: TipoIluminacionInterior.HOGARENA.getColorAmbiente();
+
 		case EXTERIOR:
 		default:
-			return null; // Deja que el ciclo solar de 24h controle la luz
+			return null; // El ciclo solar de 24 horas controla la iluminación dinámicamente
 		}
 	}
+
+	// =========================================================================
+	// PERSISTENCIA JSON (SERIALIZACIÓN Y DESERIALIZACIÓN COMPATIBLE)
+	// =========================================================================
 
 	@SuppressWarnings("unchecked")
 	public JSONObject exportarJSON() {
@@ -83,6 +115,7 @@ public class MetadatosEscenario implements Serializable {
 		json.put("perfilBioma", this.perfilBioma.name());
 		json.put("climaInicial", this.climaInicial.name());
 		json.put("tipoAmbiente", this.tipoAmbiente.name());
+		json.put("iluminacionInterior", this.iluminacionInterior.name());
 		json.put("luzR", Integer.valueOf(this.colorLuzPersonalizado.getRed()));
 		json.put("luzG", Integer.valueOf(this.colorLuzPersonalizado.getGreen()));
 		json.put("luzB", Integer.valueOf(this.colorLuzPersonalizado.getBlue()));
@@ -120,21 +153,45 @@ public class MetadatosEscenario implements Serializable {
 		}
 
 		TipoAmbiente ambiente = TipoAmbiente.EXTERIOR;
+		TipoIluminacionInterior ilumInterior = TipoIluminacionInterior.HOGARENA;
+
 		if (json.get("tipoAmbiente") != null) {
-			try {
-				ambiente = TipoAmbiente.valueOf(json.get("tipoAmbiente").toString());
-			} catch (final Exception ignored) {
+			final String ambStr = json.get("tipoAmbiente").toString();
+			// Retrocompatibilidad con nombres anteriores
+			if (ambStr.contains("CUEVA")) {
+				ambiente = TipoAmbiente.CUEVA;
+			} else if (ambStr.contains("INTERIOR")) {
+				ambiente = TipoAmbiente.INTERIOR;
+				if (ambStr.contains("TENUE")) {
+					ilumInterior = TipoIluminacionInterior.TENUE;
+				} else if (ambStr.contains("ILUMINADO")) {
+					ilumInterior = TipoIluminacionInterior.CLARA;
+				} else {
+					ilumInterior = TipoIluminacionInterior.HOGARENA;
+				}
+			} else {
+				try {
+					ambiente = TipoAmbiente.valueOf(ambStr);
+				} catch (final Exception ignored) {
+				}
 			}
 		} else if ((json.get("esInterior") != null) && Boolean.parseBoolean(json.get("esInterior").toString())) {
-			ambiente = TipoAmbiente.CUEVA_OSCURA;
+			ambiente = TipoAmbiente.CUEVA;
 		}
 
-		final int r = (json.get("luzR") != null) ? ((Number) json.get("luzR")).intValue() : 0;
-		final int g = (json.get("luzG") != null) ? ((Number) json.get("luzG")).intValue() : 0;
-		final int b = (json.get("luzB") != null) ? ((Number) json.get("luzB")).intValue() : 0;
-		final int a = (json.get("luzA") != null) ? ((Number) json.get("luzA")).intValue() : 255;
+		if (json.get("iluminacionInterior") != null) {
+			try {
+				ilumInterior = TipoIluminacionInterior.valueOf(json.get("iluminacionInterior").toString());
+			} catch (final Exception ignored) {
+			}
+		}
 
-		return new MetadatosEscenario(musica, bioma, clima, ambiente, new Color(r, g, b, a));
+		final int r = (json.get("luzR") != null) ? ((Number) json.get("luzR")).intValue() : 255;
+		final int g = (json.get("luzG") != null) ? ((Number) json.get("luzG")).intValue() : 215;
+		final int b = (json.get("luzB") != null) ? ((Number) json.get("luzB")).intValue() : 140;
+		final int a = (json.get("luzA") != null) ? ((Number) json.get("luzA")).intValue() : 40;
+
+		return new MetadatosEscenario(musica, bioma, clima, ambiente, ilumInterior, new Color(r, g, b, a));
 	}
 
 	// =========================================================================
@@ -181,6 +238,16 @@ public class MetadatosEscenario implements Serializable {
 		}
 	}
 
+	public TipoIluminacionInterior getIluminacionInterior() {
+		return this.iluminacionInterior;
+	}
+
+	public void setIluminacionInterior(final TipoIluminacionInterior iluminacionInterior) {
+		if (iluminacionInterior != null) {
+			this.iluminacionInterior = iluminacionInterior;
+		}
+	}
+
 	public Color getColorLuzPersonalizado() {
 		return this.colorLuzPersonalizado;
 	}
@@ -189,20 +256,5 @@ public class MetadatosEscenario implements Serializable {
 		if (colorLuzPersonalizado != null) {
 			this.colorLuzPersonalizado = colorLuzPersonalizado;
 		}
-	}
-
-	@Deprecated
-	public boolean isEsInteriorCueva() {
-		return this.esEspacioInterior();
-	}
-
-	@Deprecated
-	public void setEsInteriorCueva(final boolean esInterior) {
-		this.tipoAmbiente = esInterior ? TipoAmbiente.CUEVA_OSCURA : TipoAmbiente.EXTERIOR;
-	}
-
-	@Deprecated
-	public Color getColorLuzInterior() {
-		return this.colorLuzPersonalizado;
 	}
 }

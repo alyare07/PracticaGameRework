@@ -337,10 +337,8 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 	@Override
 	protected JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", Integer.valueOf(this.getPosicionXInt()));
-		json.put("y", Integer.valueOf(this.getPosicionYInt()));
+		this.exportarDatosCriaturaBase(json);
 		json.put("nombre", this.nombre);
-		json.put("vidaMaxima", Double.valueOf(this.vidaMaxima));
 		json.put("stockInfinito", Boolean.valueOf(this.isStockInfinito()));
 		json.put("renovacionAuto", Boolean.valueOf(this.renovacionAutomatica));
 		json.put("modoRenovacion", this.modoRenovacion.name());
@@ -381,6 +379,7 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 				: 100.0;
 
 		final Comerciante comerciante = new Comerciante(x, y, nombre, vidaMax);
+		comerciante.importarDatosCriaturaBase(json);
 
 		if (json.get("stockInfinito") != null) {
 			comerciante.setStockInfinito(Boolean.parseBoolean(json.get("stockInfinito").toString()));
@@ -403,29 +402,13 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		}
 
 		if (json.get("stock") instanceof JSONArray) {
+			comerciante.getInventario().vaciar();
 			final JSONArray itemsArray = (JSONArray) json.get("stock");
 			for (final Object obj : itemsArray) {
 				if (obj instanceof JSONObject) {
 					final Item i = Item.crearItemDesdeJson((JSONObject) obj);
 					if (i != null) {
-						comerciante.registrarMercanciaInicial(i);
-					}
-				}
-			}
-		}
-
-		if (json.get("stockEstacional") instanceof JSONObject) {
-			final JSONObject jEst = (JSONObject) json.get("stockEstacional");
-			for (final Estacion est : Estacion.VALORES) {
-				if (jEst.get(est.name()) instanceof JSONArray) {
-					final JSONArray arr = (JSONArray) jEst.get(est.name());
-					for (final Object objItem : arr) {
-						if (objItem instanceof JSONObject) {
-							final Item item = Item.crearItemDesdeJson((JSONObject) objItem);
-							if (item != null) {
-								comerciante.registrarMercanciaEstacional(est, item);
-							}
-						}
+						comerciante.getInventario().agregarItem(i);
 					}
 				}
 			}

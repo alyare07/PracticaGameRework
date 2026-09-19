@@ -18,8 +18,9 @@ public class MenuPrincipal extends Menu {
 		this.componentes.clear();
 		this.botones.clear();
 
+		// Iniciar Partida abre el selector de Dificultad
 		this.agregarBoton("Iniciar Partida", () -> {
-			this.GE.iniciarPartidaNueva();
+			this.GE.establecerEstadoActual(GestorEstados.NUMERO_ESTADO_MENU_DIFICULTAD);
 		});
 
 		this.agregarBoton("Cargar Partida", () -> {

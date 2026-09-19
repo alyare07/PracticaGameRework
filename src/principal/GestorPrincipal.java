@@ -1,13 +1,12 @@
 package principal;
 
-import java.util.concurrent.locks.LockSupport;
-
 import principal.comandos.ComandoAmbiente;
 import principal.comandos.ComandoCamara;
 import principal.comandos.ComandoClima;
 import principal.comandos.ComandoCrafteo;
 import principal.comandos.ComandoCurar;
 import principal.comandos.ComandoEfecto;
+import principal.comandos.ComandoFPS;
 import principal.comandos.ComandoHora;
 import principal.comandos.ComandoInfo;
 import principal.comandos.ComandoJugador;
@@ -19,6 +18,7 @@ import principal.comandos.ComandoSigilo;
 import principal.comandos.ComandoTeleport;
 import principal.comandos.ComandoVelocidad;
 import principal.configuracion.ConfiguracionGrafica;
+import principal.configuracion.GestorConfiguracion;
 import principal.configuracion.LimiteFPS;
 import principal.graficos.SuperficieDibujo;
 import principal.graficos.Ventana;
@@ -28,13 +28,6 @@ import principal.utilidades.Globales;
 import principal.utilidades.audio.musica.GestorMusica;
 import principal.utilidades.audio.sonido.GestorSonido;
 
-/**
- * Núcleo principal del juego (Game Loop). Mantiene las actualizaciones lógicas
- * (APS) clavadas a 60 Hz y sincroniza la tasa de cuadros dinámicamente con
- * {@link ConfiguracionGrafica}.
- * 
- * @version 2.2 (Vanilla Java 8)
- */
 public class GestorPrincipal {
 
 	private static final long NS_POR_SEGUNDO = 1_000_000_000L;
@@ -64,12 +57,11 @@ public class GestorPrincipal {
 		this.tiempoInicioSesionMs = System.currentTimeMillis();
 
 		this.gestorEstados = new GestorEstados();
-		this.superficieDibujo = SuperficieDibujo.obetenerSuperficieDibujo();
+		this.superficieDibujo = SuperficieDibujo.obtenerSuperficieDibujo();
 		this.ventana = new Ventana("Juego RPG", this.superficieDibujo);
 
-		// Inicializa la configuración gráfica, ejecuta la detección y aplica sobre la
-		// ventana
-		ConfiguracionGrafica.inicializar();
+		// Inicialización unificada cifrada de Video, Teclado y Preferencias
+		GestorConfiguracion.inicializar();
 
 		this.registrarComandos();
 		Globales.GESTOR_COMANDOS.iniciarEscuchaConsola();
@@ -91,7 +83,7 @@ public class GestorPrincipal {
 
 			delta += tiempoTranscurrido / NS_POR_ACTUALIZACION;
 
-			// --- 1. LÓGICA (60 APS) ---
+			// --- 1. LÓGICA (60 APS DETERMINISTA) ---
 			int actualizacionesEnEsteFrame = 0;
 			while ((delta >= 1.0) && (actualizacionesEnEsteFrame < MAX_ACTUALIZACIONES_POR_FRAME)) {
 				this.actualizar();
@@ -106,7 +98,7 @@ public class GestorPrincipal {
 			// --- 2. RENDERIZADO (FPS) ---
 			this.pintar();
 
-			// --- 3. CONTROL DE TASA DE CUADROS DINÁMICO (ConfiguracionGrafica) ---
+			// --- 3. CONTROL DE TASA DE CUADROS HÍBRIDO (SIN JITTER EN WINDOWS) ---
 			final LimiteFPS lim = ConfiguracionGrafica.getLimiteFps();
 
 			if (lim != LimiteFPS.ILIMITADO) {
@@ -117,7 +109,8 @@ public class GestorPrincipal {
 				if (tiempoRestanteNS > 0) {
 					final long finEsperado = System.nanoTime() + (long) tiempoRestanteNS;
 
-					if (tiempoRestanteNS > 2_000_000) {
+					// Si sobra más de 2.5 ms, dormimos el hilo para descansar la CPU
+					if (tiempoRestanteNS > 2_500_000) {
 						try {
 							final long msParaEsperar = (long) ((tiempoRestanteNS - 2_000_000) / 1_000_000);
 							Thread.sleep(msParaEsperar);
@@ -126,8 +119,12 @@ public class GestorPrincipal {
 						}
 					}
 
+					// Tramo final (< 2 ms): espera activa de ultra-precisión para clavar los 60.0
+					// FPS
 					while (System.nanoTime() < finEsperado) {
-						LockSupport.parkNanos(1);
+						if ((finEsperado - System.nanoTime()) > 500_000) {
+							Thread.yield();
+						}
 					}
 				}
 			} else {
@@ -201,6 +198,7 @@ public class GestorPrincipal {
 	}
 
 	private void registrarComandos() {
+		// --- COMANDOS BÁSICOS EXISTENTES ---
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoCurar());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoClima());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoTeleport());
@@ -217,6 +215,19 @@ public class GestorPrincipal {
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoJugador());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoCrafteo());
 		Globales.GESTOR_COMANDOS.registrarComando(new ComandoEfecto());
-		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoFPS());
+		Globales.GESTOR_COMANDOS.registrarComando(new ComandoFPS());
+
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoGive());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoSpawn());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoDinero());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoProgreso());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoTermico());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoIA());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoMundo());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoFaccion());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoGrupo());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoDialogo());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoAudio());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoStress());
 	}
 }

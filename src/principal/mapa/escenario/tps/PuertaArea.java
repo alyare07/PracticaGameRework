@@ -17,8 +17,10 @@ public class PuertaArea extends PuertaTP {
 		if (c == null) {
 			return;
 		}
-		c.setPosicionX((this.AREA_DESTINO.x + (this.AREA_DESTINO.width / 2)) - (c.getArea().width / 2));
-		c.setPosicionY((this.AREA_DESTINO.y + (this.AREA_DESTINO.height / 2)) - (c.getArea().height / 2));
+		final double nuevoX = (this.AREA_DESTINO.x + (this.AREA_DESTINO.width / 2.0)) - (c.getAncho() / 2.0);
+		final double nuevoY = (this.AREA_DESTINO.y + (this.AREA_DESTINO.height / 2.0)) - (c.getAlto() / 2.0);
+		c.setPosicion(nuevoX, nuevoY);
+		c.verificarZoneBox();
 	}
 
 	public int getXDestino() {

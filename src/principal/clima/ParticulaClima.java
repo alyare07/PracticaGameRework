@@ -3,10 +3,10 @@ package principal.clima;
 import principal.utilidades.Constantes;
 
 /**
- * Partícula atmosférica en espacio de pantalla con envoltura toroidal fluida
- * (Zero-GC).
+ * Partícula atmosférica en espacio de pantalla con envoltura toroidal fluida y
+ * estilización cinemática de trazo largo para Pixel-Art (Zero-GC).
  * 
- * @version 5.0
+ * @version 6.0
  */
 public class ParticulaClima {
 
@@ -22,8 +22,9 @@ public class ParticulaClima {
 	public void inicializarAleatorio() {
 		this.x = (Math.random() * (Constantes.ANCHO_JUEGO + (MARGEN_ENVOLTURA * 2))) - MARGEN_ENVOLTURA;
 		this.y = (Math.random() * (Constantes.ALTO_JUEGO + (MARGEN_ENVOLTURA * 2))) - MARGEN_ENVOLTURA;
-		this.velocidadBase = 0.8 + (Math.random() * 0.5);
-		this.longitudTrazo = 6.0 + (Math.random() * 8.0);
+		this.velocidadBase = 1.0 + (Math.random() * 0.5);
+		// Trazo estilizado más largo: da sensación de velocidad sin saturar la pantalla
+		this.longitudTrazo = 14.0 + (Math.random() * 10.0);
 		this.faseOscilacion = Math.random() * Math.PI * 2.0;
 		this.tamano = 1.0 + (Math.random() * 2.0);
 	}

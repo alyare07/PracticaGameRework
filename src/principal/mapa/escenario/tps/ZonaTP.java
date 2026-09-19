@@ -67,15 +67,13 @@ public class ZonaTP extends Ente {
 	}
 
 	private void procesarTeletransporte() {
-		// Captura la posición exacta del jugador en la puerta ANTES de
-		// teletransportarlo
 		final double liderOrigenX = Globales.JUGADOR.getCentroX();
 		final double liderOrigenY = Globales.JUGADOR.getCentroY();
 
-		// 1. Teletransporta al jugador
+		// 1. Ejecuta el teletransporte del Jugador
 		this.teletransportar(Globales.JUGADOR);
 
-		// 2. Migra a los seguidores que estaban cerca en la puerta
+		// 2. Si es local (PuertaArea o PuertaZona), traslada a los seguidores
 		if ((Globales.GESTOR_GRUPO != null) && !(this.puertaTP instanceof PuertaMundo)
 				&& !(this.puertaTP instanceof PuertaMapa)) {
 			Globales.GESTOR_GRUPO.migrarEscoltaLocal(this.puertaTP, liderOrigenX, liderOrigenY);

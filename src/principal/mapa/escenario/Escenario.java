@@ -11,9 +11,12 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import principal.entes.criaturas.Criatura;
+import principal.entes.criaturas.enemigos.bandido.Bandido;
 import principal.entes.criaturas.enemigos.bandido.BandidoGarrote;
 import principal.entes.criaturas.enemigos.bandido.BandidoGranadero;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
+import principal.entes.criaturas.mascotas.Mascota;
+import principal.entes.criaturas.neutrales.Comerciante;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Fogata;
@@ -36,11 +39,11 @@ import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
 import principal.utilidades.Globales;
 
 /**
- * Representa la definición serializada completa de un mapa del juego. Carga de
- * forma autónoma Terreno, Entidades, Spawns, Triggers, Zonas de Ambiente, Luces
- * Estáticas y Metadatos climáticos/musicales.
+ * Representa la definición serializada completa de un mapa del juego. Instancia
+ * de forma polimórfica Bandidos, Comerciantes y Mascotas preservando salud y
+ * atributos.
  * 
- * @version 3.0 (Vanilla Java 8 - Data-Driven World)
+ * @version 3.1 (Vanilla Java 8 - Polymorphic Entity Loader)
  */
 public class Escenario implements Serializable {
 
@@ -72,7 +75,6 @@ public class Escenario implements Serializable {
 		this.METADATOS = (metadatos != null) ? metadatos : new MetadatosEscenario();
 	}
 
-	// Sobrecargas de retrocompatibilidad
 	public Escenario(final Terreno mapa, final String criaturasJSON, final String itemsJSON,
 			final String complementosJSON, final String objetosJSON, final String spawnsJSON) {
 		this(mapa, criaturasJSON, itemsJSON, complementosJSON, objetosJSON, spawnsJSON, "[]", "[]", "[]",
@@ -120,20 +122,26 @@ public class Escenario implements Serializable {
 			if (obj instanceof JSONObject) {
 				final JSONObject json = (JSONObject) obj;
 				final String tipo = (json.get("tipo") != null) ? json.get("tipo").toString() : "";
-				final JSONObject entiti = (JSONObject) json.get("entiti");
+				final JSONObject entiti = (json.get("entiti") instanceof JSONObject) ? (JSONObject) json.get("entiti")
+						: json;
 
-				if (tipo.equals("Bandido") && (entiti != null)) {
+				if (entiti == null) {
+					continue;
+				}
+
+				// 1. Instanciación de Facción Bandidos
+				if (tipo.equals("Bandido")) {
 					final int x = ((Number) entiti.get("x")).intValue();
 					final int y = ((Number) entiti.get("y")).intValue();
-					final double vida = (entiti.get("vida") != null) ? ((Number) entiti.get("vida")).doubleValue()
-							: 50.0;
 					final double vidaMax = (entiti.get("vidaMaxima") != null)
 							? ((Number) entiti.get("vidaMaxima")).doubleValue()
 							: 50.0;
+					final double vida = (entiti.get("vida") != null) ? ((Number) entiti.get("vida")).doubleValue()
+							: vidaMax;
 					final String subtipo = (entiti.get("subtipo") != null) ? entiti.get("subtipo").toString()
 							: "Pistolero";
 
-					Criatura bandido = null;
+					Bandido bandido = null;
 					if (subtipo.equals("Pistolero")) {
 						bandido = new BandidoPistolero(x, y, vida, vidaMax, mundo);
 					} else if (subtipo.equals("Garrote")) {
@@ -143,7 +151,22 @@ public class Escenario implements Serializable {
 					}
 
 					if (bandido != null) {
+						bandido.establecerVida(vida);
 						criaturas.add(bandido);
+					}
+				}
+				// 2. Instanciación de Comerciantes
+				else if (tipo.equals("Comerciante")) {
+					final Comerciante com = Comerciante.crearDesdeJSON(entiti);
+					if (com != null) {
+						criaturas.add(com);
+					}
+				}
+				// 3. Instanciación de Mascotas / Acompañantes estáticos del mapa
+				else if (tipo.equals("Mascota")) {
+					final Mascota mas = Mascota.crearDesdeJSON(entiti);
+					if (mas != null) {
+						criaturas.add(mas);
 					}
 				}
 			}

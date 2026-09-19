@@ -55,6 +55,11 @@ public class GestorZonasAmbiente {
 			}
 		}
 
+		// Bandera de protección: si hay tormenta, eclipse, ventisca o aurora, el clima
+		// manda
+		final boolean tieneClimaEspecial = (Globales.GESTOR_CLIMA != null)
+				&& Globales.GESTOR_CLIMA.tieneTinteClimaticoEspecial();
+
 		// 2. Detección de cambio de umbral y modulación
 		if (zonaEncontrada != this.zonaActual) {
 			this.zonaActual = zonaEncontrada;
@@ -62,10 +67,10 @@ public class GestorZonasAmbiente {
 			if (zonaEncontrada != null) {
 				if (zonaEncontrada.isEsInterior()) {
 					Globales.GESTOR_LUZ.establecerAmbienteTransicion(zonaEncontrada.getColorAmbiente(), 1.5);
-				} else {
+				} else if (!tieneClimaEspecial) {
 					Globales.GESTOR_LUZ.restablecerModoExterior();
 				}
-			} else {
+			} else if (!tieneClimaEspecial) {
 				Globales.GESTOR_LUZ.restablecerModoExterior();
 			}
 		}
@@ -74,9 +79,10 @@ public class GestorZonasAmbiente {
 		if (this.zonaActual != null) {
 			final double f = this.zonaActual.getFactorInmersion();
 
-			if (!this.zonaActual.isEsInterior()) {
-				Globales.GESTOR_LUZ.setTinteBiomaExterior(this.zonaActual.getColorAmbiente(), f);
-			}
+			// Si hay clima severo en el exterior, la zona no sobreescribe la luz
+//			if (!this.zonaActual.isEsInterior() && !tieneClimaEspecial) {
+//				Globales.GESTOR_LUZ.setTinteBiomaExterior(this.zonaActual.getColorAmbiente(), f);
+//			}
 			Globales.GESTOR_CLIMA.setNieblaBiomaLocal(this.zonaActual.getNivelNiebla(), f);
 		} else {
 			Globales.GESTOR_CLIMA.setNieblaBiomaLocal(null, 0.0);

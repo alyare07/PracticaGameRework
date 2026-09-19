@@ -2,6 +2,9 @@ package principal.entes.criaturas.grupo;
 
 import java.util.ArrayList;
 
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Jugador;
 import principal.entes.criaturas.mascotas.Mascota;
@@ -12,18 +15,10 @@ import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
-/**
- * Gestor central de Vínculos y Séquito Activo del Jugador. Administra el Roster
- * general y la Escolta Activa coordinando migraciones en puertas (Zero-GC /
- * O(1)).
- * 
- * @version 1.3 (Vanilla Java 8 - Pre-Teleport Proximity Measurement)
- */
 public class GestorGrupo {
 
 	private final Criatura[] escoltaActiva = new Criatura[Jugador.LIMITE_MAXIMO_SEGUIDORES];
 	private int cantidadSeguidores = 0;
-
 	private final ArrayList<Criatura> rosterGeneral = new ArrayList<Criatura>(64);
 
 	public GestorGrupo() {
@@ -41,19 +36,6 @@ public class GestorGrupo {
 			this.rosterGeneral.remove(c);
 			c.setVinculo(TipoVinculo.NINGUNO);
 		}
-	}
-
-	public int contarPorVinculo(final TipoVinculo tipo) {
-		if (tipo == null) {
-			return 0;
-		}
-		int cuenta = 0;
-		for (int i = 0; i < this.rosterGeneral.size(); i++) {
-			if (this.rosterGeneral.get(i).getVinculo() == tipo) {
-				cuenta++;
-			}
-		}
-		return cuenta;
 	}
 
 	public int getCapacidadMaximaActual() {
@@ -141,11 +123,6 @@ public class GestorGrupo {
 		this.rosterGeneral.clear();
 	}
 
-	/**
-	 * Migra seguidores a través de puertas locales en el mismo mundo. La distancia
-	 * se evalúa con respecto a las coordenadas del jugador ANTES de cruzar la
-	 * puerta.
-	 */
 	public void migrarEscoltaLocal(final PuertaTP puerta, final double liderOrigenX, final double liderOrigenY) {
 		if (puerta == null) {
 			return;
@@ -159,7 +136,6 @@ public class GestorGrupo {
 				continue;
 			}
 
-			// Si tiene orden de esperar en el sitio, se queda esperando
 			if (!seguidor.getBlackboard().isSiguiendoLider()) {
 				continue;
 			}
@@ -172,13 +148,10 @@ public class GestorGrupo {
 			final boolean puedeTp = (seguidor instanceof Mascota) ? ((Mascota) seguidor).isPuedeTparseAlLider()
 					: seguidor.getBlackboard().isPuedeTparseAlLider();
 
-			// Si está cerca de la puerta con el jugador SIEMPRE cruza; si está lejos solo
-			// cruza si tiene TP activo
-			final boolean acompana = cerca || puedeTp;
-
-			if (acompana) {
+			if (cerca || puedeTp) {
 				puerta.teletransportar(seguidor);
 				seguidor.modificarPosicionX((i + 1) * 8.0);
+				seguidor.verificarZoneBox();
 			} else {
 				GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 				Globales.GESTOR_TEXTOS.agregarTexto("¡" + seguidor.getNombre() + " se quedó atrás!", (int) liderOrigenX,
@@ -187,11 +160,6 @@ public class GestorGrupo {
 		}
 	}
 
-	/**
-	 * Migra atómicamente a los seguidores que califican hacia el nuevo submundo. La
-	 * cercanía se mide con la posición que tenía el jugador en el mundo origen al
-	 * pisar la puerta.
-	 */
 	public void migrarEscoltaSubmundo(final Mundo mundoOrigen, final Mundo mundoDestino, final Criatura lider,
 			final double liderOrigenX, final double liderOrigenY, final double radioAcople) {
 		if ((mundoOrigen == null) || (mundoDestino == null) || (lider == null)) {
@@ -210,12 +178,10 @@ public class GestorGrupo {
 				continue;
 			}
 
-			// Si tiene orden de esperar en el mapa anterior, se queda
 			if (!seguidor.getBlackboard().isSiguiendoLider()) {
 				continue;
 			}
 
-			// Distancia con el jugador ANTES de que el jugador cruzara
 			final double dx = seguidor.getCentroX() - liderOrigenX;
 			final double dy = seguidor.getCentroY() - liderOrigenY;
 			final double distSq = (dx * dx) + (dy * dy);
@@ -224,11 +190,7 @@ public class GestorGrupo {
 			final boolean puedeTp = (seguidor instanceof Mascota) ? ((Mascota) seguidor).isPuedeTparseAlLider()
 					: seguidor.getBlackboard().isPuedeTparseAlLider();
 
-			// Si está cerca en la puerta SIEMPRE cruza; si está lejos depende del modo de
-			// rescate
-			final boolean acompana = cerca || puedeTp;
-
-			if (acompana) {
+			if (cerca || puedeTp) {
 				mundoOrigen.eliminarEntidadRegistro(seguidor);
 				seguidor.desvincularDeZonas();
 
@@ -245,6 +207,75 @@ public class GestorGrupo {
 				GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 				Globales.GESTOR_TEXTOS.agregarTexto("¡" + seguidor.getNombre() + " se quedó atrás!", (int) liderOrigenX,
 						(int) liderOrigenY - (10 + (i * 12)), TipoTextoFlotante.ESTADO);
+			}
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public JSONObject exportarJSON() {
+		final JSONObject json = new JSONObject();
+		final JSONArray arrRoster = new JSONArray();
+
+		for (int i = 0; i < this.rosterGeneral.size(); i++) {
+			final Criatura c = this.rosterGeneral.get(i);
+			if ((c != null) && !c.estaEliminado()) {
+				final JSONObject jCriat = c.getJsonCriatura();
+				final boolean enEscolta = this.estaEnEscoltaActiva(c);
+				jCriat.put("enEscolta", Boolean.valueOf(enEscolta));
+				jCriat.put("mundoResidencia", (c.getMundo() != null) ? c.getMundo().getNombreMundo() : "exterior");
+				arrRoster.add(jCriat);
+			}
+		}
+		json.put("roster", arrRoster);
+		return json;
+	}
+
+	public void importarJSON(final JSONObject json, final Mundo mundoActivo) {
+		if (json == null) {
+			return;
+		}
+
+		this.vaciar();
+
+		final Object rosterObj = json.get("roster");
+		if (rosterObj instanceof JSONArray) {
+			final JSONArray arr = (JSONArray) rosterObj;
+			for (final Object obj : arr) {
+				if (obj instanceof JSONObject) {
+					final JSONObject jEntry = (JSONObject) obj;
+					final String tipo = (jEntry.get("tipo") != null) ? jEntry.get("tipo").toString() : "";
+					final JSONObject entiti = (jEntry.get("entiti") instanceof JSONObject)
+							? (JSONObject) jEntry.get("entiti")
+							: jEntry;
+
+					if (tipo.equals("Mascota") || entiti.containsKey("vinculo")) {
+						final Mascota m = Mascota.crearDesdeJSON(entiti);
+						if (m != null) {
+							this.registrarEnRoster(m);
+
+							final boolean enEscolta = (jEntry.get("enEscolta") != null)
+									? Boolean.parseBoolean(jEntry.get("enEscolta").toString())
+									: m.isSiguiendo();
+
+							final String mundoResidencia = (jEntry.get("mundoResidencia") != null)
+									? jEntry.get("mundoResidencia").toString()
+									: "exterior";
+
+							// Si estaba en la escolta activa, aparece en el mundo donde está el jugador
+							if (enEscolta) {
+								if (mundoActivo != null) {
+									mundoActivo.meterEntidad(m);
+								}
+								this.agregarSeguidor(m);
+							} else // Si estaba esperando en otro mapa/mundo, solo se agrega si estamos en ese
+									// mundo
+							if ((mundoActivo != null)
+									&& mundoActivo.getNombreMundo().equalsIgnoreCase(mundoResidencia)) {
+								mundoActivo.meterEntidad(m);
+							}
+						}
+					}
+				}
 			}
 		}
 	}

@@ -17,7 +17,9 @@ public abstract class MapaManager {
 	public static Mapa cargarMapa1(final GestorCarga gc) {
 		final Mapa mapa = new Mapa1(gc, 100, gestorPartida);
 		if (mapa.getMundoActual() != null) {
-			mapa.getMundoActual().setNombreMundo(MAPA_1 + "_Exterior");
+			// Conserva el nombre de mundo real ("exterior") consistente con el mapa y
+			// triggers
+			mapa.getMundoActual().setNombreMundo(Mapa1.EXTERIOR);
 			Globales.GESTOR_DELTAS.aplicarDelta(mapa.getMundoActual());
 		}
 		return mapa;
@@ -32,7 +34,7 @@ public abstract class MapaManager {
 		case MAPA_0:
 			mapa = new MapaPlano(gc, 100, gestorPartida);
 			if (mapa.getMundoActual() != null) {
-				mapa.getMundoActual().setNombreMundo(MAPA_0 + "_Exterior");
+				mapa.getMundoActual().setNombreMundo(MapaPlano.EXTERIOR);
 				Globales.GESTOR_DELTAS.aplicarDelta(mapa.getMundoActual());
 			}
 			break;
@@ -45,6 +47,10 @@ public abstract class MapaManager {
 
 	public static void setGestorPartida(final GestorPartida gp) {
 		gestorPartida = gp;
+	}
+
+	public static GestorPartida getGestorPartida() {
+		return gestorPartida;
 	}
 
 	public static void guardarMapaEnTemp(final Mapa mapa) {

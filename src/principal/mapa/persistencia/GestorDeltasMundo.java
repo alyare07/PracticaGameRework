@@ -12,6 +12,7 @@ import principal.construccion.TipoEstructura;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.mascotas.Mascota;
 import principal.entes.objetos.Fogata;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.recursos.RecursoCosechable;
@@ -19,13 +20,6 @@ import principal.inventario.Contenedor;
 import principal.mapa.Mundo;
 import principal.utilidades.Globales;
 
-/**
- * Gestor centralizado de persistencia diferencial. Preserva recursos, cofres,
- * construcciones, muertes de enemigos e ítems en suelo (Zero-GC /
- * Concurrency-Safe).
- * 
- * @version 2.4 (Vanilla Java 8 - Two-Pass Snapshot Cleanup)
- */
 public class GestorDeltasMundo {
 
 	private final Map<String, DeltaMundo> deltasPorMundo = new HashMap<String, DeltaMundo>();
@@ -67,13 +61,24 @@ public class GestorDeltasMundo {
 		delta.getEstructurasConstruidas().clear();
 		delta.getCofresModificados().clear();
 		delta.getItemsEnSuelo().clear();
+		delta.getCriaturasModificadas().clear();
+		delta.getCriaturasDinamicas().clear();
 
 		for (final Ente e : mundo.getEntes()) {
 			if (e.estaEliminado()) {
 				continue;
 			}
 
-			// 1. Muros y defensas de construcción
+			// 1. Recursos Cosechables (Árboles tocones, rocas con daño parcial)
+			if (e instanceof RecursoCosechable) {
+				final RecursoCosechable rc = (RecursoCosechable) e;
+				if (rc.getDurabilidad() < rc.getDurabilidadMaxima()) {
+					final String clave = IdentificadorEspacial.generarClave(rc.getPosicionXInt(), rc.getPosicionYInt());
+					delta.getCriaturasModificadas().put(clave, rc.exportarEstadoRecursoJSON());
+				}
+			}
+
+			// 2. Estructuras construibles y Fogatas
 			if (e instanceof EstructuraConstruible) {
 				final EstructuraConstruible est = (EstructuraConstruible) e;
 				final JSONObject jsonEst = new JSONObject();
@@ -82,16 +87,18 @@ public class GestorDeltasMundo {
 				jsonEst.put("tipo", est.getTipo().name());
 				jsonEst.put("hp", Double.valueOf(est.getVida()));
 				delta.getEstructurasConstruidas().add(jsonEst);
-			}
-			// 2. Fogatas desplegadas o modificadas
-			else if (e instanceof Fogata) {
+			} else if (e instanceof Fogata) {
 				final Fogata f = (Fogata) e;
 				final JSONObject jsonFog = f.exportarParaJSON();
 				jsonFog.put("tipo", "Fogata");
+				jsonFog.put("vida", Double.valueOf(f.getVida()));
+				jsonFog.put("tiempoCombustible", Double.valueOf(f.getTiempoCombustibleRestante()));
 				delta.getEstructurasConstruidas().add(jsonFog);
 			}
-			// 3. Inventarios de cofres y almacenes
-			else if (e instanceof Contenedor) {
+
+			// 3. Contenedores y Cofres (Si es criatura-comerciante, su inventario se guarda
+			// aquí)
+			if (e instanceof Contenedor) {
 				final Contenedor c = (Contenedor) e;
 				final Ente propietario = c.getEntePropietario();
 				if (propietario != null) {
@@ -104,11 +111,33 @@ public class GestorDeltasMundo {
 					delta.getCofresModificados().put(clave, itemsJson);
 				}
 			}
-			// 4. Ítems en el suelo (Excluye monedas volátiles COD_ITEM_MONEDA = 3)
-			else if (e instanceof Item) {
+
+			// 4. Ítems en el suelo
+			if ((e instanceof Item) && !(e instanceof Contenedor)) {
 				final Item item = (Item) e;
 				if (item.getTipoItem() != Item.COD_ITEM_MONEDA) {
 					delta.getItemsEnSuelo().add(item.getJsonItem());
+				}
+			}
+
+			// 5. Criaturas (Comerciantes, Mascotas estacionadas, Enemigos, Jefes)
+			if ((e instanceof Criatura) && !(e instanceof Jugador)) {
+				final Criatura c = (Criatura) e;
+
+				if (c instanceof Mascota) {
+					final boolean enEscoltaActiva = (Globales.GESTOR_GRUPO != null)
+							&& (Globales.GESTOR_GRUPO.estaEnEscoltaActiva(c) || c.getBlackboard().isSiguiendoLider());
+
+					// Solo se guarda en el delta si quedó esperando en este mapa
+					if (!enEscoltaActiva) {
+						delta.getCriaturasDinamicas().add(c.getJsonCriatura());
+					}
+				} else {
+					// Guarda genéricamente vida, posición, dirección, efectos y memoria IA
+					final String clave = IdentificadorEspacial.generarClave(c.getPosicionXInicial(),
+							c.getPosicionYInicial());
+					final JSONObject jCriat = c.getJsonCriatura();
+					delta.getCriaturasModificadas().put(clave, jCriat);
 				}
 			}
 		}
@@ -135,11 +164,8 @@ public class GestorDeltasMundo {
 			return;
 		}
 
-		// =====================================================================
-		// FASE 1: RECOLECCIÓN SEGURA EN SNAPSHOT (Evita ConcurrentModification)
-		// =====================================================================
+		// FASE 1: Purga de destruidos
 		final ArrayList<Ente> aEliminar = new ArrayList<Ente>();
-
 		for (final Ente e : mundo.getEntes()) {
 			if ((e instanceof RecursoCosechable) || (e instanceof Fogata)) {
 				if (delta.isEntidadDestruida(e.getPosicionXInt(), e.getPosicionYInt())) {
@@ -150,15 +176,20 @@ public class GestorDeltasMundo {
 				if (delta.isEntidadDestruida(c.getPosicionXInicial(), c.getPosicionYInicial())
 						|| delta.isEntidadDestruida(c.getPosicionXInt(), c.getPosicionYInt())) {
 					aEliminar.add(c);
+				} else if ((c instanceof Mascota) && (Globales.GESTOR_GRUPO != null)) {
+					for (final Criatura escolta : Globales.GESTOR_GRUPO.getEscoltaActiva()) {
+						if ((escolta != null) && escolta.getNombre().equalsIgnoreCase(c.getNombre())
+								&& (escolta != c)) {
+							aEliminar.add(c);
+							break;
+						}
+					}
 				}
 			} else if (e instanceof Item) {
 				aEliminar.add(e);
 			}
 		}
 
-		// =====================================================================
-		// FASE 2: PURGA ATÓMICA DIRECTA (Sin disparar eventos de muerte en carga)
-		// =====================================================================
 		for (int i = 0; i < aEliminar.size(); i++) {
 			final Ente e = aEliminar.get(i);
 			mundo.eliminarEntidadRegistro(e);
@@ -168,29 +199,89 @@ public class GestorDeltasMundo {
 			}
 		}
 
-		// 3. Re-instancia construcciones y fogatas
-		for (int i = 0; i < delta.getEstructurasConstruidas().size(); i++) {
-			final JSONObject jEst = delta.getEstructurasConstruidas().get(i);
-			final String tipoStr = (jEst.get("tipo") != null) ? jEst.get("tipo").toString() : "";
-
-			if (tipoStr.equals("Fogata")) {
-				final Fogata f = Fogata.crearDesdeJson(jEst);
-				if (f != null) {
-					mundo.meterEntidad(f);
+		// FASE 2: Restaurar Estado de Criaturas y Recursos Sobrevivientes
+		for (final Ente e : mundo.getEntes()) {
+			if (e instanceof RecursoCosechable) {
+				final RecursoCosechable rc = (RecursoCosechable) e;
+				final String clave = IdentificadorEspacial.generarClave(rc.getPosicionXInt(), rc.getPosicionYInt());
+				final JSONObject jRec = delta.getCriaturasModificadas().get(clave);
+				if (jRec != null) {
+					rc.importarEstadoRecursoJSON(jRec);
 				}
-			} else {
-				try {
-					final TipoEstructura tipo = TipoEstructura.valueOf(tipoStr);
-					final int x = ((Number) jEst.get("x")).intValue();
-					final int y = ((Number) jEst.get("y")).intValue();
-					final EstructuraConstruible est = new EstructuraConstruible(x, y, tipo);
-					mundo.meterEntidad(est);
-				} catch (final Exception ignored) {
+			} else if ((e instanceof Criatura) && !(e instanceof Jugador) && !(e instanceof Mascota)) {
+				final Criatura c = (Criatura) e;
+				final String clave = IdentificadorEspacial.generarClave(c.getPosicionXInicial(),
+						c.getPosicionYInicial());
+				final JSONObject jCriat = delta.getCriaturasModificadas().get(clave);
+
+				if (jCriat != null) {
+					final JSONObject entiti = (jCriat.get("entiti") instanceof JSONObject)
+							? (JSONObject) jCriat.get("entiti")
+							: jCriat;
+					c.importarDatosCriaturaBase(entiti);
 				}
 			}
 		}
 
-		// 4. Restaura contenidos de cofres
+		// FASE 3: Restaurar Mascotas Estacionadas
+		for (int i = 0; i < delta.getCriaturasDinamicas().size(); i++) {
+			final JSONObject jObj = delta.getCriaturasDinamicas().get(i);
+			final JSONObject entiti = (jObj.get("entiti") instanceof JSONObject) ? (JSONObject) jObj.get("entiti")
+					: jObj;
+
+			final String nombre = (entiti.get("nombre") != null) ? entiti.get("nombre").toString() : "";
+			boolean yaExiste = false;
+			for (final Ente ent : mundo.getEntes()) {
+				if ((ent instanceof Criatura) && ((Criatura) ent).getNombre().equalsIgnoreCase(nombre)) {
+					yaExiste = true;
+					break;
+				}
+			}
+
+			if (!yaExiste) {
+				final Mascota mascota = Mascota.crearDesdeJSON(entiti);
+				if (mascota != null) {
+					mundo.meterEntidad(mascota);
+					if (Globales.GESTOR_GRUPO != null) {
+						Globales.GESTOR_GRUPO.registrarEnRoster(mascota);
+					}
+				}
+			}
+		}
+
+		// FASE 4: Restaurar Estructuras Construidas
+		for (int i = 0; i < delta.getEstructurasConstruidas().size(); i++) {
+			final JSONObject jEst = delta.getEstructurasConstruidas().get(i);
+			final String tipoStr = (jEst.get("tipo") != null) ? jEst.get("tipo").toString() : "";
+			final int x = ((Number) jEst.get("x")).intValue();
+			final int y = ((Number) jEst.get("y")).intValue();
+
+			boolean yaExiste = false;
+			for (final Ente ent : mundo.getEntes()) {
+				if ((ent.getPosicionXInt() == x) && (ent.getPosicionYInt() == y)) {
+					yaExiste = true;
+					break;
+				}
+			}
+
+			if (!yaExiste) {
+				if (tipoStr.equals("Fogata")) {
+					final Fogata f = Fogata.crearDesdeJson(jEst);
+					if (f != null) {
+						mundo.meterEntidad(f);
+					}
+				} else {
+					try {
+						final TipoEstructura tipo = TipoEstructura.valueOf(tipoStr);
+						final EstructuraConstruible est = new EstructuraConstruible(x, y, tipo);
+						mundo.meterEntidad(est);
+					} catch (final Exception ignored) {
+					}
+				}
+			}
+		}
+
+		// FASE 5: Restaurar Contenedores/Cofres
 		for (final Ente e : mundo.getEntes()) {
 			if (e instanceof Contenedor) {
 				final Contenedor c = (Contenedor) e;
@@ -199,7 +290,6 @@ public class GestorDeltasMundo {
 					final String clave = IdentificadorEspacial.generarClave(propietario.getPosicionXInt(),
 							propietario.getPosicionYInt());
 					final JSONArray items = delta.getCofresModificados().get(clave);
-
 					if (items != null) {
 						c.getInventario().vaciar();
 						for (final Object objItem : items) {
@@ -215,7 +305,7 @@ public class GestorDeltasMundo {
 			}
 		}
 
-		// 5. Re-instancia únicamente los ítems legítimos en suelo
+		// FASE 6: Restaurar Ítems en el suelo
 		for (int i = 0; i < delta.getItemsEnSuelo().size(); i++) {
 			final JSONObject jItem = delta.getItemsEnSuelo().get(i);
 			final Item item = Item.crearItemDesdeJson(jItem);
@@ -243,7 +333,6 @@ public class GestorDeltasMundo {
 		if (json == null) {
 			return;
 		}
-
 		for (final Object key : json.keySet()) {
 			final String claveMundo = key.toString();
 			final Object val = json.get(key);

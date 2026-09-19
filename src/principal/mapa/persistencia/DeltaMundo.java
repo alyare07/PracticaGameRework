@@ -8,6 +8,13 @@ import java.util.Map;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
+/**
+ * Contenedor diferencial serializable de estados de un mundo. Preserva
+ * destrucciones, construcciones, cofres, ítems en suelo, vida/posición de
+ * criaturas sobrevivientes y entidades dinámicas vinculadas.
+ * 
+ * @version 2.0 (Vanilla Java 8 - Living Entities & Companions Delta Support)
+ */
 public class DeltaMundo {
 
 	private final String nombreMundo;
@@ -16,8 +23,16 @@ public class DeltaMundo {
 	private final HashMap<String, JSONArray> cofresModificados = new HashMap<String, JSONArray>();
 	private final ArrayList<JSONObject> itemsEnSuelo = new ArrayList<JSONObject>();
 
+	// Estados de criaturas nativas sobrevivientes (vida remanente y posición
+	// actual)
+	private final HashMap<String, JSONObject> criaturasModificadas = new HashMap<String, JSONObject>();
+
+	// Criaturas dinámicas vinculadas al jugador (mascotas, mercenarios) en este
+	// mundo
+	private final ArrayList<JSONObject> criaturasDinamicas = new ArrayList<JSONObject>();
+
 	private int diaGuardado = 1;
-	private int diasParaRegenerar = 0; // 0 = Nunca regenera (Permanente, ej: Exterior)
+	private int diasParaRegenerar = 0; // 0 = Nunca regenera (Permanente)
 
 	public DeltaMundo(final String nombreMundo, final int diasParaRegenerar) {
 		this.nombreMundo = nombreMundo;
@@ -26,6 +41,7 @@ public class DeltaMundo {
 
 	public void registrarDestruccion(final int x, final int y) {
 		this.entidadesDestruidas.add(IdentificadorEspacial.generarClave(x, y));
+		this.criaturasModificadas.remove(IdentificadorEspacial.generarClave(x, y));
 	}
 
 	public boolean isEntidadDestruida(final int x, final int y) {
@@ -44,6 +60,8 @@ public class DeltaMundo {
 		this.estructurasConstruidas.clear();
 		this.cofresModificados.clear();
 		this.itemsEnSuelo.clear();
+		this.criaturasModificadas.clear();
+		this.criaturasDinamicas.clear();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -70,6 +88,18 @@ public class DeltaMundo {
 		final JSONArray listaItems = new JSONArray();
 		listaItems.addAll(this.itemsEnSuelo);
 		json.put("items", listaItems);
+
+		// Serialización de criaturas vivas modificadas
+		final JSONObject jsonCriatMod = new JSONObject();
+		for (final Map.Entry<String, JSONObject> entry : this.criaturasModificadas.entrySet()) {
+			jsonCriatMod.put(entry.getKey(), entry.getValue());
+		}
+		json.put("criaturasModificadas", jsonCriatMod);
+
+		// Serialización de mascotas y acompañantes
+		final JSONArray listaDinamicas = new JSONArray();
+		listaDinamicas.addAll(this.criaturasDinamicas);
+		json.put("criaturasDinamicas", listaDinamicas);
 
 		return json;
 	}
@@ -123,6 +153,25 @@ public class DeltaMundo {
 				}
 			}
 		}
+
+		final JSONObject jsonCriatMod = (JSONObject) json.get("criaturasModificadas");
+		if (jsonCriatMod != null) {
+			for (final Object key : jsonCriatMod.keySet()) {
+				final Object val = jsonCriatMod.get(key);
+				if (val instanceof JSONObject) {
+					this.criaturasModificadas.put(key.toString(), (JSONObject) val);
+				}
+			}
+		}
+
+		final JSONArray listaDinamicas = (JSONArray) json.get("criaturasDinamicas");
+		if (listaDinamicas != null) {
+			for (final Object obj : listaDinamicas) {
+				if (obj instanceof JSONObject) {
+					this.criaturasDinamicas.add((JSONObject) obj);
+				}
+			}
+		}
 	}
 
 	public String getNombreMundo() {
@@ -143,6 +192,14 @@ public class DeltaMundo {
 
 	public ArrayList<JSONObject> getItemsEnSuelo() {
 		return this.itemsEnSuelo;
+	}
+
+	public HashMap<String, JSONObject> getCriaturasModificadas() {
+		return this.criaturasModificadas;
+	}
+
+	public ArrayList<JSONObject> getCriaturasDinamicas() {
+		return this.criaturasDinamicas;
 	}
 
 	public int getDiaGuardado() {

@@ -490,7 +490,10 @@ public class GestorLuz {
 			return;
 		}
 
-		this.rayosSol.pintar(g);
+		// Conexión con Perfil de Rendimiento: en POTATO se omiten los rayos solares
+		if (ConfiguracionGrafica.OPT_SOMBRAS_VOLUMETRICAS) {
+			this.rayosSol.pintar(g);
+		}
 
 		int rBase, gBase, bBase, aBase;
 		if (this.modoAmbienteFijo) {
@@ -600,6 +603,9 @@ public class GestorLuz {
 		final boolean enInterior = this.modoAmbienteFijo
 				|| ((Globales.GESTOR_ZONAS_AMBIENTE != null) && Globales.GESTOR_ZONAS_AMBIENTE.isEnZonaInterior());
 
+		// Bandera activa de sombras: en POTATO se apaga el cálculo geométrico de muros
+		final boolean sombrasHabilitadas = ConfiguracionGrafica.OPT_SOMBRAS_VOLUMETRICAS;
+
 		// =====================================================================
 		// PASE A: PERFORACIÓN DE PENUMBRA (DST_OUT) + OCLUSIÓN EN INTERIORES
 		// =====================================================================
@@ -636,7 +642,7 @@ public class GestorLuz {
 				gLight.drawImage(this.texturaMascaraAlphaHD, screenX, screenY, diametro, diametro, null);
 			}
 
-			if (enInterior && (luz.getTipo() != TipoLuz.AURA_JUGADOR)) {
+			if (enInterior && sombrasHabilitadas && (luz.getTipo() != TipoLuz.AURA_JUGADOR)) {
 				this.oclusorSombras.proyectarSombrasPaseA(gLight, luz, centroMundoCamX, centroMundoCamY, z, shakeX,
 						shakeY, this.colorAmbienteCalculado);
 			}
@@ -683,7 +689,7 @@ public class GestorLuz {
 							diametro, null);
 				}
 
-				if (enInterior && (luz.getTipo() != TipoLuz.AURA_JUGADOR)) {
+				if (enInterior && sombrasHabilitadas && (luz.getTipo() != TipoLuz.AURA_JUGADOR)) {
 					this.oclusorSombras.proyectarSombrasPaseB(gLight, luz, centroMundoCamX, centroMundoCamY, z, shakeX,
 							shakeY, this.colorAmbienteCalculado);
 				}

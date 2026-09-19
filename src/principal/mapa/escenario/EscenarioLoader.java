@@ -1,11 +1,13 @@
 package principal.mapa.escenario;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.stream.Stream;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -23,10 +25,9 @@ import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.utilidades.Globales;
 
 /**
- * Gestor de importación y exportación de escenarios con serialización unificada
- * para Terreno, Entidades, Spawns, Triggers, Zonas y Metadatos.
+ * Gestor de importación y exportación de escenarios con cifrado simétrico AES.
  * 
- * @version 3.0 (Vanilla Java 8)
+ * @version 3.1 (Vanilla Java 8 - Encrypted World Exporter)
  */
 public abstract class EscenarioLoader {
 
@@ -61,13 +62,15 @@ public abstract class EscenarioLoader {
 			e.printStackTrace();
 		}
 
-		final String jsonEncriptado = Globales.FUNCIONES.ENCRIPTADOR_STRING.encriptar(jsonExp.toJSONString());
+		final String jsonPlano = jsonExp.toJSONString();
+		final String jsonEncriptado = Globales.FUNCIONES.ENCRIPTADOR_STRING.encriptar(jsonPlano);
 
-		try (final PrintWriter pw = new PrintWriter(ruta)) {
-			pw.print(jsonEncriptado);
-			pw.flush();
-			System.out.println("[EscenarioLoader] Escenario exportado en: " + ruta.getAbsolutePath());
-		} catch (final IOException e) {
+		try (final BufferedWriter writer = new BufferedWriter(
+				new OutputStreamWriter(new FileOutputStream(ruta), StandardCharsets.UTF_8))) {
+			writer.write(jsonEncriptado);
+			writer.flush();
+			System.out.println("[EscenarioLoader] Escenario cifrado y exportado en: " + ruta.getAbsolutePath());
+		} catch (final Exception e) {
 			System.err.println("[EscenarioLoader] Error al exportar escenario: " + e.getMessage());
 		}
 	}
@@ -86,8 +89,12 @@ public abstract class EscenarioLoader {
 			}
 
 			final StringBuilder sb = new StringBuilder();
-			try (Stream<String> stream = Files.lines(ruta.toPath(), StandardCharsets.UTF_8)) {
-				stream.forEach(s -> sb.append(s).append("\n"));
+			try (final BufferedReader reader = new BufferedReader(
+					new InputStreamReader(new FileInputStream(ruta), StandardCharsets.UTF_8))) {
+				String linea;
+				while ((linea = reader.readLine()) != null) {
+					sb.append(linea);
+				}
 			}
 
 			if (gc != null) {
@@ -95,9 +102,8 @@ public abstract class EscenarioLoader {
 			}
 
 			pesoCarga = 20;
-			final String jsonImpEncriptado = sb.toString();
-			final JSONObject jsonImp = (JSONObject) new JSONParser()
-					.parse(Globales.FUNCIONES.ENCRIPTADOR_STRING.desencriptar(jsonImpEncriptado));
+			final String textoDescifrado = Globales.FUNCIONES.ENCRIPTADOR_STRING.desencriptar(sb.toString());
+			final JSONObject jsonImp = (JSONObject) new JSONParser().parse(textoDescifrado);
 
 			final String jsonCriaturas = obtenerArrayStringSeguro(jsonImp,
 					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class));

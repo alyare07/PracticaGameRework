@@ -55,8 +55,18 @@ public class Ventana extends JFrame {
 		final int anchoMonitor = dm.getWidth();
 		final int altoMonitor = dm.getHeight();
 
+		// 1. Desvincular modo exclusivo previo si estuviese activo
 		if (gd.getFullScreenWindow() == this) {
 			gd.setFullScreenWindow(null);
+		}
+
+		// 2. Destruir la cadena de buffers anterior antes de destruir el peer de la
+		// ventana
+		if (this.sd.getBufferStrategy() != null) {
+			try {
+				this.sd.getBufferStrategy().dispose();
+			} catch (final Exception ignored) {
+			}
 		}
 
 		this.dispose();
@@ -74,6 +84,7 @@ public class Ventana extends JFrame {
 			ConfiguracionGrafica.recalcularEscaladoYOffsets();
 			this.setVisible(true);
 			this.sd.requestFocus();
+			this.sd.reiniciarBufferStrategy();
 			break;
 
 		case EXCLUSIVA:
@@ -88,6 +99,7 @@ public class Ventana extends JFrame {
 				ConfiguracionGrafica.recalcularEscaladoYOffsets();
 				this.setVisible(true);
 				this.sd.requestFocus();
+				this.sd.reiniciarBufferStrategy();
 			} else {
 				this.aplicarModoVisualizacion(TipoPantalla.SIN_BORDES, escalaVentana);
 			}
@@ -120,6 +132,7 @@ public class Ventana extends JFrame {
 			this.setLocationRelativeTo(null);
 			this.setVisible(true);
 			this.sd.requestFocus();
+			this.sd.reiniciarBufferStrategy();
 			break;
 		}
 	}

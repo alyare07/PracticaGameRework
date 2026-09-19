@@ -278,16 +278,11 @@ public class Mascota extends Criatura implements Interactuable {
 	@Override
 	protected JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", Integer.valueOf(this.getPosicionXInt()));
-		json.put("y", Integer.valueOf(this.getPosicionYInt()));
+		this.exportarDatosCriaturaBase(json);
 		json.put("nombre", this.nombre);
-		json.put("vida", Double.valueOf(this.vida));
-		json.put("vidaMaxima", Double.valueOf(this.vidaMaxima));
 		json.put("siguiendo", Boolean.valueOf(this.siguiendo));
 		json.put("agresivo", Boolean.valueOf(this.agresivo));
 		json.put("puedeTparse", Boolean.valueOf(this.puedeTparseAlLider));
-		json.put("vinculo", this.vinculo.name());
-		json.put("grupoJugador", Boolean.valueOf(this.tieneVinculoConJugador()));
 		return json;
 	}
 
@@ -308,20 +303,14 @@ public class Mascota extends Criatura implements Interactuable {
 				vinculoRecuperado = TipoVinculo.valueOf(json.get("vinculo").toString());
 			} catch (final Exception ignored) {
 			}
-		} else if (json.get("grupoJugador") != null) {
-			final boolean enGrupo = Boolean.parseBoolean(json.get("grupoJugador").toString());
-			if (enGrupo) {
-				vinculoRecuperado = TipoVinculo.MASCOTA;
-			}
 		}
 
 		final Mascota mascota = new Mascota(x, y, nombre, vidaMax, vinculoRecuperado);
+		mascota.importarDatosCriaturaBase(json);
 
-		if (json.get("vida") != null) {
-			mascota.establecerVida(((Number) json.get("vida")).doubleValue());
-		}
 		if (json.get("siguiendo") != null) {
-			mascota.setSiguiendo(Boolean.parseBoolean(json.get("siguiendo").toString()));
+			mascota.siguiendo = Boolean.parseBoolean(json.get("siguiendo").toString());
+			mascota.getBlackboard().setSiguiendoLider(mascota.siguiendo);
 		}
 		if (json.get("agresivo") != null) {
 			mascota.setAgresivo(Boolean.parseBoolean(json.get("agresivo").toString()));

@@ -632,6 +632,11 @@ public class SlotManager {
 		}
 	}
 
+	// Agregar al final de SlotManager.java:
+	public ArrayList<Slot> getSlotsGenerales() {
+		return this.LISTA_SLOTS_GENERAL;
+	}
+
 	public ArrayList<Slot> getSlotsAlmacen() {
 		return this.LISTA_SLOTS_ALMACEN;
 	}

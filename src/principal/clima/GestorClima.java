@@ -4,8 +4,10 @@ import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 
+import principal.configuracion.ConfiguracionGrafica;
 import principal.iluminacion.IntensidadNiebla;
 import principal.iluminacion.ZonaAmbiente;
 import principal.utilidades.Constantes;
@@ -17,19 +19,19 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Gestor maestro meteorológico y atmosférico con simulación continua,
- * conversión homóloga entre biomas y atenuación acústica en interiores (Zero-GC
- * / O(1)).
+ * Gestor maestro meteorológico optimizado con aceleración en VRAM, minimización
+ * de sobregiro (Overdraw 512x512) y despacho de primitivas agrupadas (Zero-GC /
+ * O(1)).
  * 
- * @version 14.0 (Vanilla Java 8 - Proportional Acoustic Attenuation)
+ * @version 15.0 (Vanilla Java 8 - Direct Native Primitive Batching)
  */
 public class GestorClima {
 
-	private static final int MAX_PARTICULAS = 400;
+	private static final int MAX_PARTICULAS = 200;
 	private static final int MAX_ESTRELLAS_FUGAZ = 6;
 
 	private static final int RESOLUCION_NUBES = 512;
-	private static final int RESOLUCION_NIEBLA = 256;
+	private static final int RESOLUCION_NIEBLA = 512;
 	private static final int ANCHO_AURORA_HD = 640;
 	private static final int ALTO_AURORA_HD = 360;
 
@@ -45,7 +47,9 @@ public class GestorClima {
 	private static final Color COLOR_AURORA_POLVO = new Color(100, 255, 215, 220);
 	private static final Color COLOR_ESTRELLA_PARTICULA = new Color(255, 235, 150, 230);
 	private static final Color COLOR_ESTRELLA_TRAIL = new Color(255, 255, 220, 240);
-
+	private static final Color COLOR_TINTE_TORMENTA = new Color(20, 30, 48, 175);
+	private static final Color COLOR_TINTE_VENTISCA = new Color(55, 75, 105, 165);
+	private static final Color COLOR_TINTE_ARENA = new Color(145, 95, 35, 165); // Tinte sepia/polvo abrasador
 	private static final AlphaComposite COMPOSITE_OPACO = AlphaComposite.getInstance(AlphaComposite.SRC_OVER);
 
 	private static final AlphaComposite[] COMPOSITES_OPACIDAD = new AlphaComposite[101];
@@ -143,7 +147,8 @@ public class GestorClima {
 
 	private BufferedImage hornearTexturaSombrasNubes() {
 		final int size = RESOLUCION_NUBES;
-		final BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+		final BufferedImage img = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(size, size,
+				Transparency.TRANSLUCENT);
 
 		for (int y = 0; y < size; y++) {
 			for (int x = 0; x < size; x++) {
@@ -173,7 +178,8 @@ public class GestorClima {
 
 	private BufferedImage hornearTexturaNiebla() {
 		final int size = RESOLUCION_NIEBLA;
-		final BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+		final BufferedImage img = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(size, size,
+				Transparency.TRANSLUCENT);
 
 		for (int y = 0; y < size; y++) {
 			for (int x = 0; x < size; x++) {
@@ -190,7 +196,8 @@ public class GestorClima {
 	}
 
 	private BufferedImage hornearTexturaAurora() {
-		final BufferedImage img = new BufferedImage(ANCHO_AURORA_HD, ALTO_AURORA_HD, BufferedImage.TYPE_INT_ARGB);
+		final BufferedImage img = Globales.FUNCIONES.TEXTURAS_TOOLS.crearImagenVRAM(ANCHO_AURORA_HD, ALTO_AURORA_HD,
+				Transparency.TRANSLUCENT);
 		final Graphics2D g = img.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
@@ -222,8 +229,8 @@ public class GestorClima {
 			this.actualizarSimuladorMeteorologico(dt);
 		}
 
-		if ((this.climaActual == TipoClima.AURORA_BOREAL) && (Globales.GESTOR_LUZ != null)) {
-			Globales.GESTOR_LUZ.setTinteBiomaExterior(new Color(20, 60, 70, 190), 0.75);
+		if (this.tieneTinteClimaticoEspecial()) {
+			this.actualizarTinteAtmosferico();
 		}
 
 		this.actualizarTermodinamica(dt);
@@ -234,7 +241,9 @@ public class GestorClima {
 		final double vyViento = this.vectorVientoY * rafaga;
 
 		final double velNubes = (this.climaActual == TipoClima.TORMENTA_ARENA) ? 45.0 : 18.0;
-		final double velNiebla = (this.climaActual == TipoClima.TORMENTA_ARENA) ? 55.0 : 12.0;
+		final double velNiebla = ((this.climaActual == TipoClima.TORMENTA_ARENA)
+				|| (this.climaActual == TipoClima.LLUVIA_TORMENTA) || (this.climaActual == TipoClima.VENTISCA)) ? 55.0
+						: 12.0;
 
 		this.scrollNubesX = (this.scrollNubesX + (vxViento * velNubes * dt)) % RESOLUCION_NUBES;
 		this.scrollNubesY = (this.scrollNubesY + (vyViento * velNubes * dt)) % RESOLUCION_NUBES;
@@ -311,7 +320,6 @@ public class GestorClima {
 			this.tiempoRestanteEstadoClima = this.duracionEstadoClimaSegundos;
 			this.climaPronosticado = this.perfilBiomaActual.calcularSiguienteClima(this.climaActual);
 
-			// Conversión homóloga por temperatura estacional en el exterior
 			if (this.temperaturaActualCelsius <= 2.0) {
 				if (this.climaPronosticado == TipoClima.LLUVIA_LEVE) {
 					this.climaPronosticado = TipoClima.NIEVE;
@@ -328,6 +336,17 @@ public class GestorClima {
 		}
 	}
 
+	/**
+	 * Sincroniza en caliente la cantidad de partículas y sombras del clima activo
+	 * cuando el jugador conmuta el perfil gráfico desde el menú de opciones
+	 * (Zero-GC).
+	 */
+	public void sincronizarConPerfilRendimiento() {
+		if (this.climaActual != null) {
+			this.setClima(this.climaActual, 0.5);
+		}
+	}
+
 	private void actualizarTermodinamica(final double dt) {
 		double hora = 12.0;
 		double deltaEstacional = 0.0;
@@ -336,11 +355,8 @@ public class GestorClima {
 			final principal.iluminacion.CicloDiaNoche ciclo = Globales.GESTOR_LUZ.getCiclo();
 			hora = ciclo.getHoraActual();
 
-			// Curva térmica estacional continua según el día del año (0 a 111)
 			final int diaAnio = ciclo.getDiaDelAnio() - 1;
 			final double factorSolar = Math.sin(((diaAnio - 14.0) / 112.0) * (Math.PI * 2.0));
-
-			// Verano: hasta +7.5°C sobre la base | Invierno: hasta -9.5°C bajo la base
 			deltaEstacional = (factorSolar >= 0.0) ? (factorSolar * 7.5) : (factorSolar * 9.5);
 		}
 
@@ -400,81 +416,123 @@ public class GestorClima {
 			return;
 		}
 
-		for (int i = 0; i < this.cantidadParticulasActivas; i++) {
-			final ParticulaClima p = this.particulas[i];
-			double vx = 0.0;
-			double vy = 0.0;
+		// Inversión de control: el switch se evalúa 1 vez, no 200 veces por frame
+		switch (this.climaActual) {
+		case LLUVIA_LEVE:
+		case LLUVIA_TORMENTA:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
+				final double vx = (vxViento * 80.0) * p.velocidadBase;
+				final double vy = (320.0 + (vyViento * 60.0)) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
+			}
+			break;
 
-			switch (this.climaActual) {
-			case LLUVIA_LEVE:
-			case LLUVIA_TORMENTA:
-				vx = (vxViento * 80.0) * p.velocidadBase;
-				vy = (320.0 + (vyViento * 60.0)) * p.velocidadBase;
-				break;
+		case LLUVIA_ACIDA:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
+				final double vx = (vxViento * 70.0) * p.velocidadBase;
+				final double vy = (340.0 + (vyViento * 50.0)) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
+			}
+			break;
 
-			case LLUVIA_ACIDA:
-				vx = (vxViento * 70.0) * p.velocidadBase;
-				vy = (340.0 + (vyViento * 50.0)) * p.velocidadBase;
-				break;
-
-			case NIEVE:
-			case VENTISCA:
+		case NIEVE:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
 				p.faseOscilacion += dt * 3.0;
 				final double oscilacionNieve = Math.sin(p.faseOscilacion) * 25.0;
-				vx = ((vxViento * 40.0) + oscilacionNieve) * p.velocidadBase;
-				vy = (65.0 + (vyViento * 20.0)) * p.velocidadBase;
-				break;
+				final double vx = ((vxViento * 40.0) + oscilacionNieve) * p.velocidadBase;
+				final double vy = (65.0 + (vyViento * 20.0)) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
+			}
+			break;
 
-			case VENTOSO:
+		case VENTISCA:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
+				// Ráfaga feroz casi horizontal: velocidad X multiplicada y caída pesada
+				final double vx = (vxViento * 110.0) * p.velocidadBase;
+				final double vy = (90.0 + (vyViento * 30.0)) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
+			}
+			break;
+
+		case VENTOSO:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
 				p.faseOscilacion += dt * 5.0;
 				final double aleteoHoja = Math.sin(p.faseOscilacion) * 35.0;
-				vx = (140.0 + (vxViento * 80.0)) * p.velocidadBase;
-				vy = (45.0 + (vyViento * 40.0) + aleteoHoja) * p.velocidadBase;
-				break;
+				final double vx = (140.0 + (vxViento * 80.0)) * p.velocidadBase;
+				final double vy = (45.0 + (vyViento * 40.0) + aleteoHoja) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
+			}
+			break;
 
-			case PETALOS_CEREZO:
+		case PETALOS_CEREZO:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
 				p.faseOscilacion += dt * 4.0;
 				final double balanceoPetalo = Math.sin(p.faseOscilacion) * 28.0;
-				vx = (65.0 + (vxViento * 45.0) + balanceoPetalo) * p.velocidadBase;
-				vy = (55.0 + (vyViento * 25.0)) * p.velocidadBase;
-				break;
+				final double vx = (65.0 + (vxViento * 45.0) + balanceoPetalo) * p.velocidadBase;
+				final double vy = (55.0 + (vyViento * 25.0)) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
+			}
+			break;
 
-			case TORMENTA_ARENA:
+		case TORMENTA_ARENA:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
 				p.faseOscilacion += dt * 4.0;
-				vx = (260.0 + (vxViento * 110.0)) * p.velocidadBase;
-				vy = (30.0 + (Math.sin(p.faseOscilacion) * 15.0) + (vyViento * 20.0)) * p.velocidadBase;
-				break;
+				final double vx = (260.0 + (vxViento * 110.0)) * p.velocidadBase;
+				final double vy = (30.0 + (Math.sin(p.faseOscilacion) * 15.0) + (vyViento * 20.0)) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
+			}
+			break;
 
-			case CENIZA_VOLCANICA:
+		case CENIZA_VOLCANICA:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
 				p.faseOscilacion += dt * 2.5;
 				final double oscilacionCeniza = Math.sin(p.faseOscilacion) * 15.0;
-				vx = (25.0 + (vxViento * 30.0) + oscilacionCeniza) * p.velocidadBase;
-				vy = (40.0 + (vyViento * 15.0)) * p.velocidadBase;
-				break;
-
-			case ESPORAS_MAGICAS:
-				p.faseOscilacion += dt * 2.0;
-				vx = ((Math.cos(p.faseOscilacion) * 18.0) + (vxViento * 15.0)) * p.velocidadBase;
-				vy = (-25.0 + (Math.sin(p.faseOscilacion) * 12.0)) * p.velocidadBase;
-				break;
-
-			case AURORA_BOREAL:
-				p.faseOscilacion += dt * 1.5;
-				vx = (Math.sin(p.faseOscilacion) * 15.0) * p.velocidadBase;
-				vy = (-15.0 + (Math.cos(p.faseOscilacion) * 10.0)) * p.velocidadBase;
-				break;
-
-			case LLUVIA_ESTRELLAS:
-				p.faseOscilacion += dt * 4.0;
-				vx = (-80.0 + (Math.sin(p.faseOscilacion) * 20.0)) * p.velocidadBase;
-				vy = (90.0 + (Math.cos(p.faseOscilacion) * 20.0)) * p.velocidadBase;
-				break;
-
-			default:
-				break;
+				final double vx = (25.0 + (vxViento * 30.0) + oscilacionCeniza) * p.velocidadBase;
+				final double vy = (40.0 + (vyViento * 15.0)) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
 			}
+			break;
 
-			p.actualizar(vx, vy, dt);
+		case ESPORAS_MAGICAS:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
+				p.faseOscilacion += dt * 2.0;
+				final double vx = ((Math.cos(p.faseOscilacion) * 18.0) + (vxViento * 15.0)) * p.velocidadBase;
+				final double vy = (-25.0 + (Math.sin(p.faseOscilacion) * 12.0)) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
+			}
+			break;
+
+		case AURORA_BOREAL:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
+				p.faseOscilacion += dt * 1.5;
+				final double vx = (Math.sin(p.faseOscilacion) * 15.0) * p.velocidadBase;
+				final double vy = (-15.0 + (Math.cos(p.faseOscilacion) * 10.0)) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
+			}
+			break;
+
+		case LLUVIA_ESTRELLAS:
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				final ParticulaClima p = this.particulas[i];
+				p.faseOscilacion += dt * 4.0;
+				final double vx = (-80.0 + (Math.sin(p.faseOscilacion) * 20.0)) * p.velocidadBase;
+				final double vy = (90.0 + (Math.cos(p.faseOscilacion) * 20.0)) * p.velocidadBase;
+				p.actualizar(vx, vy, dt);
+			}
+			break;
+
+		default:
+			break;
 		}
 	}
 
@@ -503,7 +561,6 @@ public class GestorClima {
 			if (this.tiempoParaSonidoTrueno <= 0.0) {
 				this.truenoPendiente = false;
 
-				// Reproducción del trueno escalada por la atenuación ambiental (Interior/Cueva)
 				final double factorAmbiente = GestorMusica.getFactorAtenuacionAmbiente();
 				GestorSonido.reproducirConFactor(IDSonido.TRUENO, this.volumenTruenoProporcional * factorAmbiente);
 
@@ -519,6 +576,24 @@ public class GestorClima {
 			return;
 		}
 
+		// 1. Prioridad Máxima: Climas Severos y Místicos
+		if (this.climaActual == TipoClima.LLUVIA_TORMENTA) {
+			Globales.GESTOR_LUZ.setTinteBiomaExterior(COLOR_TINTE_TORMENTA, 0.85);
+			return;
+		}
+		if (this.climaActual == TipoClima.VENTISCA) {
+			Globales.GESTOR_LUZ.setTinteBiomaExterior(COLOR_TINTE_VENTISCA, 0.85);
+			return;
+		}
+		// --- NUEVO: Tinte de polvo desértico para la tormenta de arena ---
+		if (this.climaActual == TipoClima.TORMENTA_ARENA) {
+			Globales.GESTOR_LUZ.setTinteBiomaExterior(COLOR_TINTE_ARENA, 0.85);
+			return;
+		}
+		if (this.climaActual == TipoClima.ECLIPSE_SOLAR) {
+			Globales.GESTOR_LUZ.setTinteBiomaExterior(new Color(110, 20, 35, 210), 0.85);
+			return;
+		}
 		if (this.climaActual == TipoClima.AURORA_BOREAL) {
 			final int osc = Globales.GESTOR_LUZ.getAlphaOscuridadActual();
 			if (osc > 40) {
@@ -526,21 +601,26 @@ public class GestorClima {
 			} else {
 				Globales.GESTOR_LUZ.setTinteBiomaExterior(null, 0.0);
 			}
-		} else if (this.climaActual == TipoClima.ECLIPSE_SOLAR) {
-			Globales.GESTOR_LUZ.setTinteBiomaExterior(new Color(110, 20, 35, 210), 0.85);
-		} else if ((Globales.GESTOR_ZONAS_AMBIENTE != null)
-				&& (Globales.GESTOR_ZONAS_AMBIENTE.getZonaActual() != null)) {
+			return;
+		}
+
+		// 2. Clima Normal: Mandan las zonas de bioma
+		if ((Globales.GESTOR_ZONAS_AMBIENTE != null) && (Globales.GESTOR_ZONAS_AMBIENTE.getZonaActual() != null)) {
 			final ZonaAmbiente z = Globales.GESTOR_ZONAS_AMBIENTE.getZonaActual();
 			if (!z.isEsInterior()) {
 				Globales.GESTOR_LUZ.setTinteBiomaExterior(z.getColorAmbiente(), z.getFactorInmersion());
+				return;
 			}
-		} else {
-			Globales.GESTOR_LUZ.setTinteBiomaExterior(null, 0.0);
 		}
+
+		// 3. Limpiar tinte
+		Globales.GESTOR_LUZ.setTinteBiomaExterior(null, 0.0);
 	}
 
 	public boolean tieneTinteClimaticoEspecial() {
-		return (this.climaActual == TipoClima.AURORA_BOREAL) || (this.climaActual == TipoClima.ECLIPSE_SOLAR);
+		return (this.climaActual == TipoClima.AURORA_BOREAL) || (this.climaActual == TipoClima.ECLIPSE_SOLAR)
+				|| (this.climaActual == TipoClima.LLUVIA_TORMENTA) || (this.climaActual == TipoClima.VENTISCA)
+				|| (this.climaActual == TipoClima.TORMENTA_ARENA);
 	}
 
 	public void pintar(final Graphics2D g) {
@@ -554,7 +634,6 @@ public class GestorClima {
 		}
 
 		final int oscuridad = (Globales.GESTOR_LUZ != null) ? Globales.GESTOR_LUZ.getAlphaOscuridadActual() : 0;
-
 		final int camX = (Globales.CAMARA != null) ? Globales.CAMARA.getPosicionXInt() : 0;
 		final int camY = (Globales.CAMARA != null) ? Globales.CAMARA.getPosicionYInt() : 0;
 
@@ -641,91 +720,128 @@ public class GestorClima {
 	private void pintarParticulas(final Graphics2D g) {
 		g.setComposite(COMPOSITE_OPACO);
 
+		// Telemetría en bloque atómico: 1 sola operación en OPF
+		Render2D.registrarLlamadas(this.cantidadParticulasActivas);
+
 		switch (this.climaActual) {
 		case LLUVIA_LEVE:
-		case LLUVIA_TORMENTA:
+		case LLUVIA_TORMENTA: {
 			final double dxLluvia = this.vectorVientoX * 3.5;
+			g.setColor(COLOR_LLUVIA);
 			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
 				final ParticulaClima p = this.particulas[i];
-				Render2D.dibujarLinea(g, (int) p.x, (int) p.y, (int) (p.x - dxLluvia), (int) (p.y - p.longitudTrazo),
-						COLOR_LLUVIA);
+				g.drawLine((int) p.x, (int) p.y, (int) (p.x - dxLluvia), (int) (p.y - p.longitudTrazo));
 			}
 			break;
+		}
 
-		case LLUVIA_ACIDA:
+		case LLUVIA_ACIDA: {
 			final double dxAcido = this.vectorVientoX * 3.2;
+			g.setColor(COLOR_LLUVIA_ACIDA);
 			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
 				final ParticulaClima p = this.particulas[i];
-				Render2D.dibujarLinea(g, (int) p.x, (int) p.y, (int) (p.x - dxAcido),
-						(int) (p.y - (p.longitudTrazo * 1.1)), COLOR_LLUVIA_ACIDA);
+				g.drawLine((int) p.x, (int) p.y, (int) (p.x - dxAcido), (int) (p.y - (p.longitudTrazo * 1.1)));
 			}
 			break;
+		}
 
-		case NIEVE:
-		case VENTISCA:
+		case NIEVE: {
+			g.setColor(COLOR_NIEVE);
 			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
 				final ParticulaClima p = this.particulas[i];
 				final int s = (int) p.tamano;
-				Render2D.dibujarRectanguloRelleno(g, (int) p.x, (int) p.y, s, s, COLOR_NIEVE);
+				g.fillRect((int) p.x, (int) p.y, s, s); // Copos cuadrados flotantes
 			}
 			break;
+		}
 
-		case VENTOSO:
+		case VENTISCA: {
+			// La ventisca dibuja trazos rasantes (agujas de hielo cortando el aire)
+			final double dxNieve = this.vectorVientoX * 4.5;
+			g.setColor(COLOR_NIEVE);
 			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
 				final ParticulaClima p = this.particulas[i];
-				Render2D.dibujarRectanguloRelleno(g, (int) p.x, (int) p.y, (int) p.tamano + 2, (int) p.tamano + 1,
-						COLOR_HOJAS_VIENTO);
+				g.drawLine((int) p.x, (int) p.y, (int) (p.x - dxNieve), (int) (p.y - 3));
 			}
 			break;
+		}
 
-		case PETALOS_CEREZO:
+		case VENTOSO: {
+			g.setColor(COLOR_HOJAS_VIENTO);
 			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
 				final ParticulaClima p = this.particulas[i];
-				Render2D.dibujarRectanguloRelleno(g, (int) p.x, (int) p.y, (int) p.tamano + 1, (int) p.tamano + 2,
-						COLOR_PETALOS);
+				g.fillRect((int) p.x, (int) p.y, (int) p.tamano + 2, (int) p.tamano + 1);
 			}
 			break;
+		}
 
-		case TORMENTA_ARENA:
+		case PETALOS_CEREZO: {
+			g.setColor(COLOR_PETALOS);
 			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
 				final ParticulaClima p = this.particulas[i];
-				Render2D.dibujarRectanguloRelleno(g, (int) p.x, (int) p.y, (int) (p.tamano * 2.5), (int) p.tamano,
-						COLOR_ARENA);
+				g.fillRect((int) p.x, (int) p.y, (int) p.tamano + 1, (int) p.tamano + 2);
 			}
 			break;
+		}
 
-		case CENIZA_VOLCANICA:
+		case TORMENTA_ARENA: {
+			g.setColor(COLOR_ARENA);
 			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
 				final ParticulaClima p = this.particulas[i];
-				final Color color = ((i % 4) == 0) ? COLOR_BRASA : COLOR_CENIZA;
+				g.fillRect((int) p.x, (int) p.y, (int) (p.tamano * 2.5), (int) p.tamano);
+			}
+			break;
+		}
+
+		case CENIZA_VOLCANICA: {
+			// Pase 1: Cenizas base
+			g.setColor(COLOR_CENIZA);
+			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
+				if ((i % 4) != 0) {
+					final ParticulaClima p = this.particulas[i];
+					final int s = (int) Math.max(1, p.tamano);
+					g.fillRect((int) p.x, (int) p.y, s, s);
+				}
+			}
+			// Pase 2: Brasas incandescentes
+			g.setColor(COLOR_BRASA);
+			for (int i = 0; i < this.cantidadParticulasActivas; i += 4) {
+				final ParticulaClima p = this.particulas[i];
 				final int s = (int) Math.max(1, p.tamano);
-				Render2D.dibujarRectanguloRelleno(g, (int) p.x, (int) p.y, s, s, color);
+				g.fillRect((int) p.x, (int) p.y, s, s);
 			}
 			break;
+		}
 
-		case ESPORAS_MAGICAS:
+		case ESPORAS_MAGICAS: {
+			g.setColor(COLOR_ESPORAS);
 			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
 				final ParticulaClima p = this.particulas[i];
 				final int s = (int) Math.max(1, p.tamano);
-				Render2D.dibujarRectanguloRelleno(g, (int) p.x, (int) p.y, s, s, COLOR_ESPORAS);
+				g.fillRect((int) p.x, (int) p.y, s, s);
 			}
 			break;
+		}
 
-		case AURORA_BOREAL:
+		case AURORA_BOREAL: {
+			g.setColor(COLOR_AURORA_POLVO);
 			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
 				final ParticulaClima p = this.particulas[i];
 				final int s = (int) Math.max(1, p.tamano);
-				Render2D.dibujarRectanguloRelleno(g, (int) p.x, (int) p.y, s, s, COLOR_AURORA_POLVO);
+				g.fillRect((int) p.x, (int) p.y, s, s);
 			}
 			break;
+		}
 
-		case LLUVIA_ESTRELLAS:
+		case LLUVIA_ESTRELLAS: {
+			g.setColor(COLOR_ESTRELLA_PARTICULA);
 			for (int i = 0; i < this.cantidadParticulasActivas; i++) {
 				final ParticulaClima p = this.particulas[i];
 				final int s = (int) Math.max(1, p.tamano);
-				Render2D.dibujarRectanguloRelleno(g, (int) p.x, (int) p.y, s + 1, s + 1, COLOR_ESTRELLA_PARTICULA);
+				g.fillRect((int) p.x, (int) p.y, s + 1, s + 1);
 			}
 			break;
+		}
 
 		default:
 			break;
@@ -803,21 +919,20 @@ public class GestorClima {
 		final double tempNueva = nuevoPerfil.getTemperaturaBase();
 		TipoClima climaAdaptado = this.climaActual;
 
-		// 1. Biomas Helados / Bajo Cero (<= 2.0 °C)
 		if (tempNueva <= 2.0) {
 			if (this.climaActual == TipoClima.LLUVIA_LEVE) {
-				climaAdaptado = TipoClima.NIEVE; // La lluvia se congela en nieve
+				climaAdaptado = TipoClima.NIEVE;
 			} else if (this.climaActual == TipoClima.LLUVIA_TORMENTA) {
-				climaAdaptado = TipoClima.VENTISCA; // La tormenta se convierte en ventisca
+				climaAdaptado = TipoClima.VENTISCA;
 			}
 		} else if (this.climaActual == TipoClima.NIEVE) {
-			climaAdaptado = TipoClima.LLUVIA_LEVE; // La nieve se derrite en lluvia
+			climaAdaptado = TipoClima.LLUVIA_LEVE;
 		} else if (this.climaActual == TipoClima.VENTISCA) {
 			climaAdaptado = (tempNueva > 28.0) ? TipoClima.TORMENTA_ARENA : TipoClima.LLUVIA_TORMENTA;
 		}
 
 		if (climaAdaptado != this.climaActual) {
-			this.setClima(climaAdaptado, 2.0); // Transición suave de 2 segundos
+			this.setClima(climaAdaptado, 2.0);
 		}
 	}
 
@@ -841,12 +956,36 @@ public class GestorClima {
 
 		this.setNivelNiebla(nuevoClima.getNivelNiebla(), duracionTransicionSegundos);
 		this.setColorNiebla(nuevoClima.getColorNiebla());
-		this.setSombrasNubesHabilitadas(nuevoClima.isTieneNubes());
+		// En POTATO se desactivan las sombras de nubes para liberar la CPU en Netbooks
+		if (ConfiguracionGrafica.getPerfil() == principal.configuracion.PerfilRendimiento.POTATO) {
+			this.setSombrasNubesHabilitadas(false);
+		} else {
+			this.setSombrasNubesHabilitadas(nuevoClima.isTieneNubes());
+		}
 		this.setOpacidadSombraNubes(nuevoClima.getOpacidadNubes());
 		this.setTormentaActiva(nuevoClima.isTieneTormentaRayos());
 		this.setViento(nuevoClima.getAnguloVientoGrados(), nuevoClima.getFuerzaViento());
 
-		this.cantidadParticulasActivas = Math.min(MAX_PARTICULAS, nuevoClima.getCantidadParticulas());
+		// Modulación dinámica por Perfil de Hardware (POTATO / BASICO / MEDIO / ALTO)
+		int baseParticulas = nuevoClima.getCantidadParticulas();
+		if (ConfiguracionGrafica.getPerfil() != null) {
+			switch (ConfiguracionGrafica.getPerfil()) {
+			case POTATO:
+				baseParticulas = (int) Math.round(baseParticulas * 0.40);
+				break;
+			case BASICO:
+				baseParticulas = (int) Math.round(baseParticulas * 0.65);
+				break;
+			case MEDIO:
+				baseParticulas = (int) Math.round(baseParticulas * 0.85);
+				break;
+			case ALTO:
+			default:
+				break;
+			}
+		}
+
+		this.cantidadParticulasActivas = Math.min(MAX_PARTICULAS, baseParticulas);
 		this.actualizarTinteAtmosferico();
 
 		switch (nuevoClima) {

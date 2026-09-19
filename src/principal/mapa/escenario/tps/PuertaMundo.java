@@ -18,6 +18,7 @@ public class PuertaMundo extends PuertaTP {
 
 	@Override
 	public void teletransportar(final Criatura c) {
+		// Solo el jugador dispara la transición del mapa completo
 		if (!(c instanceof Jugador)) {
 			return;
 		}
@@ -32,14 +33,13 @@ public class PuertaMundo extends PuertaTP {
 			return;
 		}
 
-		// Guarda la posición en la puerta ANTES de cambiar de submundo
 		final double liderOrigenX = c.getCentroX();
 		final double liderOrigenY = c.getCentroY();
 
-		// 1. Transición del jugador al nuevo mundo del mapa
+		// 1. Transición del jugador al nuevo mundo
 		mapaActual.cambiarMundoInterno(this.nombreMundoDestino, this.nombreSpawnDestino);
 
-		// 2. Migración atómica en abanico evaluando cercanía real en la puerta
+		// 2. Migración atómica de los seguidores activos hacia el nuevo submundo
 		final Mundo mundoDestino = mapaActual.getMundo(this.nombreMundoDestino);
 		if ((mundoDestino != null) && (Globales.GESTOR_GRUPO != null)) {
 			Globales.GESTOR_GRUPO.migrarEscoltaSubmundo(mundoOrigen, mundoDestino, c, liderOrigenX, liderOrigenY, 64.0);

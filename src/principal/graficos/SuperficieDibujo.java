@@ -6,6 +6,7 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Toolkit;
 import java.awt.image.BufferStrategy;
 
 import principal.controles.Raton;
@@ -18,7 +19,7 @@ import principal.utilidades.Render2D;
  * Lienzo principal (Canvas) sobre el cual se renderizan los gráficos 2D del
  * juego con soporte de Letterboxing / Pillarboxing y Zero-GC.
  * 
- * @version 3.0 (Vanilla Java 8)
+ * @version 3.1 (AWT Canonical Swapchain Synchronization)
  */
 public class SuperficieDibujo extends Canvas {
 
@@ -55,6 +56,21 @@ public class SuperficieDibujo extends Canvas {
 		return obtenerSuperficieDibujo();
 	}
 
+	/**
+	 * Destruye la cadena de intercambio anterior y fuerza la creación de un nuevo
+	 * triple búfer alineado al nuevo tamaño o estado de pantalla.
+	 */
+	public void reiniciarBufferStrategy() {
+		final BufferStrategy bs = this.getBufferStrategy();
+		if (bs != null) {
+			try {
+				bs.dispose();
+			} catch (final Exception ignored) {
+			}
+		}
+		this.createBufferStrategy(3);
+	}
+
 	public void pintar(final GestorEstados ge) {
 		final BufferStrategy buffer = this.getBufferStrategy();
 
@@ -63,54 +79,65 @@ public class SuperficieDibujo extends Canvas {
 			return;
 		}
 
-		Render2D.reiniciarContadorObjetos();
-		final Graphics2D g = (Graphics2D) buffer.getDrawGraphics();
+		// Bucle canónico de 2 niveles requerido por AWT para descartar frames corruptos
+		do {
+			do {
+				Graphics2D g = null;
+				try {
+					g = (Graphics2D) buffer.getDrawGraphics();
+					Render2D.reiniciarContadorObjetos();
 
-		try {
-			// 1. Limpieza de pantalla física completa (Barras negras / Letterbox)
-			g.setColor(Color.BLACK);
-			g.fillRect(0, 0, this.getWidth(), this.getHeight());
+					// 1. Limpieza de pantalla física completa (Barras negras / Letterbox)
+					g.setColor(Color.BLACK);
+					g.fillRect(0, 0, this.getWidth(), this.getHeight());
 
-			// 2. Rendering Hints de rendimiento extremo
-			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-			g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-			g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+					// 2. Rendering Hints de rendimiento extremo
+					g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+					g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+							RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+					g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
+							RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
 
-			// 3. Traslación para centrado (Offsets)
-			if ((Globales.DESPLAZAMIENTO_X != 0) || (Globales.DESPLAZAMIENTO_Y != 0)) {
-				g.translate(Globales.DESPLAZAMIENTO_X, Globales.DESPLAZAMIENTO_Y);
-			}
+					// 3. Traslación para centrado (Offsets)
+					if ((Globales.DESPLAZAMIENTO_X != 0) || (Globales.DESPLAZAMIENTO_Y != 0)) {
+						g.translate(Globales.DESPLAZAMIENTO_X, Globales.DESPLAZAMIENTO_Y);
+					}
 
-			// 4. Escalado pixel-perfect / proporcional
-			if ((Globales.FACTOR_ESCALADO_X != 1.0) || (Globales.FACTOR_ESCALADO_Y != 1.0)) {
-				g.scale(Globales.FACTOR_ESCALADO_X, Globales.FACTOR_ESCALADO_Y);
-			}
+					// 4. Escalado pixel-perfect / proporcional
+					if ((Globales.FACTOR_ESCALADO_X != 1.0) || (Globales.FACTOR_ESCALADO_Y != 1.0)) {
+						g.scale(Globales.FACTOR_ESCALADO_X, Globales.FACTOR_ESCALADO_Y);
+					}
 
-			// 5. Delimitación del viewport nativo (640x360)
-			g.setClip(0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
+					// 5. Delimitación del viewport nativo (640x360)
+					g.setClip(0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
 
-			// 6. Fondo base de juego
-			Render2D.dibujarRectanguloRelleno(g, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO, Color.BLACK);
+					// 6. Fondo base de juego
+					Render2D.dibujarRectanguloRelleno(g, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO,
+							Color.BLACK);
 
-			// 7. Renderizado del estado del juego
-			if (ge != null) {
-				ge.pintar(g);
-			}
+					// 7. Renderizado del estado del juego
+					if (ge != null) {
+						ge.pintar(g);
+					}
 
-			// 8. Información Debug
-			g.setFont(FUENTE_DEBUG);
-			g.setColor(Color.GREEN);
-			Render2D.dibujarString(g, "APS: " + Globales.aps, 20, 35);
-			Render2D.dibujarString(g, "FPS: " + Globales.fps, 20, 50);
-			Render2D.dibujarString(g, "OPF: " + (Render2D.getContadorObjetos() + 1), 20, 65);
+					// 8. Información Debug
+					g.setFont(FUENTE_DEBUG);
+					g.setColor(Color.GREEN);
+					Render2D.dibujarString(g, "APS: " + Globales.aps, 20, 35);
+					Render2D.dibujarString(g, "FPS: " + Globales.fps, 20, 50);
+					Render2D.dibujarString(g, "OPF: " + (Render2D.getContadorObjetos() + 1), 20, 65);
 
-		} finally {
-			g.dispose();
-		}
+				} finally {
+					if (g != null) {
+						g.dispose();
+					}
+				}
+			} while (buffer.contentsRestored());
 
-		if (!buffer.contentsLost()) {
 			buffer.show();
-//			Toolkit.getDefaultToolkit().sync();
-		}
+			// Sincroniza la cola nativa de comandos gráficos en Linux y Windows
+			Toolkit.getDefaultToolkit().sync();
+
+		} while (buffer.contentsLost());
 	}
 }

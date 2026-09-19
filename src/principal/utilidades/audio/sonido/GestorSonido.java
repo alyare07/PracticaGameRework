@@ -10,12 +10,15 @@ import org.json.simple.parser.JSONParser;
 import principal.utilidades.Constantes;
 
 /**
- * Gestor maestro de efectos de sonido polifónicos con soporte de escala de
- * volumen proporcional para truenos y eventos climáticos.
+ * Gestor de efectos de sonido polifónicos con soporte de escala de volumen
+ * maestro y SFX.
  * 
- * @version 2.0 (Vanilla Java 8 - Volume Multiplier Extension)
+ * @version 3.0 (Vanilla Java 8 - Master SFX Volume Scaling)
  */
 public class GestorSonido {
+
+	private static double multiplicadorVolumenGeneral = 1.0;
+	private static double multiplicadorVolumenEfectos = 1.0;
 
 	private static final Map<String, PoolSonido> REGISTRO = new HashMap<>();
 
@@ -55,32 +58,47 @@ public class GestorSonido {
 		}
 	}
 
-	public static void reproducir(final String idSonido) {
-		final PoolSonido pool = REGISTRO.get(idSonido);
-		if (pool == null) {
-			return;
-		}
-		pool.reproducir();
+	public static void setMultiplicadorVolumenGeneral(final double vol) {
+		multiplicadorVolumenGeneral = Math.max(0.0, Math.min(1.0, vol));
 	}
 
-	/**
-	 * Reproduce un sonido escalando su volumen nominal del JSON por un factor
-	 * multiplicador (0.0 a 1.0).
-	 */
-	public static void reproducirConFactor(final String idSonido, final double factorVolumen) {
-		if (factorVolumen <= 0.0) {
-			return; // Silencio absoluto (ej: cueva profunda)
-		}
-		final PoolSonido pool = REGISTRO.get(idSonido);
-		if (pool == null) {
+	public static void setMultiplicadorVolumenEfectos(final double vol) {
+		multiplicadorVolumenEfectos = Math.max(0.0, Math.min(1.0, vol));
+	}
+
+	public static double getFactorEfectivoSFX() {
+		return multiplicadorVolumenGeneral * multiplicadorVolumenEfectos;
+	}
+
+	public static void reproducir(final String idSonido) {
+		final double factor = getFactorEfectivoSFX();
+		if (factor <= 0.0) {
 			return;
 		}
-		final double volumenFinal = pool.getVolumenPorDefecto() * Math.max(0.0, Math.min(1.0, factorVolumen));
-		pool.reproducirConVolumen(volumenFinal);
+		final PoolSonido pool = REGISTRO.get(idSonido);
+		if (pool != null) {
+			pool.reproducirConVolumen(pool.getVolumenPorDefecto() * factor);
+		}
+	}
+
+	public static void reproducirConFactor(final String idSonido, final double factorVolumen) {
+		final double factor = getFactorEfectivoSFX() * Math.max(0.0, Math.min(1.0, factorVolumen));
+		if (factor <= 0.0) {
+			return;
+		}
+		final PoolSonido pool = REGISTRO.get(idSonido);
+		if (pool != null) {
+			pool.reproducirConVolumen(pool.getVolumenPorDefecto() * factor);
+		}
 	}
 
 	public static void reproducirEnPosicion(final String idSonido, final double xEmisor, final double yEmisor,
 			final double xReceptor, final double yReceptor, final double radioMaximo) {
+
+		final double factorSFX = getFactorEfectivoSFX();
+		if (factorSFX <= 0.0) {
+			return;
+		}
 
 		final PoolSonido pool = REGISTRO.get(idSonido);
 		if (pool == null) {
@@ -93,7 +111,7 @@ public class GestorSonido {
 		}
 
 		final double factorDistancia = Math.max(0.0, 1.0 - (distancia / radioMaximo));
-		final double volumenFinal = pool.getVolumenPorDefecto() * factorDistancia;
+		final double volumenFinal = pool.getVolumenPorDefecto() * factorDistancia * factorSFX;
 
 		pool.reproducirConVolumen(volumenFinal);
 	}

@@ -13,6 +13,7 @@ import java.util.HashSet;
 import org.json.simple.JSONObject;
 
 import principal.animaciones.Animaciones;
+import principal.configuracion.Dificultad;
 import principal.entes.Ente;
 import principal.entes.efectos.EfectoEstado;
 import principal.entes.efectos.TipoEfectoEstado;
@@ -25,6 +26,7 @@ import principal.entes.objetos.items.armas.Arma;
 import principal.entes.objetos.items.arrojadizos.Arrojadizo;
 import principal.entes.objetos.items.equipamiento.PiezaEquipo;
 import principal.entes.objetos.items.equipamiento.TipoAislamiento;
+import principal.entes.objetos.items.monedas.ItemMoneda;
 import principal.entes.proyectil.GolpeMele;
 import principal.ia.Lista;
 import principal.ia.RastroPosicion;
@@ -32,6 +34,7 @@ import principal.ia.aEstrella.NodoA;
 import principal.ia.dijkstra.DijkstraRework;
 import principal.ia.dijkstra.NodoD;
 import principal.inventario.equipamiento.SlotEquipamiento;
+import principal.inventario.slot.Slot;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.Tile;
@@ -45,18 +48,10 @@ import principal.utilidades.Render2D;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
-/**
- * Jugador principal con registrador de rastro espacial de huellas continuas y
- * cálculo dinámico de capacidad de liderazgo según inteligencia (Zero-GC /
- * O(1)).
- * 
- * @version 5.4 (Vanilla Java 8 - Scalable Intelligence-Based Leadership)
- */
 public class Jugador extends Criatura {
 
 	private static final String NOMBRE = "Alyare";
 
-	// --- CONFIGURACIÓN DE LIDERAZGO DE GRUPO ---
 	public static final int PUNTOS_INT_POR_SEGUIDOR = 10;
 	public static final int LIMITE_MAXIMO_SEGUIDORES = 5;
 
@@ -109,7 +104,6 @@ public class Jugador extends Criatura {
 	private final Point PUNTO_AUXILIAR = new Point();
 
 	protected long dineroPlata = 0;
-
 	private final RastroPosicion rastro = new RastroPosicion();
 
 	private final AccionEntidad<Item> accionRecogidaItem = new AccionEntidad<Item>() {
@@ -232,10 +226,6 @@ public class Jugador extends Criatura {
 		return this.inteligenciaBase + this.modInteligenciaEquipo;
 	}
 
-	/**
-	 * Calcula el cupo de acompañantes activos según la Inteligencia total. Soporta
-	 * capacidad 0 si la inteligencia es menor al umbral de 1 seguidor.
-	 */
 	public int getCapacidadLiderazgo() {
 		final int intTotal = Math.max(0, this.getInteligenciaTotal());
 		final int cupo = intTotal / PUNTOS_INT_POR_SEGUIDOR;
@@ -261,10 +251,124 @@ public class Jugador extends Criatura {
 	@Override
 	public void recibirAtaque(final double damageRecibido, final Ente causante) {
 		final double factorReduccion = 100.0 / (100.0 + Math.max(0, this.defensaTotal));
-		final double danioEfectivo = Math.max(1.0, damageRecibido * factorReduccion);
+		final double danioEfectivo = Math.max(1, damageRecibido * factorReduccion);
 
-		super.recibirAtaque(danioEfectivo, causante);
+		if (!this.modoDios) {
+			this.reducirVida(danioEfectivo);
+
+		}
+		this.aplicarFuerzaKnockbackYEmitirParticulaDanio(danioEfectivo, causante);
+		this.activarFlashDanio();
+
 	}
+
+	// =========================================================================
+	// PROCESAMIENTO DE MUERTE POR DIFICULTAD
+	// =========================================================================
+
+	@Override
+	public void eliminar() {
+		if (!this.eliminado) {
+			this.procesarMuertePorDificultad();
+		}
+		super.eliminar();
+	}
+
+	private void procesarMuertePorDificultad() {
+		GestorSonido.reproducir(IDSonido.CRIATURA_MUERTA);
+		if (Globales.CAMARA != null) {
+			Globales.CAMARA.aplicarTemblor(500, 3.5);
+		}
+
+		// En modo Normal: Se pierde un 30% y el 70% cae al suelo donde murió
+		if (Globales.dificultad == Dificultad.NORMAL) {
+			this.soltarItemsPorMuerte(0.30);
+		}
+		// En modo Fácil: No se suelta nada, conserva todo su inventario intacto
+		// En modo Difícil: Muerte permanente (se gestiona al presionar el botón)
+	}
+
+	private void soltarItemsPorMuerte(final double ratioPerdida) {
+		if ((this.mundo == null) || (Globales.GESTOR_INVENTARIO == null)
+				|| (Globales.GESTOR_INVENTARIO.getInventarioJugador() == null)) {
+			return;
+		}
+
+		final ArrayList<Slot> slots = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotManager()
+				.getSlotsGenerales();
+		final int deathX = this.getCentroX();
+		final int deathY = this.getCentroY();
+
+		for (int i = 0; i < slots.size(); i++) {
+			final Slot slot = slots.get(i);
+			if ((slot != null) && slot.contieneItem()) {
+				final Item item = slot.getItem();
+				if (item != null) {
+					if (item instanceof Consumible) {
+						final Consumible cons = (Consumible) item;
+						final int total = cons.getCantidad();
+						// 70% cae al suelo, 30% se pierde
+						final int aSoltar = (int) Math.round(total * (1.0 - ratioPerdida));
+						if (aSoltar > 0) {
+							final Consumible drop = (Consumible) cons.copiar();
+							drop.establecerCantidad(aSoltar);
+							final int scatterX = deathX + (int) ((Math.random() * 28) - 14);
+							final int scatterY = deathY + (int) ((Math.random() * 28) - 14);
+							drop.setPosicion(scatterX, scatterY);
+							this.mundo.meterEntidad(drop);
+						}
+					} else // Ítems únicos (Armas, Armaduras, Herramientas): 70% chance de caer al suelo
+					if (Math.random() >= ratioPerdida) {
+						final Item drop = (Item) item.copiar();
+						final int scatterX = deathX + (int) ((Math.random() * 28) - 14);
+						final int scatterY = deathY + (int) ((Math.random() * 28) - 14);
+						drop.setPosicion(scatterX, scatterY);
+						this.mundo.meterEntidad(drop);
+					}
+					slot.eliminarObjeto();
+				}
+			}
+		}
+
+		// Dinero en modo Normal: el 70% cae al suelo como monedas de plata, el 30% se
+		// pierde
+		if (this.dineroPlata > 0) {
+			final long plataASoltar = Math.round(this.dineroPlata * (1.0 - ratioPerdida));
+			if (plataASoltar > 0) {
+				this.mundo.meterEntidad(ItemMoneda.crearPlata(deathX, deathY, plataASoltar));
+			}
+			this.dineroPlata = 0;
+		}
+	}
+
+	/**
+	 * Reaparece al jugador en el spawn con salud completa preservando su
+	 * inventario.
+	 */
+	public void reaparecer(final Mundo mundo) {
+		this.eliminado = false;
+		this.sanar();
+		this.estamina = this.maxEstamina;
+		this.recalcularAtributos();
+		this.setFaccion(GestorFacciones.FACCION_JUGADOR);
+		this.setEstadoEstandar();
+		this.detenerMovimiento();
+		this.limpiarEstados();
+		this.setMundo(mundo);
+		if (this.mundo != null) {
+			this.mundo.moverJugadorPuntoComienzo();
+		}
+		this.verificarZoneBox();
+	}
+
+	public void restablecerYCambiarMundo(final Mundo mundo) {
+		this.reaparecer(mundo);
+		Globales.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
+	}
+
+	// =========================================================================
+	// ACTUALIZACIÓN LÓGICA Y MOVIMIENTO
+	// =========================================================================
 
 	@Override
 	public void actualizar() {
@@ -313,6 +417,237 @@ public class Jugador extends Criatura {
 		}
 	}
 
+	private void actualizarMovimientos() {
+		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()) {
+			if (!this.estaEstadoEstandar()) {
+				this.setEstadoEstandar();
+			}
+			return;
+		}
+
+		if (this.mundo == null) {
+			return;
+		}
+
+		this.resolverPenetracionSolida();
+
+		boolean corriendo = false;
+		this.establecerVelocidadStardar();
+
+		final boolean arr = Globales.TECLADO.TECLA_ARRIBA.presionado();
+		final boolean abj = Globales.TECLADO.TECLA_ABAJO.presionado();
+		final boolean izq = Globales.TECLADO.TECLA_IZQUIERDA.presionado();
+		final boolean der = Globales.TECLADO.TECLA_DERECHA.presionado();
+
+		final boolean intentandoCorrer = Globales.TECLADO.TECLA_CORRIENDO.presionado() && this.puedeCorrer();
+
+		if (intentandoCorrer && (arr || abj || der || izq)) {
+			if (this.gastarEstamina()) {
+				this.velocidad = this.velocidadEstandar * 1.5;
+				corriendo = true;
+			}
+		} else {
+			this.recuperarEstamina();
+		}
+
+		if (this.tilePisado != null) {
+			this.velocidad = Math.max(0, this.velocidad + this.tilePisado.getAlteracionVelocidad());
+		}
+
+		double moveX = 0.0;
+		double moveY = 0.0;
+
+		if (izq) {
+			moveX -= 1.0;
+		}
+		if (der) {
+			moveX += 1.0;
+		}
+		if (arr) {
+			moveY -= 1.0;
+		}
+		if (abj) {
+			moveY += 1.0;
+		}
+
+		final boolean intentandoMover = (moveX != 0.0) || (moveY != 0.0);
+
+		if (!intentandoMover) {
+			if (this.moviendoPorRecorrido) {
+				if (!this.estaEstadoCorriendo()) {
+					this.setEstadoCaminando();
+				}
+			} else {
+				this.setEstadoEstandar();
+			}
+			this.removerEstado(Estado.CORRIENDO);
+			return;
+		}
+
+		final double paso = this.velocidad;
+		if ((moveX != 0.0) && (moveY != 0.0)) {
+			moveX *= 0.7071067811865475;
+			moveY *= 0.7071067811865475;
+		}
+
+		final double despX = moveX * paso;
+		final double despY = moveY * paso;
+
+		final boolean movioX = this.moverEjeX(despX);
+		final boolean movioY = this.moverEjeY(despY);
+
+		// Prioridad Lateral Absoluta (Eje X prevalece sobre Eje Y en movimiento
+		// diagonal)
+		if (movioX) {
+			this.direccion = (despX > 0.0) ? Direccion.ESTE : Direccion.OESTE;
+		} else if (movioY) {
+			this.direccion = (despY > 0.0) ? Direccion.SUR : Direccion.NORTE;
+		} else if (moveX != 0.0) {
+			this.direccion = (moveX > 0.0) ? Direccion.ESTE : Direccion.OESTE;
+		} else if (moveY != 0.0) {
+			this.direccion = (moveY > 0.0) ? Direccion.SUR : Direccion.NORTE;
+		}
+
+		// Corner Assist inteligente
+		final double nudgeSpeed = Math.min(paso, 1.0);
+
+		if ((moveY != 0.0) && (moveX == 0.0) && !movioY) {
+			boolean asistido = false;
+			for (int dist = 1; dist <= 3; dist++) {
+				if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(dist, despY))) {
+					this.moverEjeX(nudgeSpeed);
+					asistido = true;
+					break;
+				}
+			}
+			if (!asistido) {
+				for (int dist = 1; dist <= 3; dist++) {
+					if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(-dist, despY))) {
+						this.moverEjeX(-nudgeSpeed);
+						break;
+					}
+				}
+			}
+		} else if ((moveX != 0.0) && (moveY == 0.0) && !movioX) {
+			boolean asistido = false;
+			for (int dist = 1; dist <= 3; dist++) {
+				if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(despX, dist))) {
+					this.moverEjeY(nudgeSpeed);
+					asistido = true;
+					break;
+				}
+			}
+			if (!asistido) {
+				for (int dist = 1; dist <= 3; dist++) {
+					if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(despX, -dist))) {
+						this.moverEjeY(-nudgeSpeed);
+						break;
+					}
+				}
+			}
+		}
+
+		final boolean huboMovimiento = movioX || movioY;
+
+		this.atrasDeComplemento = this.mundo
+				.colisionaConObjetoSolidoPeroEnZonaNoSolida(this.getAreaInterseccionMovimiento());
+
+		if (huboMovimiento && this.moviendoPorRecorrido) {
+			this.moviendoPorRecorrido = false;
+			this.recorridoD = null;
+			this.nodoDDestino = null;
+			if (this.recorridoA.size() > 0) {
+				this.recorridoA.clear();
+			}
+			this.nodoADestino = null;
+		}
+
+		if (corriendo) {
+			this.setEstadoCorriendo();
+		} else {
+			this.removerEstado(Estado.CORRIENDO);
+		}
+
+		if (huboMovimiento) {
+			if (!this.estaEstadoCorriendo()) {
+				this.setEstadoCaminando();
+			}
+		} else if (!this.moviendoPorRecorrido) {
+			this.setEstadoEstandar();
+		}
+	}
+
+	private boolean moverEjeX(final double despX) {
+		if (Math.abs(despX) < 0.0001) {
+			return false;
+		}
+
+		final double nuevoX = this.getPosicionX() + despX;
+		final int limiteTerrenoX = ((this.mundo != null) && (this.mundo.getTerreno() != null))
+				? (this.mundo.getTerreno().getAncho() - this.ANCHO)
+				: Integer.MAX_VALUE;
+
+		if ((nuevoX >= 0) && (nuevoX <= limiteTerrenoX)) {
+			if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(despX, 0.0))) {
+				this.modificarPosicionX(despX);
+				return true;
+			}
+			final double medioPaso = despX * 0.5;
+			if ((Math.abs(medioPaso) >= 0.25)
+					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(medioPaso, 0.0))) {
+				this.modificarPosicionX(medioPaso);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean moverEjeY(final double despY) {
+		if (Math.abs(despY) < 0.0001) {
+			return false;
+		}
+
+		final double nuevoY = this.getPosicionY() + despY;
+		final int limiteTerrenoY = ((this.mundo != null) && (this.mundo.getTerreno() != null))
+				? (this.mundo.getTerreno().getAlto() - this.ALTO)
+				: Integer.MAX_VALUE;
+
+		if ((nuevoY >= 0) && (nuevoY <= limiteTerrenoY)) {
+			if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(0.0, despY))) {
+				this.modificarPosicionY(despY);
+				return true;
+			}
+			final double medioPaso = despY * 0.5;
+			if ((Math.abs(medioPaso) >= 0.25)
+					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(0.0, medioPaso))) {
+				this.modificarPosicionY(medioPaso);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void resolverPenetracionSolida() {
+		if (this.mundo == null) {
+			return;
+		}
+
+		if (this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(0.0, 0.0))) {
+			final double[] offsets = { 1.0, -1.0, 2.0, -2.0, 3.0, -3.0 };
+			for (int i = 0; i < offsets.length; i++) {
+				final double off = offsets[i];
+				if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(off, 0.0))) {
+					this.modificarPosicionX(off);
+					return;
+				}
+				if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(0.0, off))) {
+					this.modificarPosicionY(off);
+					return;
+				}
+			}
+		}
+	}
+
 	public RastroPosicion getRastro() {
 		return this.rastro;
 	}
@@ -322,9 +657,7 @@ public class Jugador extends Criatura {
 		if ((armaEquipada == null) || !armaEquipada.esArmaDistancia()) {
 			return;
 		}
-
 		armaEquipada.actualizarCicloRecarga(this);
-
 		if (Globales.TECLADO.TECLA_RECARGAR.presionadoUnicaActualizacion()) {
 			armaEquipada.iniciarRecarga(this);
 		}
@@ -466,7 +799,6 @@ public class Jugador extends Criatura {
 			if (!this.moviendoPorRecorrido && (this.nodoADestino == null)) {
 				return;
 			}
-
 			if (Globales.TECLADO.TECLA_DEBUG.presionado()) {
 				return;
 			}
@@ -511,6 +843,7 @@ public class Jugador extends Criatura {
 		if (this.nodoDDestino == null) {
 			return;
 		}
+
 		this.RECTANGLE_AUXILIAR.setBounds(this.nodoDDestino.getXMundo(), this.nodoDDestino.getYMundo(),
 				this.nodoDDestino.getAncho(), this.nodoDDestino.getAlto());
 
@@ -544,117 +877,6 @@ public class Jugador extends Criatura {
 			if ((this.recorridoD != null) && this.recorridoD.hasNext()) {
 				this.nodoDDestino = this.recorridoD.getNext();
 			}
-		}
-	}
-
-	private void actualizarMovimientos() {
-		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()) {
-			if (!this.estaEstadoEstandar()) {
-				this.setEstadoEstandar();
-			}
-			return;
-		}
-
-		boolean enMovimiento = false;
-		boolean corriendo = false;
-
-		this.establecerVelocidadStardar();
-
-		final boolean arr = Globales.TECLADO.TECLA_ARRIBA.presionado();
-		final boolean abj = Globales.TECLADO.TECLA_ABAJO.presionado();
-		final boolean izq = Globales.TECLADO.TECLA_IZQUIERDA.presionado();
-		final boolean der = Globales.TECLADO.TECLA_DERECHA.presionado();
-
-		final boolean intentandoCorrer = Globales.TECLADO.TECLA_CORRIENDO.presionado() && this.puedeCorrer();
-
-		if (intentandoCorrer) {
-			if (arr || abj || der || izq) {
-				if (this.gastarEstamina()) {
-					this.velocidad = this.velocidadEstandar * 1.5;
-					corriendo = true;
-				}
-			}
-		} else {
-			this.recuperarEstamina();
-		}
-
-		if (this.tilePisado != null) {
-			this.velocidad = Math.max(0, this.velocidad + this.tilePisado.getAlteracionVelocidad());
-		}
-
-		final boolean movVertical = arr ^ abj;
-		final boolean movHorizontal = izq ^ der;
-
-		double paso = this.velocidad;
-		if (movVertical && movHorizontal) {
-			paso *= 0.7071067811865475;
-		}
-
-		if (arr) {
-			if ((((int) Math.round(this.getPosicionY() - paso)) >= 0)
-					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(paso, 2))) {
-				this.modificarPosicionY(-paso);
-			}
-			enMovimiento = true;
-			this.direccion = Direccion.NORTE;
-		}
-
-		if (abj) {
-			if (((this.getPosicionY() + paso) <= (this.mundo.getTerreno().getAlto() - this.ALTO))
-					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(paso, 3))) {
-				this.modificarPosicionY(paso);
-			}
-			enMovimiento = true;
-			this.direccion = Direccion.SUR;
-		}
-
-		if (izq) {
-			if (((this.getPosicionX() - paso) >= 0)
-					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(paso, -1))) {
-				this.modificarPosicionX(-paso);
-			}
-			enMovimiento = true;
-			this.direccion = Direccion.OESTE;
-		}
-
-		if (der) {
-			if (((this.getPosicionX() + paso) <= (this.mundo.getTerreno().getAncho() - this.ANCHO))
-					&& !this.mundo.colisionaConZonaUObjetoSolido(this.getAreaInterseccionMovimiento(paso, 1))) {
-				this.modificarPosicionX(paso);
-			}
-			enMovimiento = true;
-			this.direccion = Direccion.ESTE;
-		}
-
-		this.atrasDeComplemento = this.mundo
-				.colisionaConObjetoSolidoPeroEnZonaNoSolida(this.getAreaInterseccionMovimiento());
-
-		if (enMovimiento && this.moviendoPorRecorrido) {
-			this.moviendoPorRecorrido = false;
-			this.recorridoD = null;
-			this.nodoDDestino = null;
-			if (this.recorridoA.size() > 0) {
-				this.recorridoA.clear();
-			}
-			this.nodoADestino = null;
-		}
-
-		if (corriendo) {
-			this.setEstadoCorriendo();
-		} else {
-			this.removerEstado(Estado.CORRIENDO);
-		}
-
-		if (!enMovimiento) {
-			if (this.moviendoPorRecorrido) {
-				if (!this.estaEstadoCorriendo()) {
-					this.setEstadoCaminando();
-				}
-			} else {
-				this.setEstadoEstandar();
-			}
-		} else if (!this.estaEstadoCorriendo()) {
-			this.setEstadoCaminando();
 		}
 	}
 
@@ -756,8 +978,8 @@ public class Jugador extends Criatura {
 	}
 
 	private void procesarAutoRecogidaMoneda(final Item item) {
-		if ((item instanceof principal.entes.objetos.items.monedas.ItemMoneda) && !item.estaEliminado()) {
-			final principal.entes.objetos.items.monedas.ItemMoneda moneda = (principal.entes.objetos.items.monedas.ItemMoneda) item;
+		if ((item instanceof ItemMoneda) && !item.estaEliminado()) {
+			final ItemMoneda moneda = (ItemMoneda) item;
 			final long valor = moneda.getValorPlata();
 
 			this.sumarDinero(valor);
@@ -888,19 +1110,6 @@ public class Jugador extends Criatura {
 		if (!Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotArrojadizo().contieneItem()
 				&& this.tieneEstado(Estado.ARROJANDO)) {
 			this.removerEstado(Estado.ARROJANDO);
-		}
-	}
-
-	private void curar() {
-		Globales.GESTOR_PARTICULAS.emitirMagia(this.getCentroX(), this.getCentroY(), 15);
-
-		if (this.vida >= this.vidaMaxima) {
-			return;
-		}
-
-		if (this.GT_CURACION.transcurrioMiliSegundos(TIEMPO_MS_ESPERA_REGEN_VIDA)) {
-			this.curar(this.vidaRegen);
-			this.GT_CURACION.establecerReferenciaTiempoActual();
 		}
 	}
 
@@ -1148,32 +1357,29 @@ public class Jugador extends Criatura {
 	}
 
 	public Rectangle getAreaInterseccionMovimiento() {
-		this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds((int) Math.round(this.getPosicionX()) + 2,
-				(int) Math.round(this.getPosicionY()) + 12, 8, 8);
+		return this.getAreaInterseccionMovimiento(0.0, 0.0);
+	}
+
+	public Rectangle getAreaInterseccionMovimiento(final double despX, final double despY) {
+		final int xBase = (int) Math.round(this.getPosicionX() + 2.0 + despX);
+		final int yBase = (int) Math.round(this.getPosicionY() + 12.0 + despY);
+		this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase, yBase, 8, 8);
 		return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 	}
 
+	@Deprecated
 	public Rectangle getAreaInterseccionMovimiento(final double desplazamiento, final int direccion) {
-		final int xBase = (int) Math.round(this.getPosicionX()) + 2;
-		final int yBase = (int) Math.round(this.getPosicionY()) + 12;
-		final int despInt = (int) Math.round(desplazamiento);
-
 		switch (direccion) {
 		case -1:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase - despInt, yBase, 8, 8);
-			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
+			return this.getAreaInterseccionMovimiento(-desplazamiento, 0.0);
 		case 1:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase + despInt, yBase, 8, 8);
-			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
+			return this.getAreaInterseccionMovimiento(desplazamiento, 0.0);
 		case 2:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase, yBase - despInt, 8, 8);
-			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
+			return this.getAreaInterseccionMovimiento(0.0, -desplazamiento);
 		case 3:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase, yBase + despInt, 8, 8);
-			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
+			return this.getAreaInterseccionMovimiento(0.0, desplazamiento);
 		default:
-			this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase, yBase, 8, 8);
-			return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
+			return this.getAreaInterseccionMovimiento(0.0, 0.0);
 		}
 	}
 
@@ -1221,22 +1427,12 @@ public class Jugador extends Criatura {
 
 	@Override
 	public void modificarPosicionX(final double desplazamientoX) {
-		if (desplazamientoX > 0) {
-			this.direccion = Direccion.ESTE;
-		} else if (desplazamientoX < 0) {
-			this.direccion = Direccion.OESTE;
-		}
 		this.setPosicionXSinVerificarZonebox(this.getPosicionX() + desplazamientoX);
 		this.desplazamientoX += desplazamientoX;
 	}
 
 	@Override
 	public void modificarPosicionY(final double desplazamientoY) {
-		if (desplazamientoY > 0) {
-			this.direccion = Direccion.SUR;
-		} else if (desplazamientoY < 0) {
-			this.direccion = Direccion.NORTE;
-		}
 		this.setPosicionYSinVerificarZonebox(this.getPosicionY() + desplazamientoY);
 		this.desplazamientoY += desplazamientoY;
 	}
@@ -1328,21 +1524,6 @@ public class Jugador extends Criatura {
 		return "Player";
 	}
 
-	public void restablecerYCambiarMundo(final Mundo mundo) {
-		this.eliminado = false;
-		this.fuerzaBase = 10;
-		this.agilidadBase = 10;
-		this.inteligenciaBase = 10;
-		this.recalcularAtributos();
-		this.sanar();
-		this.setFaccion(GestorFacciones.FACCION_JUGADOR);
-		this.setMundo(mundo);
-		Globales.GESTOR_INVENTARIO.getInventarioJugador().vaciar();
-		if (this.mundo != null) {
-			this.mundo.moverJugadorPuntoComienzo();
-		}
-	}
-
 	@Override
 	public void establecerMargenesSprite() {
 		this.margenXInicialSprite = 10;
@@ -1369,15 +1550,10 @@ public class Jugador extends Criatura {
 	@Override
 	public JSONObject exportarParaJSON() {
 		final JSONObject json = new JSONObject();
-		json.put("x", Double.valueOf(this.getPosicionX()));
-		json.put("y", Double.valueOf(this.getPosicionY()));
-		json.put("direccion", this.direccion.name());
+		this.exportarDatosCriaturaBase(json);
 
-		json.put("vida", Double.valueOf(this.vida));
-		json.put("vidaMaxima", Double.valueOf(this.vidaMaxima));
 		json.put("estamina", Double.valueOf(this.estamina));
 		json.put("maxEstamina", Double.valueOf(this.maxEstamina));
-
 		json.put("fuerzaBase", Integer.valueOf(this.fuerzaBase));
 		json.put("agilidadBase", Integer.valueOf(this.agilidadBase));
 		json.put("inteligenciaBase", Integer.valueOf(this.inteligenciaBase));
@@ -1397,19 +1573,7 @@ public class Jugador extends Criatura {
 		}
 
 		this.eliminado = false;
-
-		if (json.get("x") != null) {
-			this.setPosicionXSinVerificarZonebox(((Number) json.get("x")).doubleValue());
-		}
-		if (json.get("y") != null) {
-			this.setPosicionYSinVerificarZonebox(((Number) json.get("y")).doubleValue());
-		}
-		if (json.get("direccion") != null) {
-			try {
-				this.direccion = Direccion.valueOf(json.get("direccion").toString());
-			} catch (final Exception ignored) {
-			}
-		}
+		this.importarDatosCriaturaBase(json);
 
 		if (json.get("fuerzaBase") != null) {
 			this.fuerzaBase = ((Number) json.get("fuerzaBase")).intValue();
@@ -1435,13 +1599,6 @@ public class Jugador extends Criatura {
 
 		this.recalcularAtributos();
 
-		if (json.get("vidaMaxima") != null) {
-			this.vidaMaxima = ((Number) json.get("vidaMaxima")).doubleValue();
-		}
-		if (json.get("vida") != null) {
-			this.vida = ((Number) json.get("vida")).doubleValue();
-			this.vidaLag = this.vida;
-		}
 		if (json.get("maxEstamina") != null) {
 			this.maxEstamina = ((Number) json.get("maxEstamina")).doubleValue();
 		}

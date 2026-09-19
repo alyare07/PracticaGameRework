@@ -10,9 +10,10 @@ import principal.utilidades.Globales;
 
 /**
  * Gestor de termorregulación, inercia térmica corporal, resistencia de prendas,
- * refugio bajo techo en interiores y atenuación ambiental (Zero-GC / O(1)).
+ * refugio bajo techo en interiores y modulación termodinámica según dificultad
+ * de partida (Zero-GC / O(1)).
  * 
- * @version 4.0 (Vanilla Java 8 - Sheltered Interior Thermodynamics)
+ * @version 5.0 (Vanilla Java 8 - Difficulty-Scaled Thermodynamics)
  */
 public class GestorTermicoJugador {
 
@@ -97,10 +98,9 @@ public class GestorTermicoJugador {
 		double tempPercibida;
 
 		// =====================================================================
-		// CASO A: BAJO TECHO (Refugio Interior - Protegido de viento y lluvia)
+		// CASO A: BAJO TECHO (Refugio Interior - Protegido de viento y precipitación)
 		// =====================================================================
 		if (this.bajoTechoInterior) {
-			// El interior proporciona confort térmico protegido
 			tempPercibida = tempBaseEspacio + this.calorRecibidoFuego;
 			if (tempBaseEspacio > 27.0) {
 				tempPercibida += (sofoco * 0.50);
@@ -110,39 +110,106 @@ public class GestorTermicoJugador {
 		// CASO B: EN EL EXTERIOR (A la intemperie)
 		// =====================================================================
 		else {
+			// Multiplicador de convección eólica según el tipo de tormenta
+			double multViento = 1.2;
+			if (clima == TipoClima.VENTISCA) {
+				multViento = 2.2; // El viento polar a 15° roba calor a velocidad extrema
+			} else if (clima == TipoClima.LLUVIA_TORMENTA) {
+				multViento = 1.6; // Ráfagas con gotas gruesas aceleran la pérdida
+			}
+
 			double enfriamientoViento = 0.0;
 			if ((tempExterior < 20.0) && (Globales.GESTOR_CLIMA != null)) {
-				enfriamientoViento = Globales.GESTOR_CLIMA.getFuerzaViento() * 1.2;
+				enfriamientoViento = Globales.GESTOR_CLIMA.getFuerzaViento() * multViento;
 			}
 
 			final double factorMitigacionViento = Math.max(0.20, 1.0 - (aislaFrio * 0.05));
 			final double vientoEfectivo = enfriamientoViento * factorMitigacionViento;
+
+			// Penalización por empapado / calado de agua y escarcha
+			double penalizacionCalado = 0.0;
+			switch (clima) {
+			case VENTISCA:
+				penalizacionCalado = 6.5; // Escarcha ártica directa en la piel
+				break;
+			case LLUVIA_TORMENTA:
+				penalizacionCalado = 4.5; // Ropa empapada hasta las costuras (Soaked)
+				break;
+			case LLUVIA_ACIDA:
+				penalizacionCalado = 3.0;
+				break;
+			case NIEVE:
+				penalizacionCalado = 2.0; // Nieve seca moderada
+				break;
+			case LLUVIA_LEVE:
+				penalizacionCalado = 1.2; // Humedad ligera superficial
+				break;
+			default:
+				break;
+			}
+
+			final double factorMitigacionCalado = Math.max(0.15, 1.0 - (aislaFrio * 0.04));
+			final double caladoEfectivo = penalizacionCalado * factorMitigacionCalado;
 
 			if (tempExterior < 10.0) {
 				final double penetracionHumedad = 1.0 + Math.max(0.0, (humedad - 0.50) * 0.35);
 				final double frioEfectivo = (10.0 - tempExterior) * penetracionHumedad;
 				final double tempBaseHumedad = 10.0 - frioEfectivo;
 
-				tempPercibida = (tempBaseHumedad - vientoEfectivo) + (aislaFrio * 0.85) + this.calorRecibidoFuego;
+				tempPercibida = (tempBaseHumedad - vientoEfectivo - caladoEfectivo) + (aislaFrio * 0.85)
+						+ this.calorRecibidoFuego;
 			} else if (tempExterior > 27.0) {
 				final double bochornoHumedad = Math.max(0.0, (humedad - 0.50) * 7.0);
 
-				tempPercibida = ((tempExterior + bochornoHumedad) - (aislaCalor * 0.85)) + (sofoco * 0.60)
-						+ this.calorRecibidoFuego;
+				// Convección eólica caliente: en tormenta de arena el viento a >35°C actúa como
+				// secador de pelo
+				double conveccionVientoCaliente = 0.0;
+				if ((clima == TipoClima.TORMENTA_ARENA) && (Globales.GESTOR_CLIMA != null)) {
+					conveccionVientoCaliente = Globales.GESTOR_CLIMA.getFuerzaViento() * 1.8;
+				}
+
+				tempPercibida = ((tempExterior + bochornoHumedad + conveccionVientoCaliente) - (aislaCalor * 0.85))
+						+ (sofoco * 0.60) + this.calorRecibidoFuego;
 			} else {
-				tempPercibida = tempExterior + this.calorRecibidoFuego;
+				// Clima fresco (10°C - 20°C): El empapado y el viento siguen enfriando al
+				// jugador
+				tempPercibida = (tempExterior - vientoEfectivo - caladoEfectivo) + this.calorRecibidoFuego;
 			}
 		}
 
-		// 6. Transferencia e inercia térmica
-		double velocidadCambio = 0.055;
+		// 6. Transferencia e inercia térmica modulada por dificultad y severidad
+		// climática
+		final double factorInercia = (Globales.dificultad != null) ? Globales.dificultad.getFactorInerciaTermica()
+				: 1.0;
+		double velocidadCambio = 0.055 * factorInercia;
 
 		if (this.cercaDeFuenteCalor) {
-			velocidadCambio *= 2.5;
+			velocidadCambio *= 2.5; // El fuego recalienta rápido
 		} else if (this.expuestoAIntemperieFria) {
-			velocidadCambio *= (nieve ? 2.2 : 1.8);
+			double multiplicadorIntemperie;
+			switch (clima) {
+			case VENTISCA:
+				multiplicadorIntemperie = 3.8;
+				break;
+			case LLUVIA_TORMENTA:
+				multiplicadorIntemperie = 2.5;
+				break;
+			case NIEVE:
+			case LLUVIA_ACIDA:
+				multiplicadorIntemperie = 2.0;
+				break;
+			case LLUVIA_LEVE:
+			default:
+				multiplicadorIntemperie = 1.5;
+				break;
+			}
+			velocidadCambio *= multiplicadorIntemperie;
+			// NUEVO: La exposición directa al vendaval de arena a más de 30°C acelera el
+			// golpe de calor (Hipertermia)
+		} else if ((clima == TipoClima.TORMENTA_ARENA) && !this.bajoTechoInterior && (tempExterior > 30.0)) {
+			velocidadCambio *= 2.4;
 		} else if (this.bajoTechoInterior) {
-			velocidadCambio *= 1.5; // El cuerpo se estabiliza más rápido en un refugio
+			velocidadCambio *= 1.5;
 		}
 
 		double tempObjetivoCuerpo = TEMP_NOMINAL_CUERPO;
@@ -159,73 +226,82 @@ public class GestorTermicoJugador {
 		this.temperaturaCorporal += (tempObjetivoCuerpo - this.temperaturaCorporal) * (dt * velocidadCambio);
 		this.tendenciaTermica = this.temperaturaCorporal - prevTemp;
 
-		// 7. Conexión reactiva con Efectos de Estado
+		// 7. Conexión reactiva con Efectos de Estado (Hipotermia / Hipertermia /
+		// Temblor de cámara)
 		this.actualizarEfectosEstadoAmbientales();
 	}
 
 	private void actualizarEfectosEstadoAmbientales() {
+		// =====================================================================
+		// 1. HIPOTERMIA ESCALONADA SEGÚN DIFICULTAD
+		// =====================================================================
 		if (this.temperaturaCorporal < UMBRAL_HIPOTERMIA_NIVEL_1) {
 			final int nivelHipotermia;
-			final double danioBasePorNivel;
 
 			if (this.temperaturaCorporal < UMBRAL_HIPOTERMIA_NIVEL_3) {
 				nivelHipotermia = 3;
-				danioBasePorNivel = 1.50;
-
 				if (this.GT_TEMBLOR_FRIO.transcurrioMiliSegundos(1600) && (Globales.CAMARA != null)) {
 					Globales.CAMARA.aplicarTemblor(300, 1.8);
 					this.GT_TEMBLOR_FRIO.establecerReferenciaTiempoActual();
 				}
 			} else if (this.temperaturaCorporal < UMBRAL_HIPOTERMIA_NIVEL_2) {
 				nivelHipotermia = 2;
-				danioBasePorNivel = 0.75;
-
 				if (this.GT_TEMBLOR_FRIO.transcurrioMiliSegundos(3200) && (Globales.CAMARA != null)) {
 					Globales.CAMARA.aplicarTemblor(200, 0.9);
 					this.GT_TEMBLOR_FRIO.establecerReferenciaTiempoActual();
 				}
 			} else {
 				nivelHipotermia = 1;
-				danioBasePorNivel = 0.0;
 			}
 
-			Globales.JUGADOR.aplicarEfectoInfinito(TipoEfectoEstado.HIPOTERMIA, danioBasePorNivel, nivelHipotermia);
+			// Obtenemos el daño total deseado para la dificultad activa
+			final double danioFinalDeseado = (Globales.dificultad != null)
+					? Globales.dificultad.getDanioHipotermia(nivelHipotermia)
+					: (nivelHipotermia == 3 ? 2.50 : (nivelHipotermia == 2 ? 1.00 : 0.25));
+
+			// Compensación: EfectoEstado multiplica (potencia * stacks), por lo que
+			// dividimos entre el nivel
+			final double potenciaEfecto = danioFinalDeseado / nivelHipotermia;
+
+			Globales.JUGADOR.aplicarEfectoInfinito(TipoEfectoEstado.HIPOTERMIA, potenciaEfecto, nivelHipotermia);
 
 		} else if (Globales.JUGADOR.tieneEfectoActivo(TipoEfectoEstado.HIPOTERMIA)) {
 			Globales.JUGADOR.finalizarEfectoInfinito(TipoEfectoEstado.HIPOTERMIA, TIEMPO_RESIDUAL_RECUPERACION);
 		}
 
+		// =====================================================================
+		// 2. HIPERTERMIA ESCALONADA SEGÚN DIFICULTAD
+		// =====================================================================
 		if (this.temperaturaCorporal > UMBRAL_HIPERTERMIA_NIVEL_1) {
 			final int nivelHipertermia;
-			final double danioBasePorNivel;
 
 			if (this.temperaturaCorporal >= UMBRAL_HIPERTERMIA_NIVEL_3) {
 				nivelHipertermia = 3;
-				danioBasePorNivel = 1.35;
-
 				if ((Globales.CAMARA != null)
 						&& !Globales.CAMARA.getGestorEfectos().getEfecto(TipoEfectoCamara.BORRACHO).isActivo()) {
 					Globales.CAMARA.activarModoBorracho(true);
 				}
 			} else if (this.temperaturaCorporal >= UMBRAL_HIPERTERMIA_NIVEL_2) {
 				nivelHipertermia = 2;
-				danioBasePorNivel = 0.75;
-
 				if ((Globales.CAMARA != null)
 						&& !Globales.CAMARA.getGestorEfectos().getEfecto(TipoEfectoCamara.BORRACHO).isActivo()) {
 					Globales.CAMARA.activarModoBorracho(true);
 				}
 			} else {
 				nivelHipertermia = 1;
-				danioBasePorNivel = 0.0;
-
 				if ((Globales.CAMARA != null)
 						&& Globales.CAMARA.getGestorEfectos().getEfecto(TipoEfectoCamara.BORRACHO).isActivo()) {
 					Globales.CAMARA.activarModoBorracho(false);
 				}
 			}
 
-			Globales.JUGADOR.aplicarEfectoInfinito(TipoEfectoEstado.HIPERTERMIA, danioBasePorNivel, nivelHipertermia);
+			final double danioFinalDeseado = (Globales.dificultad != null)
+					? Globales.dificultad.getDanioHipotermia(nivelHipertermia)
+					: (nivelHipertermia == 3 ? 2.50 : (nivelHipertermia == 2 ? 1.00 : 0.25));
+
+			final double potenciaEfecto = danioFinalDeseado / nivelHipertermia;
+
+			Globales.JUGADOR.aplicarEfectoInfinito(TipoEfectoEstado.HIPERTERMIA, potenciaEfecto, nivelHipertermia);
 
 		} else {
 			if (Globales.JUGADOR.tieneEfectoActivo(TipoEfectoEstado.HIPERTERMIA)) {

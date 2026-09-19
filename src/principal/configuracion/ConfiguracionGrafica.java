@@ -3,38 +3,28 @@ package principal.configuracion;
 import java.awt.DisplayMode;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 
 import principal.Main;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 
 /**
- * Gestor maestro de configuración gráfica, tipo de visualización en SO,
- * heurística de hardware y persistencia en JSON (Zero-GC en Hot Path).
+ * Gestor del subsistema gráfico y escalado de pantalla. Delega su persistencia
+ * al {@link GestorConfiguracion} unificado y sincroniza perfiles en caliente
+ * (Zero-GC).
  * 
- * @version 2.0 (Vanilla Java 8)
+ * @version 4.0 (Vanilla Java 8 - Reactive Profile Synchronization)
  */
 public final class ConfiguracionGrafica {
-
-	private static final File ARCHIVO_CONFIG = new File("ConfigGrafica.json");
 
 	// --- Opciones de Usuario ---
 	private static TipoPantalla tipoPantalla = TipoPantalla.SIN_BORDES;
 	private static ModoEscalado modoEscalado = ModoEscalado.AJUSTE_PROPORCIONAL_16_9;
 	private static PerfilRendimiento perfil = PerfilRendimiento.ALTO;
 	private static LimiteFPS limiteFps = LimiteFPS.FPS_60;
-	private static int escalaVentana = 1; // 1x a 6x cuando está en Modo Ventana
+	private static int escalaVentana = 1;
 
 	// --- Banderas O(1) de Consulta Rápida en Hot Path ---
 	public static boolean OPT_LIGHTMAP_BAJA_RESOLUCION = false;
@@ -45,22 +35,10 @@ public final class ConfiguracionGrafica {
 	private ConfiguracionGrafica() {
 	}
 
-	/**
-	 * Carga la configuración desde el archivo JSON. Si no existe, ejecuta la
-	 * detección óptima inicial y guarda el archivo.
-	 */
 	public static void inicializar() {
-		if (!cargarConfig()) {
-			detectarConfiguracionOptima();
-			guardarConfig();
-		}
-		aplicar();
+		GestorConfiguracion.inicializar();
 	}
 
-	/**
-	 * Heurística de Hardware: Analiza núcleos de CPU, memoria y monitor para
-	 * determinar el mejor perfil de arranque.
-	 */
 	public static void detectarConfiguracionOptima() {
 		final GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
 		final DisplayMode dm = gd.getDisplayMode();
@@ -70,16 +48,17 @@ public final class ConfiguracionGrafica {
 		final int nucleos = Runtime.getRuntime().availableProcessors();
 		final long memoriaMB = Runtime.getRuntime().maxMemory() / (1024 * 1024);
 
-		// 1. Detección de Perfil de Rendimiento
-		if ((nucleos <= 2) || (memoriaMB <= 256)) {
+		// Detección escalonada real de los 4 perfiles sin saltar BASICO
+		if ((nucleos <= 2) && (memoriaMB <= 256)) {
 			perfil = PerfilRendimiento.POTATO;
+		} else if (nucleos <= 2) {
+			perfil = PerfilRendimiento.BASICO;
 		} else if (nucleos <= 4) {
 			perfil = PerfilRendimiento.MEDIO;
 		} else {
 			perfil = PerfilRendimiento.ALTO;
 		}
 
-		// 2. Detección de Modo de Escalado
 		final boolean esMultiploExacto16_9 = ((anchoMonitor % Constantes.ANCHO_JUEGO) == 0)
 				&& ((altoMonitor % Constantes.ALTO_JUEGO) == 0)
 				&& ((anchoMonitor / Constantes.ANCHO_JUEGO) == (altoMonitor / Constantes.ALTO_JUEGO));
@@ -96,12 +75,7 @@ public final class ConfiguracionGrafica {
 				Math.min(anchoMonitor / Constantes.ANCHO_JUEGO, altoMonitor / Constantes.ALTO_JUEGO));
 	}
 
-	/**
-	 * Aplica en caliente todas las opciones sobre el motor, ventana, canvas y
-	 * variables de renderizado.
-	 */
 	public static void aplicar() {
-		// 1. Actualizar Banderas de Rendimiento
 		switch (perfil) {
 		case POTATO:
 			OPT_LIGHTMAP_BAJA_RESOLUCION = true;
@@ -130,19 +104,19 @@ public final class ConfiguracionGrafica {
 			break;
 		}
 
-		// 2. Recalcular dimensiones y offsets de escalado
 		recalcularEscaladoYOffsets();
 
-		// 3. Sincronizar con Ventana si ya está instanciada
 		if ((Main.gp != null) && (Main.gp.getVentana() != null)) {
 			Main.gp.getVentana().aplicarModoVisualizacion(tipoPantalla, escalaVentana);
 		}
+
+		// Sincronización reactiva instantánea: el clima reajusta sus partículas en
+		// caliente
+		if (Globales.GESTOR_CLIMA != null) {
+			Globales.GESTOR_CLIMA.sincronizarConPerfilRendimiento();
+		}
 	}
 
-	/**
-	 * Calcula los factores de escala y offsets de centrado en pantalla según el
-	 * modo de visualización y de escalado activo.
-	 */
 	public static void recalcularEscaladoYOffsets() {
 		final GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
 		final DisplayMode dm = gd.getDisplayMode();
@@ -206,68 +180,45 @@ public final class ConfiguracionGrafica {
 		}
 	}
 
-	// =========================================================================
-	// === PERSISTENCIA JSON (org.json.simple)
-	// =========================================================================
-
 	@SuppressWarnings("unchecked")
-	public static void guardarConfig() {
+	public static JSONObject exportarJSON() {
 		final JSONObject jo = new JSONObject();
 		jo.put("tipoPantalla", tipoPantalla.name());
 		jo.put("modoEscalado", modoEscalado.name());
 		jo.put("perfil", perfil.name());
 		jo.put("limiteFps", limiteFps.name());
 		jo.put("escalaVentana", Integer.valueOf(escalaVentana));
+		return jo;
+	}
 
-		try (final BufferedWriter writer = new BufferedWriter(
-				new OutputStreamWriter(new FileOutputStream(ARCHIVO_CONFIG), StandardCharsets.UTF_8))) {
-			writer.write(jo.toJSONString().replaceAll(",", ",\n"));
-		} catch (final Exception e) {
-			e.printStackTrace();
+	public static void importarJSON(final JSONObject jo) {
+		if (jo == null) {
+			return;
 		}
+		if (jo.containsKey("tipoPantalla")) {
+			tipoPantalla = TipoPantalla.valueOf((String) jo.get("tipoPantalla"));
+		}
+		if (jo.containsKey("modoEscalado")) {
+			modoEscalado = ModoEscalado.valueOf((String) jo.get("modoEscalado"));
+		}
+		if (jo.containsKey("perfil")) {
+			perfil = PerfilRendimiento.valueOf((String) jo.get("perfil"));
+		}
+		if (jo.containsKey("limiteFps")) {
+			limiteFps = LimiteFPS.valueOf((String) jo.get("limiteFps"));
+		}
+		if (jo.containsKey("escalaVentana")) {
+			escalaVentana = ((Number) jo.get("escalaVentana")).intValue();
+		}
+	}
+
+	public static void guardarConfig() {
+		GestorConfiguracion.guardarConfiguracion();
 	}
 
 	public static boolean cargarConfig() {
-		if (!ARCHIVO_CONFIG.exists()) {
-			return false;
-		}
-
-		try (final BufferedReader reader = new BufferedReader(
-				new InputStreamReader(new FileInputStream(ARCHIVO_CONFIG), StandardCharsets.UTF_8))) {
-
-			final StringBuilder sb = new StringBuilder();
-			String linea;
-			while ((linea = reader.readLine()) != null) {
-				sb.append(linea);
-			}
-
-			final JSONObject jo = (JSONObject) (new JSONParser()).parse(sb.toString());
-
-			if (jo.containsKey("tipoPantalla")) {
-				tipoPantalla = TipoPantalla.valueOf((String) jo.get("tipoPantalla"));
-			}
-			if (jo.containsKey("modoEscalado")) {
-				modoEscalado = ModoEscalado.valueOf((String) jo.get("modoEscalado"));
-			}
-			if (jo.containsKey("perfil")) {
-				perfil = PerfilRendimiento.valueOf((String) jo.get("perfil"));
-			}
-			if (jo.containsKey("limiteFps")) {
-				limiteFps = LimiteFPS.valueOf((String) jo.get("limiteFps"));
-			}
-			if (jo.containsKey("escalaVentana")) {
-				escalaVentana = ((Number) jo.get("escalaVentana")).intValue();
-			}
-			return true;
-		} catch (final Exception e) {
-			e.printStackTrace();
-			return false;
-		}
+		return GestorConfiguracion.cargarConfiguracion();
 	}
-
-	// =========================================================================
-	// === GETTERS Y SETTERS
-	// =========================================================================
 
 	public static TipoPantalla getTipoPantalla() {
 		return tipoPantalla;

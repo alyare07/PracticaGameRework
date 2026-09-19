@@ -154,33 +154,44 @@ public class Mundo {
 			return;
 		}
 
+		// 1. Música de Fondo
 		if (meta.getMusicaFondo() != null) {
 			GestorMusica.reproducirMusicaFondoPrincipal(meta.getMusicaFondo());
 		}
 
+		// 2. Gestión Lumínica por Tipo de Ambiente
 		if (Globales.GESTOR_LUZ != null) {
-			if (meta.esEspacioInterior()) {
+			if (meta.esCueva()) {
+				// Cueva: Oscuridad absoluta (Blackout) inmediata
+				Globales.GESTOR_LUZ.establecerModoCueva(true);
+			} else if (meta.esInterior()) {
+				// Interior (Hogar / Taberna / Casa): Luz ambiental uniforme acogedora
 				final Color colorLuz = meta.resolverColorLuzEfectivo();
 				Globales.GESTOR_LUZ.establecerAmbienteTransicion(colorLuz, 0.4);
 			} else {
+				// Exterior: Ciclo solar de 24 horas dinámico
 				Globales.GESTOR_LUZ.restablecerModoExterior();
 			}
 		}
 
-		if (meta.esEspacioInterior()) {
-			final String nombreLower = this.getNombreMundo().toLowerCase();
-			final boolean esCueva = nombreLower.contains("cueva") || nombreLower.contains("mina")
-					|| nombreLower.contains("subterraneo") || nombreLower.contains("dungeon");
-
-			GestorMusica.setFactorAtenuacionAmbiente(esCueva ? 0.0 : 0.20);
+		// 3. Atenuación Acústica de Clima Exterior
+		if (meta.esCueva()) {
+			// Cueva: 0% de sonido exterior (Completamente inaudible)
+			GestorMusica.setFactorAtenuacionAmbiente(0.0);
+		} else if (meta.esInterior()) {
+			// Interior: 20% de sonido exterior (Se escucha levemente la lluvia/viento
+			// afuera)
+			GestorMusica.setFactorAtenuacionAmbiente(0.20);
 		} else {
+			// Exterior: 100% de sonido ambiental
 			GestorMusica.setFactorAtenuacionAmbiente(1.0);
 		}
 
+		// 4. Bioma y Clima
 		if (Globales.GESTOR_CLIMA != null) {
 			Globales.GESTOR_CLIMA.setCicloAutomaticoHabilitado(true);
 
-			if (!meta.esEspacioInterior() && (meta.getPerfilBioma() != null)) {
+			if (meta.esExterior() && (meta.getPerfilBioma() != null)) {
 				Globales.GESTOR_CLIMA.setPerfilBioma(meta.getPerfilBioma());
 			}
 		}

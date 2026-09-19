@@ -2,32 +2,23 @@ package principal.controles;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 
+import principal.configuracion.GestorConfiguracion;
 import principal.utilidades.Globales;
 
 /**
- * Gestor centralizado de teclado con sincronización Thread-Safe entre el hilo
- * EDT de Swing y el Game Loop de 60 APS (Zero-GC / Snapshot Isolation).
+ * Gestor centralizado de teclado con sincronización Thread-Safe Lock-Free.
+ * Delega la persistencia al {@link GestorConfiguracion} cifrado unificado.
  * 
- * @version 3.0 (Vanilla Java 8 - Lock-Free Latch Bridge)
+ * @version 4.0 (Vanilla Java 8 - Unified Encrypted Config Hub)
  */
 public class Teclado implements KeyListener {
 
-	public final File ARCHIVO_CONFIG = new File("Config.dat");
 	public final ArrayList<Tecla> TECLAS = new ArrayList<Tecla>();
 	public final HashMap<String, Tecla> TECLAS_MODIFICABLES = new HashMap<String, Tecla>();
 
@@ -85,16 +76,10 @@ public class Teclado implements KeyListener {
 	private static final int TOTAL_TECLAS = 512;
 	private final Object candadoSincronizacion = new Object();
 
-	/** Estado crudo escrito exclusivamente por el hilo EDT de Swing. */
 	private final boolean[] teclasFisicasEDT = new boolean[TOTAL_TECLAS];
-
-	/** Pestillo para capturar toques ultra-rápidos entre frames sin perderlos. */
 	private final boolean[] latchPulsadasEDT = new boolean[TOTAL_TECLAS];
-
-	/** Búfer de transferencia intermedio (reutilizado, 0 allocations). */
 	private final boolean[] latchConsumido = new boolean[TOTAL_TECLAS];
 
-	/** Snapshot inmutable consumido por el Game Loop a 60 APS. */
 	public final boolean[] teclas = new boolean[TOTAL_TECLAS];
 	private final boolean[] teclasPresionadasAnterior = new boolean[TOTAL_TECLAS];
 	private final boolean[] teclasPulsadasUnaVez = new boolean[TOTAL_TECLAS];
@@ -113,7 +98,7 @@ public class Teclado implements KeyListener {
 		this.TECLA_ATACANDO = new Tecla(KeyEvent.VK_SPACE, "Atacar");
 		this.TECLA_RECARGAR = new Tecla(KeyEvent.VK_R, "Recargar");
 		this.TECLA_CONSTRUCCION = new Tecla(KeyEvent.VK_B, "Modo Construir");
-		this.TECLA_ALT_LEFT = new Tecla(KeyEvent.VK_R, "Recargar");
+		this.TECLA_ALT_LEFT = new Tecla(KeyEvent.VK_ALT, "Tecla Alternativa");
 
 		this.TECLA_DEBUG = new Tecla(KeyEvent.VK_F1, true, "Debug");
 		this.TECLA_FPS_LIMITE = new Tecla(KeyEvent.VK_F11, true, "FPS Limite");
@@ -174,7 +159,6 @@ public class Teclado implements KeyListener {
 
 		this.cargarTeclasALista();
 		this.cargarTeclasAListaModificables();
-		this.cargarConfig();
 	}
 
 	private void cargarTeclasALista() {
@@ -237,23 +221,13 @@ public class Teclado implements KeyListener {
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_REINICIAR.nombre, this.TECLA_ZOOM_REINICIAR);
 	}
 
-	// =========================================================================
-	// === CICLO LÓGICO DEL JUEGO (GAME LOOP - 60 APS)
-	// =========================================================================
-
-	/**
-	 * Transfiere de forma atómica el estado de los eventos del hilo EDT al Game
-	 * Loop.
-	 */
 	public void actualizar() {
-		// Transferencia atómica y segura entre hilos (< 0.0002 ms)
 		synchronized (this.candadoSincronizacion) {
 			System.arraycopy(this.teclasFisicasEDT, 0, this.teclas, 0, TOTAL_TECLAS);
 			System.arraycopy(this.latchPulsadasEDT, 0, this.latchConsumido, 0, TOTAL_TECLAS);
 			Arrays.fill(this.latchPulsadasEDT, false);
 		}
 
-		// Evaluación de pulsaciones de frame único
 		for (int i = 0; i < TOTAL_TECLAS; i++) {
 			this.teclasPulsadasUnaVez[i] = this.latchConsumido[i]
 					|| (this.teclas[i] && !this.teclasPresionadasAnterior[i]);
@@ -274,10 +248,7 @@ public class Teclado implements KeyListener {
 	}
 
 	public boolean isTeclaPresionadaUnaVez(final Tecla tecla) {
-		if (tecla == null) {
-			return false;
-		}
-		return tecla.presionadoUnicaActualizacion();
+		return (tecla != null) && tecla.presionadoUnicaActualizacion();
 	}
 
 	public boolean presionaTeclaEnLista(final int codigo) {
@@ -286,10 +257,6 @@ public class Teclado implements KeyListener {
 		}
 		return false;
 	}
-
-	// =========================================================================
-	// === EVENTOS ASÍNCRONOS DE TECLADO (HILO EDT DE SWING)
-	// =========================================================================
 
 	@Override
 	public void keyTyped(final KeyEvent e) {
@@ -334,12 +301,8 @@ public class Teclado implements KeyListener {
 		}
 	}
 
-	// =========================================================================
-	// === PERSISTENCIA JSON
-	// =========================================================================
-
 	@SuppressWarnings("unchecked")
-	protected JSONObject getConfigJson() {
+	public JSONObject getConfigJson() {
 		final JSONObject jo = new JSONObject();
 		for (final Tecla t : this.TECLAS_MODIFICABLES.values()) {
 			t.agregarEnJSON(jo);
@@ -347,7 +310,7 @@ public class Teclado implements KeyListener {
 		return jo;
 	}
 
-	protected void establecerConfig(final JSONObject jo) {
+	public void establecerConfig(final JSONObject jo) {
 		if (jo == null) {
 			return;
 		}
@@ -362,37 +325,11 @@ public class Teclado implements KeyListener {
 		}
 	}
 
-	protected boolean cargarConfig() {
-		if (!this.ARCHIVO_CONFIG.exists()) {
-			return false;
-		}
-
-		try (final BufferedReader reader = new BufferedReader(
-				new InputStreamReader(new FileInputStream(this.ARCHIVO_CONFIG), StandardCharsets.UTF_8))) {
-
-			final StringBuilder sb = new StringBuilder();
-			String linea;
-			while ((linea = reader.readLine()) != null) {
-				sb.append(linea);
-			}
-
-			final JSONObject jo = (JSONObject) (new JSONParser()).parse(sb.toString());
-			this.establecerConfig(jo);
-			return true;
-		} catch (final Exception e) {
-			e.printStackTrace();
-			return false;
-		}
+	public void guardarConfig() {
+		GestorConfiguracion.guardarConfiguracion();
 	}
 
-	public void guardarConfig() {
-		final JSONObject jo = this.getConfigJson();
-		try (final BufferedWriter writer = new BufferedWriter(
-				new OutputStreamWriter(new FileOutputStream(this.ARCHIVO_CONFIG), StandardCharsets.UTF_8))) {
-
-			writer.write(jo.toJSONString().replaceAll(",", ",\n"));
-		} catch (final Exception e) {
-			e.printStackTrace();
-		}
+	public boolean cargarConfig() {
+		return GestorConfiguracion.cargarConfiguracion();
 	}
 }

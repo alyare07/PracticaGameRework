@@ -3,6 +3,8 @@ package principal.entes.objetos.recursos;
 import java.awt.Color;
 import java.awt.Graphics2D;
 
+import org.json.simple.JSONObject;
+
 import principal.entes.Ente;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
@@ -107,6 +109,37 @@ public abstract class RecursoCosechable extends Objeto implements Cosechable {
 			this.mundo.notificarModificacionEstructura();
 		}
 		this.eliminar();
+	}
+
+	@SuppressWarnings("unchecked")
+	public JSONObject exportarEstadoRecursoJSON() {
+		final JSONObject json = new JSONObject();
+		json.put("durabilidad", Double.valueOf(this.durabilidad));
+		json.put("durabilidadMax", Double.valueOf(this.durabilidadMaxima));
+		if (this instanceof ArbolCosechable) {
+			json.put("esTocon", Boolean.valueOf(((ArbolCosechable) this).isEsTocon()));
+		}
+		return json;
+	}
+
+	public void importarEstadoRecursoJSON(final JSONObject json) {
+		if (json == null) {
+			return;
+		}
+		if (json.get("durabilidad") != null) {
+			this.durabilidad = ((Number) json.get("durabilidad")).doubleValue();
+		}
+		if (json.get("durabilidadMax") != null) {
+			this.durabilidadMaxima = ((Number) json.get("durabilidadMax")).doubleValue();
+		}
+		if ((this instanceof ArbolCosechable) && (json.get("esTocon") != null)) {
+			final boolean tocon = Boolean.parseBoolean(json.get("esTocon").toString());
+			if (tocon && !((ArbolCosechable) this).isEsTocon()) {
+				// Transforma visualmente en tocón
+				((ArbolCosechable) this).destruir(null);
+				this.durabilidad = ((Number) json.get("durabilidad")).doubleValue();
+			}
+		}
 	}
 
 	protected abstract void soltarBotin();

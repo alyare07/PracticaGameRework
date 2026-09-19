@@ -27,9 +27,9 @@ public abstract class Barra extends Ente {
 	protected int anchoLag;
 
 	// Caché de texto formateado para evitar concatenar Strings en caliente
-	// (Zero-GC)
-	private int lastActualInt = -1;
-	private int lastLimiteInt = -1;
+	// formateado con Dirty Flag a nivel de céntimos (Zero-GC)
+	private int lastActualCents = -1;
+	private int lastLimiteCents = -1;
 	private String cachedInfoTexto = "";
 
 	public Barra(final Rectangle area, final Color colorBordes, final Color colorFondo, final Color colorRelleno,
@@ -84,13 +84,16 @@ public abstract class Barra extends Ente {
 	}
 
 	protected void pintarInfo(final Graphics2D g) {
-		final int act = (int) Math.ceil(this.getCantidadActual());
-		final int lim = (int) Math.ceil(this.getLimite());
+		final double actVal = this.getCantidadActual();
+		final double limVal = this.getLimite();
 
-		if ((act != this.lastActualInt) || (lim != this.lastLimiteInt)) {
-			this.lastActualInt = act;
-			this.lastLimiteInt = lim;
-			this.cachedInfoTexto = act + " / " + lim;
+		final int actCents = (int) Math.round(actVal * 100.0);
+		final int limCents = (int) Math.round(limVal * 100.0);
+
+		if ((actCents != this.lastActualCents) || (limCents != this.lastLimiteCents)) {
+			this.lastActualCents = actCents;
+			this.lastLimiteCents = limCents;
+			this.cachedInfoTexto = formatearNumero(actVal) + " / " + formatearNumero(limVal);
 		}
 
 		final Font fontPrevia = g.getFont();
@@ -103,6 +106,19 @@ public abstract class Barra extends Ente {
 		Render2D.dibujarStringConSombra(g, this.cachedInfoTexto, x, y, this.COLOR_TEXTO, Color.BLACK);
 
 		g.setFont(fontPrevia);
+	}
+
+	public static String formatearNumero(final double valor) {
+		final int entero = (int) valor;
+		final int centavos = (int) Math.round(Math.abs(valor - entero) * 100.0);
+
+		if (centavos == 0) {
+			return String.valueOf(entero);
+		}
+		if ((centavos % 10) == 0) {
+			return entero + "." + (centavos / 10);
+		}
+		return entero + "." + ((centavos < 10) ? ("0" + centavos) : String.valueOf(centavos));
 	}
 
 	protected abstract double getLimite();

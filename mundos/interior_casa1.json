@@ -10,14 +10,15 @@
     "complementos": [],
     "criaturas": [],
     "metadatos": {
-        "luzInteriorA": 255,
-        "luzInteriorR": 0,
-        "luzInteriorB": 0,
+        "iluminacionInterior": "CLARA",
+        "luzA": 40,
         "musicaFondo": "FONDO_RELAX",
+        "luzR": 255,
+        "luzB": 140,
         "climaInicial": "DESPEJADO",
+        "luzG": 215,
         "perfilBioma": "TEMPLADO_BOSQUE",
-        "luzInteriorG": 0,
-        "esInterior": true
+        "tipoAmbiente": "INTERIOR"
     },
     "triggers": [
         {

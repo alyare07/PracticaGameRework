@@ -11,6 +11,7 @@ import java.util.EnumSet;
 import java.util.Random;
 import java.util.Set;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import principal.entes.Ente;
@@ -21,6 +22,7 @@ import principal.entes.facciones.GestorFacciones;
 import principal.ia.aEstrella.NodoA;
 import principal.ia.arbol.BlackboardIA;
 import principal.ia.arbol.NodoBT;
+import principal.igu.Barra;
 import principal.mapa.Mundo;
 import principal.mapa.renderEntidades.ZoneBox;
 import principal.recursos.TexturaItem;
@@ -31,12 +33,11 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Base abstracta universal con soporte nativo de vínculos de grupo y familia
- * (TipoVinculo), amortiguación de histéresis de caminata y alineación de
- * Clearance (Zero-GC / O(1)).
+ * Base abstracta universal con priorización lateral en movimiento diagonal,
+ * amortiguación de histéresis y persistencia de efectos/estados (Zero-GC /
+ * O(1)).
  * 
- * @version 16.3 (Vanilla Java 8 - Universal Player Affiliation & Bonding
- *          Support)
+ * @version 17.0 (Vanilla Java 8 - Lateral Movement Priority)
  */
 public abstract class Criatura extends Ente {
 
@@ -74,9 +75,7 @@ public abstract class Criatura extends Ente {
 	protected final BlackboardIA blackboard = new BlackboardIA();
 	protected NodoBT arbolComportamiento;
 
-	// Naturaleza del vínculo con el jugador (por defecto sin vínculo)
 	protected TipoVinculo vinculo = TipoVinculo.NINGUNO;
-
 	protected final EfectoEstado[] efectosActivos = new EfectoEstado[TipoEfectoEstado.values().length];
 
 	private static final double HP_POR_CAPA = 50.0;
@@ -380,8 +379,12 @@ public abstract class Criatura extends Ente {
 	}
 
 	public void aplicarEfectoInfinito(final TipoEfectoEstado tipo, final double potencia) {
+		this.aplicarEfectoInfinito(tipo, potencia, 1);
+	}
+
+	public void aplicarEfectoInfinito(final TipoEfectoEstado tipo, final double potencia, final int stacks) {
 		if ((tipo != null) && (this.efectosActivos[tipo.ordinal()] != null)) {
-			this.efectosActivos[tipo.ordinal()].aplicarInfinito(potencia);
+			this.efectosActivos[tipo.ordinal()].aplicarInfinito(potencia, stacks);
 			this.establecerVelocidadStardar();
 		}
 	}
@@ -567,7 +570,7 @@ public abstract class Criatura extends Ente {
 
 		if (!movioX && !movioY && (dist > 8.0)) {
 			final double nudge = this.velocidad * 0.75;
-			if (Math.abs(dx) > Math.abs(dy)) {
+			if (Math.abs(dx) >= Math.abs(dy)) {
 				if (!this.mundo.colisionaConZonaUObjetoSolido(this.getAreaColisionMovimiento(0.0, nudge))) {
 					this.modificarPosicionY(nudge);
 					movioY = true;
@@ -591,13 +594,8 @@ public abstract class Criatura extends Ente {
 				final double absX = Math.abs(this.velActualX);
 				final double absY = Math.abs(this.velActualY);
 
-				if ((this.direccion == Direccion.ESTE) || (this.direccion == Direccion.OESTE)) {
-					if ((absY > (absX * 1.25)) && (absY > 0.05)) {
-						this.direccion = (this.velActualY > 0) ? Direccion.SUR : Direccion.NORTE;
-					} else if (absX > 0.01) {
-						this.direccion = (this.velActualX > 0) ? Direccion.ESTE : Direccion.OESTE;
-					}
-				} else if ((absX > (absY * 1.25)) && (absX > 0.05)) {
+				// Priorización Lateral (ESTE / OESTE) en movimiento diagonal
+				if (absX > 0.01) {
 					this.direccion = (this.velActualX > 0) ? Direccion.ESTE : Direccion.OESTE;
 				} else if (absY > 0.01) {
 					this.direccion = (this.velActualY > 0) ? Direccion.SUR : Direccion.NORTE;
@@ -785,12 +783,20 @@ public abstract class Criatura extends Ente {
 		if (this.modoDios) {
 			return;
 		}
+		this.verificarAtaqueAJefe(damage, causante);
 		this.reducirVida(damage);
 		this.activarFlashDanio();
+		this.aplicarFuerzaKnockbackYEmitirParticulaDanio(damage, causante);
 
-		if ((this.vidaMaxima >= 1000.0) && (Globales.MOTOR_IGU != null)) {
+	}
+
+	protected void verificarAtaqueAJefe(final double damage, final Ente causante) {
+		if ((this.vidaMaxima >= 1000.0) && (Globales.MOTOR_IGU != null) && !(this instanceof Jugador)) {
 			Globales.MOTOR_IGU.fijarJefe(this);
 		}
+	}
+
+	protected void aplicarFuerzaKnockbackYEmitirParticulaDanio(final double damage, final Ente causante) {
 
 		if (this.mundo != null) {
 			if (causante != null) {
@@ -1063,15 +1069,9 @@ public abstract class Criatura extends Ente {
 		this.activarFlashDanio();
 
 		if (this.mundo != null) {
-			Globales.GESTOR_TEXTOS.agregarDanio((int) Math.ceil(damage), this.getPosicionX(), this.getPosicionY(),
-					false);
-		}
-	}
-
-	public void aplicarEfectoInfinito(final TipoEfectoEstado tipo, final double potencia, final int stacks) {
-		if ((tipo != null) && (this.efectosActivos[tipo.ordinal()] != null)) {
-			this.efectosActivos[tipo.ordinal()].aplicarInfinito(potencia, stacks);
-			this.establecerVelocidadStardar();
+			// Muestra "-0.25", "-1.5" o "-2" sin redondear hacia arriba falsamente
+			Globales.GESTOR_TEXTOS.agregarTexto("-" + Barra.formatearNumero(damage), this.getPosicionX(),
+					this.getPosicionY(), principal.igu.textos.TipoTextoFlotante.DANIO_NORMAL);
 		}
 	}
 
@@ -1339,4 +1339,135 @@ public abstract class Criatura extends Ente {
 	protected abstract JSONObject exportarParaJSON();
 
 	public abstract String exportarTipoCriatura();
+
+	// =========================================================================
+	// PERSISTENCIA UNIVERSAL DE CRIATURAS (ESTADOS, EFECTOS Y MEMORIA IA)
+	// =========================================================================
+
+	@SuppressWarnings("unchecked")
+	protected void exportarDatosCriaturaBase(final JSONObject json) {
+		json.put("x", Double.valueOf(this.getPosicionX()));
+		json.put("y", Double.valueOf(this.getPosicionY()));
+		json.put("xInicial", Integer.valueOf(this.xInicial));
+		json.put("yInicial", Integer.valueOf(this.yInicial));
+		json.put("direccion", this.direccion.name());
+		json.put("vida", Double.valueOf(this.vida));
+		json.put("vidaMaxima", Double.valueOf(this.vidaMaxima));
+		json.put("velocidadBase", Double.valueOf(this.velocidadEstandar));
+		json.put("faccionBit", Integer.valueOf(this.faccionBit));
+		json.put("vinculo", this.vinculo.name());
+
+		// Serialización de efectos activos
+		final JSONArray arrEfectos = new JSONArray();
+		for (final EfectoEstado ef : this.efectosActivos) {
+			if ((ef != null) && ef.isActivo()) {
+				final JSONObject jEf = new JSONObject();
+				jEf.put("tipo", ef.getTipo().name());
+				jEf.put("duracion", Double.valueOf(ef.getTiempoRestante()));
+				jEf.put("potencia", Double.valueOf(ef.getPotencia()));
+				jEf.put("stacks", Integer.valueOf(ef.getStacks()));
+				jEf.put("infinito", Boolean.valueOf(ef.isInfinito()));
+				arrEfectos.add(jEf);
+			}
+		}
+		json.put("efectos", arrEfectos);
+
+		// Serialización de IA Blackboard
+		if (this.blackboard != null) {
+			final JSONObject jBb = new JSONObject();
+			jBb.put("enPanico", Boolean.valueOf(this.blackboard.isEnPanico()));
+			jBb.put("siguiendo", Boolean.valueOf(this.blackboard.isSiguiendoLider()));
+			jBb.put("agresivo", Boolean.valueOf(this.blackboard.isModoAgresivo()));
+			jBb.put("tieneAncla", Boolean.valueOf(this.blackboard.tieneAnclaRetorno()));
+			jBb.put("anclaX", Double.valueOf(this.blackboard.getXAnclaRetorno()));
+			jBb.put("anclaY", Double.valueOf(this.blackboard.getYAnclaRetorno()));
+			jBb.put("tsRetorno", Double.valueOf(this.blackboard.getTimestampRetornoJuegoHoras()));
+			json.put("blackboard", jBb);
+		}
+	}
+
+	public void importarDatosCriaturaBase(final JSONObject json) {
+		if (json == null) {
+			return;
+		}
+
+		if ((json.get("x") != null) && (json.get("y") != null)) {
+			this.setPosicion(((Number) json.get("x")).doubleValue(), ((Number) json.get("y")).doubleValue());
+			this.marcarPosicionModificada();
+			this.verificarZoneBox();
+		}
+		if (json.get("direccion") != null) {
+			try {
+				this.direccion = Direccion.valueOf(json.get("direccion").toString());
+			} catch (final Exception ignored) {
+			}
+		}
+		if (json.get("vidaMaxima") != null) {
+			this.vidaMaxima = ((Number) json.get("vidaMaxima")).doubleValue();
+		}
+		if (json.get("vida") != null) {
+			this.vida = ((Number) json.get("vida")).doubleValue();
+			this.vidaLag = this.vida;
+		}
+		if (json.get("faccionBit") != null) {
+			this.setFaccion(((Number) json.get("faccionBit")).intValue());
+		}
+		if (json.get("vinculo") != null) {
+			try {
+				this.vinculo = TipoVinculo.valueOf(json.get("vinculo").toString());
+			} catch (final Exception ignored) {
+			}
+		}
+
+		// Restauración de efectos
+		for (final EfectoEstado ef : this.efectosActivos) {
+			if (ef != null) {
+				ef.apagar();
+			}
+		}
+		if (json.get("efectos") instanceof JSONArray) {
+			final JSONArray arrEfectos = (JSONArray) json.get("efectos");
+			for (final Object obj : arrEfectos) {
+				if (obj instanceof JSONObject) {
+					final JSONObject jEf = (JSONObject) obj;
+					try {
+						final TipoEfectoEstado tipo = TipoEfectoEstado.valueOf(jEf.get("tipo").toString());
+						final double duracion = ((Number) jEf.get("duracion")).doubleValue();
+						final double potencia = ((Number) jEf.get("potencia")).doubleValue();
+						final int stacks = ((Number) jEf.get("stacks")).intValue();
+						final boolean infinito = Boolean.parseBoolean(jEf.get("infinito").toString());
+
+						if (infinito) {
+							this.aplicarEfectoInfinito(tipo, potencia, stacks);
+						} else {
+							this.aplicarEfecto(tipo, duracion, potencia, stacks);
+						}
+					} catch (final Exception ignored) {
+					}
+				}
+			}
+		}
+
+		// Restauración de IA
+		if ((json.get("blackboard") instanceof JSONObject) && (this.blackboard != null)) {
+			final JSONObject jBb = (JSONObject) json.get("blackboard");
+			if (jBb.get("enPanico") != null) {
+				this.blackboard.setEnPanico(Boolean.parseBoolean(jBb.get("enPanico").toString()));
+			}
+			if (jBb.get("siguiendo") != null) {
+				this.blackboard.setSiguiendoLider(Boolean.parseBoolean(jBb.get("siguiendo").toString()));
+			}
+			if (jBb.get("agresivo") != null) {
+				this.blackboard.setModoAgresivo(Boolean.parseBoolean(jBb.get("agresivo").toString()));
+			}
+			if ((jBb.get("tieneAncla") != null) && Boolean.parseBoolean(jBb.get("tieneAncla").toString())) {
+				final double ax = ((Number) jBb.get("anclaX")).doubleValue();
+				final double ay = ((Number) jBb.get("anclaY")).doubleValue();
+				this.blackboard.fijarAnclaRetorno(ax, ay);
+			}
+			if (jBb.get("tsRetorno") != null) {
+				this.blackboard.setTimestampRetornoJuegoHoras(((Number) jBb.get("tsRetorno")).doubleValue());
+			}
+		}
+	}
 }

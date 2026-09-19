@@ -13,20 +13,18 @@ import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.editor.EditorMapa;
 import principal.maquinaestado.estados.menu.MenuCargarPartida;
 import principal.maquinaestado.estados.menu.MenuConfiguracion;
-import principal.maquinaestado.estados.menu.MenuConfiguracionEnPartida;
+import principal.maquinaestado.estados.menu.MenuConfiguracionGeneral;
 import principal.maquinaestado.estados.menu.MenuConfiguracionGrafica;
 import principal.maquinaestado.estados.menu.MenuConfiguracionSeleccion;
+import principal.maquinaestado.estados.menu.MenuDificultad;
 import principal.maquinaestado.estados.menu.MenuEdirorSeleccion;
 import principal.maquinaestado.estados.menu.MenuEditorNuevo;
+import principal.maquinaestado.estados.menu.MenuGuardarPartida;
 import principal.maquinaestado.estados.menu.MenuPrincipal;
 import principal.persistencia.GestorGuardado;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 
-/**
- * Máquina de Estados Finita (FSM) que gestiona el ciclo de vida, transiciones,
- * actualización y renderizado del estado activo del juego.
- */
 public class GestorEstados {
 
 	public static final int NUMERO_ESTADO_PRUEBA = -1;
@@ -39,6 +37,9 @@ public class GestorEstados {
 	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES_GRAFICAS = 6;
 	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES_CONTROLES = 7;
 	public static final int NUMERO_ESTADO_MENU_CARGAR_PARTIDA = 8;
+	public static final int NUMERO_ESTADO_MENU_GUARDAR_PARTIDA = 9;
+	public static final int NUMERO_ESTADO_MENU_CONFIGURACIONES_GENERAL = 10;
+	public static final int NUMERO_ESTADO_MENU_DIFICULTAD = 11;
 
 	private static final EstadoJuego ESTADO_VACIO = new EstadoJuego() {
 		@Override
@@ -91,7 +92,14 @@ public class GestorEstados {
 			}
 			break;
 		case NUMERO_ESTADO_MENU_CONFIGURACIONES:
-			this.estadoActual = new MenuConfiguracionSeleccion(this);
+			final MenuConfiguracionSeleccion mSel = new MenuConfiguracionSeleccion(this);
+			mSel.setEsDesdePausa(false);
+			this.estadoActual = mSel;
+			break;
+		case NUMERO_ESTADO_MENU_CONFIGURACIONES_GENERAL:
+			final MenuConfiguracionGeneral mGen = new MenuConfiguracionGeneral(this);
+			mGen.setEsDesdePausa(false);
+			this.estadoActual = mGen;
 			break;
 		case NUMERO_ESTADO_MENU_CONFIGURACIONES_GRAFICAS:
 			this.estadoActual = new MenuConfiguracionGrafica(this);
@@ -100,14 +108,59 @@ public class GestorEstados {
 			this.estadoActual = new MenuConfiguracion(this);
 			break;
 		case NUMERO_ESTADO_MENU_CONFIGURACIONES_EN_PARTIDA:
-			this.estadoActual = new MenuConfiguracionEnPartida(this);
+			final MenuConfiguracionSeleccion mSelPausa = new MenuConfiguracionSeleccion(this);
+			mSelPausa.setEsDesdePausa(true);
+			this.estadoActual = mSelPausa;
 			break;
 		case NUMERO_ESTADO_MENU_CARGAR_PARTIDA:
-			this.estadoActual = new MenuCargarPartida(this);
+			final MenuCargarPartida mCargar = new MenuCargarPartida(this);
+			mCargar.setEsDesdePausa(false);
+			this.estadoActual = mCargar;
+			break;
+		case NUMERO_ESTADO_MENU_DIFICULTAD:
+			this.estadoActual = new MenuDificultad(this);
 			break;
 		default:
 			break;
 		}
+	}
+
+	public void abrirMenuConfiguracionGeneral(final boolean esDesdePausa) {
+		Globales.RATON.soltar();
+		final MenuConfiguracionGeneral m = new MenuConfiguracionGeneral(this);
+		m.setEsDesdePausa(esDesdePausa);
+		this.estadoActual = m;
+	}
+
+	public void abrirMenuConfiguracionGrafica(final boolean esDesdePausa) {
+		Globales.RATON.soltar();
+		final MenuConfiguracionGrafica m = new MenuConfiguracionGrafica(this);
+		this.estadoActual = m;
+	}
+
+	public void abrirMenuConfiguracionControles(final boolean esDesdePausa) {
+		Globales.RATON.soltar();
+		final MenuConfiguracion m = new MenuConfiguracion(this);
+		this.estadoActual = m;
+	}
+
+	public void abrirMenuConfiguracionesSeleccionEnPausa() {
+		Globales.RATON.soltar();
+		final MenuConfiguracionSeleccion m = new MenuConfiguracionSeleccion(this);
+		m.setEsDesdePausa(true);
+		this.estadoActual = m;
+	}
+
+	public void abrirMenuGuardarPartida(final GestorPartida gp) {
+		Globales.RATON.soltar();
+		this.estadoActual = new MenuGuardarPartida(this, gp);
+	}
+
+	public void abrirMenuCargarPartidaEnPausa() {
+		Globales.RATON.soltar();
+		final MenuCargarPartida mCargar = new MenuCargarPartida(this);
+		mCargar.setEsDesdePausa(true);
+		this.estadoActual = mCargar;
 	}
 
 	public void editorMapaSeleccion() {
@@ -136,11 +189,6 @@ public class GestorEstados {
 		Globales.RATON.soltar();
 		this.estados[2] = new EditorMapa(mapa, this);
 		this.estadoActual = this.estados[2];
-	}
-
-	@Deprecated
-	public void editorMapa(final int cantAncho, final int cantAlto, final int idModeloTile) {
-		this.editorMapa(cantAncho, cantAlto, principal.recursos.TipoTerreno.TIERRA);
 	}
 
 	public void editorMapaNuevoMenu() {
@@ -172,7 +220,6 @@ public class GestorEstados {
 		}
 		Globales.estadoJuego = true;
 		Globales.RATON.soltar();
-		// Constructor directo y limpio sin cargas iniciales en conflicto
 		final GestorPartida gp = new GestorPartida(this, saveJson);
 		this.estados[0] = gp;
 		this.estadoActual = gp;

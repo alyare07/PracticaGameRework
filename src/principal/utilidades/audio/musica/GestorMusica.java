@@ -10,16 +10,19 @@ import org.json.simple.parser.JSONParser;
 import principal.utilidades.audio.DatosAudio;
 
 /**
- * Administrador global de pistas musicales y bandas sonoras del juego con
- * soporte de atenuación proporcional en interiores y cuevas (Zero-GC / O(1)).
+ * Administrador global de pistas musicales con soporte para multiplicadores de
+ * volumen maestro y atenuación ambiental (Zero-GC / O(1)).
  * 
- * @version 3.0 (Vanilla Java 8 - Proportional Interior Attenuation)
+ * @version 4.0 (Vanilla Java 8 - Real-Time Master Volume Scaling)
  */
 public class GestorMusica {
 
+	private static double multiplicadorVolumenGeneral = 1.0;
+	private static double multiplicadorVolumenMusica = 1.0;
+	private static double factorAtenuacionAmbiente = 1.0;
+
 	private static MusicaStream musicaAmbienteClima;
 	private static String idAmbienteClimaActual;
-	private static double factorAtenuacionAmbiente = 1.0;
 
 	private static final Map<String, DatosAudio> REGISTRO = new HashMap<>();
 
@@ -67,6 +70,7 @@ public class GestorMusica {
 
 		if (idMusica.equals(idMusicaFondoPrincipal) && (musicaFondoPrincipal != null)) {
 			musicaFondoPrincipal.actualizar(true);
+			actualizarVolumenPrincipal();
 			return;
 		}
 
@@ -78,7 +82,8 @@ public class GestorMusica {
 			return;
 		}
 
-		musicaFondoPrincipal = new MusicaStream(datos.getRuta(), datos.getVolumen());
+		final double volumenFinal = datos.getVolumen() * multiplicadorVolumenGeneral * multiplicadorVolumenMusica;
+		musicaFondoPrincipal = new MusicaStream(datos.getRuta(), volumenFinal);
 		musicaFondoPrincipal.repetir(true);
 		musicaFondoPrincipal.reproducir();
 		idMusicaFondoPrincipal = idMusica;
@@ -98,36 +103,14 @@ public class GestorMusica {
 		}
 	}
 
-	public static void setVolumenMusicaFondoPrincipal(final double volumen) {
-		if (musicaFondoPrincipal != null) {
-			musicaFondoPrincipal.setVolumen(volumen);
-		}
-	}
-
-	public static MusicaStream obtenerInstancia(final String idMusica) {
-		final DatosAudio datos = REGISTRO.get(idMusica);
-		if (datos != null) {
-			return new MusicaStream(datos.getRuta(), datos.getVolumen());
-		}
-		System.err.println("⚠ GestorMusica: No se pudo instanciar la música ID '" + idMusica + "'");
-		return null;
-	}
-
 	public static void reproducirMusicaFondoPrincipal(final IDMusica id) {
 		if (id != null) {
 			reproducirMusicaFondoPrincipal(id.getId());
 		}
 	}
 
-	public static MusicaStream obtenerInstancia(final IDMusica id) {
-		if (id != null) {
-			return obtenerInstancia(id.getId());
-		}
-		return null;
-	}
-
 	// =========================================================================
-	// GESTIÓN PROPORCIONAL DE AUDIO CLIMÁTICO Y AMBIENTAL
+	// GESTIÓN DE AUDIO CLIMÁTICO Y AMBIENTAL
 	// =========================================================================
 
 	public static void reproducirAmbienteClima(final String idAmbiente) {
@@ -138,7 +121,7 @@ public class GestorMusica {
 
 		if (idAmbiente.equals(idAmbienteClimaActual) && (musicaAmbienteClima != null)) {
 			musicaAmbienteClima.actualizar(true);
-			thisAplicarVolumenEfectivo();
+			actualizarVolumenAmbiente();
 			return;
 		}
 
@@ -146,8 +129,9 @@ public class GestorMusica {
 
 		final DatosAudio datos = REGISTRO.get(idAmbiente);
 		if (datos != null) {
-			final double volumenEfectivo = datos.getVolumen() * factorAtenuacionAmbiente;
-			musicaAmbienteClima = new MusicaStream(datos.getRuta(), volumenEfectivo);
+			final double volumenFinal = datos.getVolumen() * factorAtenuacionAmbiente * multiplicadorVolumenGeneral
+					* multiplicadorVolumenMusica;
+			musicaAmbienteClima = new MusicaStream(datos.getRuta(), volumenFinal);
 			musicaAmbienteClima.repetir(true);
 			musicaAmbienteClima.reproducir();
 			idAmbienteClimaActual = idAmbiente;
@@ -176,25 +160,48 @@ public class GestorMusica {
 		}
 	}
 
-	/**
-	 * Configura el factor multiplicador de volumen para climas (1.0 = Exterior,
-	 * 0.20 = Casa, 0.0 = Cueva).
-	 */
 	public static void setFactorAtenuacionAmbiente(final double factor) {
 		factorAtenuacionAmbiente = Math.max(0.0, Math.min(1.0, factor));
-		thisAplicarVolumenEfectivo();
+		actualizarVolumenAmbiente();
 	}
 
 	public static double getFactorAtenuacionAmbiente() {
 		return factorAtenuacionAmbiente;
 	}
 
-	private static void thisAplicarVolumenEfectivo() {
+	// =========================================================================
+	// ACTUALIZACIÓN EN CALIENTE DE VOLÚMENES
+	// =========================================================================
+
+	public static void setMultiplicadorVolumenGeneral(final double vol) {
+		multiplicadorVolumenGeneral = Math.max(0.0, Math.min(1.0, vol));
+		actualizarVolumenPrincipal();
+		actualizarVolumenAmbiente();
+	}
+
+	public static void setMultiplicadorVolumenMusica(final double vol) {
+		multiplicadorVolumenMusica = Math.max(0.0, Math.min(1.0, vol));
+		actualizarVolumenPrincipal();
+		actualizarVolumenAmbiente();
+	}
+
+	private static void actualizarVolumenPrincipal() {
+		if ((musicaFondoPrincipal != null) && (idMusicaFondoPrincipal != null)) {
+			final DatosAudio datos = REGISTRO.get(idMusicaFondoPrincipal);
+			if (datos != null) {
+				final double vol = datos.getVolumen() * multiplicadorVolumenGeneral * multiplicadorVolumenMusica;
+				musicaFondoPrincipal.setVolumen(vol);
+			}
+		}
+	}
+
+	private static void actualizarVolumenAmbiente() {
 		if ((musicaAmbienteClima != null) && (idAmbienteClimaActual != null)) {
 			final DatosAudio datos = REGISTRO.get(idAmbienteClimaActual);
 			if (datos != null) {
-				final double volumenCalculado = datos.getVolumen() * factorAtenuacionAmbiente;
-				musicaAmbienteClima.setVolumen(volumenCalculado);
+				final double vol = datos.getVolumen() * factorAtenuacionAmbiente * multiplicadorVolumenGeneral
+						* multiplicadorVolumenMusica;
+				musicaAmbienteClima.setVolumen(vol);
 			}
 		}
 	}

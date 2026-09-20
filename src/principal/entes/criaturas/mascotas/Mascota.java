@@ -107,8 +107,8 @@ public class Mascota extends Criatura implements Interactuable {
 			this.blackboard.setObjetivoActual(causante);
 			this.blackboard.fijarAnclaRetorno(this.getPieX(), this.getPieY());
 
-			if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
-				final double ahoraHoras = Globales.GESTOR_LUZ.getCiclo().getHorasTotalesJuego();
+			if (Globales.GESTOR_ASTRONOMICO != null) {
+				final double ahoraHoras = Globales.GESTOR_ASTRONOMICO.getHorasTotalesJuego();
 				this.blackboard.setTimestampRetornoJuegoHoras(ahoraHoras + 1.5);
 			}
 		}

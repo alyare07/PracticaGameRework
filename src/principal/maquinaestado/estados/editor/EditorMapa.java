@@ -27,7 +27,6 @@ import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
 import principal.graficos.SuperficieDibujo;
-import principal.iluminacion.CicloDiaNoche.FaseDia;
 import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.IntensidadNiebla;
 import principal.iluminacion.TipoLuz;
@@ -313,10 +312,11 @@ public class EditorMapa implements EstadoJuego {
 			}
 		}));
 		this.barraSuperior.add(new BotonPixel("HOR", new Rectangle(332, 2, 22, 14), () -> {
-			if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
-				final FaseDia[] fases = FaseDia.values();
+			if (Globales.GESTOR_ASTRONOMICO != null) {
+				final principal.astronomia.GestorAstronomico.FaseDia[] fases = principal.astronomia.GestorAstronomico.FaseDia
+						.values();
 				this.idxHoraTest = (this.idxHoraTest + 1) % fases.length;
-				Globales.GESTOR_LUZ.getCiclo().setHora(fases[this.idxHoraTest]);
+				Globales.GESTOR_ASTRONOMICO.setHora(fases[this.idxHoraTest]);
 			}
 		}));
 
@@ -1348,7 +1348,9 @@ public class EditorMapa implements EstadoJuego {
 			if (this.mostrarOverlayIA) {
 				this.pintarHeatmapNavegacionIA(gBuf);
 			}
-
+			if (Globales.GESTOR_ASTRONOMICO != null) {
+				Globales.GESTOR_ASTRONOMICO.pintar(gBuf);
+			}
 			if (Globales.GESTOR_CLIMA != null) {
 				Globales.GESTOR_CLIMA.pintar(gBuf);
 			}

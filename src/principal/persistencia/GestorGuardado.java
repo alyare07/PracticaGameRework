@@ -82,9 +82,9 @@ public final class GestorGuardado {
 			// 5. Serializar Deltas de todos los mundos visitados
 			saveJson.put("deltas", Globales.GESTOR_DELTAS.exportarJSON());
 
-			// 6. Serializar Calendario y Tiempo
-			if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
-				saveJson.put("calendario", Globales.GESTOR_LUZ.getCiclo().exportarJSON());
+			// 6. Serializar Bóveda Celeste, Calendario y Mecánica Cósmica
+			if (Globales.GESTOR_ASTRONOMICO != null) {
+				saveJson.put("astronomia", Globales.GESTOR_ASTRONOMICO.exportarJSON());
 			}
 
 			// 7. Serializar Progreso e Historia (Flags)

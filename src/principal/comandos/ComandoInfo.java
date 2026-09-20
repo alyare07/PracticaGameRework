@@ -1,10 +1,9 @@
 package principal.comandos;
 
+import principal.astronomia.Estacion;
 import principal.clima.GestorClima;
 import principal.configuracion.ConfiguracionGrafica;
 import principal.iluminacion.CalculadorSigilo;
-import principal.iluminacion.CicloDiaNoche;
-import principal.iluminacion.Estacion;
 import principal.mapa.renderEntidades.camara.Camara;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
@@ -105,7 +104,7 @@ public class ComandoInfo extends Comando {
 		final long maxMem = rt.maxMemory() / (1024 * 1024);
 
 		final Camara cam = Globales.CAMARA;
-		final CicloDiaNoche ciclo = (Globales.GESTOR_LUZ != null) ? Globales.GESTOR_LUZ.getCiclo() : null;
+		final principal.astronomia.GestorAstronomico astro = Globales.GESTOR_ASTRONOMICO;
 		final GestorClima clima = Globales.GESTOR_CLIMA;
 
 		final StringBuilder sb = new StringBuilder(1024);
@@ -141,28 +140,24 @@ public class ComandoInfo extends Comando {
 
 		// --- 3. CALENDARIO CANÓNICO & FOTOPERIODO ---
 		sb.append("\n[3] CALENDARIO CANONICO & CICLO SOLAR:\n");
-		if (ciclo != null) {
-			final Estacion est = ciclo.getEstacionActual();
-			final int hAm = (int) ciclo.getHoraAmanecer();
-			final int mAm = (int) Math.round((ciclo.getHoraAmanecer() - hAm) * 60.0);
-			final int hAt = (int) ciclo.getHoraAtardecer();
-			final int mAt = (int) Math.round((ciclo.getHoraAtardecer() - hAt) * 60.0);
+		if (astro != null) {
+			final Estacion est = astro.getEstacionActual();
+			final int hAm = (int) astro.getHoraAmanecer();
+			final int mAm = (int) Math.round((astro.getHoraAmanecer() - hAm) * 60.0);
+			final int hAt = (int) astro.getHoraAtardecer();
+			final int mAt = (int) Math.round((astro.getHoraAtardecer() - hAt) * 60.0);
 
-			sb.append(String.format("    Fecha HUD      : %s\n", ciclo.getTextoLinea1HUD()));
-			sb.append(String.format("    Estacion       : %s (Dia %d/28 · Sem %d/4) [Delta: %+.1f °C]\n",
-					est.getNombre(), ciclo.getDiaDeLaEstacion(), ciclo.getSemanaDeLaEstacion(),
-					est.getDeltaTemperaturaCelsius()));
+			sb.append(String.format("    Fecha HUD      : %s\n", astro.getTextoLinea1HUD()));
+			sb.append(String.format("    Estacion       : %s (Dia %d/28 · Sem %d/4)\n", est.getNombre(),
+					astro.getDiaDeLaEstacion(), astro.getSemanaDeLaEstacion()));
+			sb.append(String.format("    Fase Lunar     : %s\n", astro.getFaseLunarActual().getNombreVisible()));
 			sb.append(
-					String.format("    Anual          : Anio %d · Dia %d/112 · Sem %d/16 (%s)\n", ciclo.getAnioActual(),
-							ciclo.getDiaDelAnio(), ciclo.getSemanaAnio(), ciclo.getNombreDiaSemanaLargo()));
-			sb.append(String.format("    Hora Solar     : %s (%s) | Warp: %.1fx %s\n", ciclo.getHoraFormato24h(),
-					ciclo.getNombreMomentoDelDia(), ciclo.getMultiplicadorTiempo(),
-					(ciclo.isTiempoPausado() ? "[PAUSADO]" : "")));
+					String.format("    Anual          : Anio %d · Dia %d/112 · Sem %d/16 (%s)\n", astro.getAnioActual(),
+							astro.getDiaDelAnio(), astro.getSemanaAnio(), astro.getNombreDiaSemanaLargo()));
+			sb.append(String.format("    Hora Solar     : %s %s\n", astro.getHoraFormato24h(),
+					(astro.isTiempoPausado() ? "[PAUSADO]" : "")));
 			sb.append(String.format("    Fotoperiodo    : Alba: %02d:%02d | Ocaso: %02d:%02d\n", hAm, mAm, hAt, mAt));
-		} else {
-			sb.append("    CicloDiaNoche no inicializado.\n");
 		}
-
 		// --- 4. ATMÓSFERA & CLIMA ---
 		sb.append("\n[4] ATMOSFERA & METEOROLOGIA:\n");
 		if (clima != null) {
@@ -227,33 +222,30 @@ public class ComandoInfo extends Comando {
 	}
 
 	private void mostrarInfoCalendario(final EmisorRespuesta emisor) {
-		if ((Globales.GESTOR_LUZ == null) || (Globales.GESTOR_LUZ.getCiclo() == null)) {
-			this.enviarError(emisor, "CicloDiaNoche no disponible.");
+		if (Globales.GESTOR_ASTRONOMICO == null) {
+			this.enviarError(emisor, "GestorAstronomico no disponible.");
 			return;
 		}
 
-		final CicloDiaNoche c = Globales.GESTOR_LUZ.getCiclo();
-		final Estacion est = c.getEstacionActual();
+		final principal.astronomia.GestorAstronomico a = Globales.GESTOR_ASTRONOMICO;
+		final Estacion est = a.getEstacionActual();
 
-		final int hAm = (int) c.getHoraAmanecer();
-		final int mAm = (int) Math.round((c.getHoraAmanecer() - hAm) * 60.0);
-		final int hAt = (int) c.getHoraAtardecer();
-		final int mAt = (int) Math.round((c.getHoraAtardecer() - hAt) * 60.0);
+		final int hAm = (int) a.getHoraAmanecer();
+		final int mAm = (int) Math.round((a.getHoraAmanecer() - hAm) * 60.0);
+		final int hAt = (int) a.getHoraAtardecer();
+		final int mAt = (int) Math.round((a.getHoraAtardecer() - hAt) * 60.0);
 
-		this.enviarInfo(emisor,
-				"TELEMETRIA DE CALENDARIO Y TIEMPO:" + "\n -> HUD Linea 1       : " + c.getTextoLinea1HUD()
-						+ "\n -> HUD Linea 2       : " + c.getTextoLinea2HUD() + "\n -> Estacion          : "
-						+ est.getNombre() + " (Dia " + c.getDiaDeLaEstacion() + "/28 · Sem " + c.getSemanaDeLaEstacion()
-						+ "/4)" + "\n -> Modulador Termico : "
-						+ String.format("%+.1f", est.getDeltaTemperaturaCelsius()) + " °C base"
-						+ "\n -> Progresion Anual  : Anio " + c.getAnioActual() + " · Dia " + c.getDiaDelAnio()
-						+ "/112 · Sem " + c.getSemanaAnio() + "/16" + "\n -> Dia de la Semana  : "
-						+ c.getNombreDiaSemanaLargo() + " (Indice " + c.getIndiceDiaSemana() + ")"
-						+ "\n -> Dias Acumulados   : " + c.getDiaActual() + " dias globales monótonos"
-						+ "\n -> Hora Solar        : " + c.getHoraFormato24h() + " (" + c.getNombreMomentoDelDia() + ")"
-						+ "\n -> Fotoperiodo       : Alba a las " + String.format("%02d:%02d", hAm, mAm)
-						+ " | Ocaso a las " + String.format("%02d:%02d", hAt, mAt) + "\n -> Velocidad Tiempo  : "
-						+ c.getMultiplicadorTiempo() + "x " + (c.isTiempoPausado() ? "[PAUSADO]" : ""));
+		this.enviarInfo(emisor, "TELEMETRIA DE CALENDARIO Y TIEMPO:" + "\n -> HUD Linea 1       : "
+				+ a.getTextoLinea1HUD() + "\n -> HUD Linea 2       : " + a.getTextoLinea2HUD()
+				+ "\n -> Estacion          : " + est.getNombre() + " (Dia " + a.getDiaDeLaEstacion() + "/28 · Sem "
+				+ a.getSemanaDeLaEstacion() + "/4)" + "\n -> Fase Lunar         : "
+				+ a.getFaseLunarActual().getNombreVisible() + "\n -> Progresion Anual  : Anio " + a.getAnioActual()
+				+ " · Dia " + a.getDiaDelAnio() + "/112 · Sem " + a.getSemanaAnio() + "/16"
+				+ "\n -> Dia de la Semana  : " + a.getNombreDiaSemanaLargo() + " (Indice " + a.getIndiceDiaSemana()
+				+ ")" + "\n -> Dias Acumulados   : " + a.getDiaActual() + " dias globales monótonos"
+				+ "\n -> Hora Solar        : " + a.getHoraFormato24h() + "\n -> Fotoperiodo       : Alba a las "
+				+ String.format("%02d:%02d", hAm, mAm) + " | Ocaso a las " + String.format("%02d:%02d", hAt, mAt)
+				+ "\n -> Pausado             : " + (a.isTiempoPausado() ? "SI" : "NO"));
 	}
 
 	private void mostrarInfoMemoria(final EmisorRespuesta emisor) {

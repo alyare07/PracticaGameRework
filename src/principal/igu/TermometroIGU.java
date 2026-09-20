@@ -200,10 +200,6 @@ public class TermometroIGU {
 					this.sbWidget.append("!Alerta: L. Acida!");
 					this.cachedColorEstado = COLOR_ALERTA_ACIDA;
 					break;
-				case ECLIPSE_SOLAR:
-					this.sbWidget.append("!Alerta: Eclipse!");
-					this.cachedColorEstado = COLOR_ALERTA_ECLIPSE;
-					break;
 				default:
 					this.sbWidget.append("!Alerta Temporal!");
 					this.cachedColorEstado = COLOR_FUEGO;
@@ -274,7 +270,6 @@ public class TermometroIGU {
 		case VENTISCA:
 		case TORMENTA_ARENA:
 		case LLUVIA_ACIDA:
-		case ECLIPSE_SOLAR:
 			return true;
 		default:
 			return false;

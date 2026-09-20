@@ -41,9 +41,8 @@ public class ComandoSigilo extends Comando {
 		sb.append("Nivel de Claridad    : ").append(porcentajeLuz).append("%\n");
 		sb.append("Oscuridad Ambiental  : ").append(Globales.GESTOR_LUZ.getAlphaOscuridadActual()).append(" / 255\n");
 
-		if (Globales.GESTOR_LUZ.getCiclo() != null) {
-			sb.append("Fase del Dia / Hora  : ").append(Globales.GESTOR_LUZ.getCiclo().getHoraFormato24h()).append(" (")
-					.append(Globales.GESTOR_LUZ.getCiclo().getNombreMomentoDelDia()).append(")\n");
+		if (Globales.GESTOR_ASTRONOMICO != null) {
+			sb.append("Fase del Dia / Hora  : ").append(Globales.GESTOR_ASTRONOMICO.getHoraFormato24h()).append("\n");
 		}
 
 		sb.append("Modo Interior/Cueva  : ").append(Globales.GESTOR_LUZ.isModoAmbienteFijo() ? "SI" : "NO (Exterior)")

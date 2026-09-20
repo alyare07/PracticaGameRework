@@ -18,10 +18,9 @@ import principal.utilidades.Render2D;
 
 /**
  * Gestor maestro del subsistema de iluminación dinámica 2D, sombreado acelerado
- * en VRAM, ciclo solar de 24 horas y soporte para Lightmap de baja resolución
- * en hardware modesto (Zero-GC).
+ * en VRAM, oclusión y Lightmap multiescala (Zero-GC / O(1)).
  * 
- * @version 18.0 (Vanilla Java 8 - Dynamic Scale Fill-Rate Optimization)
+ * @version 19.0 (Vanilla Java 8 - Astronomical Decoupling & Zero-GC Lightmap)
  */
 public class GestorLuz {
 
@@ -55,7 +54,6 @@ public class GestorLuz {
 	private final FuenteLuz[] activas;
 	private int cantidadActivas;
 
-	private final CicloDiaNoche ciclo;
 	private final GestorRayosSol rayosSol;
 	private final OclusorSombras2D oclusorSombras;
 	private VolatileImage lightmap;
@@ -84,7 +82,11 @@ public class GestorLuz {
 	private double tiempoFlashGlobalRestante = 0.0;
 	private boolean flashGlobalRelampago = false;
 
-	private int lastBaseR = -1, lastBaseG = -1, lastBaseB = -1, lastBaseA = -1;
+	// Caché Directa Zero-GC para el color final de sombra
+	private static final int CACHE_SIZE = 512;
+	private static final int CACHE_MASK = CACHE_SIZE - 1;
+	private final int[] cacheKeys = new int[CACHE_SIZE];
+	private final Color[] cacheColors = new Color[CACHE_SIZE];
 	private Color colorAmbienteCalculado = new Color(0, 0, 0, 0);
 
 	public GestorLuz() {
@@ -99,7 +101,6 @@ public class GestorLuz {
 			this.indicesLibres[i] = i;
 		}
 
-		this.ciclo = new CicloDiaNoche();
 		this.rayosSol = new GestorRayosSol();
 		this.oclusorSombras = new OclusorSombras2D();
 
@@ -113,7 +114,6 @@ public class GestorLuz {
 
 		for (final TipoLuz tipo : TipoLuz.values()) {
 			final int ordinal = tipo.ordinal();
-
 			for (int nivel = 0; nivel < 3; nivel++) {
 				this.texturasHaloColor[ordinal][nivel] = this.hornearTexturaColorHD(tipo, nivel);
 			}
@@ -210,7 +210,6 @@ public class GestorLuz {
 		if (nivel == 1) {
 			return base;
 		}
-
 		int r = base.getRed();
 		int g = base.getGreen();
 		int b = base.getBlue();
@@ -232,7 +231,6 @@ public class GestorLuz {
 			g = Math.max(0, g - 30);
 			b = Math.max(0, b - 10);
 		}
-
 		return new Color(r, g, b);
 	}
 
@@ -330,7 +328,8 @@ public class GestorLuz {
 	}
 
 	public boolean isPosicionIluminada(final double mundoX, final double mundoY) {
-		if (!this.modoAmbienteFijo && (this.ciclo.getColorAmbienteActual().getAlpha() < 50)) {
+		if (!this.modoAmbienteFijo && (Globales.GESTOR_ASTRONOMICO != null)
+				&& (Globales.GESTOR_ASTRONOMICO.getColorAmbienteActual().getAlpha() < 50)) {
 			return true;
 		}
 		if (this.flashGlobalActivo) {
@@ -365,7 +364,9 @@ public class GestorLuz {
 		if (this.isPosicionIluminada(mundoX, mundoY)) {
 			return 1.0f;
 		}
-		final Color c = this.modoAmbienteFijo ? this.colorAmbienteFijo : this.ciclo.getColorAmbienteActual();
+		final Color c = this.modoAmbienteFijo ? this.colorAmbienteFijo
+				: ((Globales.GESTOR_ASTRONOMICO != null) ? Globales.GESTOR_ASTRONOMICO.getColorAmbienteActual()
+						: Color.BLACK);
 		return 1.0f - (c.getAlpha() / 255.0f);
 	}
 
@@ -373,7 +374,8 @@ public class GestorLuz {
 		if (this.modoAmbienteFijo) {
 			return this.colorAmbienteFijo.getAlpha();
 		}
-		return this.ciclo.getColorAmbienteActual().getAlpha();
+		return (Globales.GESTOR_ASTRONOMICO != null) ? Globales.GESTOR_ASTRONOMICO.getColorAmbienteActual().getAlpha()
+				: 0;
 	}
 
 	public void establecerModoCueva(final boolean total) {
@@ -391,7 +393,8 @@ public class GestorLuz {
 	public void establecerAmbienteTransicion(final Color destino, final double duracion) {
 		this.iluminacionHabilitada = true;
 		this.colorTransicionOrigen = this.modoAmbienteFijo ? this.colorAmbienteFijo
-				: this.ciclo.getColorAmbienteActual();
+				: ((Globales.GESTOR_ASTRONOMICO != null) ? Globales.GESTOR_ASTRONOMICO.getColorAmbienteActual()
+						: new Color(0, 0, 0, 0));
 		this.colorTransicionDestino = (destino != null) ? destino : new Color(0, 0, 0, 255);
 		this.modoAmbienteFijo = true;
 		this.tiempoTransicionTotal = Math.max(0.1, duracion);
@@ -410,8 +413,6 @@ public class GestorLuz {
 		}
 
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
-
-		this.ciclo.actualizar(dt);
 
 		if (this.modoAmbienteFijo && this.transicionActiva) {
 			this.tiempoTransicionActual += dt;
@@ -433,7 +434,10 @@ public class GestorLuz {
 		}
 
 		final boolean hayTormenta = (Globales.GESTOR_CLIMA != null) && Globales.GESTOR_CLIMA.isTormentaActiva();
-		this.rayosSol.actualizar(dt, this.ciclo.getHoraActual(), this.modoAmbienteFijo, hayTormenta);
+		final double horaActual = (Globales.GESTOR_ASTRONOMICO != null) ? Globales.GESTOR_ASTRONOMICO.getHoraActual()
+				: 12.0;
+
+		this.rayosSol.actualizar(dt, horaActual, this.modoAmbienteFijo, hayTormenta);
 
 		int i = 0;
 		while (i < this.cantidadActivas) {
@@ -490,7 +494,6 @@ public class GestorLuz {
 			return;
 		}
 
-		// Conexión con Perfil de Rendimiento: en POTATO se omiten los rayos solares
 		if (ConfiguracionGrafica.OPT_SOMBRAS_VOLUMETRICAS) {
 			this.rayosSol.pintar(g);
 		}
@@ -502,14 +505,18 @@ public class GestorLuz {
 			bBase = this.colorAmbienteFijo.getBlue();
 			aBase = this.colorAmbienteFijo.getAlpha();
 		} else if ((this.colorTinteBioma != null) && (this.factorInmersionBioma > 0.0)) {
-			final Color solar = this.ciclo.getColorAmbienteActual();
+			final Color solar = (Globales.GESTOR_ASTRONOMICO != null)
+					? Globales.GESTOR_ASTRONOMICO.getColorAmbienteActual()
+					: Color.BLACK;
 			final double f = this.factorInmersionBioma;
 			rBase = (int) (solar.getRed() + ((this.colorTinteBioma.getRed() - solar.getRed()) * f * 0.6));
 			gBase = (int) (solar.getGreen() + ((this.colorTinteBioma.getGreen() - solar.getGreen()) * f * 0.6));
 			bBase = (int) (solar.getBlue() + ((this.colorTinteBioma.getBlue() - solar.getBlue()) * f * 0.6));
 			aBase = Math.max(solar.getAlpha(), (int) (this.colorTinteBioma.getAlpha() * f));
 		} else {
-			final Color solar = this.ciclo.getColorAmbienteActual();
+			final Color solar = (Globales.GESTOR_ASTRONOMICO != null)
+					? Globales.GESTOR_ASTRONOMICO.getColorAmbienteActual()
+					: Color.BLACK;
 			rBase = solar.getRed();
 			gBase = solar.getGreen();
 			bBase = solar.getBlue();
@@ -544,14 +551,19 @@ public class GestorLuz {
 				gLight.fillRect(0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
 
 				if (alphaSombra > 0) {
-					if ((rBase != this.lastBaseR) || (gBase != this.lastBaseG) || (bBase != this.lastBaseB)
-							|| (alphaSombra != this.lastBaseA)) {
-						this.lastBaseR = rBase;
-						this.lastBaseG = gBase;
-						this.lastBaseB = bBase;
-						this.lastBaseA = alphaSombra;
-						this.colorAmbienteCalculado = new Color(rBase, gBase, bBase, alphaSombra);
+					// Resolución mediante Caché Directa Zero-GC
+					final int key = (rBase << 24) | (gBase << 16) | (bBase << 8) | alphaSombra;
+					final int idx = (key ^ (key >>> 16)) & CACHE_MASK;
+
+					if ((this.cacheKeys[idx] == key) && (this.cacheColors[idx] != null)) {
+						this.colorAmbienteCalculado = this.cacheColors[idx];
+					} else {
+						final Color nuevoColor = new Color(rBase, gBase, bBase, alphaSombra);
+						this.cacheKeys[idx] = key;
+						this.cacheColors[idx] = nuevoColor;
+						this.colorAmbienteCalculado = nuevoColor;
 					}
+
 					gLight.setComposite(COMPOSITE_NORMAL);
 					gLight.setColor(this.colorAmbienteCalculado);
 					gLight.fillRect(0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO);
@@ -602,13 +614,9 @@ public class GestorLuz {
 
 		final boolean enInterior = this.modoAmbienteFijo
 				|| ((Globales.GESTOR_ZONAS_AMBIENTE != null) && Globales.GESTOR_ZONAS_AMBIENTE.isEnZonaInterior());
-
-		// Bandera activa de sombras: en POTATO se apaga el cálculo geométrico de muros
 		final boolean sombrasHabilitadas = ConfiguracionGrafica.OPT_SOMBRAS_VOLUMETRICAS;
 
-		// =====================================================================
-		// PASE A: PERFORACIÓN DE PENUMBRA (DST_OUT) + OCLUSIÓN EN INTERIORES
-		// =====================================================================
+		// PASE A: PERFORACIÓN DE PENUMBRA (DST_OUT)
 		for (int i = 0; i < this.cantidadActivas; i++) {
 			final FuenteLuz luz = this.activas[i];
 			final int radioPantalla = (int) Math.round(luz.getRadioActual() * z);
@@ -648,9 +656,7 @@ public class GestorLuz {
 			}
 		}
 
-		// =====================================================================
-		// PASE B: TINTE CROMÁTICO TÉRMICO + SELLADO EN INTERIORES
-		// =====================================================================
+		// PASE B: TINTE CROMÁTICO TÉRMICO
 		final int indiceCompositeTinte = Math.max(0, Math.min(10, (int) Math.round((alphaSombra / 200.0) * 10.0)));
 
 		if (indiceCompositeTinte > 0) {
@@ -702,10 +708,6 @@ public class GestorLuz {
 			return this.activas[indice];
 		}
 		return null;
-	}
-
-	public CicloDiaNoche getCiclo() {
-		return this.ciclo;
 	}
 
 	public GestorRayosSol getRayosSol() {

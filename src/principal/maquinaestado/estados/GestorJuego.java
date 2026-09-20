@@ -146,6 +146,9 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.GESTOR_TEXTOS.actualizar();
 		Globales.GESTOR_PARTICULAS.actualizar();
 		Globales.GESTOR_ZONAS_AMBIENTE.actualizar(dt);
+		if (Globales.GESTOR_ASTRONOMICO != null) {
+			Globales.GESTOR_ASTRONOMICO.actualizar(dt);
+		}
 		Globales.GESTOR_CLIMA.actualizar();
 		Globales.GESTOR_LUZ.actualizar();
 		Globales.GESTOR_TERMICO_JUGADOR.actualizar(dt);
@@ -364,12 +367,20 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		// =========================================================================
 		// 4. CAPAS DE PANTALLA FIJAS (1:1 PIXEL-PERFECT EN COORDENADAS LIMPIAS)
 		// =========================================================================
+		// 4.1 La penumbra y las antorchas oscurecen el mundo físico
 		Globales.GESTOR_CLIMA.pintar(g);
 		Globales.GESTOR_LUZ.pintar(g);
 
+		// 4.2 La Bóveda Celeste (Auroras boreales y estrellas) BRILLAN sobre la noche
+		if (Globales.GESTOR_ASTRONOMICO != null) {
+			Globales.GESTOR_ASTRONOMICO.pintar(g);
+		}
+
+		// 4.3 Clima terrestre (Nubes y lluvia)
+
 		if (!Globales.JUGADOR.estaEliminado()) {
 			this.pintarInventarios(g);
-			Globales.MOTOR_IGU.pintar(g); // Ahora el HUD queda 100% inmóvil y nítido
+			Globales.MOTOR_IGU.pintar(g);
 		}
 
 		this.pintarPantallaDerrota(g);
@@ -622,10 +633,13 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			}
 		}
 
-		// Restaurar Calendario
-		if ((saveJson.get("calendario") instanceof JSONObject) && (Globales.GESTOR_LUZ != null)
-				&& (Globales.GESTOR_LUZ.getCiclo() != null)) {
-			Globales.GESTOR_LUZ.getCiclo().importarJSON((JSONObject) saveJson.get("calendario"));
+		// Restaurar Calendario y Astronomía
+		if (Globales.GESTOR_ASTRONOMICO != null) {
+			if (saveJson.get("astronomia") instanceof JSONObject) {
+				Globales.GESTOR_ASTRONOMICO.importarJSON((JSONObject) saveJson.get("astronomia"));
+			} else if (saveJson.get("calendario") instanceof JSONObject) {
+				Globales.GESTOR_ASTRONOMICO.importarJSON((JSONObject) saveJson.get("calendario"));
+			}
 		}
 
 		// Restaurar Progreso

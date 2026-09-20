@@ -5,21 +5,20 @@ import java.awt.Color;
 import principal.iluminacion.IntensidadNiebla;
 
 /**
- * Catálogo central de estados meteorológicos predefinidos con balance estético
- * calibrado para resolución nativa 640x360.
+ * Catálogo central de estados meteorológicos terrestres predefinidos
+ * (precipitación, viento, niebla y partículas de suelo) calibrado para
+ * resolución nativa 640x360.
  * 
- * @version 5.0
+ * @version 6.0 (Vanilla Java 8 - Purged Celestial Phenomena)
  */
 public enum TipoClima {
 
 	// =========================================================================
-	// === 1. CLIMAS CLÁSICOS Y NATURALES
+	// 1. CLIMAS CLÁSICOS Y NATURALES
 	// =========================================================================
-
 	DESPEJADO("Despejado", IntensidadNiebla.DESACTIVADA, new Color(200, 215, 230), 0, false, true, 0.32f, 1.0, 45.0),
 	VENTOSO("Ventoso", IntensidadNiebla.DESACTIVADA, new Color(200, 215, 230), 55, false, true, 0.38f, 2.6, 35.0),
 	LLUVIA_LEVE("Lluvia Leve", IntensidadNiebla.LEVE, new Color(170, 190, 215), 65, false, false, 0.0f, 1.4, 65.0),
-
 	LLUVIA_TORMENTA("Tormenta Eléctrica", IntensidadNiebla.INTENSA, new Color(100, 120, 145), 120, true, false, 0.0f,
 			3.8, 35.0),
 	NIEVE("Nieve", IntensidadNiebla.LEVE, new Color(220, 235, 255), 75, false, false, 0.0f, 0.8, 30.0),
@@ -28,9 +27,8 @@ public enum TipoClima {
 			10.0),
 
 	// =========================================================================
-	// === 2. CLIMAS TEMÁTICOS Y FANTASÍA
+	// 2. CLIMAS TEMÁTICOS Y SEVEROS
 	// =========================================================================
-
 	CENIZA_VOLCANICA("Ceniza Volcánica", IntensidadNiebla.MODERADA, new Color(90, 80, 85), 65, false, false, 0.0f, 0.6,
 			60.0),
 	ESPORAS_MAGICAS("Esporas Mágicas", IntensidadNiebla.LEVE, new Color(150, 220, 240), 40, false, false, 0.0f, 0.4,
@@ -39,21 +37,11 @@ public enum TipoClima {
 			45.0),
 	PETALOS_CEREZO("Pétalos de Cerezo", IntensidadNiebla.DESACTIVADA, new Color(200, 215, 230), 45, false, true, 0.32f,
 			1.2, 40.0),
-	LLUVIA_ACIDA("Lluvia Ácida", IntensidadNiebla.LEVE, new Color(130, 185, 95), 85, false, false, 0.0f, 1.6, 70.0),
+	LLUVIA_ACIDA("Lluvia Ácida", IntensidadNiebla.LEVE, new Color(130, 185, 95), 85, false, false, 0.0f, 1.6, 70.0);
 
 	// =========================================================================
-	// === 3. CLIMAS MÍSTICOS Y CÓSMICOS
+	// ATRIBUTOS
 	// =========================================================================
-
-	AURORA_BOREAL("Aurora Boreal", IntensidadNiebla.LEVE, new Color(40, 180, 160), 35, false, false, 0.0f, 0.6, 45.0),
-	ECLIPSE_SOLAR("Eclipse Solar", IntensidadNiebla.MODERADA, new Color(120, 25, 45), 0, false, false, 0.0f, 0.3, 0.0),
-	LLUVIA_ESTRELLAS("Lluvia de Estrellas", IntensidadNiebla.DESACTIVADA, new Color(200, 220, 255), 50, false, false,
-			0.0f, 1.1, 40.0);
-
-	// =========================================================================
-	// === ATRIBUTOS
-	// =========================================================================
-
 	private final String nombre;
 	private final IntensidadNiebla nivelNiebla;
 	private final Color colorNiebla;

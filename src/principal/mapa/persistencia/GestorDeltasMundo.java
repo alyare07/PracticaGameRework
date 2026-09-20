@@ -53,9 +53,7 @@ public class GestorDeltasMundo {
 		final String claveMundo = mundo.getNombreMundo();
 		final DeltaMundo delta = this.obtenerOCrearDelta(claveMundo, diasParaRegenerar);
 
-		final int diaActual = ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null))
-				? Globales.GESTOR_LUZ.getCiclo().getDiaActual()
-				: 1;
+		final int diaActual = (Globales.GESTOR_ASTRONOMICO != null) ? Globales.GESTOR_ASTRONOMICO.getDiaActual() : 1;
 
 		delta.setDiaGuardado(diaActual);
 		delta.getEstructurasConstruidas().clear();
@@ -64,12 +62,17 @@ public class GestorDeltasMundo {
 		delta.getCriaturasModificadas().clear();
 		delta.getCriaturasDinamicas().clear();
 
+		// Capturar el estado climático vivo del mundo
+		if (mundo.getEstadoClima() != null) {
+			delta.setClimaModificado(mundo.getEstadoClima().exportarJSON());
+		}
+
 		for (final Ente e : mundo.getEntes()) {
 			if (e.estaEliminado()) {
 				continue;
 			}
 
-			// 1. Recursos Cosechables (Árboles tocones, rocas con daño parcial)
+			// 1. Recursos Cosechables
 			if (e instanceof RecursoCosechable) {
 				final RecursoCosechable rc = (RecursoCosechable) e;
 				if (rc.getDurabilidad() < rc.getDurabilidadMaxima()) {
@@ -96,8 +99,7 @@ public class GestorDeltasMundo {
 				delta.getEstructurasConstruidas().add(jsonFog);
 			}
 
-			// 3. Contenedores y Cofres (Si es criatura-comerciante, su inventario se guarda
-			// aquí)
+			// 3. Contenedores y Cofres
 			if (e instanceof Contenedor) {
 				final Contenedor c = (Contenedor) e;
 				final Ente propietario = c.getEntePropietario();
@@ -120,7 +122,7 @@ public class GestorDeltasMundo {
 				}
 			}
 
-			// 5. Criaturas (Comerciantes, Mascotas estacionadas, Enemigos, Jefes)
+			// 5. Criaturas
 			if ((e instanceof Criatura) && !(e instanceof Jugador)) {
 				final Criatura c = (Criatura) e;
 
@@ -128,12 +130,10 @@ public class GestorDeltasMundo {
 					final boolean enEscoltaActiva = (Globales.GESTOR_GRUPO != null)
 							&& (Globales.GESTOR_GRUPO.estaEnEscoltaActiva(c) || c.getBlackboard().isSiguiendoLider());
 
-					// Solo se guarda en el delta si quedó esperando en este mapa
 					if (!enEscoltaActiva) {
 						delta.getCriaturasDinamicas().add(c.getJsonCriatura());
 					}
 				} else {
-					// Guarda genéricamente vida, posición, dirección, efectos y memoria IA
 					final String clave = IdentificadorEspacial.generarClave(c.getPosicionXInicial(),
 							c.getPosicionYInicial());
 					final JSONObject jCriat = c.getJsonCriatura();
@@ -154,14 +154,17 @@ public class GestorDeltasMundo {
 			return;
 		}
 
-		final int diaActual = ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null))
-				? Globales.GESTOR_LUZ.getCiclo().getDiaActual()
-				: 1;
+		final int diaActual = (Globales.GESTOR_ASTRONOMICO != null) ? Globales.GESTOR_ASTRONOMICO.getDiaActual() : 1;
 
 		if (delta.haExpirado(diaActual)) {
 			delta.limpiar();
 			this.deltasPorMundo.remove(claveMundo);
 			return;
+		}
+
+		// FASE 0: Restaurar Estado Clima del Mundo (antes de conmutar atmósfera)
+		if ((delta.getClimaModificado() != null) && (mundo.getEstadoClima() != null)) {
+			mundo.getEstadoClima().importarJSON(delta.getClimaModificado());
 		}
 
 		// FASE 1: Purga de destruidos

@@ -229,5 +229,6 @@ public class GestorPrincipal {
 		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoDialogo());
 		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoAudio());
 		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoStress());
+		Globales.GESTOR_COMANDOS.registrarComando(new principal.comandos.ComandoAstronomico());
 	}
 }

@@ -4,6 +4,8 @@ import java.awt.Color;
 
 import org.json.simple.JSONObject;
 
+import principal.astronomia.Estacion;
+
 /**
  * Gestor del ciclo solar de 24 horas, calendario canónico RPG (112 días / 16
  * semanas), fotoperiodo dinámico estacional y telemetría de HUD (Zero-GC /

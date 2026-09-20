@@ -105,8 +105,8 @@ public class CondicionAmenazaCercana implements NodoBT {
 	}
 
 	private void posponerRetorno(final BlackboardIA bb) {
-		if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
-			final double ahoraHoras = Globales.GESTOR_LUZ.getCiclo().getHorasTotalesJuego();
+		if (Globales.GESTOR_ASTRONOMICO != null) {
+			final double ahoraHoras = Globales.GESTOR_ASTRONOMICO.getHorasTotalesJuego();
 			bb.setTimestampRetornoJuegoHoras(ahoraHoras + this.horasEsperaInGame);
 		}
 	}

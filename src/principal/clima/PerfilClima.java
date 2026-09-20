@@ -1,6 +1,6 @@
 package principal.clima;
 
-import principal.iluminacion.Estacion;
+import principal.astronomia.Estacion;
 import principal.utilidades.Globales;
 
 /**
@@ -8,7 +8,7 @@ import principal.utilidades.Globales;
  * transiciones meteorológicas estacionales mediante Cadenas de Markov (Zero-GC
  * / O(1)).
  * 
- * @version 4.0 (Vanilla Java 8 - Seasonal Markov Matrix Integration)
+ * @version 5.0 (Vanilla Java 8 - Astronomical Decoupling)
  */
 public enum PerfilClima {
 
@@ -27,39 +27,21 @@ public enum PerfilClima {
 		this.humedadBase = humedadBase;
 	}
 
-	/**
-	 * Calcula el siguiente estado climático consultando automáticamente la estación
-	 * activa en el ciclo solar del mundo.
-	 * 
-	 * @param actual Tipo de clima actualmente en curso.
-	 * @return Siguiente TipoClima calculado.
-	 */
 	public TipoClima calcularSiguienteClima(final TipoClima actual) {
 		Estacion estacion = Estacion.PRIMAVERA;
-		if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
-			estacion = Globales.GESTOR_LUZ.getCiclo().getEstacionActual();
+		if (Globales.GESTOR_ASTRONOMICO != null) {
+			estacion = Globales.GESTOR_ASTRONOMICO.getEstacionActual();
 		}
 		return this.calcularSiguienteClima(actual, estacion);
 	}
 
-	/**
-	 * Calcula el siguiente clima mediante la matriz estocástica de Markov sesgada
-	 * por la estación meteorológica en curso.
-	 * 
-	 * @param actual   Tipo de clima actual.
-	 * @param estacion Estación canónica del año (Primavera, Verano, Otoño,
-	 *                 Invierno).
-	 * @return Siguiente TipoClima calculado.
-	 */
 	public TipoClima calcularSiguienteClima(final TipoClima actual, final Estacion estacion) {
 		final double azar = Math.random();
 		final Estacion est = (estacion != null) ? estacion : Estacion.PRIMAVERA;
 
 		switch (this) {
 
-		// =====================================================================
-		// 1. BOSQUE TEMPLADO (Bioma Principal con fuerte contraste de 4 estaciones)
-		// =====================================================================
+		// 1. BOSQUE TEMPLADO
 		case TEMPLADO_BOSQUE:
 			if (actual == TipoClima.DESPEJADO) {
 				switch (est) {
@@ -76,20 +58,17 @@ public enum PerfilClima {
 					return TipoClima.DESPEJADO;
 
 				case VERANO:
-					if (azar < 0.15) {
+					if (azar < 0.20) {
 						return TipoClima.VENTOSO;
 					}
-					if (azar < 0.35) {
+					if (azar < 0.50) {
 						return TipoClima.LLUVIA_TORMENTA;
 					}
-					if (azar < 0.40) {
-						return TipoClima.ECLIPSE_SOLAR;
-					}
-					return TipoClima.DESPEJADO; // Veranos predominantemente soleados
+					return TipoClima.DESPEJADO;
 
 				case OTONO:
 					if (azar < 0.40) {
-						return TipoClima.VENTOSO; // Vientos con hojas otoñales
+						return TipoClima.VENTOSO;
 					}
 					if (azar < 0.70) {
 						return TipoClima.LLUVIA_LEVE;
@@ -136,19 +115,14 @@ public enum PerfilClima {
 			}
 			return TipoClima.DESPEJADO;
 
-		// =====================================================================
-		// 2. BOSQUE BOREAL (Frío riguroso, nieblas y auroras invernales)
-		// =====================================================================
+		// 2. BOSQUE BOREAL
 		case BOSQUE_BOREAL:
 			if (actual == TipoClima.DESPEJADO) {
 				if (est == Estacion.INVIERNO) {
-					if (azar < 0.50) {
+					if (azar < 0.55) {
 						return TipoClima.NIEVE;
 					}
-					if (azar < 0.75) {
-						return TipoClima.VENTISCA;
-					}
-					return TipoClima.AURORA_BOREAL; // Auroras boreales en invierno boreal
+					return TipoClima.VENTISCA;
 				}
 				if (azar < 0.35) {
 					return TipoClima.VENTOSO;
@@ -170,25 +144,17 @@ public enum PerfilClima {
 			if (actual == TipoClima.NIEVE) {
 				return (azar < 0.50) ? TipoClima.VENTOSO : TipoClima.DESPEJADO;
 			}
-			if (actual == TipoClima.AURORA_BOREAL) {
-				return TipoClima.DESPEJADO;
-			}
 			return TipoClima.DESPEJADO;
 
-		// =====================================================================
-		// 3. DESIERTO CÁLIDO (Tormentas de arena y radiación abrasadora)
-		// =====================================================================
+		// 3. DESIERTO CÁLIDO
 		case DESIERTO_CALIDO:
 			if (actual == TipoClima.DESPEJADO) {
-				final double pTormenta = (est == Estacion.VERANO) ? 0.55 : 0.35;
+				final double pTormenta = (est == Estacion.VERANO) ? 0.60 : 0.40;
 				if (azar < 0.20) {
 					return TipoClima.VENTOSO;
 				}
 				if (azar < pTormenta) {
 					return TipoClima.TORMENTA_ARENA;
-				}
-				if (azar < (pTormenta + 0.05)) {
-					return TipoClima.ECLIPSE_SOLAR;
 				}
 				return TipoClima.DESPEJADO;
 			}
@@ -197,34 +163,24 @@ public enum PerfilClima {
 			}
 			return TipoClima.DESPEJADO;
 
-		// =====================================================================
-		// 4. MONTAÑA HELADA (Criósfera continua con ventiscas implacables)
-		// =====================================================================
+		// 4. MONTAÑA HELADA
 		case MONTANA_NEVADA:
 			if (actual == TipoClima.DESPEJADO) {
-				if (azar < 0.55) {
+				if (azar < 0.60) {
 					return TipoClima.NIEVE;
 				}
-				if (azar < 0.80) {
-					return TipoClima.VENTOSO;
-				}
-				return TipoClima.AURORA_BOREAL;
+				return TipoClima.VENTISCA;
 			}
 			if (actual == TipoClima.NIEVE) {
-				final double pVentisca = (est == Estacion.INVIERNO) ? 0.60 : 0.35;
+				final double pVentisca = (est == Estacion.INVIERNO) ? 0.65 : 0.40;
 				return (azar < pVentisca) ? TipoClima.VENTISCA : TipoClima.DESPEJADO;
 			}
 			if (actual == TipoClima.VENTISCA) {
 				return TipoClima.NIEVE;
 			}
-			if (actual == TipoClima.AURORA_BOREAL) {
-				return TipoClima.DESPEJADO;
-			}
 			return TipoClima.NIEVE;
 
-		// =====================================================================
-		// 5. PANTANO HÚMEDO (Nieblas densas y lluvias ácidas)
-		// =====================================================================
+		// 5. PANTANO HÚMEDO
 		case PANTANO_HUMEDO:
 			if (actual == TipoClima.DESPEJADO) {
 				return (azar < 0.45) ? TipoClima.NIEBLA_CERRADA : TipoClima.LLUVIA_LEVE;
@@ -237,19 +193,14 @@ public enum PerfilClima {
 			}
 			return TipoClima.NIEBLA_CERRADA;
 
-		// =====================================================================
-		// 6. VOLCÁNICO (Cenizas incandescentes permanentes)
-		// =====================================================================
+		// 6. VOLCÁNICO
 		case VOLCANICO:
 			if (actual == TipoClima.DESPEJADO) {
-				return (azar < 0.70) ? TipoClima.CENIZA_VOLCANICA
-						: ((azar < 0.85) ? TipoClima.VENTOSO : TipoClima.ECLIPSE_SOLAR);
+				return (azar < 0.75) ? TipoClima.CENIZA_VOLCANICA : TipoClima.VENTOSO;
 			}
 			return (azar < 0.75) ? TipoClima.CENIZA_VOLCANICA : TipoClima.VENTOSO;
 
-		// =====================================================================
-		// 7. BOSQUE MÍSTICO (Magia astronómica y botánica estacional)
-		// =====================================================================
+		// 7. BOSQUE MÍSTICO
 		case BOSQUE_MISTICO:
 		default:
 			if (actual == TipoClima.DESPEJADO) {
@@ -261,33 +212,27 @@ public enum PerfilClima {
 					return TipoClima.ESPORAS_MAGICAS;
 
 				case VERANO:
-					if (azar < 0.45) {
-						return TipoClima.LLUVIA_ESTRELLAS;
+					if (azar < 0.50) {
+						return TipoClima.ESPORAS_MAGICAS;
 					}
-					return TipoClima.AURORA_BOREAL;
+					return TipoClima.DESPEJADO;
 
 				case INVIERNO:
 					if (azar < 0.60) {
-						return TipoClima.AURORA_BOREAL;
+						return TipoClima.NIEVE;
 					}
-					return TipoClima.NIEVE;
+					return TipoClima.DESPEJADO;
 
 				case OTONO:
 				default:
-					if (azar < 0.40) {
+					if (azar < 0.50) {
 						return TipoClima.ESPORAS_MAGICAS;
 					}
-					if (azar < 0.70) {
-						return TipoClima.NIEBLA_CERRADA;
-					}
-					return TipoClima.AURORA_BOREAL;
+					return TipoClima.NIEBLA_CERRADA;
 				}
 			}
-			if (actual == TipoClima.AURORA_BOREAL) {
-				return (azar < 0.50) ? TipoClima.LLUVIA_ESTRELLAS : TipoClima.DESPEJADO;
-			}
-			if (actual == TipoClima.LLUVIA_ESTRELLAS) {
-				return TipoClima.ESPORAS_MAGICAS;
+			if (actual == TipoClima.ESPORAS_MAGICAS) {
+				return TipoClima.DESPEJADO;
 			}
 			return TipoClima.DESPEJADO;
 		}

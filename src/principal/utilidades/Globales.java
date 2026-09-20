@@ -3,6 +3,7 @@ package principal.utilidades;
 import java.awt.Toolkit;
 
 import principal.Main;
+import principal.astronomia.GestorAstronomico;
 import principal.clima.GestorClima;
 import principal.clima.GestorTermicoJugador;
 import principal.clima.GestorZonasAmbiente;
@@ -92,6 +93,7 @@ public class Globales {
 	// =========================================================================
 	// === 6. SUBSISTEMAS DE PARTÍCULAS, LUZ, CLIMA, IA Y TERMODINÁMICA
 	// =========================================================================
+	public static final GestorAstronomico GESTOR_ASTRONOMICO = new GestorAstronomico();
 	public static final GestorTextosFlotantes GESTOR_TEXTOS = new GestorTextosFlotantes();
 	public static final GestorParticulas GESTOR_PARTICULAS = new GestorParticulas();
 	public static final GestorLuz GESTOR_LUZ = new GestorLuz();

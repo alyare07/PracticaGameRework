@@ -1,19 +1,15 @@
 package principal.comandos;
 
-import principal.iluminacion.CicloDiaNoche;
-import principal.iluminacion.CicloDiaNoche.FaseDia;
-import principal.iluminacion.Estacion;
+import principal.astronomia.Estacion;
+import principal.astronomia.GestorAstronomico;
+import principal.astronomia.GestorAstronomico.FaseDia;
 import principal.utilidades.Globales;
 
 /**
  * Comando para el control del reloj solar de 24 horas, calendario canónico RPG
  * (112 días / 16 semanas), fotoperiodo dinámico y saltos estacionales.
- * <p>
- * Insensible a mayúsculas/minúsculas y compatible con terminales remotas
- * (Termux / Netcat).
- * </p>
  * 
- * @version 4.0 (Vanilla Java 8 - Canonical Calendar & Season Warp Support)
+ * @version 5.0 (Vanilla Java 8 - Sovereign Astronomical Command)
  */
 public class ComandoHora extends Comando {
 
@@ -30,41 +26,41 @@ public class ComandoHora extends Comando {
 
 	@Override
 	public void ejecutar(final String[] args, final EmisorRespuesta emisor) {
-		if ((Globales.GESTOR_LUZ == null) || (Globales.GESTOR_LUZ.getCiclo() == null)) {
-			this.enviarError(emisor, "El subsistema de iluminacion no esta inicializado.");
+		if (Globales.GESTOR_ASTRONOMICO == null) {
+			this.enviarError(emisor, "El subsistema astronomico no esta inicializado.");
 			return;
 		}
 
-		final CicloDiaNoche ciclo = Globales.GESTOR_LUZ.getCiclo();
+		final GestorAstronomico astro = Globales.GESTOR_ASTRONOMICO;
 
 		// 1. Consulta de Estado Completo (sin argumentos)
 		if (args.length == 0) {
-			final Estacion est = ciclo.getEstacionActual();
-			final int diaEst = ciclo.getDiaDeLaEstacion();
-			final int semEst = ciclo.getSemanaDeLaEstacion();
-			final int diaAnio = ciclo.getDiaDelAnio();
-			final int semAnio = ciclo.getSemanaAnio();
-			final int anio = ciclo.getAnioActual();
+			final Estacion est = astro.getEstacionActual();
+			final int diaEst = astro.getDiaDeLaEstacion();
+			final int semEst = astro.getSemanaDeLaEstacion();
+			final int diaAnio = astro.getDiaDelAnio();
+			final int semAnio = astro.getSemanaAnio();
+			final int anio = astro.getAnioActual();
 
-			final int hAm = (int) ciclo.getHoraAmanecer();
-			final int mAm = (int) Math.round((ciclo.getHoraAmanecer() - hAm) * 60.0);
-			final int hAt = (int) ciclo.getHoraAtardecer();
-			final int mAt = (int) Math.round((ciclo.getHoraAtardecer() - hAt) * 60.0);
+			final int hAm = (int) astro.getHoraAmanecer();
+			final int mAm = (int) Math.round((astro.getHoraAmanecer() - hAm) * 60.0);
+			final int hAt = (int) astro.getHoraAtardecer();
+			final int mAt = (int) Math.round((astro.getHoraAtardecer() - hAt) * 60.0);
 
 			final String strAmanecer = String.format("%02d:%02d", hAm, mAm);
 			final String strAtardecer = String.format("%02d:%02d", hAt, mAt);
 
 			this.enviarInfo(emisor,
-					"ESTADO DEL CALENDARIO Y RELOJ SOLAR:" + "\n -> HUD Linea 1   : " + ciclo.getTextoLinea1HUD()
-							+ "\n -> HUD Linea 2   : " + ciclo.getTextoLinea2HUD() + "\n -> Estacion      : "
+					"ESTADO DEL CALENDARIO Y RELOJ SOLAR:" + "\n -> HUD Linea 1   : " + astro.getTextoLinea1HUD()
+							+ "\n -> HUD Linea 2   : " + astro.getTextoLinea2HUD() + "\n -> Estacion      : "
 							+ est.getNombre() + " (Dia " + diaEst + "/28 | Sem " + semEst + "/4)"
+							+ "\n -> Fase Lunar    : " + astro.getFaseLunarActual().getNombreVisible()
 							+ "\n -> Anual         : Anio " + anio + " | Dia " + diaAnio + "/112 | Sem " + semAnio
-							+ "/16" + "\n -> Dia Semana    : " + ciclo.getNombreDiaSemanaLargo() + " (Indice "
-							+ ciclo.getIndiceDiaSemana() + ")" + "\n -> Dia Absoluto  : " + ciclo.getDiaActual()
-							+ " dias acumulados" + "\n -> Hora Solar    : " + ciclo.getHoraFormato24h() + " ("
-							+ ciclo.getNombreMomentoDelDia() + ")" + "\n -> Fotoperiodo   : Alba " + strAmanecer
-							+ " | Ocaso " + strAtardecer + "\n -> Velocidad     : " + ciclo.getMultiplicadorTiempo()
-							+ "x | Pausado: " + (ciclo.isTiempoPausado() ? "SI" : "NO")
+							+ "/16" + "\n -> Dia Semana    : " + astro.getNombreDiaSemanaLargo() + " (Indice "
+							+ astro.getIndiceDiaSemana() + ")" + "\n -> Dia Absoluto  : " + astro.getDiaActual()
+							+ " dias acumulados" + "\n -> Hora Solar    : " + astro.getHoraFormato24h()
+							+ "\n -> Fotoperiodo   : Alba " + strAmanecer + " | Ocaso " + strAtardecer
+							+ "\n -> Pausado       : " + (astro.isTiempoPausado() ? "SI" : "NO")
 							+ "\n (Escribe 'hora ayuda' para ver todos los comandos)");
 			return;
 		}
@@ -79,18 +75,18 @@ public class ComandoHora extends Comando {
 
 		// 3. Pausa y Reanudación
 		if (sub.equals("pausar") || sub.equals("pause") || sub.equals("stop")) {
-			ciclo.pausarTiempo();
+			astro.pausarTiempo();
 			this.enviarInfo(emisor, "Reloj solar PAUSADO.");
 			return;
 		}
 
 		if (sub.equals("reanudar") || sub.equals("play") || sub.equals("resume") || sub.equals("continuar")) {
-			ciclo.reanudarTiempo();
+			astro.reanudarTiempo();
 			this.enviarInfo(emisor, "Reloj solar REANUDADO.");
 			return;
 		}
 
-		// 4. Salto de Estaciones (hora estacion <nombre> [dia_1_a_28])
+		// 4. Salto de Estaciones
 		if (sub.equals("estacion") || sub.equals("season")) {
 			if (args.length < 2) {
 				this.enviarError(emisor, "Indica la estacion: PRIMAVERA, VERANO, OTONO o INVIERNO.");
@@ -106,52 +102,50 @@ public class ComandoHora extends Comando {
 
 			final int diaEnEstacion = (args.length >= 3) ? Math.max(1, Math.min(28, this.parsearEntero(args[2], 1)))
 					: 1;
-			final int anioActual = ciclo.getAnioActual();
-			final int diaGlobalDestino = ((anioActual - 1) * CicloDiaNoche.DIAS_POR_ANIO) + offsetEstacion
+			final int anioActual = astro.getAnioActual();
+			final int diaGlobalDestino = ((anioActual - 1) * GestorAstronomico.DIAS_POR_ANIO) + offsetEstacion
 					+ diaEnEstacion;
 
-			ciclo.setDiaActual(diaGlobalDestino);
-			this.enviarInfo(emisor, "Viaje estacional exitoso -> " + ciclo.getTextoLinea1HUD() + " ["
-					+ ciclo.getEstacionActual().getNombre() + " Dia " + diaEnEstacion + "]");
+			astro.setDiaActual(diaGlobalDestino);
+			this.enviarInfo(emisor, "Viaje estacional exitoso -> " + astro.getTextoLinea1HUD() + " ["
+					+ astro.getEstacionActual().getNombre() + " Dia " + diaEnEstacion + "]");
 			return;
 		}
 
-		// 5. Salto de Semanas (hora semana <1-16>)
+		// 5. Salto de Semanas
 		if (sub.equals("semana") || sub.equals("week")) {
 			if (args.length < 2) {
-				this.enviarInfo(emisor, "Semana actual: " + ciclo.getSemanaAnio() + "/16 ("
-						+ ciclo.getEstacionActual().getNombre() + ")");
+				this.enviarInfo(emisor, "Semana actual: " + astro.getSemanaAnio() + "/16 ("
+						+ astro.getEstacionActual().getNombre() + ")");
 				return;
 			}
 			final int semObjetivo = Math.max(1, Math.min(16, this.parsearEntero(args[1], 1)));
-			final int anioActual = ciclo.getAnioActual();
-			final int diaGlobalDestino = ((anioActual - 1) * CicloDiaNoche.DIAS_POR_ANIO)
-					+ ((semObjetivo - 1) * CicloDiaNoche.DIAS_POR_SEMANA) + 1;
+			final int anioActual = astro.getAnioActual();
+			final int diaGlobalDestino = ((anioActual - 1) * GestorAstronomico.DIAS_POR_ANIO)
+					+ ((semObjetivo - 1) * GestorAstronomico.DIAS_POR_SEMANA) + 1;
 
-			ciclo.setDiaActual(diaGlobalDestino);
-			this.enviarInfo(emisor, "Calendario situado en: " + ciclo.getTextoLinea1HUD());
+			astro.setDiaActual(diaGlobalDestino);
+			this.enviarInfo(emisor, "Calendario situado en: " + astro.getTextoLinea1HUD());
 			return;
 		}
 
-		// 6. Control de Días (hora dia <num> / hora dia +1)
+		// 6. Control de Días
 		if (sub.equals("dia") || sub.equals("day")) {
 			if (args.length < 2) {
-				this.enviarInfo(emisor, "Dia actual del calendario: " + ciclo.getTextoLinea1HUD());
+				this.enviarInfo(emisor, "Dia actual del calendario: " + astro.getTextoLinea1HUD());
 				return;
 			}
 
 			final String argDia = args[1].trim();
 			if (argDia.startsWith("+")) {
 				final int incremento = this.parsearEntero(argDia.substring(1), 1);
-				for (int i = 0; i < incremento; i++) {
-					ciclo.avanzarDia();
-				}
-				this.enviarInfo(emisor, "Calendario avanzado +" + incremento + " dias -> " + ciclo.getTextoLinea1HUD());
+				astro.setDiaActual(astro.getDiaActual() + incremento);
+				this.enviarInfo(emisor, "Calendario avanzado +" + incremento + " dias -> " + astro.getTextoLinea1HUD());
 			} else {
 				final int nuevoDia = this.parsearEntero(argDia, -1);
 				if (nuevoDia >= 1) {
-					ciclo.setDiaActual(nuevoDia);
-					this.enviarInfo(emisor, "Calendario establecido a: " + ciclo.getTextoLinea1HUD());
+					astro.setDiaActual(nuevoDia);
+					this.enviarInfo(emisor, "Calendario establecido a: " + astro.getTextoLinea1HUD());
 				} else {
 					this.enviarError(emisor, "Numero de dia invalido. Uso: 'hora dia 5' o 'hora dia +1'");
 				}
@@ -159,95 +153,70 @@ public class ComandoHora extends Comando {
 			return;
 		}
 
-		// 7. Control de Velocidad (hora speed <mult> / hora speed normal)
-		if (sub.equals("speed") || sub.equals("velocidad") || sub.equals("warp")) {
-			if (args.length < 2) {
-				this.enviarInfo(emisor, "Velocidad actual: " + ciclo.getMultiplicadorTiempo() + "x");
-				return;
-			}
-
-			final String argSpeed = args[1].toLowerCase().trim();
-			if (argSpeed.equals("normal") || argSpeed.equals("reset") || argSpeed.equals("1")) {
-				ciclo.restablecerVelocidadTiempo();
-				this.enviarInfo(emisor, "Velocidad temporal restaurada a 1.0x (Normal).");
-			} else {
-				final double factor = this.parsearDouble(argSpeed, -1.0);
-				if (factor >= 0.0) {
-					ciclo.setMultiplicadorTiempo(factor);
-					this.enviarInfo(emisor, "Velocidad temporal establecida a: " + factor + "x");
-				} else {
-					this.enviarError(emisor,
-							"Factor de velocidad invalido. Ejemplo: 'hora speed 10' o 'hora speed normal'");
-				}
-			}
-			return;
-		}
-
-		// 8. Fases Solares Predefinidas
+		// 7. Fases Solares Predefinidas
 		switch (sub) {
 		case "medianoche":
 		case "midnight":
-			ciclo.irAMedianoche();
+			astro.setHora(FaseDia.MEDIANOCHE);
 			this.enviarInfo(emisor, "Hora establecida a Medianoche (00:00).");
 			return;
 		case "madrugada":
-			ciclo.setHora(FaseDia.MADRUGADA);
+			astro.setHora(FaseDia.MADRUGADA);
 			this.enviarInfo(emisor, "Hora establecida a Madrugada (04:30).");
 			return;
 		case "amanecer":
 		case "sunrise":
-			ciclo.irAAmanecer();
-			this.enviarInfo(emisor, "Hora establecida al Amanecer dinamico (" + ciclo.getHoraFormato24h() + ").");
+			astro.setHora(astro.getHoraAmanecer());
+			this.enviarInfo(emisor, "Hora establecida al Amanecer dinamico (" + astro.getHoraFormato24h() + ").");
 			return;
 		case "manana":
 		case "mañana":
 		case "morning":
-			ciclo.setHora(FaseDia.MANANA);
+			astro.setHora(FaseDia.MANANA);
 			this.enviarInfo(emisor, "Hora establecida a Mañana (08:00).");
 			return;
 		case "mediodia":
 		case "mediodía":
 		case "noon":
 		case "dia":
-			ciclo.irAMediodia();
+			astro.setHora(FaseDia.MEDIODIA);
 			this.enviarInfo(emisor, "Hora establecida a Mediodía (12:00).");
 			return;
 		case "tarde":
 		case "afternoon":
-			ciclo.setHora(FaseDia.TARDE);
+			astro.setHora(FaseDia.TARDE);
 			this.enviarInfo(emisor, "Hora establecida a Tarde (15:00).");
 			return;
 		case "atardecer":
 		case "sunset":
-			ciclo.irAAtardecer();
-			this.enviarInfo(emisor, "Hora establecida al Atardecer dinamico (" + ciclo.getHoraFormato24h() + ").");
+			astro.setHora(astro.getHoraAtardecer());
+			this.enviarInfo(emisor, "Hora establecida al Atardecer dinamico (" + astro.getHoraFormato24h() + ").");
 			return;
 		case "crepusculo":
 		case "crepúsculo":
 		case "twilight":
-			ciclo.setHora(FaseDia.CREPUSCULO);
+			astro.setHora(FaseDia.CREPUSCULO);
 			this.enviarInfo(emisor, "Hora establecida a Crepúsculo (19:00).");
 			return;
 		case "anochecer":
 		case "dusk":
-			ciclo.setHora(FaseDia.NOCHE);
+			astro.setHora(FaseDia.NOCHE);
 			this.enviarInfo(emisor, "Hora establecida a Anochecer (20:30).");
 			return;
 		case "noche":
 		case "night":
-			ciclo.irANoche();
+			astro.setHora(astro.getHoraAtardecer() + 2.5);
 			this.enviarInfo(emisor, "Hora establecida a Noche cerrada.");
 			return;
 		default:
 			break;
 		}
 
-		// 9. Hora Numérica Directa (ej: hora 14.5)
+		// 8. Hora Numérica Directa
 		final double horaNumerica = this.parsearDouble(args[0], -1.0);
 		if ((horaNumerica >= 0.0) && (horaNumerica <= 24.0)) {
-			ciclo.setHora(horaNumerica);
-			this.enviarInfo(emisor,
-					"Hora fijada en: " + ciclo.getHoraFormato24h() + " (" + ciclo.getNombreMomentoDelDia() + ")");
+			astro.setHora(horaNumerica);
+			this.enviarInfo(emisor, "Hora fijada en: " + astro.getHoraFormato24h());
 		} else {
 			this.enviarError(emisor,
 					"Parametro no reconocido: '" + args[0] + "'\nEscribe 'hora ayuda' para ver las opciones.");
@@ -277,11 +246,11 @@ public class ComandoHora extends Comando {
 				+ "\n2. Fases Solares Dinamicas:" + "\n   - hora amanecer | mediodia | atardecer | noche"
 				+ "\n3. Control de Estaciones y Calendario:"
 				+ "\n   - hora estacion verano       -> Salta al Dia 1 de Verano"
-				+ "\n   - hora estacion invierno 14  -> Salta al solsticio de Invierno (Dia 14)"
+				+ "\n   - hora estacion invierno 14  -> Salta al Dia 14 de Invierno"
 				+ "\n   - hora semana 5              -> Salta a la Semana 5"
 				+ "\n   - hora dia 85                -> Salta al Dia 85 global"
-				+ "\n   - hora dia +1                -> Avanza un dia" + "\n4. Velocidad y Pausa:"
-				+ "\n   - hora speed 10 | hora speed normal" + "\n   - hora pausar   | hora reanudar";
+				+ "\n   - hora dia +1                -> Avanza un dia" + "\n4. Pausa:"
+				+ "\n   - hora pausar   | hora reanudar";
 		this.enviarInfo(emisor, ayuda);
 	}
 }

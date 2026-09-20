@@ -7,7 +7,7 @@ package principal.iluminacion;
  */
 public enum IntensidadNiebla {
 
-	DESACTIVADA(0.0f), LEVE(0.18f), MODERADA(0.40f), INTENSA(0.68f);
+	DESACTIVADA(0.0f), LEVE(0.18f), MODERADA(0.3f), INTENSA(0.48f);
 
 	private final float opacidad;
 

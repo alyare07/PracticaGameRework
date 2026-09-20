@@ -2983,7 +2983,7 @@
         "luzB": 0,
         "climaInicial": "DESPEJADO",
         "luzG": 0,
-        "perfilBioma": "BOSQUE_BOREAL",
+        "perfilBioma": "TEMPLADO_BOSQUE",
         "tipoAmbiente": "EXTERIOR"
     },
     "triggers": [

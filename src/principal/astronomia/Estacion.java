@@ -1,4 +1,4 @@
-package principal.iluminacion;
+package principal.astronomia;
 
 import java.awt.Color;
 

@@ -85,7 +85,7 @@
         "musicaFondo": "FONDO_RELAX",
         "luzR": 0,
         "luzB": 0,
-        "climaInicial": "TORMENTA_ARENA",
+        "climaInicial": "DESPEJADO",
         "luzG": 0,
         "perfilBioma": "DESIERTO_CALIDO",
         "tipoAmbiente": "EXTERIOR"

@@ -9,6 +9,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import principal.animaciones.criaturas.AnimacionesComerciante;
+import principal.astronomia.Estacion;
 import principal.dialogos.MensajeDialogo;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
@@ -16,8 +17,6 @@ import principal.entes.criaturas.Jugador;
 import principal.entes.facciones.GestorFacciones;
 import principal.entes.objetos.items.Item;
 import principal.ia.arbol.FabricaArbolesIA;
-import principal.iluminacion.CicloDiaNoche;
-import principal.iluminacion.Estacion;
 import principal.interaccion.Interactuable;
 import principal.inventario.Contenedor;
 import principal.inventario.tienda.InventarioTienda;
@@ -68,8 +67,8 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		this.configurarFootprint(8, 8, 0);
 		this.arbolComportamiento = FabricaArbolesIA.ARBOL_NPC_COMERCIANTE;
 
-		if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
-			this.ultimoDiaRenovado = Globales.GESTOR_LUZ.getCiclo().getDiaActual();
+		if (Globales.GESTOR_ASTRONOMICO != null) {
+			this.ultimoDiaRenovado = Globales.GESTOR_ASTRONOMICO.getDiaActual();
 		}
 	}
 
@@ -94,21 +93,21 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 	}
 
 	private void actualizarRenovacionStock() {
-		if (!this.renovacionAutomatica || (Globales.GESTOR_LUZ == null) || (Globales.GESTOR_LUZ.getCiclo() == null)) {
+		if (!this.renovacionAutomatica || (Globales.GESTOR_ASTRONOMICO == null)) {
 			return;
 		}
 
-		final CicloDiaNoche ciclo = Globales.GESTOR_LUZ.getCiclo();
-		final int diaActual = ciclo.getDiaActual();
+		final principal.astronomia.GestorAstronomico astro = Globales.GESTOR_ASTRONOMICO;
+		final int diaActual = astro.getDiaActual();
 
 		boolean debeRenovar = false;
 
 		switch (this.modoRenovacion) {
 		case CADA_LUNES:
-			debeRenovar = (ciclo.getIndiceDiaSemana() == 0) && (diaActual != this.ultimoDiaRenovado);
+			debeRenovar = (astro.getIndiceDiaSemana() == 0) && (diaActual != this.ultimoDiaRenovado);
 			break;
 		case CADA_ESTACION:
-			debeRenovar = (ciclo.getDiaDeLaEstacion() == 1) && (diaActual != this.ultimoDiaRenovado);
+			debeRenovar = (astro.getDiaDeLaEstacion() == 1) && (diaActual != this.ultimoDiaRenovado);
 			break;
 		case POR_INTERVALO_DIAS:
 		default:
@@ -133,8 +132,8 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 		if ((estacion != null) && (item != null)) {
 			this.catalogosEstacionales[estacion.ordinal()].add((Item) item.copiar());
 
-			if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
-				if (Globales.GESTOR_LUZ.getCiclo().getEstacionActual() == estacion) {
+			if (Globales.GESTOR_ASTRONOMICO != null) {
+				if (Globales.GESTOR_ASTRONOMICO.getEstacionActual() == estacion) {
 					this.INVENTARIO.agregarItem((Item) item.copiar());
 				}
 			}
@@ -148,8 +147,8 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 			this.INVENTARIO.agregarItem((Item) this.catalogoPlantilla.get(i).copiar());
 		}
 
-		if ((Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
-			final Estacion est = Globales.GESTOR_LUZ.getCiclo().getEstacionActual();
+		if (Globales.GESTOR_ASTRONOMICO != null) {
+			final Estacion est = Globales.GESTOR_ASTRONOMICO.getEstacionActual();
 			final ArrayList<Item> listaEstacional = this.catalogosEstacionales[est.ordinal()];
 			for (int i = 0; i < listaEstacional.size(); i++) {
 				this.INVENTARIO.agregarItem((Item) listaEstacional.get(i).copiar());
@@ -255,11 +254,11 @@ public class Comerciante extends Criatura implements Contenedor, Interactuable {
 	}
 
 	private String obtenerSaludoContextual() {
-		if ((Globales.GESTOR_LUZ == null) || (Globales.GESTOR_LUZ.getCiclo() == null)) {
+		if (Globales.GESTOR_ASTRONOMICO == null) {
 			return "¡Saludos! Tengo provisiones y equipo de primera. Echa un vistazo a mi catálogo.";
 		}
 
-		final Estacion est = Globales.GESTOR_LUZ.getCiclo().getEstacionActual();
+		final Estacion est = Globales.GESTOR_ASTRONOMICO.getEstacionActual();
 		final boolean tormenta = (Globales.GESTOR_CLIMA != null) && Globales.GESTOR_CLIMA.isTormentaActiva();
 
 		if (tormenta) {

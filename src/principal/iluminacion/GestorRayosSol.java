@@ -123,13 +123,13 @@ public class GestorRayosSol {
 			final boolean hayTormenta) {
 		float opacidadObjetivo = 0.0f;
 
-		if (!esInterior && !hayTormenta && (Globales.GESTOR_LUZ != null) && (Globales.GESTOR_LUZ.getCiclo() != null)) {
+		if (!esInterior && !hayTormenta && (Globales.GESTOR_ASTRONOMICO != null)) {
 
-			final CicloDiaNoche ciclo = Globales.GESTOR_LUZ.getCiclo();
-			final double hAmanecer = ciclo.getHoraAmanecer();
-			final double hAtardecer = ciclo.getHoraAtardecer();
+			final principal.astronomia.GestorAstronomico astro = Globales.GESTOR_ASTRONOMICO;
+			final double hAmanecer = astro.getHoraAmanecer();
+			final double hAtardecer = astro.getHoraAtardecer();
 
-			// Mañana Dinámica: Ventana de 3.5 horas a partir del amanecer real
+			// Mañana Dinámica
 			if ((horaActual >= (hAmanecer - 0.5)) && (horaActual <= (hAmanecer + 3.5))) {
 				final double progreso = (horaActual - (hAmanecer - 0.5)) / 4.0;
 				final double f = (progreso < 0.5) ? (progreso / 0.5) : (1.0 - ((progreso - 0.5) / 0.5));
@@ -138,8 +138,7 @@ public class GestorRayosSol {
 				this.esTarde = false;
 				this.colorTinteActual = COLOR_AMANECER;
 
-				// Tarde Dinámica: Ventana de 3.5 horas que concluye poco después del atardecer
-				// real
+				// Tarde Dinámica
 			} else if ((horaActual >= (hAtardecer - 3.0)) && (horaActual <= (hAtardecer + 0.5))) {
 				final double progreso = (horaActual - (hAtardecer - 3.0)) / 3.5;
 				final double f = (progreso < 0.5) ? (progreso / 0.5) : (1.0 - ((progreso - 0.5) / 0.5));

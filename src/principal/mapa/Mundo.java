@@ -19,6 +19,9 @@ import java.util.Set;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
+import principal.clima.EstadoClima;
+import principal.clima.PerfilClima;
+import principal.clima.TipoClima;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
@@ -86,6 +89,7 @@ public class Mundo {
 	private Ente emisorRuidoActual;
 	protected int codAct;
 	protected int codPintado;
+	protected principal.clima.EstadoClima estadoClima;
 
 	public static final String CLAVE_PUNTO_SPAWN_COMIENZO = "Comienzo";
 
@@ -99,6 +103,8 @@ public class Mundo {
 
 	public Mundo(final Escenario esc, final Point comienzo, final GestorCarga gc, final int porcentajeCarga) {
 		this.ESCENARIO = esc;
+		final MetadatosEscenario meta = (esc != null) ? esc.getMetadatos() : new MetadatosEscenario();
+		this.estadoClima = new principal.clima.EstadoClima(meta.getPerfilBioma(), meta.getClimaInicial());
 
 		if (gc != null) {
 			gc.setDetalleCarga("Generando zonas de indexacion espacial");
@@ -141,11 +147,16 @@ public class Mundo {
 	public Mundo(final Terreno terrenoSoloParaEDITOR) {
 		this.ESCENARIO = new Escenario(terrenoSoloParaEDITOR, "[]", "[]", "[]", "[]", "[]", "[]", "[]", "[]",
 				new MetadatosEscenario());
+		this.estadoClima = new principal.clima.EstadoClima(PerfilClima.TEMPLADO_BOSQUE, TipoClima.DESPEJADO);
 		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO,
 				new Spawn(new Point(0, 0), CLAVE_PUNTO_SPAWN_COMIENZO));
 		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
 		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
 		this.generarZonas();
+	}
+
+	public EstadoClima getEstadoClima() {
+		return this.estadoClima;
 	}
 
 	public void aplicarMetadatosAtmosfericos() {
@@ -162,38 +173,27 @@ public class Mundo {
 		// 2. Gestión Lumínica por Tipo de Ambiente
 		if (Globales.GESTOR_LUZ != null) {
 			if (meta.esCueva()) {
-				// Cueva: Oscuridad absoluta (Blackout) inmediata
 				Globales.GESTOR_LUZ.establecerModoCueva(true);
 			} else if (meta.esInterior()) {
-				// Interior (Hogar / Taberna / Casa): Luz ambiental uniforme acogedora
 				final Color colorLuz = meta.resolverColorLuzEfectivo();
 				Globales.GESTOR_LUZ.establecerAmbienteTransicion(colorLuz, 0.4);
 			} else {
-				// Exterior: Ciclo solar de 24 horas dinámico
 				Globales.GESTOR_LUZ.restablecerModoExterior();
 			}
 		}
 
 		// 3. Atenuación Acústica de Clima Exterior
 		if (meta.esCueva()) {
-			// Cueva: 0% de sonido exterior (Completamente inaudible)
 			GestorMusica.setFactorAtenuacionAmbiente(0.0);
 		} else if (meta.esInterior()) {
-			// Interior: 20% de sonido exterior (Se escucha levemente la lluvia/viento
-			// afuera)
 			GestorMusica.setFactorAtenuacionAmbiente(0.20);
 		} else {
-			// Exterior: 100% de sonido ambiental
 			GestorMusica.setFactorAtenuacionAmbiente(1.0);
 		}
 
-		// 4. Bioma y Clima
+		// 4. Conmutar el Clima hacia este Mundo
 		if (Globales.GESTOR_CLIMA != null) {
-			Globales.GESTOR_CLIMA.setCicloAutomaticoHabilitado(true);
-
-			if (meta.esExterior() && (meta.getPerfilBioma() != null)) {
-				Globales.GESTOR_CLIMA.setPerfilBioma(meta.getPerfilBioma());
-			}
+			Globales.GESTOR_CLIMA.conmutarMundo(this);
 		}
 	}
 

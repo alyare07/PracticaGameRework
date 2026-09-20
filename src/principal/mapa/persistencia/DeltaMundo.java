@@ -33,6 +33,7 @@ public class DeltaMundo {
 
 	private int diaGuardado = 1;
 	private int diasParaRegenerar = 0; // 0 = Nunca regenera (Permanente)
+	private JSONObject climaModificado = null;
 
 	public DeltaMundo(final String nombreMundo, final int diasParaRegenerar) {
 		this.nombreMundo = nombreMundo;
@@ -62,6 +63,7 @@ public class DeltaMundo {
 		this.itemsEnSuelo.clear();
 		this.criaturasModificadas.clear();
 		this.criaturasDinamicas.clear();
+		this.climaModificado = null;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -100,8 +102,20 @@ public class DeltaMundo {
 		final JSONArray listaDinamicas = new JSONArray();
 		listaDinamicas.addAll(this.criaturasDinamicas);
 		json.put("criaturasDinamicas", listaDinamicas);
+		// Serialización del estado climático modificado del mundo
+		if (this.climaModificado != null) {
+			json.put("clima", this.climaModificado);
+		}
 
 		return json;
+	}
+
+	public JSONObject getClimaModificado() {
+		return this.climaModificado;
+	}
+
+	public void setClimaModificado(final JSONObject climaModificado) {
+		this.climaModificado = climaModificado;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -117,6 +131,11 @@ public class DeltaMundo {
 		}
 		if (json.get("diasParaRegenerar") != null) {
 			this.diasParaRegenerar = ((Number) json.get("diasParaRegenerar")).intValue();
+		}
+		if (json.get("clima") instanceof JSONObject) {
+			this.climaModificado = (JSONObject) json.get("clima");
+		} else {
+			this.climaModificado = null;
 		}
 
 		final JSONArray listaDestruidas = (JSONArray) json.get("destruidas");

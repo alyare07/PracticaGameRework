@@ -75,16 +75,15 @@ public class ComandoAmbiente extends Comando {
 			break;
 
 		case "blackout":
-			if (Globales.GESTOR_LUZ.getCiclo() == null) {
-				this.enviarError(emisor, "Ciclo solar no disponible.");
+			if (Globales.GESTOR_ASTRONOMICO == null) {
+				this.enviarError(emisor, "Gestor astronomico no disponible.");
 				return;
 			}
 			final boolean bo = (args.length >= 2) ? Boolean.parseBoolean(args[1])
-					: !Globales.GESTOR_LUZ.getCiclo().isModoOscuridadTotal();
-			Globales.GESTOR_LUZ.getCiclo().setModoOscuridadTotal(bo);
+					: !Globales.GESTOR_ASTRONOMICO.isModoOscuridadTotal();
+			Globales.GESTOR_ASTRONOMICO.setModoOscuridadTotal(bo);
 			this.enviarInfo(emisor, "Modo Oscuridad Total Nocturna: " + bo);
 			break;
-
 		case "niebla":
 			if (Globales.GESTOR_CLIMA == null) {
 				this.enviarError(emisor, "GestorClima no inicializado.");

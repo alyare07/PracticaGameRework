@@ -6,8 +6,8 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 
-import principal.clima.GestorTermicoJugador;
 import principal.clima.TipoClima;
+import principal.entes.criaturas.jugador.GestorTermicoJugador;
 import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;

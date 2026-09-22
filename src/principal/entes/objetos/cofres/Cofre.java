@@ -6,7 +6,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import principal.entes.Ente;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
 import principal.interaccion.Interactuable;

@@ -2,7 +2,7 @@ package principal.comandos;
 
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.criaturas.Criatura.Estado;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.iluminacion.CalculadorSigilo;
 import principal.utilidades.Globales;
 

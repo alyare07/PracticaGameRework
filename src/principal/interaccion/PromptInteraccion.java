@@ -8,7 +8,8 @@ import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
 /**
- * Componente visual que dibuja la insignia interactiva [E] sobre la entidad enfocada.
+ * Componente visual que dibuja la insignia interactiva [E] sobre la entidad
+ * enfocada.
  * 
  * @version 1.0 (Vanilla Java 8 - Zero-GC)
  */
@@ -28,7 +29,7 @@ public class PromptInteraccion {
 		}
 
 		final String accion = objetivo.getTextoPrompt();
-		if (accion == null || accion.isEmpty()) {
+		if ((accion == null) || accion.isEmpty()) {
 			return;
 		}
 
@@ -40,17 +41,22 @@ public class PromptInteraccion {
 		final int anchoBadge = anchoTexto + (PADDING_H * 2);
 
 		final int xMundo = objetivo.getCentroX() - (anchoBadge / 2);
-		final int yMundo = objetivo.getPosicionYInt() - ALTO_BADGE - 4;
+		final int yAux = objetivo.getPosicionYInt() - ALTO_BADGE - 4;
+		final int yMundo = (objetivo.getAlto() < Globales.JUGADOR.getAlto())
+				? yAux - (Globales.JUGADOR.getAlto() - objetivo.getAlto())
+				: yAux;
 
 		// 1. Fondo y marco en relieve en coordenadas de cámara
 		Render2D.dibujarRectanguloRellenoRefCamara(g, xMundo, yMundo, anchoBadge, ALTO_BADGE, COLOR_FONDO);
 		Render2D.dibujarRectanguloContornoRefCamara(g, xMundo, yMundo, anchoBadge, ALTO_BADGE, COLOR_BORDE);
 
 		// 2. Texto con [E] dorado
-		Render2D.dibujarStringConSombraRefCamara(g, "[E] ", xMundo + PADDING_H, (yMundo + ALTO_BADGE) - 3, COLOR_TECLA, Color.BLACK);
+		Render2D.dibujarStringConSombraRefCamara(g, "[E] ", xMundo + PADDING_H, (yMundo + ALTO_BADGE) - 3, COLOR_TECLA,
+				Color.BLACK);
 
 		final int offsetE = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, "[E] ");
-		Render2D.dibujarStringConSombraRefCamara(g, accion, xMundo + PADDING_H + offsetE, (yMundo + ALTO_BADGE) - 3, COLOR_TEXTO, Color.BLACK);
+		Render2D.dibujarStringConSombraRefCamara(g, accion, xMundo + PADDING_H + offsetE, (yMundo + ALTO_BADGE) - 3,
+				COLOR_TEXTO, Color.BLACK);
 
 		g.setFont(fontPrevia);
 	}

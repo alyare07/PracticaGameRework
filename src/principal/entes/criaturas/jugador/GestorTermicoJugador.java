@@ -1,5 +1,6 @@
-package principal.clima;
+package principal.entes.criaturas.jugador;
 
+import principal.clima.TipoClima;
 import principal.entes.efectos.TipoEfectoEstado;
 import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.TipoLuz;

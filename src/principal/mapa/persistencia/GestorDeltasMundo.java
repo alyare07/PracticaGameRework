@@ -11,7 +11,7 @@ import principal.construccion.EstructuraConstruible;
 import principal.construccion.TipoEstructura;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.criaturas.mascotas.Mascota;
 import principal.entes.objetos.Fogata;
 import principal.entes.objetos.items.Item;
@@ -75,7 +75,7 @@ public class GestorDeltasMundo {
 			// 1. Recursos Cosechables
 			if (e instanceof RecursoCosechable) {
 				final RecursoCosechable rc = (RecursoCosechable) e;
-				if (rc.getDurabilidad() < rc.getDurabilidadMaxima()) {
+				if (rc.estaModificado()) {
 					final String clave = IdentificadorEspacial.generarClave(rc.getPosicionXInt(), rc.getPosicionYInt());
 					delta.getCriaturasModificadas().put(clave, rc.exportarEstadoRecursoJSON());
 				}

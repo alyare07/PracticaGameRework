@@ -508,6 +508,10 @@ public class SlotManager {
 		return null;
 	}
 
+	public SlotArma getSlotArma() {
+		return this.slotArma;
+	}
+
 	private void llenarSlotsAlmacenamiento() {
 		final int anchoSlotsTotal = (CANTIDAD_SLOTS_FILA * LADO_SLOTS)
 				+ ((CANTIDAD_SLOTS_FILA + 1) * this.MARGEN_GENERAL);

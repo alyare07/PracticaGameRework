@@ -111,14 +111,16 @@ public abstract class RecursoCosechable extends Objeto implements Cosechable {
 		this.eliminar();
 	}
 
+	public boolean estaModificado() {
+		return this.durabilidad < this.durabilidadMaxima;
+	}
+
 	@SuppressWarnings("unchecked")
 	public JSONObject exportarEstadoRecursoJSON() {
 		final JSONObject json = new JSONObject();
 		json.put("durabilidad", Double.valueOf(this.durabilidad));
 		json.put("durabilidadMax", Double.valueOf(this.durabilidadMaxima));
-		if (this instanceof ArbolCosechable) {
-			json.put("esTocon", Boolean.valueOf(((ArbolCosechable) this).isEsTocon()));
-		}
+		this.exportarDatosEspecificos(json);
 		return json;
 	}
 
@@ -132,14 +134,16 @@ public abstract class RecursoCosechable extends Objeto implements Cosechable {
 		if (json.get("durabilidadMax") != null) {
 			this.durabilidadMaxima = ((Number) json.get("durabilidadMax")).doubleValue();
 		}
-		if ((this instanceof ArbolCosechable) && (json.get("esTocon") != null)) {
-			final boolean tocon = Boolean.parseBoolean(json.get("esTocon").toString());
-			if (tocon && !((ArbolCosechable) this).isEsTocon()) {
-				// Transforma visualmente en tocón
-				((ArbolCosechable) this).destruir(null);
-				this.durabilidad = ((Number) json.get("durabilidad")).doubleValue();
-			}
-		}
+		this.importarDatosEspecificos(json);
+	}
+
+	/** Gancho para que las clases hijas serialicen sus variables propias */
+	@SuppressWarnings("unchecked")
+	protected void exportarDatosEspecificos(final JSONObject json) {
+	}
+
+	/** Gancho para que las clases hijas deserialicen sus variables propias */
+	protected void importarDatosEspecificos(final JSONObject json) {
 	}
 
 	protected abstract void soltarBotin();

@@ -133,7 +133,7 @@ public class Slot {
 		// 2. Cantidad de Consumibles (Esquina superior derecha con sombra)
 		if (this.item instanceof Consumible) {
 			final Font fuentePrevia = g.getFont();
-			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 5.5f));
+			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 7.5f));
 
 			final String cantidad = String.valueOf(((Consumible) this.item).getCantidad());
 			final int anchoTexto = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, cantidad);

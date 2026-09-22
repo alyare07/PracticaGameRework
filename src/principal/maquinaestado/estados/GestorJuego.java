@@ -152,6 +152,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.GESTOR_CLIMA.actualizar();
 		Globales.GESTOR_LUZ.actualizar();
 		Globales.GESTOR_TERMICO_JUGADOR.actualizar(dt);
+		Globales.GESTOR_METABOLISMO.actualizar(dt);
 		Globales.GESTOR_CRAFTEO.actualizar(this.mapa.getMundoActual());
 		this.actualizarEventos(dt);
 

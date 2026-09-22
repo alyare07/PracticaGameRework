@@ -72,6 +72,7 @@ public final class GestorFacciones {
 		// 1. Relaciones del JUGADOR: Hostil hacia Bandidos y Monstruos
 		setHostilidadPorDefecto(FACCION_JUGADOR, FACCION_BANDIDOS, true);
 		setHostilidadPorDefecto(FACCION_JUGADOR, FACCION_MONSTRUOS, true);
+		setHostilidadPorDefecto(FACCION_JUGADOR, FACCION_FAUNA_PASIVA, true);
 
 		// 2. Relaciones de BANDIDOS: Hostiles hacia Jugador, Monstruos y Aldeanos (pero
 		// no entre sí)

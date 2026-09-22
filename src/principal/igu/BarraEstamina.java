@@ -3,7 +3,7 @@ package principal.igu;
 import java.awt.Color;
 import java.awt.Rectangle;
 
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.utilidades.Globales;
 
 public class BarraEstamina extends Barra {

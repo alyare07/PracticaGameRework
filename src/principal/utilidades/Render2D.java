@@ -54,6 +54,33 @@ public final class Render2D {
 	// =========================================================================
 	// === DEFORMACIÓN EÓLICA CON BYPASS O(1) PARA HARDWARE MODESTO
 	// =========================================================================
+	public static void dibujarImagenConBalanceoRefCamara(final Graphics2D g, final Image img, final int x, final int y,
+			final double fuerzaBalanceo, final int altoPivote) {
+		if ((g == null) || (img == null)) {
+			return;
+		}
+
+		if (!ConfiguracionGrafica.OPT_BALANCEO_EOLICO || (Math.abs(fuerzaBalanceo) < 0.001)) {
+			dibujarImagenRefCamara(g, img, x, y);
+			return;
+		}
+
+		objetosDibujados++;
+
+		final int rx = Globales.getXDesplazamientoCamara(x);
+		final int ry = Globales.getYDesplazamientoCamara(y);
+		final int w = img.getWidth(null);
+		final int h = Math.min(img.getHeight(null), altoPivote);
+
+		final int pivotX = rx + (w / 2);
+		final int pivotY = ry + h;
+
+		g.translate(pivotX, pivotY);
+		g.shear(fuerzaBalanceo, 0.0);
+		g.drawImage(img, -(w / 2), -h, null);
+		g.shear(-fuerzaBalanceo, 0.0);
+		g.translate(-pivotX, -pivotY);
+	}
 
 	public static void dibujarImagenConBalanceoRefCamara(final Graphics2D g, final Image img, final int x, final int y,
 			final double fuerzaBalanceo) {

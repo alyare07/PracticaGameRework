@@ -3,7 +3,7 @@ package principal.comandos;
 import java.awt.Rectangle;
 
 import principal.entes.criaturas.Criatura;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.efectos.TipoEfectoEstado;
 import principal.mapa.Mundo;
 import principal.utilidades.AccionEntidad;

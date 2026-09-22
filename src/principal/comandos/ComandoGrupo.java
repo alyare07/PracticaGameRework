@@ -1,9 +1,9 @@
 package principal.comandos;
 
 import principal.entes.criaturas.Criatura;
-import principal.entes.criaturas.Jugador;
 import principal.entes.criaturas.grupo.GestorGrupo;
 import principal.entes.criaturas.grupo.TipoVinculo;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.criaturas.mascotas.Mascota;
 import principal.mapa.Mundo;
 import principal.utilidades.Globales;

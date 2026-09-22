@@ -1,7 +1,7 @@
 package principal.mapa.escenario.tps;
 
 import principal.entes.criaturas.Criatura;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.mapa.Mundo;
 import principal.mapa.mapas.Mapa;
 import principal.utilidades.Globales;

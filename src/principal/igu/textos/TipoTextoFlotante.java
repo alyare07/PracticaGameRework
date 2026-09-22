@@ -94,7 +94,20 @@ public enum TipoTextoFlotante {
 	 * ms.
 	 * </p>
 	 */
-	ORO_EXP(new Color(255, 225, 30), 9f, false, 1000);
+	/**
+	 * Recolección de monedas de oro, gemas valiosas o ganancia de experiencia (XP).
+	 */
+	ORO_EXP(new Color(255, 225, 30), 9f, false, 1000),
+
+	// === NUEVOS PRESETS DE METABOLISMO Y TOXINAS (BLOQUE 2) ===
+	/** Intoxicación por comida podrida, parásitos o debuff de veneno. */
+	VENENO(new Color(175, 60, 240), 9f, true, 1100),
+
+	/** Aporte nutricional e ingesta de comida (pan, bayas, carne). */
+	COMIDA_HAMBRE(new Color(255, 175, 50), 9f, false, 1000),
+
+	/** Hidratación e ingesta de líquidos (agua limpia, pociones). */
+	AGUA_SED(new Color(60, 210, 255), 9f, false, 1000);
 
 	// =========================================================================
 	// === PARÁMETROS VISUALES Y TEMPORALES

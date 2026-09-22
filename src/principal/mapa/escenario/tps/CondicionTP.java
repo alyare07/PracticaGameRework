@@ -1,6 +1,6 @@
 package principal.mapa.escenario.tps;
 
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 
 /**
  * Contrato funcional para evaluar requisitos antes de permitir un

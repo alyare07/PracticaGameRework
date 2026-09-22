@@ -3,7 +3,7 @@ package principal.crafteo;
 import java.awt.Rectangle;
 import java.util.EnumSet;
 
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.objetos.Objeto;
 import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.TipoLuz;

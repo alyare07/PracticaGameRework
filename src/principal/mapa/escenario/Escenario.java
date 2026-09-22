@@ -168,6 +168,12 @@ public class Escenario implements Serializable {
 					if (mas != null) {
 						criaturas.add(mas);
 					}
+				} else if (tipo.equals("Gallina")) {
+					final principal.entes.criaturas.animales.Gallina gal = principal.entes.criaturas.animales.Gallina
+							.crearDesdeJSON(entiti);
+					if (gal != null) {
+						criaturas.add(gal);
+					}
 				}
 			}
 		}
@@ -256,6 +262,8 @@ public class Escenario implements Serializable {
 					obj = ArbolCofre.crearDesdeJson(entiti);
 				} else if (tipo.equals("ArbolCosechable")) {
 					obj = ArbolCosechable.crearDesdeJson(entiti);
+				} else if (tipo.equals("ArbustoCosechable")) {
+					obj = principal.entes.objetos.recursos.ArbustoCosechable.crearDesdeJson(entiti);
 				} else if (tipo.equals("RocaCosechable")) {
 					obj = RocaCosechable.crearDesdeJson(entiti);
 				} else if (tipo.equals("Fogata")) {

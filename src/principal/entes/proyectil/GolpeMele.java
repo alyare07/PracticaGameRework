@@ -6,7 +6,7 @@ import java.awt.Rectangle;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura.Direccion;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.herramientas.Herramienta;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
@@ -93,6 +93,7 @@ public class GolpeMele extends ProyectilGeneral {
 					final Herramienta h = (Herramienta) j.getArmaEquipada();
 					tipo = h.getTipoHerramienta();
 					potencia = h.getPotenciaCosecha();
+					h.desgastar(1, j);
 				}
 			}
 

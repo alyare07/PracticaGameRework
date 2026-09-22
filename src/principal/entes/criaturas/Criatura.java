@@ -16,6 +16,7 @@ import org.json.simple.JSONObject;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.grupo.TipoVinculo;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.efectos.EfectoEstado;
 import principal.entes.efectos.TipoEfectoEstado;
 import principal.entes.facciones.GestorFacciones;

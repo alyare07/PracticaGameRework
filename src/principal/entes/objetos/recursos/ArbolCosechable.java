@@ -169,4 +169,21 @@ public class ArbolCosechable extends RecursoCosechable {
 		final int spriteIndex = (json.get("spriteIndex") != null) ? ((Number) json.get("spriteIndex")).intValue() : 0;
 		return new ArbolCosechable(x, y, hoja, spriteIndex);
 	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected void exportarDatosEspecificos(final JSONObject json) {
+		json.put("esTocon", Boolean.valueOf(this.esTocon));
+	}
+
+	@Override
+	protected void importarDatosEspecificos(final JSONObject json) {
+		if (json.get("esTocon") != null) {
+			final boolean tocon = Boolean.parseBoolean(json.get("esTocon").toString());
+			if (tocon && !this.esTocon) {
+				this.esTocon = true;
+				this.durabilidadMaxima = 40.0;
+			}
+		}
+	}
 }

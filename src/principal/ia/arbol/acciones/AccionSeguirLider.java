@@ -1,7 +1,7 @@
 package principal.ia.arbol.acciones;
 
 import principal.entes.criaturas.Criatura;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.ia.arbol.BlackboardIA;
 import principal.ia.arbol.EstadoBT;
 import principal.ia.arbol.NodoBT;

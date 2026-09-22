@@ -4,7 +4,7 @@ import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
-import principal.clima.GestorTermicoJugador;
+import principal.entes.criaturas.jugador.GestorTermicoJugador;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;

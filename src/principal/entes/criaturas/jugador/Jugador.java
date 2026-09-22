@@ -1,4 +1,4 @@
-package principal.entes.criaturas;
+package principal.entes.criaturas.jugador;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -15,6 +15,7 @@ import org.json.simple.JSONObject;
 import principal.animaciones.Animaciones;
 import principal.configuracion.Dificultad;
 import principal.entes.Ente;
+import principal.entes.criaturas.Criatura;
 import principal.entes.efectos.EfectoEstado;
 import principal.entes.efectos.TipoEfectoEstado;
 import principal.entes.facciones.GestorFacciones;
@@ -159,6 +160,9 @@ public class Jugador extends Criatura {
 		this.desvincularLuz();
 		this.desvincularDeZonas();
 		this.setMundo(null);
+		if (Globales.GESTOR_METABOLISMO != null) {
+			Globales.GESTOR_METABOLISMO.reiniciar();
+		}
 	}
 
 	public void recalcularAtributos() {
@@ -377,6 +381,9 @@ public class Jugador extends Criatura {
 		this.setMundo(mundo);
 		if (this.mundo != null) {
 			this.mundo.moverJugadorPuntoComienzo();
+		}
+		if (Globales.GESTOR_METABOLISMO != null) {
+			Globales.GESTOR_METABOLISMO.reiniciar();
 		}
 		this.verificarZoneBox();
 	}
@@ -1163,6 +1170,11 @@ public class Jugador extends Criatura {
 	}
 
 	private void recuperarEstamina() {
+		// Penalización por deshidratación: a 0% de agua, la estamina no se recupera
+		if ((Globales.GESTOR_METABOLISMO != null) && Globales.GESTOR_METABOLISMO.isDeshidratado()) {
+			return;
+		}
+
 		final int esperaRegenInt = Math.max(1200,
 				TIEMPO_MS_ESPERA_REGEN_ESTAMINA_BASE - (this.getInteligenciaTotal() * 45));
 
@@ -1205,6 +1217,14 @@ public class Jugador extends Criatura {
 		if ((efHipotermia != null) && efHipotermia.isActivo() && (efHipotermia.getStacks() >= 3)) {
 			return false;
 		}
+
+		// Sin hidratación o muriendo de inanición, el cuerpo no tiene energía para
+		// esprintar
+		if ((Globales.GESTOR_METABOLISMO != null)
+				&& (Globales.GESTOR_METABOLISMO.isDeshidratado() || Globales.GESTOR_METABOLISMO.isInanicion())) {
+			return false;
+		}
+
 		return true;
 	}
 
@@ -1214,6 +1234,9 @@ public class Jugador extends Criatura {
 		if (this.modoDios) {
 			this.sanar();
 			this.estamina = this.maxEstamina;
+			if (Globales.GESTOR_METABOLISMO != null) {
+				Globales.GESTOR_METABOLISMO.reiniciar();
+			}
 		}
 	}
 
@@ -1583,6 +1606,10 @@ public class Jugador extends Criatura {
 		if ((Globales.GESTOR_INVENTARIO != null) && (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
 			json.put("inventario", Globales.GESTOR_INVENTARIO.getInventarioJugador().exportarInventarioJSON());
 		}
+		if (Globales.GESTOR_METABOLISMO != null) {
+			json.put("hambre", Double.valueOf(Globales.GESTOR_METABOLISMO.getHambre()));
+			json.put("sed", Double.valueOf(Globales.GESTOR_METABOLISMO.getSed()));
+		}
 
 		return json;
 	}
@@ -1603,6 +1630,14 @@ public class Jugador extends Criatura {
 		}
 		if (json.get("inteligenciaBase") != null) {
 			this.inteligenciaBase = ((Number) json.get("inteligenciaBase")).intValue();
+		}
+		if (Globales.GESTOR_METABOLISMO != null) {
+			if (json.get("hambre") != null) {
+				Globales.GESTOR_METABOLISMO.setHambre(((Number) json.get("hambre")).doubleValue());
+			}
+			if (json.get("sed") != null) {
+				Globales.GESTOR_METABOLISMO.setSed(((Number) json.get("sed")).doubleValue());
+			}
 		}
 		if (json.get("dineroPlata") != null) {
 			this.dineroPlata = ((Number) json.get("dineroPlata")).longValue();

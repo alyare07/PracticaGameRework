@@ -1,17 +1,18 @@
 package principal.interaccion;
 
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 
 /**
- * Contrato para cualquier objeto, NPC o elemento del mapa que reaccione
- * a la tecla de interacción [E].
+ * Contrato para cualquier objeto, NPC o elemento del mapa que reaccione a la
+ * tecla de interacción [E].
  * 
  * @version 1.0 (Vanilla Java 8)
  */
 public interface Interactuable {
 
 	/**
-	 * Texto que aparecerá en el prompt flotante (ej: "Hablar", "Examinar", "Abrir").
+	 * Texto que aparecerá en el prompt flotante (ej: "Hablar", "Examinar",
+	 * "Abrir").
 	 */
 	String getTextoPrompt();
 
@@ -23,10 +24,13 @@ public interface Interactuable {
 	/**
 	 * Condición opcional para saber si actualmente puede interactuarse con él.
 	 */
-	default boolean puedeInteractuar(Jugador jugador) {
+	default boolean puedeInteractuar(final Jugador jugador) {
 		return true;
 	}
 
 	int getCentroX();
+
 	int getPosicionYInt();
+
+	int getAlto();
 }

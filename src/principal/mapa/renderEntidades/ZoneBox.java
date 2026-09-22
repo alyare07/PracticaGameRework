@@ -178,7 +178,7 @@ public class ZoneBox extends Ente {
 		if ((e == null) || e.estaEliminado()) {
 			return;
 		}
-		if ((e instanceof Criatura) && !(e instanceof principal.entes.criaturas.Jugador)) {
+		if ((e instanceof Criatura) && !(e instanceof principal.entes.criaturas.jugador.Jugador)) {
 			if (!this.CRIATURAS.contains(e)) {
 				this.CRIATURAS.add((Criatura) e);
 			}

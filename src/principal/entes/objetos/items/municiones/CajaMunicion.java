@@ -3,7 +3,7 @@ package principal.entes.objetos.items.municiones;
 import org.json.simple.JSONObject;
 
 import principal.entes.criaturas.Criatura;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Consumible;
 import principal.entes.objetos.items.armas.Arma;

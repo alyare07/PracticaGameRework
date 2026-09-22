@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.objetos.items.Portable;
 import principal.entes.objetos.items.armas.distancia.fuego.municiones.Municion;
 import principal.mapa.Mundo;

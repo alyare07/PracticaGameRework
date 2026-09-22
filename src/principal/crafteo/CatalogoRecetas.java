@@ -61,6 +61,19 @@ public final class CatalogoRecetas {
 						new Ingrediente(RecursoMaterial.COD_PIEDRA, 2),
 						new Ingrediente(Fogata.COD_ANILLO_INFUSION, 1) },
 				new KitFogataAzul(1)));
+		// 8. Pollo Asado al Fuego (Estación: FOGATA | 1 Pata de Pollo Cruda)
+		registrarReceta(new RecetaCrafteo("pollo_asado_fogata", "Pollo Asado", EstacionCrafteo.FOGATA,
+				new Ingrediente[] { new Ingrediente(principal.entes.objetos.items.comidas.CarnePolloCruda.CODIGO, 1) },
+				new principal.entes.objetos.items.comidas.CarnePolloCocida(1)));
+		// 9. Fabricar Cuenco Vacío (A Mano: 2 Madera)
+		registrarReceta(new RecetaCrafteo("cuenco_madera", "Cuenco de Madera", EstacionCrafteo.MANUAL,
+				new Ingrediente[] { new Ingrediente(RecursoMaterial.COD_MADERA, 2) },
+				new principal.entes.objetos.items.comidas.CuencoVacio(1)));
+
+		// 10. Hervir Agua al Fuego (Estación: FOGATA | 1 Cuenco de Agua Turbia)
+		registrarReceta(new RecetaCrafteo("hervir_agua_fogata", "Hervir Agua", EstacionCrafteo.FOGATA,
+				new Ingrediente[] { new Ingrediente(principal.entes.objetos.items.comidas.CuencoAguaSucia.CODIGO, 1) },
+				new principal.entes.objetos.items.comidas.CuencoAguaHervida(1)));
 	}
 
 	public static void registrarReceta(final RecetaCrafteo receta) {

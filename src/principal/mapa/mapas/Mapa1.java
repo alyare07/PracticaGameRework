@@ -121,11 +121,38 @@ public class Mapa1 extends Mapa {
 			mExt.meterEntidad(new ArbolCosechable(1777, 1854, ClaveHoja.ARBOLES_32, 1));
 			mExt.meterEntidad(new RocaCosechable(1954, 1777, ClaveHoja.DUNGEON_16, 813));
 
+			// 1. Bloque 1 y 3: Arbustos y Gallinas
+			mExt.meterEntidad(new principal.entes.objetos.recursos.ArbustoCosechable(1820, 1850));
+			mExt.meterEntidad(new principal.entes.objetos.recursos.ArbustoCosechable(1840, 1850));
+			mExt.meterEntidad(new principal.entes.criaturas.animales.Gallina(1830, 1820));
+			mExt.meterEntidad(new principal.entes.criaturas.animales.Gallina(1860, 1820));
+
+			// 2. Bloque 4: Fogata encendida con 8 leños en el campamento
+			mExt.meterEntidad(new principal.entes.objetos.Fogata(1810, 1835, 8, true, false));
+
 			final ArbolCofre arbolcofre1 = new ArbolCofre(1800, 1900);
+
+			// Herramientas
 			arbolcofre1.getInventario()
 					.agregarItem(new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
 			arbolcofre1.getInventario()
 					.agregarItem(new Herramienta(Herramienta.COD_PICO, 6, 14, 400, TipoHerramienta.PICO, 30.0));
+
+			// Víveres Bloques 1, 2, 3
+			arbolcofre1.getInventario().agregarItem(new principal.entes.objetos.items.comidas.BayaSilvestre(10));
+			arbolcofre1.getInventario().agregarItem(new principal.entes.objetos.items.comidas.CarnePolloCruda(5));
+			arbolcofre1.getInventario().agregarItem(new principal.entes.objetos.items.comidas.CarnePolloCocida(2));
+
+			// === BLOQUE 4: CICLO HÍDRICO (RECIPIENTES Y AGUA) ===
+			arbolcofre1.getInventario().agregarItem(new principal.entes.objetos.items.comidas.CuencoVacio(5));
+			arbolcofre1.getInventario().agregarItem(new principal.entes.objetos.items.comidas.CuencoAguaSucia(2));
+			arbolcofre1.getInventario().agregarItem(new principal.entes.objetos.items.comidas.CuencoAguaHervida(2));
+
+			arbolcofre1.getInventario().agregarItem(new EscopetaAutomatica());
+			mExt.meterEntidad(new ArbolCosechable(1789, 1854, ClaveHoja.ARBOLES_32, 0));
+			mExt.meterEntidad(new ArbolCosechable(1777, 1854, ClaveHoja.ARBOLES_32, 1));
+			mExt.meterEntidad(new RocaCosechable(1954, 1777, ClaveHoja.DUNGEON_16, 813));
+
 			arbolcofre1.getInventario().agregarItem(new EscopetaAutomatica());
 			arbolcofre1.getInventario().agregarItem(new EscopetaRecortada());
 			arbolcofre1.getInventario().agregarItem(new EscopetaTactica());
@@ -172,7 +199,7 @@ public class Mapa1 extends Mapa {
 			mExt.meterEntidad(companiero);
 		}
 
-		Globales.JUGADOR.setModoDios(true);
+		Globales.JUGADOR.setModoDios(false);
 	}
 
 	public void generarEnemigosParaPrueba(final int cantidadDeseada) {

@@ -8,7 +8,7 @@ import principal.animaciones.Animacion;
 import principal.animaciones.AnimacionDireccionada;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.criaturas.Criatura.Estado;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.objetos.items.equipamiento.PiezaEquipo;
 import principal.inventario.equipamiento.SlotPiezaEquipo;
 import principal.recursos.ClaveHoja;

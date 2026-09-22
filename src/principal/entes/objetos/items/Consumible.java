@@ -25,6 +25,14 @@ public abstract class Consumible extends Item {
 	protected final TexturaItem texturaMapa;
 	protected final int limite;
 	private int cantidad;
+	// === SUBSISTEMA DE DESCOMPOSICIÓN ZERO-GC (BLOQUE 1) ===
+	protected boolean perecedero = false;
+	protected double horaCaducidad = -1.0;
+	protected boolean podrido = false;
+
+	// Caché para regenerar tooltip solo cuando cambia la hora entera (Zero-GC)
+	private int ultimaHoraEnteraCaducidad = Integer.MIN_VALUE;
+	private boolean ultimoEstadoPodrido = false;
 
 	public Consumible(final int x, final int y, final int cantidad, final String codModelo, final String nombre,
 			final TexturaItem texturaInv, final TexturaItem texturaMapa, final int limite) {
@@ -91,6 +99,7 @@ public abstract class Consumible extends Item {
 
 	@Override
 	public void pintarInventario(final Graphics2D g, final int x, final int y) {
+		this.verificarCaducidad();
 		Render2D.dibujarImagen(g, this.getTexturaInventario(), x, y);
 	}
 
@@ -140,7 +149,7 @@ public abstract class Consumible extends Item {
 
 	@Override
 	public String getNombre() {
-		return this.nombre;
+		return this.podrido ? (this.nombre + " (Podrido)") : this.nombre;
 	}
 
 	@Override
@@ -164,6 +173,30 @@ public abstract class Consumible extends Item {
 		}
 		if (codModelo.equals("Madera") || codModelo.equals("Piedra")) {
 			return RecursoMaterial.crearDesdeJson(json);
+		}
+		if (codModelo.equals(principal.entes.objetos.items.comidas.BayaSilvestre.CODIGO)
+				|| codModelo.equals("BayaSilvestre")) {
+			return principal.entes.objetos.items.comidas.BayaSilvestre.crearDesdeJson(json);
+		}
+		if (codModelo.equals(principal.entes.objetos.items.comidas.CarnePolloCruda.CODIGO)
+				|| codModelo.equals("CarnePolloCruda")) {
+			return principal.entes.objetos.items.comidas.CarnePolloCruda.crearDesdeJson(json);
+		}
+		if (codModelo.equals(principal.entes.objetos.items.comidas.CarnePolloCocida.CODIGO)
+				|| codModelo.equals("CarnePolloCocida")) {
+			return principal.entes.objetos.items.comidas.CarnePolloCocida.crearDesdeJson(json);
+		}
+		if (codModelo.equals(principal.entes.objetos.items.comidas.CuencoVacio.CODIGO)
+				|| codModelo.equals("CuencoVacio")) {
+			return principal.entes.objetos.items.comidas.CuencoVacio.crearDesdeJson(json);
+		}
+		if (codModelo.equals(principal.entes.objetos.items.comidas.CuencoAguaSucia.CODIGO)
+				|| codModelo.equals("CuencoAguaSucia")) {
+			return principal.entes.objetos.items.comidas.CuencoAguaSucia.crearDesdeJson(json);
+		}
+		if (codModelo.equals(principal.entes.objetos.items.comidas.CuencoAguaHervida.CODIGO)
+				|| codModelo.equals("CuencoAguaHervida")) {
+			return principal.entes.objetos.items.comidas.CuencoAguaHervida.crearDesdeJson(json);
 		}
 
 		if (codModelo.equals("Kit de Fogata") || codModelo.equals("KitFogata")) {
@@ -238,5 +271,96 @@ public abstract class Consumible extends Item {
 			return 150;
 		}
 		return 99;
+	}
+
+	// =========================================================================
+	// === LÓGICA DE CADUCIDAD PEREZOSA Y TOOLTIP ZERO-GC
+	// =========================================================================
+
+	public void configurarPerecedero(final double horasVidaUtil) {
+		this.perecedero = true;
+		if (Globales.GESTOR_ASTRONOMICO != null) {
+			this.horaCaducidad = Globales.GESTOR_ASTRONOMICO.getHorasTotalesJuego() + horasVidaUtil;
+		} else {
+			this.horaCaducidad = horasVidaUtil;
+		}
+		this.podrido = false;
+		this.forzarRefrescoTooltip();
+	}
+
+	public void establecerCaducidadDirecta(final double horaCaducidadExacta, final boolean estaPodrido) {
+		this.perecedero = true;
+		this.horaCaducidad = horaCaducidadExacta;
+		this.podrido = estaPodrido;
+		this.forzarRefrescoTooltip();
+	}
+
+	public void verificarCaducidad() {
+		if (!this.perecedero || this.podrido) {
+			return;
+		}
+		if (Globales.GESTOR_ASTRONOMICO != null) {
+			if (Globales.GESTOR_ASTRONOMICO.getHorasTotalesJuego() >= this.horaCaducidad) {
+				this.mutarAPodrido();
+			}
+		}
+	}
+
+	public void mutarAPodrido() {
+		this.podrido = true;
+		this.forzarRefrescoTooltip();
+	}
+
+	public void forzarRefrescoTooltip() {
+		this.ultimaHoraEnteraCaducidad = Integer.MIN_VALUE;
+		this.ultimoEstadoPodrido = !this.podrido;
+	}
+
+	@Override
+	public java.util.ArrayList<String> getInfo() {
+		this.verificarCaducidad();
+		this.actualizarCacheTooltip();
+		return this.LISTA_INFO;
+	}
+
+	private void actualizarCacheTooltip() {
+		if (!this.perecedero) {
+			return;
+		}
+
+		if (this.podrido) {
+			if (!this.ultimoEstadoPodrido) {
+				this.ultimoEstadoPodrido = true;
+				this.LISTA_INFO.clear();
+				this.LISTA_INFO.add("Estado: Descompuesto");
+				this.LISTA_INFO.add("Peligro: Puede causar malestar o intoxicacion.");
+			}
+			return;
+		}
+
+		final double horaActual = (Globales.GESTOR_ASTRONOMICO != null)
+				? Globales.GESTOR_ASTRONOMICO.getHorasTotalesJuego()
+				: 0.0;
+		final double horasRestantes = Math.max(0.0, this.horaCaducidad - horaActual);
+		final int horasEnteras = (int) Math.ceil(horasRestantes);
+
+		if (horasEnteras != this.ultimaHoraEnteraCaducidad) {
+			this.ultimaHoraEnteraCaducidad = horasEnteras;
+			this.LISTA_INFO.clear();
+			this.rellenarInfo(this.LISTA_INFO);
+			this.LISTA_INFO.add("Caduca en aprox: " + horasEnteras + " h");
+		}
+	}
+
+	public boolean isPerecedero() {
+		return this.perecedero;
+	}
+
+	public boolean isPodrido() {
+		return this.podrido;
+	}
+
+	public double getHoraCaducidad() {
+		return this.horaCaducidad;
 	}
 }

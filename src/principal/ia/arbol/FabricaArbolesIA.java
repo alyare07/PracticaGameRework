@@ -49,6 +49,17 @@ public final class FabricaArbolesIA {
 							new AccionAproximarse(26.0))),
 			new Secuencia(new CondicionTieneSospecha(6.0), new AccionInvestigarPunto(3.5)),
 			new SelectorPrioridad(new AccionVagar(48.0, 2.5, 5.0), new AccionMirarAlrededor(2.0, 4.0)));
+	/**
+	 * Arquetipo Presa Pasiva (Gallinas, Conejos, Fauna menor)
+	 */
+	public static final NodoBT ARBOL_PRESA_GALLINA = new SelectorPrioridad(
+			// 1. Supervivencia: si hay un hostil o el jugador se acerca a < 80 px, huye a
+			// 150 px
+			new Secuencia(new CondicionAmenazaCercana(80.0, 1.0), new AccionHuir(150.0)),
+
+			// 2. Comportamiento silvestre: vagar en radios cortos (30 px) y pausas de
+			// picoteo
+			new SelectorPrioridad(new AccionVagar(30.0, 2.0, 4.5), new AccionMirarAlrededor(2.0, 5.0)));
 
 	/**
 	 * Arquetipo Bandido Pistolero

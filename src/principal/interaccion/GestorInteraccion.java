@@ -5,7 +5,7 @@ import java.awt.Rectangle;
 import java.awt.event.KeyEvent;
 
 import principal.entes.Ente;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.mapa.Mundo;
 import principal.utilidades.AccionEntidad;
 import principal.utilidades.GestorTiempo;

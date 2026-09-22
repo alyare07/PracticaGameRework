@@ -12,9 +12,11 @@ public enum ClaveHoja {
 	// --- Entidades y Criaturas ---
 	JUGADOR("/imagenes/sprites/player_sprites1.png", 32, 32), BANDIDO("/imagenes/sprites/bandido.png", 32, 32),
 	CHARACTER_2("/imagenes/sprites/player2_sprites.png", 32, 32),
+	GALLINA("/imagenes/sprites/animales/gallina.png", 16, 16),
 
 	// --- OBJETOS ---
 	FOGATA("/imagenes/sprites/objetos/campfire.png", 16, 16),
+	ARBUSTO_COSECHABLES("/imagenes/objetos/comidas/arbustos_cosechables.png", 16, 16),
 
 	// --- Proyectiles y Habilidades ---
 	BOLA_FUEGO("/imagenes/sprites/firebolt.png", 16, 16),
@@ -29,6 +31,10 @@ public enum ClaveHoja {
 
 	// --- Ítems y Equipamiento ---
 	ITEMS_16("/imagenes/objetos/items.png", 16, 16), ITEMS_10("/imagenes/objetos/itemsx10.png", 10, 10),
+	ITEMS_16_COMIDAS("/imagenes/objetos/comidas/foods1x16.png", 16, 16),
+	ITEMS_12_COMIDAS("/imagenes/objetos/comidas/foods1x12.png", 12, 12),
+	ITEMS_16_COMIDAS2("/imagenes/objetos/comidas/foods2x16.png", 16, 16),
+	ITEMS_12_COMIDAS2("/imagenes/objetos/comidas/foods2x12.png", 12, 12),
 	ARMAS_PACK_16("/imagenes/objetos/pack.png", 16, 16), GRANADAS_16("/imagenes/objetos/granadas.png", 16, 16),
 	GRANADAS_10("/imagenes/objetos/granadas.png", 10, 10),
 

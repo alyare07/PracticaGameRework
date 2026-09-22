@@ -16,7 +16,7 @@ import principal.crafteo.EstacionCrafteo;
 import principal.crafteo.EstacionInteractiva;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.efectos.TipoEfectoEstado;
 import principal.entes.objetos.items.materiales.RecursoMaterial;
 import principal.iluminacion.TipoLuz;

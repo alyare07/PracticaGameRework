@@ -13,7 +13,7 @@ import principal.astronomia.Estacion;
 import principal.dialogos.MensajeDialogo;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.facciones.GestorFacciones;
 import principal.entes.objetos.items.Item;
 import principal.ia.arbol.FabricaArbolesIA;

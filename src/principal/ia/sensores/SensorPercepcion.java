@@ -3,7 +3,7 @@ package principal.ia.sensores;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.iluminacion.CalculadorSigilo;
 import principal.mapa.Mundo;
 import principal.mapa.renderEntidades.ZoneBox;

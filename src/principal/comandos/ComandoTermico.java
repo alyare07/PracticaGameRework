@@ -1,6 +1,6 @@
 package principal.comandos;
 
-import principal.clima.GestorTermicoJugador;
+import principal.entes.criaturas.jugador.GestorTermicoJugador;
 import principal.utilidades.Globales;
 
 public class ComandoTermico extends Comando {

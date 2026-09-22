@@ -3,7 +3,7 @@ package principal.mapa.escenario.tps;
 import java.io.File;
 
 import principal.entes.criaturas.Criatura;
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.mapa.mapas.MapaManager;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.utilidades.Globales;

@@ -5,7 +5,7 @@ import java.awt.Rectangle;
 
 import org.json.simple.JSONObject;
 
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.utilidades.Globales;
 
 public class Spawn {

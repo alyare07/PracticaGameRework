@@ -1,6 +1,6 @@
 package principal.mapa.escenario.tps;
 
-import principal.entes.criaturas.Jugador;
+import principal.entes.criaturas.jugador.Jugador;
 import principal.inventario.Inventario;
 import principal.utilidades.Globales;
 import principal.utilidades.progreso.FlagProgreso;

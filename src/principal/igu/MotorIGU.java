@@ -23,6 +23,7 @@ public class MotorIGU {
 	private final RelojCiclo RELOJ_CICLO;
 	private final TermometroIGU TERMOMETRO;
 	private final EfectosEstadoIGU EFECTOS_ESTADO;
+	private final MetabolismoIGU METABOLISMO;
 
 	private boolean visible = true;
 
@@ -34,6 +35,7 @@ public class MotorIGU {
 		this.RELOJ_CICLO = new RelojCiclo();
 		this.TERMOMETRO = new TermometroIGU();
 		this.EFECTOS_ESTADO = new EfectosEstadoIGU();
+		this.METABOLISMO = new MetabolismoIGU();
 	}
 
 	public void actualizar() {
@@ -44,6 +46,7 @@ public class MotorIGU {
 		this.RELOJ_CICLO.actualizar();
 		this.TERMOMETRO.actualizar();
 		this.EFECTOS_ESTADO.actualizar();
+		this.METABOLISMO.actualizar();
 	}
 
 	public void pintar(final Graphics2D g) {
@@ -61,11 +64,13 @@ public class MotorIGU {
 		this.BARRA_JEFE.pintar(g);
 		this.RELOJ_CICLO.pintar(g);
 		this.TERMOMETRO.pintar(g);
+		this.METABOLISMO.pintar(g);
 		this.EFECTOS_ESTADO.pintar(g);
 
 		// 3. Capa final superior: Tooltips flotantes
 		this.EFECTOS_ESTADO.pintarTooltips(g);
 		this.TERMOMETRO.pintarTooltips(g);
+		this.METABOLISMO.pintarTooltips(g);
 	}
 
 	public void fijarJefe(final Criatura jefe) {
@@ -106,5 +111,9 @@ public class MotorIGU {
 
 	public VinetaTermicaIGU getVinetaTermica() {
 		return this.VINETA_TERMICA;
+	}
+
+	public MetabolismoIGU getMetabolismo() {
+		return this.METABOLISMO;
 	}
 }

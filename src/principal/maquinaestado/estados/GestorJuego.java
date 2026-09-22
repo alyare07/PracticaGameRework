@@ -79,6 +79,26 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	@Override
 	public void actualizar() {
+		// 1. Control Modal del Taller de Crafteo y Cocina
+		if (principal.crafteo.MenuCrafteo.getInstancia().isAbierto()) {
+			// El mundo sigue vivo en tiempo real de fondo (simulación continua)
+			Globales.GESTOR_ASTRONOMICO.actualizar(Globales.delta);
+			Globales.GESTOR_CLIMA.actualizar();
+			Globales.GESTOR_LUZ.actualizar();
+			Globales.GESTOR_TERMICO_JUGADOR.actualizar(Globales.delta);
+			Globales.GESTOR_METABOLISMO.actualizar(Globales.delta);
+			this.mapa.actualizar();
+
+			// Menú toma el control del ratón y teclado
+			principal.crafteo.MenuCrafteo.getInstancia().actualizar(Globales.RATON);
+
+			// Válvula de seguridad: Si el jugador recibe daño mientras forja, cierra el
+			// menú
+			if (Globales.JUGADOR.estaEnFlashDanio()) {
+				principal.crafteo.MenuCrafteo.getInstancia().cerrar();
+			}
+			return; // Salta el movimiento y disparo del jugador mientras craftea
+		}
 		if (this.detectarCambioAMenu()) {
 			return;
 		}
@@ -275,6 +295,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	@Override
 	public void pintar(final Graphics2D g) {
+		// Si el taller está abierto, tapa la pantalla completa (ahorro masivo de GPU)
+		if (principal.crafteo.MenuCrafteo.getInstancia().isAbierto()) {
+			principal.crafteo.MenuCrafteo.getInstancia().pintar(g);
+			return;
+		}
 		if (!Globales.partidaIniciada) {
 			return;
 		}

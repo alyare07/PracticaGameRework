@@ -54,6 +54,7 @@ public class Teclado implements KeyListener {
 	public final Tecla TECLA_PUNTO;
 	public final TeclaAccionCondicionada TECLA_INVENTARIO;
 	public final TeclaAccionCondicionada TECLA_PAUSA;
+	public final TeclaAccionCondicionada TECLA_CRAFTEO;
 
 	public final Tecla TECLA_ZOOM_IN;
 	public final Tecla TECLA_ZOOM_OUT;
@@ -132,6 +133,11 @@ public class Teclado implements KeyListener {
 		this.TECLA_INVENTARIO = new TeclaAccionCondicionada(KeyEvent.VK_I, "Inventario") {
 			@Override
 			public boolean condicion() {
+				// Si está escribiendo en el buscador, no abre la mochila al tipear 'I'
+				if ((principal.crafteo.MenuCrafteo.getInstancia() != null)
+						&& principal.crafteo.MenuCrafteo.getInstancia().isFocoBuscador()) {
+					return false;
+				}
 				return !Globales.pausa;
 			}
 
@@ -148,6 +154,11 @@ public class Teclado implements KeyListener {
 		this.TECLA_PAUSA = new TeclaAccionCondicionada(KeyEvent.VK_P, "Pausa") {
 			@Override
 			public boolean condicion() {
+				// Si está escribiendo en el buscador, no pausa el juego al tipear 'P'
+				if ((principal.crafteo.MenuCrafteo.getInstancia() != null)
+						&& principal.crafteo.MenuCrafteo.getInstancia().isFocoBuscador()) {
+					return false;
+				}
 				return true;
 			}
 
@@ -156,7 +167,24 @@ public class Teclado implements KeyListener {
 				Globales.pausa = !Globales.pausa;
 			}
 		};
+		this.TECLA_CRAFTEO = new TeclaAccionCondicionada(KeyEvent.VK_C, "Crafteo") {
+			@Override
+			public boolean condicion() {
+				// Si está escribiendo en el buscador, no cierra el menú
+				if ((principal.crafteo.MenuCrafteo.getInstancia() != null)
+						&& principal.crafteo.MenuCrafteo.getInstancia().isFocoBuscador()) {
+					return false;
+				}
+				return !Globales.pausa && Globales.isEstadoJuego();
+			}
 
+			@Override
+			public void accionar() {
+				if (principal.crafteo.MenuCrafteo.getInstancia() != null) {
+					principal.crafteo.MenuCrafteo.getInstancia().conmutar();
+				}
+			}
+		};
 		this.cargarTeclasALista();
 		this.cargarTeclasAListaModificables();
 	}
@@ -202,6 +230,7 @@ public class Teclado implements KeyListener {
 		this.TECLAS.add(this.TECLA_NUM_7);
 		this.TECLAS.add(this.TECLA_NUM_8);
 		this.TECLAS.add(this.TECLA_NUM_9);
+		this.TECLAS.add(this.TECLA_CRAFTEO);
 	}
 
 	private void cargarTeclasAListaModificables() {
@@ -215,7 +244,7 @@ public class Teclado implements KeyListener {
 		this.TECLAS_MODIFICABLES.put(this.TECLA_RECARGAR.nombre, this.TECLA_RECARGAR);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_CONSTRUCCION.nombre, this.TECLA_CONSTRUCCION);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_INVENTARIO.nombre, this.TECLA_INVENTARIO);
-
+		this.TECLAS_MODIFICABLES.put(this.TECLA_CRAFTEO.nombre, this.TECLA_CRAFTEO);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_IN.nombre, this.TECLA_ZOOM_IN);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_OUT.nombre, this.TECLA_ZOOM_OUT);
 		this.TECLAS_MODIFICABLES.put(this.TECLA_ZOOM_REINICIAR.nombre, this.TECLA_ZOOM_REINICIAR);

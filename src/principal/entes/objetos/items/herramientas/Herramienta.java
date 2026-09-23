@@ -81,8 +81,8 @@ public class Herramienta extends Arma {
 			GestorSonido.reproducir(IDSonido.GOLPE_1);
 
 			if (portador != null) {
-				Globales.GESTOR_TEXTOS.agregarTexto("¡" + this.nombre + " destruida!", portador.getCentroX(),
-						portador.getPosicionYInt() - 10, TipoTextoFlotante.ESTADO);
+				Globales.GESTOR_TEXTOS.agregarTextoFijo("¡" + this.nombre + " destruida!", portador.getCentroX(),
+						portador.getPosicionYInt() - 10, TipoTextoFlotante.FALLO);
 
 				// Purga del slot de equipamiento activo
 				if ((Globales.GESTOR_INVENTARIO != null)

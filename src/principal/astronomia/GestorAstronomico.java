@@ -551,6 +551,58 @@ public class GestorAstronomico {
 		}
 	}
 
+	/**
+	 * Aplica un salto temporal instantáneo O(1) de cantidad de horas arbitraria.
+	 * Maneja el desbordamiento de medianoche, incrementa el calendario canónico y
+	 * actualiza la bóveda celeste y el color ambiental de forma atómica.
+	 *
+	 * @param deltaHoras Horas in-game a adelantar (ej: 8.0).
+	 */
+	public void ejecutarSaltoTemporal(final double deltaHoras) {
+		if (deltaHoras <= 0.0) {
+			return;
+		}
+
+		final double nuevaHora = this.horaActual + deltaHoras;
+		final int diasTranscurridos = (int) Math.floor(nuevaHora / 24.0);
+
+		this.horaActual = nuevaHora - (diasTranscurridos * 24.0);
+
+		if (diasTranscurridos > 0) {
+			this.diaActual += diasTranscurridos;
+			this.diasDesdeUltimaLunaRoja += diasTranscurridos;
+			this.diasDesdeUltimoEclipse += diasTranscurridos;
+			this.evaluadaLunaRojaHoy = false;
+			this.evaluadoEclipseHoy = false;
+		}
+
+		// Finalizar fenómenos temporales si el salto los sobrepasa
+		if (this.duracionFenomenoRestante > 0.0) {
+			final double segsSalto = (deltaHoras / 24.0) * this.duracionDiaSegundos;
+			this.duracionFenomenoRestante = Math.max(0.0, this.duracionFenomenoRestante - segsSalto);
+			if (this.duracionFenomenoRestante == 0.0) {
+				this.fenomenoActivo = FenomenoAstronomico.NORMAL;
+			}
+		}
+
+		this.recalcularFotoperiodoYFechasSiCambioDia();
+		this.calcularColorAmbiente();
+	}
+
+	/**
+	 * Determina si astronómicamente el sol se ha puesto o está en madrugada,
+	 * habilitando el descanso natural en lechos y carpas.
+	 *
+	 * @return true si es hora crepuscular, nocturna o madrugada temprana.
+	 */
+	public boolean esHorarioAptoParaDormir() {
+		final double h = this.horaActual;
+		final double hAnochecer = this.horaAtardecerActual + 1.0;
+		final double hFinMadrugada = this.horaAmanecerActual - 0.5;
+
+		return (h >= hAnochecer) || (h <= hFinMadrugada);
+	}
+
 	private void actualizarEstrellasFugaces(final double dt) {
 		if (this.fenomenoActivo == FenomenoAstronomico.LLUVIA_ESTRELLAS) {
 			this.temporizadorSpawnEstrella += dt;

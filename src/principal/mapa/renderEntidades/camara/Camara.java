@@ -46,6 +46,7 @@ public class Camara {
 	private boolean cinematicaActiva = false;
 	private double alturaLetterboxActual = 0.0;
 	private double alturaLetterboxObjetivo = 0.0;
+	private double offsetZoomTransicion = 0.0;
 
 	public Camara(final Ente entidadEnfocada) {
 		this.gestorLimite = new GestorDeLimites();
@@ -201,7 +202,7 @@ public class Camara {
 
 	public double getZoomFinal() {
 		final double zoomBaseConEfectos = Math.max(0.2,
-				this.zoom + this.gestorEfectos.getOffsetZoom() + this.offsetSpeedZoom);
+				this.zoom + this.gestorEfectos.getOffsetZoom() + this.offsetSpeedZoom + this.offsetZoomTransicion);
 		final double rotacion = this.gestorEfectos.getAnguloRotacion();
 
 		if (rotacion == 0.0) {
@@ -213,6 +214,14 @@ public class Camara {
 		final double factorCompensacionRotacion = Math.cos(rotAbs) + (aspecto * Math.sin(rotAbs));
 
 		return zoomBaseConEfectos * factorCompensacionRotacion;
+	}
+
+	public void setOffsetZoomTransicion(final double offset) {
+		this.offsetZoomTransicion = offset;
+	}
+
+	public double getOffsetZoomTransicion() {
+		return this.offsetZoomTransicion;
 	}
 
 	public void setEntidadEnfocada(final Ente e) {

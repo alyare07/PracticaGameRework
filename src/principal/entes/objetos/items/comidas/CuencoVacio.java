@@ -71,11 +71,11 @@ public class CuencoVacio extends Consumible {
 
 			final String origen = cercaAgua ? "+Agua de Río" : "+Agua de Lluvia";
 			Globales.GESTOR_TEXTOS.agregarTexto(origen, j.getCentroX(), j.getPosicionYInt() - 8,
-					TipoTextoFlotante.AGUA_SED);
+					TipoTextoFlotante.ESTADO);
 		} else {
 			GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 			Globales.GESTOR_TEXTOS.agregarTexto("¡Requiere agua o lluvia!", j.getCentroX(), j.getPosicionYInt() - 8,
-					TipoTextoFlotante.ESTADO);
+					TipoTextoFlotante.BLOQUEO);
 		}
 	}
 

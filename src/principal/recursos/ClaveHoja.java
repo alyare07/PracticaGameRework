@@ -17,6 +17,7 @@ public enum ClaveHoja {
 	// --- OBJETOS ---
 	FOGATA("/imagenes/sprites/objetos/campfire.png", 16, 16),
 	ARBUSTO_COSECHABLES("/imagenes/objetos/comidas/arbustos_cosechables.png", 16, 16),
+	OBJETOS_X16("/imagenes/objetos/objetos_X16.png", 16, 16), OBJETOS_X32("/imagenes/objetos/objetos_X32.png", 32, 32),
 
 	// --- Proyectiles y Habilidades ---
 	BOLA_FUEGO("/imagenes/sprites/firebolt.png", 16, 16),
@@ -30,7 +31,7 @@ public enum ClaveHoja {
 	COFRES_16("/imagenes/objetos/cofres.png", 16, 16),
 
 	// --- Ítems y Equipamiento ---
-	ITEMS_16("/imagenes/objetos/items.png", 16, 16), ITEMS_10("/imagenes/objetos/itemsx10.png", 10, 10),
+	ITEMS_16("/imagenes/objetos/items.png", 16, 16), ITEMS_12("/imagenes/objetos/itemsx12.png", 12, 12),
 	ITEMS_16_COMIDAS("/imagenes/objetos/comidas/foods1x16.png", 16, 16),
 	ITEMS_12_COMIDAS("/imagenes/objetos/comidas/foods1x12.png", 12, 12),
 	ITEMS_16_COMIDAS2("/imagenes/objetos/comidas/foods2x16.png", 16, 16),

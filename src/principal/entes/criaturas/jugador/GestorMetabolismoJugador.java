@@ -5,28 +5,28 @@ import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 
 /**
- * Gestor metabólico de fisiología interna del jugador: digestión de calorías
- * (hambre), balance hídrico (sed), daño letal por inanición y aceleración por
- * esfuerzo físico o severidad térmica (Zero-GC / O(1)).
+ * Gestor metabólico y fisiológico del jugador: digestión de calorías (hambre),
+ * balance hídrico (sed), ciclo de sueño/somnolencia (energía) y catch-up
+ * analítico en forma cerrada O(1) tras el descanso.
  * 
- * @version 1.0 (Vanilla Java 8)
+ * @version 2.0 (Vanilla Java 8 - Tri-Metabolic Sleep Engine)
  */
 public class GestorMetabolismoJugador {
 
 	public static final double MAX_VALOR = 100.0;
 
 	// Tasas base de consumo por hora in-game (24h solares = 1800s reales)
-	// Hambre: dura ~25 horas de juego sin comer
-	public static final double TASA_BASE_HAMBRE_HORA = 4.0;
-	// Sed: dura ~15.4 horas de juego sin beber
-	public static final double TASA_BASE_SED_HORA = 6.5;
+	public static final double TASA_BASE_HAMBRE_HORA = 4.0; // ~25 horas sin comer
+	public static final double TASA_BASE_SED_HORA = 6.5; // ~15.4 horas sin beber
+	public static final double TASA_BASE_SUENIO_HORA = 6.25; // ~16 horas de vigilia
 
-	// Umbrales de advertencia
+	// Umbrales de advertencia y colapso
 	public static final double UMBRAL_ALERTA_LEVE = 25.0;
 	public static final double UMBRAL_CRITICO = 0.0;
 
 	private double hambre = MAX_VALOR;
 	private double sed = MAX_VALOR;
+	private double suenio = MAX_VALOR;
 	private boolean simulacionHabilitada = true;
 
 	// Cadencia de daño por inanición (cada 3 segundos reales)
@@ -45,7 +45,7 @@ public class GestorMetabolismoJugador {
 			return;
 		}
 
-		// 1. Conversión de tiempo real (segundos) a horas solares in-game
+		// 1. Conversión de tiempo real a horas solares in-game
 		final double duracionDia = Math.max(10.0, Globales.GESTOR_ASTRONOMICO.getDuracionDiaSegundos());
 		final double horasPorSegundo = (24.0 / duracionDia)
 				* (Globales.GESTOR_ASTRONOMICO.isTiempoPausado() ? 0.0 : 1.0);
@@ -62,29 +62,27 @@ public class GestorMetabolismoJugador {
 		// 3. Multiplicadores por esfuerzo físico (Correr acelera el gasto)
 		double multEsfuerzoHambre = 1.0;
 		double multEsfuerzoSed = 1.0;
+		double multEsfuerzoSuenio = 1.0;
 
 		if (Globales.JUGADOR.tieneEstado(Estado.CORRIENDO)) {
 			multEsfuerzoHambre = 1.45;
 			multEsfuerzoSed = 1.65;
+			multEsfuerzoSuenio = 1.30;
 		}
 
-		// 4. Modulación termodinámica cruzada (Unidireccional desde GestorTermicoJugador)
+		// 4. Modulación termodinámica cruzada
 		double multTermicoHambre = 1.0;
 		double multTermicoSed = 1.0;
 
 		if (Globales.GESTOR_TERMICO_JUGADOR != null) {
-			// El temblor muscular por frío (Hipotermia) consume calorías para generar calor
 			if (Globales.GESTOR_TERMICO_JUGADOR.isHipotermia()) {
 				multTermicoHambre = Globales.GESTOR_TERMICO_JUGADOR.isHipotermiaSevera() ? 2.0 : 1.5;
 			}
-
-			// La hipertermia / bochorno acelera drásticamente la deshidratación por sudoración
 			if (Globales.GESTOR_TERMICO_JUGADOR.isHipertermia()) {
 				multTermicoSed = 2.4;
 			}
 		}
 
-		// Tormenta de arena o calor seco extremo en el exterior
 		if ((Globales.GESTOR_CLIMA != null) && (Globales.GESTOR_CLIMA.getTemperaturaCelsius() > 30.0)) {
 			multTermicoSed = Math.max(multTermicoSed, 1.8);
 		}
@@ -93,9 +91,11 @@ public class GestorMetabolismoJugador {
 		final double gastoHambre = TASA_BASE_HAMBRE_HORA * multDifHambre * multEsfuerzoHambre * multTermicoHambre
 				* deltaHoras;
 		final double gastoSed = TASA_BASE_SED_HORA * multDifSed * multEsfuerzoSed * multTermicoSed * deltaHoras;
+		final double gastoSuenio = TASA_BASE_SUENIO_HORA * multEsfuerzoSuenio * deltaHoras;
 
 		this.hambre = Math.max(0.0, this.hambre - gastoHambre);
 		this.sed = Math.max(0.0, this.sed - gastoSed);
+		this.suenio = Math.max(0.0, this.suenio - gastoSuenio);
 
 		// 6. Proceso de daño por inanición a 0% de hambre
 		this.procesarInanicion();
@@ -106,7 +106,6 @@ public class GestorMetabolismoJugador {
 			return;
 		}
 
-		// Si el hambre es 0, evalúa el daño cada 3 segundos
 		if (this.gtDanioInanicion.transcurrioMiliSegundos(INTERVALO_MS_INANICION)) {
 			this.gtDanioInanicion.establecerReferenciaTiempoActual();
 
@@ -118,9 +117,45 @@ public class GestorMetabolismoJugador {
 		}
 	}
 
-	// =========================================================================
-	// === INGESTA DE ALIMENTOS Y LÍQUIDOS (CONSUMIBLES)
-	// =========================================================================
+	/**
+	 * Ejecuta el catch-up metabólico en forma cerrada O(1) tras dormir 8 horas.
+	 * Aplica tasa basal de reposo (60% hambre, 50% sed), restaura el sueño al 100%
+	 * y calcula de forma exacta el daño de inanición si el jugador se quedó sin
+	 * comida.
+	 */
+	public void aplicarSaltoTemporalSueno(final double deltaHoras) {
+		final double multDifHambre = (Globales.dificultad != null) ? Globales.dificultad.getMultGastoHambre() : 1.0;
+		final double multDifSed = (Globales.dificultad != null) ? Globales.dificultad.getMultGastoSed() : 1.0;
+
+		// En reposo, el metabolismo basal consume mucho menos
+		final double tasaEfectivaHambre = TASA_BASE_HAMBRE_HORA * multDifHambre * 0.60;
+		final double tasaEfectivaSed = TASA_BASE_SED_HORA * multDifSed * 0.50;
+
+		final double gastoTotalHambre = tasaEfectivaHambre * deltaHoras;
+		final double gastoTotalSed = tasaEfectivaSed * deltaHoras;
+
+		// 1. Verificación de Inanición durante el sueño
+		if (gastoTotalHambre > this.hambre) {
+			final double horasConComida = this.hambre / tasaEfectivaHambre;
+			final double horasEnInanicion = Math.max(0.0, deltaHoras - horasConComida);
+
+			this.hambre = 0.0;
+
+			final double danioPorHoraInanicion = ((Globales.dificultad != null)
+					? Globales.dificultad.getDanioInanicion()
+					: 1.0) * (3600.0 / 3.0);
+			final double danioTotal = horasEnInanicion * (danioPorHoraInanicion / 24.0); // Escalado horario
+
+			if ((danioTotal > 0.0) && (Globales.JUGADOR != null) && !Globales.JUGADOR.isModoDios()) {
+				Globales.JUGADOR.recibirDanioDirecto(danioTotal);
+			}
+		} else {
+			this.hambre = Math.max(0.0, this.hambre - gastoTotalHambre);
+		}
+
+		this.sed = Math.max(0.0, this.sed - gastoTotalSed);
+		this.suenio = MAX_VALOR; // Sueño completamente restaurado tras 8 horas
+	}
 
 	public void ingerir(final double aporteHambre, final double aporteSed) {
 		this.hambre = Math.max(0.0, Math.min(MAX_VALOR, this.hambre + aporteHambre));
@@ -130,6 +165,7 @@ public class GestorMetabolismoJugador {
 	public void reiniciar() {
 		this.hambre = MAX_VALOR;
 		this.sed = MAX_VALOR;
+		this.suenio = MAX_VALOR;
 		this.gtDanioInanicion.establecerReferenciaTiempoActual();
 	}
 
@@ -145,12 +181,20 @@ public class GestorMetabolismoJugador {
 		return this.sed;
 	}
 
+	public double getSuenio() {
+		return this.suenio;
+	}
+
 	public int getHambrePorcentajeInt() {
 		return (int) Math.round(this.hambre);
 	}
 
 	public int getSedPorcentajeInt() {
 		return (int) Math.round(this.sed);
+	}
+
+	public int getSuenioPorcentajeInt() {
+		return (int) Math.round(this.suenio);
 	}
 
 	public boolean isDeshidratado() {
@@ -161,6 +205,10 @@ public class GestorMetabolismoJugador {
 		return this.hambre <= UMBRAL_CRITICO;
 	}
 
+	public boolean isAgotadoExtremo() {
+		return this.suenio <= UMBRAL_CRITICO;
+	}
+
 	public boolean isAlertaHambre() {
 		return this.hambre <= UMBRAL_ALERTA_LEVE;
 	}
@@ -169,12 +217,20 @@ public class GestorMetabolismoJugador {
 		return this.sed <= UMBRAL_ALERTA_LEVE;
 	}
 
+	public boolean isAlertaSuenio() {
+		return this.suenio <= UMBRAL_ALERTA_LEVE;
+	}
+
 	public void setHambre(final double hambre) {
 		this.hambre = Math.max(0.0, Math.min(MAX_VALOR, hambre));
 	}
 
 	public void setSed(final double sed) {
 		this.sed = Math.max(0.0, Math.min(MAX_VALOR, sed));
+	}
+
+	public void setSuenio(final double suenio) {
+		this.suenio = Math.max(0.0, Math.min(MAX_VALOR, suenio));
 	}
 
 	public boolean isSimulacionHabilitada() {

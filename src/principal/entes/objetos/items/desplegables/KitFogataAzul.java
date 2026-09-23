@@ -7,8 +7,8 @@ import org.json.simple.JSONObject;
 
 import principal.construccion.AccionColocacion;
 import principal.entes.criaturas.Criatura;
-import principal.entes.objetos.Fogata;
 import principal.entes.objetos.Objeto;
+import principal.entes.objetos.fabricables.Fogata;
 import principal.entes.objetos.items.Consumible;
 import principal.igu.textos.TipoTextoFlotante;
 import principal.mapa.Mundo;
@@ -39,13 +39,13 @@ public class KitFogataAzul extends Consumible {
 			mundo.meterEntidad(nuevaFogata);
 			Globales.GESTOR_PARTICULAS.emitirMagia(x + 8, y + 8, 12);
 			Globales.GESTOR_TEXTOS.agregarTexto("¡Fogata Mística instalada!", x + 8, y - 8,
-					TipoTextoFlotante.ORO_EXP);
+					TipoTextoFlotante.CRAFTEO_EXITO);
 		}
 	};
 
 	public KitFogataAzul(final int x, final int y, final int cantidad) {
-		super(x, y, cantidad, COD_KIT_FOGATA_AZUL, COD_KIT_FOGATA_AZUL, TexturaItem.MADERA_INV,
-				TexturaItem.MADERA_MAPA, LIMITE_PILA);
+		super(x, y, cantidad, COD_KIT_FOGATA_AZUL, COD_KIT_FOGATA_AZUL, TexturaItem.MADERA_INV, TexturaItem.MADERA_MAPA,
+				LIMITE_PILA);
 		this.precioBasePlata = 45L;
 		this.rellenarInfo(this.LISTA_INFO);
 	}

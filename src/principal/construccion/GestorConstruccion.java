@@ -207,7 +207,7 @@ public class GestorConstruccion {
 
 			if (!sigueVisible) {
 				Globales.GESTOR_TEXTOS.agregarTexto("¡Demasiado oscuro!", jx, jy - 10,
-						principal.igu.textos.TipoTextoFlotante.DANIO_NORMAL);
+						principal.igu.textos.TipoTextoFlotante.BLOQUEO);
 				GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 				this.cancelarSmartWalk();
 				return;
@@ -231,7 +231,7 @@ public class GestorConstruccion {
 					this.ejecutarColocacion(this.pendingSnapX, this.pendingSnapY, mundo);
 				} else {
 					Globales.GESTOR_TEXTOS.agregarTexto("¡Espacio bloqueado!", jx, jy - 10,
-							principal.igu.textos.TipoTextoFlotante.DANIO_NORMAL);
+							principal.igu.textos.TipoTextoFlotante.BLOQUEO);
 					GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 				}
 				this.cancelarSmartWalk();
@@ -247,7 +247,7 @@ public class GestorConstruccion {
 			// A. Bloqueo por Oscuridad Total
 			if (!this.celdaIluminada) {
 				Globales.GESTOR_TEXTOS.agregarTexto("¡Demasiado oscuro!", jx, jy - 10,
-						principal.igu.textos.TipoTextoFlotante.DANIO_NORMAL);
+						principal.igu.textos.TipoTextoFlotante.BLOQUEO);
 				GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 				return;
 			}
@@ -275,7 +275,7 @@ public class GestorConstruccion {
 					Globales.JUGADOR.calcularRutaAEstrella(puntoStand.x + 8, puntoStand.y + 8);
 				} else {
 					Globales.GESTOR_TEXTOS.agregarTexto("¡Inaccesible!", jx, jy - 10,
-							principal.igu.textos.TipoTextoFlotante.DANIO_NORMAL);
+							principal.igu.textos.TipoTextoFlotante.BLOQUEO);
 					GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 				}
 			}

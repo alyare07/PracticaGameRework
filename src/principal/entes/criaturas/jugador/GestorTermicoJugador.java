@@ -52,7 +52,7 @@ public class GestorTermicoJugador {
 
 	public void actualizar(final double dt) {
 		if (!this.simulacionHabilitada) {
-			return; // Simulación apagada para pruebas: 0 cálculo y 0 interferencia
+			return;
 		}
 		if ((Globales.JUGADOR == null) || Globales.JUGADOR.estaEliminado()) {
 			return;
@@ -61,21 +61,18 @@ public class GestorTermicoJugador {
 		final double jx = Globales.JUGADOR.getCentroX();
 		final double jy = Globales.JUGADOR.getCentroY();
 
-		// 1. Detección de espacio interior / refugio bajo techo
-		this.bajoTechoInterior = false;
+		// 1. Detección unificada de espacio interior / refugio bajo techo
+		this.bajoTechoInterior = Globales.JUGADOR.isBajoTecho();
 		double tempBaseEspacio = 20.0;
 
 		if ((Globales.JUGADOR.getMundo() != null) && (Globales.JUGADOR.getMundo().getEscenario() != null)) {
 			final MetadatosEscenario meta = Globales.JUGADOR.getMundo().getEscenario().getMetadatos();
-			if (meta != null) {
-				this.bajoTechoInterior = meta.esEspacioInterior();
-				if (meta.getPerfilBioma() != null) {
-					tempBaseEspacio = meta.getPerfilBioma().getTemperaturaBase();
-				}
+			if ((meta != null) && (meta.getPerfilBioma() != null)) {
+				tempBaseEspacio = meta.getPerfilBioma().getTemperaturaBase();
 			}
 		}
 
-		// 2. Escaneo de radiación térmica (fuegos del mundo y antorcha sostenida)
+		// 2. Escaneo de radiación térmica (fuegos del mundo y antorcha)
 		this.escanearRadiacionLuces(jx, jy);
 
 		// 3. Variables climáticas exteriores
@@ -90,7 +87,6 @@ public class GestorTermicoJugador {
 				|| (clima == TipoClima.LLUVIA_ACIDA);
 		final boolean nieve = (clima == TipoClima.NIEVE) || (clima == TipoClima.VENTISCA);
 
-		// Si estás bajo techo, NO te mojas ni estás expuesto a la intemperie
 		this.expuestoAIntemperieFria = !this.bajoTechoInterior && (lluvia || nieve);
 
 		// 4. Aislamiento de prendas
@@ -101,25 +97,17 @@ public class GestorTermicoJugador {
 		// 5. Cálculo de Temperatura Efectiva Percibida
 		double tempPercibida;
 
-		// =====================================================================
-		// CASO A: BAJO TECHO (Refugio Interior - Protegido de viento y precipitación)
-		// =====================================================================
 		if (this.bajoTechoInterior) {
 			tempPercibida = tempBaseEspacio + this.calorRecibidoFuego;
 			if (tempBaseEspacio > 27.0) {
 				tempPercibida += (sofoco * 0.50);
 			}
-		}
-		// =====================================================================
-		// CASO B: EN EL EXTERIOR (A la intemperie)
-		// =====================================================================
-		else {
-			// Multiplicador de convección eólica según el tipo de tormenta
+		} else {
 			double multViento = 1.2;
 			if (clima == TipoClima.VENTISCA) {
-				multViento = 2.2; // El viento polar a 15° roba calor a velocidad extrema
+				multViento = 2.2;
 			} else if (clima == TipoClima.LLUVIA_TORMENTA) {
-				multViento = 1.6; // Ráfagas con gotas gruesas aceleran la pérdida
+				multViento = 1.6;
 			}
 
 			double enfriamientoViento = 0.0;
@@ -130,23 +118,22 @@ public class GestorTermicoJugador {
 			final double factorMitigacionViento = Math.max(0.20, 1.0 - (aislaFrio * 0.05));
 			final double vientoEfectivo = enfriamientoViento * factorMitigacionViento;
 
-			// Penalización por empapado / calado de agua y escarcha
 			double penalizacionCalado = 0.0;
 			switch (clima) {
 			case VENTISCA:
-				penalizacionCalado = 6.5; // Escarcha ártica directa en la piel
+				penalizacionCalado = 6.5;
 				break;
 			case LLUVIA_TORMENTA:
-				penalizacionCalado = 4.5; // Ropa empapada hasta las costuras (Soaked)
+				penalizacionCalado = 4.5;
 				break;
 			case LLUVIA_ACIDA:
 				penalizacionCalado = 3.0;
 				break;
 			case NIEVE:
-				penalizacionCalado = 2.0; // Nieve seca moderada
+				penalizacionCalado = 2.0;
 				break;
 			case LLUVIA_LEVE:
-				penalizacionCalado = 1.2; // Humedad ligera superficial
+				penalizacionCalado = 1.2;
 				break;
 			default:
 				break;
@@ -164,9 +151,6 @@ public class GestorTermicoJugador {
 						+ this.calorRecibidoFuego;
 			} else if (tempExterior > 27.0) {
 				final double bochornoHumedad = Math.max(0.0, (humedad - 0.50) * 7.0);
-
-				// Convección eólica caliente: en tormenta de arena el viento a >35°C actúa como
-				// secador de pelo
 				double conveccionVientoCaliente = 0.0;
 				if ((clima == TipoClima.TORMENTA_ARENA) && (Globales.GESTOR_CLIMA != null)) {
 					conveccionVientoCaliente = Globales.GESTOR_CLIMA.getFuerzaViento() * 1.8;
@@ -175,43 +159,19 @@ public class GestorTermicoJugador {
 				tempPercibida = ((tempExterior + bochornoHumedad + conveccionVientoCaliente) - (aislaCalor * 0.85))
 						+ (sofoco * 0.60) + this.calorRecibidoFuego;
 			} else {
-				// Clima fresco (10°C - 20°C): El empapado y el viento siguen enfriando al
-				// jugador
 				tempPercibida = (tempExterior - vientoEfectivo - caladoEfectivo) + this.calorRecibidoFuego;
 			}
 		}
 
-		// 6. Transferencia e inercia térmica modulada por dificultad y severidad
-		// climática
+		// 6. Inercia térmica
 		final double factorInercia = (Globales.dificultad != null) ? Globales.dificultad.getFactorInerciaTermica()
 				: 1.0;
 		double velocidadCambio = 0.055 * factorInercia;
 
 		if (this.cercaDeFuenteCalor) {
-			velocidadCambio *= 2.5; // El fuego recalienta rápido
+			velocidadCambio *= 2.5;
 		} else if (this.expuestoAIntemperieFria) {
-			double multiplicadorIntemperie;
-			switch (clima) {
-			case VENTISCA:
-				multiplicadorIntemperie = 3.8;
-				break;
-			case LLUVIA_TORMENTA:
-				multiplicadorIntemperie = 2.5;
-				break;
-			case NIEVE:
-			case LLUVIA_ACIDA:
-				multiplicadorIntemperie = 2.0;
-				break;
-			case LLUVIA_LEVE:
-			default:
-				multiplicadorIntemperie = 1.5;
-				break;
-			}
-			velocidadCambio *= multiplicadorIntemperie;
-			// NUEVO: La exposición directa al vendaval de arena a más de 30°C acelera el
-			// golpe de calor (Hipertermia)
-		} else if ((clima == TipoClima.TORMENTA_ARENA) && !this.bajoTechoInterior && (tempExterior > 30.0)) {
-			velocidadCambio *= 2.4;
+			velocidadCambio *= 2.0;
 		} else if (this.bajoTechoInterior) {
 			velocidadCambio *= 1.5;
 		}
@@ -230,9 +190,20 @@ public class GestorTermicoJugador {
 		this.temperaturaCorporal += (tempObjetivoCuerpo - this.temperaturaCorporal) * (dt * velocidadCambio);
 		this.tendenciaTermica = this.temperaturaCorporal - prevTemp;
 
-		// 7. Conexión reactiva con Efectos de Estado (Hipotermia / Hipertermia /
-		// Temblor de cámara)
 		this.actualizarEfectosEstadoAmbientales();
+	}
+
+	/**
+	 * Estabiliza la temperatura corporal al despertar tras descansar bajo abrigo.
+	 */
+	public void estabilizarPorDescanso() {
+		this.temperaturaCorporal = TEMP_NOMINAL_CUERPO;
+		this.tendenciaTermica = 0.0;
+		this.expuestoAIntemperieFria = false;
+		if (Globales.JUGADOR != null) {
+			Globales.JUGADOR.removerEfecto(TipoEfectoEstado.HIPOTERMIA);
+			Globales.JUGADOR.removerEfecto(TipoEfectoEstado.HIPERTERMIA);
+		}
 	}
 
 	private void actualizarEfectosEstadoAmbientales() {

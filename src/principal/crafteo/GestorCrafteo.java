@@ -117,8 +117,9 @@ public class GestorCrafteo implements AccionEntidad<Objeto> {
 						Globales.CAMARA.getEntidadEnfocada().getPosicionY());
 			}
 
-			Globales.GESTOR_TEXTOS.agregarTexto("¡" + receta.getNombreVisible() + "!", Globales.JUGADOR.getCentroX(),
-					Globales.JUGADOR.getPosicionYInt() - 8, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+			Globales.GESTOR_TEXTOS.agregarTextoFijo("¡" + receta.getNombreVisible() + "!",
+					Globales.RATON.getPosicionXEscalada(), Globales.RATON.getPosicionYEscalada(),
+					principal.igu.textos.TipoTextoFlotante.CRAFTEO_EXITO);
 		}
 
 		return exito;

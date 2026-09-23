@@ -1,11 +1,10 @@
-package principal.entes.objetos;
+package principal.entes.objetos.fabricables;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
-import java.io.Serializable;
 
 import org.json.simple.JSONObject;
 
@@ -18,6 +17,7 @@ import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.efectos.TipoEfectoEstado;
+import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.materiales.RecursoMaterial;
 import principal.iluminacion.TipoLuz;
 import principal.iluminacion.ZonaAmbiente;
@@ -32,27 +32,19 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Entidad física de Fogata / Estación de Cocina y Santuario Místico Universal
- * (Zero-GC / O(1)).
+ * Entidad física de Fogata que hereda de ObjetoFabricable (Zero-GC / O(1)).
  * 
- * @version 2.2 (Vanilla Java 8 - Universal Mystic Sanctuary)
+ * @version 3.0 (Vanilla Java 8 - ObjetoFabricable Architecture)
  */
-public class Fogata extends Objeto implements EstacionInteractiva, Interactuable, Serializable {
+public class Fogata extends ObjetoFabricable implements EstacionInteractiva, Interactuable {
 
 	private static final long serialVersionUID = 1L;
 
-	// =========================================================================
-	// === 1. CONSTANTES DE CONFIGURACIÓN
-	// =========================================================================
 	public static final int CAPACIDAD_MAX_MADERA = 10;
 	public static final double SEGUNDOS_POR_MADERA = 60.0;
-	public static final double VIDA_MAXIMA = 30.0;
-	private static final int TIEMPO_MS_FLASH_DANIO = 65;
+	public static final double VIDA_FOGATA = 30.0;
 	public static final String COD_ANILLO_INFUSION = "Anillo de Oro";
 
-	// =========================================================================
-	// === 2. ESTADO LÓGICO Y COMBUSTIBLE
-	// =========================================================================
 	private int maderaAlmacenada;
 	private double tiempoCombustibleRestante;
 	private double tiempoResistenciaLluvia = 5.0;
@@ -60,20 +52,13 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 	private boolean fuegoAzul;
 	private int estadoVisual;
 
-	private double vida;
 	private final AnimacionesFogata animaciones;
-	private final GestorTiempo GT_FLASH_DANIO;
 	private final GestorTiempo GT_DANIO_CONTACTO;
 	private final GestorTiempo GT_AURA_REGEN;
 	private final Rectangle areaAuraCurativa = new Rectangle();
 	private final Rectangle areaContactoFuego = new Rectangle();
 	private final int radio;
 
-	// =========================================================================
-	// === 3. VISITORS PREASIGNADOS ZERO-GC
-	// =========================================================================
-
-	// A. Daño térmico y quemadura al rozar o pisar el perímetro del fuego
 	private final AccionEntidad<Criatura> accionQuemarContacto = new AccionEntidad<Criatura>() {
 		@Override
 		public void ejecutar(final Criatura victima) {
@@ -85,7 +70,6 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 		}
 	};
 
-	// B. Aura curativa universal del Fuego Azul (Santuario para toda criatura viva)
 	private final AccionEntidad<Criatura> accionAuraCurativa = new AccionEntidad<Criatura>() {
 		@Override
 		public void ejecutar(final Criatura criatura) {
@@ -96,20 +80,15 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 		}
 	};
 
-	public Fogata(final int x, final int y) {
-		this(x, y, 2, true, false);
-	}
-
-	public Fogata(final int x, final int y, final int maderaInicial, final boolean encendida, final boolean fuegoAzul) {
-		super(x, y);
+	public Fogata(final int x, final int y, final int maderaInicial, final boolean encendida, final boolean fuegoAzul,
+			final Ente propietario) {
+		super(x, y, VIDA_FOGATA, propietario);
 		this.maderaAlmacenada = Math.max(0, Math.min(CAPACIDAD_MAX_MADERA, maderaInicial));
 		this.encendida = encendida && (this.maderaAlmacenada > 0);
 		this.fuegoAzul = fuegoAzul;
 		this.tiempoCombustibleRestante = this.encendida ? SEGUNDOS_POR_MADERA : 0.0;
 
-		this.vida = VIDA_MAXIMA;
 		this.animaciones = new AnimacionesFogata();
-		this.GT_FLASH_DANIO = new GestorTiempo();
 		this.GT_DANIO_CONTACTO = new GestorTiempo();
 		this.GT_AURA_REGEN = new GestorTiempo();
 
@@ -117,25 +96,25 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 		this.radio = 45;
 	}
 
-	// =========================================================================
-	// === CICLO DE ACTUALIZACIÓN LÓGICA (60 APS)
-	// =========================================================================
+	public Fogata(final int x, final int y, final int maderaInicial, final boolean encendida, final boolean fuegoAzul) {
+		this(x, y, maderaInicial, encendida, fuegoAzul, Globales.JUGADOR);
+	}
+
+	public Fogata(final int x, final int y) {
+		this(x, y, 2, true, false, Globales.JUGADOR);
+	}
 
 	@Override
 	public void actualizar() {
 		super.actualizar();
-
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
 
-		// 1. Sincronización lumínica
 		this.actualizarLuz();
 
-		// 2. Simulación de combustión, clima y efectos térmicos
 		if (this.encendida) {
 			this.actualizarCombustion(dt);
 			this.actualizarDanioContacto();
 
-			// Pulso sanador universal si es Fuego Azul
 			if (this.fuegoAzul && (this.mundo != null)) {
 				if (this.GT_AURA_REGEN.transcurrioMiliSegundos(1000)) {
 					this.GT_AURA_REGEN.establecerReferenciaTiempoActual();
@@ -146,14 +125,12 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 			}
 		}
 
-		// 3. Transición visual de extinción
 		if (this.estadoVisual == AnimacionesFogata.APAGADA_HUMO) {
 			if (this.animaciones.animacionFinalizada(AnimacionesFogata.APAGADA_HUMO)) {
 				this.estadoVisual = AnimacionesFogata.BASE;
 			}
 		}
 
-		// 4. Animación gráfica
 		this.animaciones.actualizar(this.estadoVisual);
 	}
 
@@ -196,7 +173,6 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 
 			if (velocidadSofocacion > 0.0) {
 				this.tiempoResistenciaLluvia -= (dt * velocidadSofocacion);
-
 				if ((Globales.animacion % 15) == 0) {
 					Globales.GESTOR_PARTICULAS.emitirExplosion(this.getCentroX(), this.getCentroY(), 1);
 				}
@@ -206,7 +182,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 					this.apagar();
 					if (this.mundo != null) {
 						Globales.GESTOR_TEXTOS.agregarTexto("¡Apagada por la lluvia!", this.getCentroX(),
-								this.getPosicionYInt() - 8, principal.igu.textos.TipoTextoFlotante.DANIO_NORMAL);
+								this.getPosicionYInt() - 8, principal.igu.textos.TipoTextoFlotante.BLOQUEO);
 					}
 					return;
 				}
@@ -214,7 +190,6 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 		}
 
 		this.tiempoCombustibleRestante -= dt;
-
 		if (this.tiempoCombustibleRestante <= 0.0) {
 			this.maderaAlmacenada--;
 			if (this.maderaAlmacenada > 0) {
@@ -239,7 +214,6 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 	private void actualizarLuz() {
 		if (this.encendida) {
 			final TipoLuz tipoDeseado = this.fuegoAzul ? TipoLuz.FOGATA_AZUL : TipoLuz.FOGATA;
-
 			if ((this.luzAsignada == null) || !this.luzAsignada.isActiva()) {
 				if (Globales.GESTOR_LUZ != null) {
 					this.luzAsignada = Globales.GESTOR_LUZ.agregarLuzAnclada(this, tipoDeseado, this.radio);
@@ -259,10 +233,6 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 			this.estadoVisual = AnimacionesFogata.BASE;
 		}
 	}
-
-	// =========================================================================
-	// === MÉTODOS DE CONTROL DE FUEGO
-	// =========================================================================
 
 	public void encender(final boolean fuegoAzul) {
 		if (this.maderaAlmacenada <= 0) {
@@ -300,51 +270,13 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 		return true;
 	}
 
-	// =========================================================================
-	// === DAÑO Y DESTRUCCIÓN
-	// =========================================================================
-
-	public void recibirAtaque(final double damage, final Ente causante) {
-		if (this.eliminado || (damage <= 0.0)) {
-			return;
-		}
-
-		this.vida = Math.max(0.0, this.vida - damage);
-		this.GT_FLASH_DANIO.establecerReferenciaTiempoActual();
-		GestorSonido.reproducir(IDSonido.GOLPE_1);
-
-		if (this.mundo != null) {
-			Globales.GESTOR_TEXTOS.agregarDanio((int) Math.ceil(damage), this.getPosicionX(), this.getPosicionY(),
-					false);
-		}
-
-		if (this.vida <= 0.0) {
-			this.destruir();
+	@Override
+	protected void alDestruir(final Ente causante) {
+		if ((this.mundo != null) && (this.maderaAlmacenada > 0)) {
+			this.mundo.meterEntidad(
+					RecursoMaterial.crearMadera(this.getPosicionXInt(), this.getPosicionYInt(), this.maderaAlmacenada));
 		}
 	}
-
-	private void destruir() {
-		if (this.mundo != null) {
-			if (this.maderaAlmacenada > 0) {
-				this.mundo.meterEntidad(RecursoMaterial.crearMadera(this.getPosicionXInt(), this.getPosicionYInt(),
-						this.maderaAlmacenada));
-			}
-
-			Globales.GESTOR_PARTICULAS.emitirExplosion(this.getCentroX(), this.getCentroY(), 8);
-
-			if (Globales.GESTOR_DELTAS != null) {
-				Globales.GESTOR_DELTAS.registrarDestruccion(this.mundo, this.getPosicionXInt(), this.getPosicionYInt());
-			}
-
-			this.mundo.notificarModificacionEstructura();
-		}
-
-		this.eliminar();
-	}
-
-	// =========================================================================
-	// === CONTRATOS: INTERACTUABLE ([E], INFUSIÓN Y SHIFT)
-	// =========================================================================
 
 	@Override
 	public String getTextoPrompt() {
@@ -387,7 +319,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 				GestorSonido.reproducir(IDSonido.SELECT);
 				Globales.GESTOR_PARTICULAS.emitirMagia(this.getCentroX(), this.getCentroY(), 15);
 				Globales.GESTOR_TEXTOS.agregarTexto("¡Fuego Místico Despertado!", this.getCentroX(),
-						this.getPosicionYInt() - 8, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+						this.getPosicionYInt() - 8, principal.igu.textos.TipoTextoFlotante.MANA);
 				return;
 			}
 
@@ -402,7 +334,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 					this.agregarMadera(1);
 					GestorSonido.reproducir(IDSonido.SELECT);
 					Globales.GESTOR_TEXTOS.agregarTexto("+1 Leña", this.getCentroX(), this.getPosicionYInt() - 8,
-							principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+							principal.igu.textos.TipoTextoFlotante.ESTADO);
 				} else {
 					this.apagar();
 				}
@@ -416,7 +348,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 			this.maderaAlmacenada = 1;
 			this.encender(this.fuegoAzul);
 			Globales.GESTOR_TEXTOS.agregarTexto("+1 Leña", this.getCentroX(), this.getPosicionYInt() - 8,
-					principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+					principal.igu.textos.TipoTextoFlotante.ESTADO);
 		} else {
 			GestorSonido.reproducir(IDSonido.SIN_MUNICION);
 		}
@@ -427,34 +359,22 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 		return !this.eliminado;
 	}
 
-	// =========================================================================
-	// === CONTRATOS: ESTACIÓN INTERACTIVA
-	// =========================================================================
-
 	@Override
 	public EstacionCrafteo getTipoEstacion() {
 		return this.encendida ? EstacionCrafteo.FOGATA : null;
 	}
 
-	// =========================================================================
-	// === RENDERIZADO (60 FPS)
-	// =========================================================================
-
 	@Override
 	public void pintar(final Graphics2D g) {
-		final boolean enFlash = !this.GT_FLASH_DANIO.transcurrioMiliSegundos(TIEMPO_MS_FLASH_DANIO);
-
+		final boolean enFlash = this.estaEnFlashDanio();
 		this.animaciones.pintar(g, this.getPosicionXInt(), this.getPosicionYInt(), this.estadoVisual, false, true,
 				enFlash);
+		this.pintarIndicadorVida(g);
 
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.isEstadoJuego()) {
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
 		}
 	}
-
-	// =========================================================================
-	// === SERIALIZACIÓN JSON
-	// =========================================================================
 
 	@SuppressWarnings("unchecked")
 	public JSONObject exportarParaJSON() {
@@ -464,6 +384,7 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 		json.put("madera", Integer.valueOf(this.maderaAlmacenada));
 		json.put("encendida", Boolean.valueOf(this.encendida));
 		json.put("fuegoAzul", Boolean.valueOf(this.fuegoAzul));
+		json.put("vida", Double.valueOf(this.vida));
 		return json;
 	}
 
@@ -478,13 +399,12 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 				: true;
 		final boolean fuegoAzul = (json.get("fuegoAzul") != null) ? ((Boolean) json.get("fuegoAzul")).booleanValue()
 				: false;
+		final double vida = (json.get("vida") != null) ? ((Number) json.get("vida")).doubleValue() : VIDA_FOGATA;
 
-		return new Fogata(x, y, madera, encendida, fuegoAzul);
+		final Fogata f = new Fogata(x, y, madera, encendida, fuegoAzul, Globales.JUGADOR);
+		f.setVida(vida);
+		return f;
 	}
-
-	// =========================================================================
-	// === GETTERS, SETTERS Y CONTRATOS DE OBJETO
-	// =========================================================================
 
 	@Override
 	public int getAncho() {
@@ -510,8 +430,10 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 
 	@Override
 	public Objeto copiar() {
-		return new Fogata(this.getPosicionXInt(), this.getPosicionYInt(), this.maderaAlmacenada, this.encendida,
-				this.fuegoAzul);
+		final Fogata copia = new Fogata(this.getPosicionXInt(), this.getPosicionYInt(), this.maderaAlmacenada,
+				this.encendida, this.fuegoAzul, this.propietario);
+		copia.setVida(this.vida);
+		return copia;
 	}
 
 	public boolean isEncendida() {
@@ -536,9 +458,5 @@ public class Fogata extends Objeto implements EstacionInteractiva, Interactuable
 
 	public double getTiempoCombustibleRestante() {
 		return this.tiempoCombustibleRestante;
-	}
-
-	public double getVida() {
-		return this.vida;
 	}
 }

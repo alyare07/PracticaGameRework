@@ -19,7 +19,7 @@ import principal.utilidades.Globales;
  */
 public class GestorInteraccion {
 
-	private static final double RANGO_INTERACCION_MAX = 28.0;
+	private static final double RANGO_INTERACCION_MAX = 36.0; // Ampliado para cubrir objetos 32x32
 	private final Rectangle areaEscaneo = new Rectangle();
 	private final PromptInteraccion promptVisual = new PromptInteraccion();
 
@@ -37,8 +37,10 @@ public class GestorInteraccion {
 			if ((ente instanceof Interactuable) && !ente.estaEliminado()) {
 				final Interactuable candidata = (Interactuable) ente;
 				if (candidata.puedeInteractuar(Globales.JUGADOR)) {
+					// Distancia Euclidiana exacta Centro a Centro
 					final double dx = Globales.JUGADOR.getCentroX() - candidata.getCentroX();
-					final double dy = Globales.JUGADOR.getCentroY() - candidata.getPosicionYInt();
+					final double centroYObj = candidata.getPosicionYInt() + (candidata.getAlto() / 2.0);
+					final double dy = Globales.JUGADOR.getCentroY() - centroYObj;
 					final double distSq = (dx * dx) + (dy * dy);
 
 					if (distSq < GestorInteraccion.this.menorDistanciaSq) {

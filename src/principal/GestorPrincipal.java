@@ -150,7 +150,7 @@ public class GestorPrincipal {
 		Globales.TECLADO.actualizar();
 		this.gestorEstados.actualizar();
 		Globales.CAMARA.actualizar();
-
+		Globales.GESTOR_TEXTOS.actualizarFijos();
 		this.siguienteAnimacion();
 		this.actualizacionesAcumuladas++;
 		this.actualizarCodActualizacion();

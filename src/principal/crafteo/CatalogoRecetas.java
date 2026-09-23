@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
+import principal.entes.objetos.items.desplegables.KitCama;
 import principal.entes.objetos.items.desplegables.KitFogata;
 import principal.entes.objetos.items.herramientas.Herramienta;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
@@ -64,6 +65,9 @@ public final class CatalogoRecetas {
 		// 8. Granada T1 (Mesa de Trabajo: 8 Piedra | Pide Inteligencia: 12)
 		registrarReceta(new RecetaCrafteo("granada_t1", "Granada T1", EstacionCrafteo.MESA_TRABAJO,
 				new Ingrediente[] { new Ingrediente(RecursoMaterial.COD_PIEDRA, 8) }, new GranadaT1(1), 0, 0, 12));
+		// 9. Cama (A mano)
+		registrarReceta(new RecetaCrafteo("cama_base", "Cama", EstacionCrafteo.MANUAL,
+				new Ingrediente[] { new Ingrediente(RecursoMaterial.COD_MADERA, 3) }, new KitCama(1), 0, 0, 0));
 
 		// --------------------EJEMPLO TEMPORAL Y DE PRUEBA -----------------------
 		// Ejemplo: Caldo Lunar Nocturno (Exige cocinar de noche: 21:00 a 04:30)

@@ -74,8 +74,8 @@ public class MenuConfiguracion extends Menu {
 						this.cajasTeclas.get(i).aplicarCambios();
 					}
 					Globales.TECLADO.guardarConfig();
-					Globales.GESTOR_TEXTOS.agregarTexto("Configuracion Guardada", Constantes.CENTROX,
-							Constantes.CENTROY - 40, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+					Globales.GESTOR_TEXTOS.agregarTextoFijo("Configuracion Guardada", Constantes.CENTROX,
+							Constantes.CENTROY - 40, principal.igu.textos.TipoTextoFlotante.AVISO_SISTEMA);
 				});
 
 		this.botonVolver = new BotonPixel("Volver", new Rectangle(Constantes.CENTROX + 10, yBotones, 100, 18), () -> {

@@ -3,37 +3,58 @@ package principal.igu.textos;
 import java.awt.Graphics2D;
 import java.util.Random;
 
+import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 
 /**
- * Gestor centralizado de textos flotantes de combate (Zero-GC / O(1)).
+ * Gestor centralizado de textos flotantes del mundo y notificaciones fijas de
+ * pantalla (Zero-GC / O(1)).
  * 
- * @version 1.1 (Vanilla Java 8)
+ * @version 2.0 (Vanilla Java 8 - Dual Pool Architecture)
  */
 public class GestorTextosFlotantes {
 
-	private static final int CAPACIDAD_MAXIMA = 64;
+	private static final int CAPACIDAD_MUNDO = 64;
+	private static final int CAPACIDAD_FIJOS = 32;
 
-	private final TextoFlotante[] pool;
-	private final TextoFlotante[] activos;
-	private int cantidadActivos;
-	private int punteroCircular;
+	// === 1. POOL DE TEXTOS DEL MUNDO (COMBATE / RECURSOS) ===
+	private final TextoFlotante[] poolMundo;
+	private final TextoFlotante[] activosMundo;
+	private int cantidadActivosMundo;
+	private int punteroCircularMundo;
+
+	// === 2. POOL DE TEXTOS FIJOS DE PANTALLA (HUD / SISTEMA / MENÚS) ===
+	private final TextoFlotante[] poolFijos;
+	private final TextoFlotante[] activosFijos;
+	private int cantidadActivosFijos;
+	private int punteroCircularFijos;
+
 	private final Random random;
 
 	public GestorTextosFlotantes() {
-		this.pool = new TextoFlotante[CAPACIDAD_MAXIMA];
-		this.activos = new TextoFlotante[CAPACIDAD_MAXIMA];
-		this.cantidadActivos = 0;
-		this.punteroCircular = 0;
 		this.random = new Random();
 
-		for (int i = 0; i < CAPACIDAD_MAXIMA; i++) {
-			this.pool[i] = new TextoFlotante();
+		// Inicialización del pool de mundo
+		this.poolMundo = new TextoFlotante[CAPACIDAD_MUNDO];
+		this.activosMundo = new TextoFlotante[CAPACIDAD_MUNDO];
+		this.cantidadActivosMundo = 0;
+		this.punteroCircularMundo = 0;
+		for (int i = 0; i < CAPACIDAD_MUNDO; i++) {
+			this.poolMundo[i] = new TextoFlotante();
+		}
+
+		// Inicialización del pool de textos fijos
+		this.poolFijos = new TextoFlotante[CAPACIDAD_FIJOS];
+		this.activosFijos = new TextoFlotante[CAPACIDAD_FIJOS];
+		this.cantidadActivosFijos = 0;
+		this.punteroCircularFijos = 0;
+		for (int i = 0; i < CAPACIDAD_FIJOS; i++) {
+			this.poolFijos[i] = new TextoFlotante();
 		}
 	}
 
 	// =========================================================================
-	// === MÉTODOS DE DISPARO RÁPIDO (API PÚBLICA)
+	// === A. TEXTOS FLOTANTES DEL MUNDO (REFERENCIADOS A CÁMARA)
 	// =========================================================================
 
 	public void agregarDanio(final int danio, final double x, final double y, final boolean critico) {
@@ -52,59 +73,117 @@ public class GestorTextosFlotantes {
 		}
 
 		final double dispersion = (this.random.nextDouble() * 2.0) - 1.0;
+		final TextoFlotante tf = this.poolMundo[this.punteroCircularMundo];
+		this.punteroCircularMundo = (this.punteroCircularMundo + 1) % CAPACIDAD_MUNDO;
 
-		final TextoFlotante tf = this.pool[this.punteroCircular];
-		this.punteroCircular = (this.punteroCircular + 1) % CAPACIDAD_MAXIMA;
-
-		final boolean yaEstabaEnActivos = tf.isActivo();
-
+		final boolean yaEstaba = tf.isActivo();
 		tf.activar(texto, x, y, tipo, dispersion);
 
-		if (!yaEstabaEnActivos && (this.cantidadActivos < CAPACIDAD_MAXIMA)) {
-			this.activos[this.cantidadActivos] = tf;
-			this.cantidadActivos++;
+		if (!yaEstaba && (this.cantidadActivosMundo < CAPACIDAD_MUNDO)) {
+			this.activosMundo[this.cantidadActivosMundo] = tf;
+			this.cantidadActivosMundo++;
 		}
 	}
 
 	// =========================================================================
-	// === CICLO DE VIDA (GAME LOOP)
+	// === B. TEXTOS FIJOS DE PANTALLA (COORDENADAS FIJAS 640x360)
+	// =========================================================================
+
+	public void agregarTextoFijo(final String texto, final double xPantalla, final double yPantalla,
+			final TipoTextoFlotante tipo) {
+		if ((texto == null) || texto.isEmpty()) {
+			return;
+		}
+
+		final double dispersion = (this.random.nextDouble() * 0.8) - 0.4;
+		final TextoFlotante tf = this.poolFijos[this.punteroCircularFijos];
+		this.punteroCircularFijos = (this.punteroCircularFijos + 1) % CAPACIDAD_FIJOS;
+
+		final boolean yaEstaba = tf.isActivo();
+		tf.activar(texto, xPantalla, yPantalla, tipo, dispersion);
+
+		if (!yaEstaba && (this.cantidadActivosFijos < CAPACIDAD_FIJOS)) {
+			this.activosFijos[this.cantidadActivosFijos] = tf;
+			this.cantidadActivosFijos++;
+		}
+	}
+
+	public void agregarTextoFijo(final String texto, final double xPantalla, final double yPantalla) {
+		this.agregarTextoFijo(texto, xPantalla, yPantalla, TipoTextoFlotante.AVISO_SISTEMA);
+	}
+
+	/**
+	 * Emite una notificación en la parte superior central de la pantalla fija.
+	 */
+	public void emitirAvisoPantalla(final String texto, final TipoTextoFlotante tipo) {
+		this.agregarTextoFijo(texto, Constantes.CENTROX - 40, 50, tipo);
+	}
+
+	// =========================================================================
+	// === C. CICLO DE VIDA (GAME LOOP)
 	// =========================================================================
 
 	public void actualizar() {
 		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
 
 		int i = 0;
-		while (i < this.cantidadActivos) {
-			final TextoFlotante tf = this.activos[i];
+		while (i < this.cantidadActivosMundo) {
+			final TextoFlotante tf = this.activosMundo[i];
 			tf.actualizar(dt);
 
 			if (tf.isActivo()) {
 				i++;
 			} else {
-				this.activos[i] = this.activos[this.cantidadActivos - 1];
-				this.activos[this.cantidadActivos - 1] = null;
-				this.cantidadActivos--;
+				this.activosMundo[i] = this.activosMundo[this.cantidadActivosMundo - 1];
+				this.activosMundo[this.cantidadActivosMundo - 1] = null;
+				this.cantidadActivosMundo--;
+			}
+		}
+	}
+
+	public void actualizarFijos() {
+		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
+
+		int i = 0;
+		while (i < this.cantidadActivosFijos) {
+			final TextoFlotante tf = this.activosFijos[i];
+			tf.actualizar(dt);
+
+			if (tf.isActivo()) {
+				i++;
+			} else {
+				this.activosFijos[i] = this.activosFijos[this.cantidadActivosFijos - 1];
+				this.activosFijos[this.cantidadActivosFijos - 1] = null;
+				this.cantidadActivosFijos--;
 			}
 		}
 	}
 
 	public void pintar(final Graphics2D g) {
-		for (int i = 0; i < this.cantidadActivos; i++) {
-			this.activos[i].pintar(g);
+		for (int i = 0; i < this.cantidadActivosMundo; i++) {
+			this.activosMundo[i].pintar(g);
+		}
+	}
+
+	public void pintarFijos(final Graphics2D g) {
+		for (int i = 0; i < this.cantidadActivosFijos; i++) {
+			this.activosFijos[i].pintarFijo(g);
 		}
 	}
 
 	public void limpiar() {
-		for (int i = 0; i < this.cantidadActivos; i++) {
-			this.activos[i] = null;
+		for (int i = 0; i < this.cantidadActivosMundo; i++) {
+			this.activosMundo[i] = null;
 		}
-		this.cantidadActivos = 0;
-		for (int i = 0; i < CAPACIDAD_MAXIMA; i++) {
-			this.pool[i].actualizar(100.0);
+		this.cantidadActivosMundo = 0;
+
+		for (int i = 0; i < this.cantidadActivosFijos; i++) {
+			this.activosFijos[i] = null;
 		}
+		this.cantidadActivosFijos = 0;
 	}
 
 	public int getCantidadActivos() {
-		return this.cantidadActivos;
+		return this.cantidadActivosMundo + this.cantidadActivosFijos;
 	}
 }

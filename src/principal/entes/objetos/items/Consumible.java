@@ -205,6 +205,14 @@ public abstract class Consumible extends Item {
 		if (codModelo.equals(KitFogataAzul.COD_KIT_FOGATA_AZUL) || codModelo.equals("KitFogataAzul")) {
 			return KitFogataAzul.crearDesdeJson(json);
 		}
+		if (codModelo.equals(principal.entes.objetos.items.desplegables.KitCarpa.COD_KIT_CARPA)
+				|| codModelo.equals("KitCarpa")) {
+			return principal.entes.objetos.items.desplegables.KitCarpa.crearDesdeJson(json);
+		}
+		if (codModelo.equals(principal.entes.objetos.items.desplegables.KitCama.COD_KIT_CAMA)
+				|| codModelo.equals("KitCama")) {
+			return principal.entes.objetos.items.desplegables.KitCama.crearDesdeJson(json);
+		}
 
 		return null;
 	}

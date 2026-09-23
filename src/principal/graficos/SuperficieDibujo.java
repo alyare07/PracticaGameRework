@@ -118,6 +118,7 @@ public class SuperficieDibujo extends Canvas {
 					// 7. Renderizado del estado del juego
 					if (ge != null) {
 						ge.pintar(g);
+						Globales.GESTOR_TEXTOS.pintarFijos(g);
 					}
 
 					// 8. Información Debug

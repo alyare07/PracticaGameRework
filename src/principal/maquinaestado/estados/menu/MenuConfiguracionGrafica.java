@@ -135,8 +135,8 @@ public class MenuConfiguracionGrafica extends Menu {
 				new Rectangle(Constantes.CENTROX - 160, yBotones, anchoBoton + 10, 18), () -> {
 					ConfiguracionGrafica.detectarConfiguracionOptima();
 					this.sincronizarSelectoresConConfig();
-					Globales.GESTOR_TEXTOS.agregarTexto("Hardware Detectado", Constantes.CENTROX,
-							Constantes.CENTROY - 40, TipoTextoFlotante.DANIO_NORMAL);
+					Globales.GESTOR_TEXTOS.agregarTextoFijo("Hardware Detectado", Constantes.CENTROX,
+							Constantes.CENTROY - 40, TipoTextoFlotante.AVISO_SISTEMA);
 				});
 
 		this.botonGuardar = new BotonPixel("Aplicar",
@@ -144,8 +144,8 @@ public class MenuConfiguracionGrafica extends Menu {
 					this.aplicarValoresDeSelectores();
 					ConfiguracionGrafica.aplicar();
 					ConfiguracionGrafica.guardarConfig();
-					Globales.GESTOR_TEXTOS.agregarTexto("Configuracion Aplicada", Constantes.CENTROX,
-							Constantes.CENTROY - 40, TipoTextoFlotante.ORO_EXP);
+					Globales.GESTOR_TEXTOS.agregarTextoFijo("Configuracion Aplicada", Constantes.CENTROX,
+							Constantes.CENTROY - 40, TipoTextoFlotante.AVISO_SISTEMA);
 				});
 
 		this.botonVolver = new BotonPixel("Volver",

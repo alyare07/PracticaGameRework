@@ -31,6 +31,7 @@ public class GestorTexturas {
 	private final HojaSprite[] cacheHojasVolteadasH = new HojaSprite[ClaveHoja.values().length];
 	private final SetTerreno[] setsTerreno = new SetTerreno[TipoTerreno.values().length];
 	private final BufferedImage[] cacheItems = new BufferedImage[TexturaItem.values().length];
+	private final BufferedImage[] cacheObjetos = new BufferedImage[TexturaObjetos.values().length];
 
 	// =========================================================================
 	// === 3. TEXTURAS ESPECIALES DE SISTEMA
@@ -55,6 +56,7 @@ public class GestorTexturas {
 		this.precargarHojasSprites();
 		this.precargarSetsTerreno();
 		this.precargarTexturasItems();
+		this.precargarTexturasObjetos();
 	}
 
 	// =========================================================================
@@ -145,11 +147,28 @@ public class GestorTexturas {
 	}
 
 	// =========================================================================
+	// === PRECARGA DE OBJETOS
+	// =========================================================================
+
+	private void precargarTexturasObjetos() {
+		for (final TexturaObjetos obj : TexturaObjetos.values()) {
+			final HojaSprite hoja = this.getHoja(obj.getHojaOrigen());
+			final BufferedImage sprite = (hoja != null) ? hoja.getSprite(obj.getIndiceSprite()) : this.texturaError;
+
+			this.cacheObjetos[obj.ordinal()] = sprite;
+		}
+	}
+
+	// =========================================================================
 	// === ACCESORES PÚBLICOS O(1) PURO (ZERO-GC)
 	// =========================================================================
 
 	public BufferedImage get(final TexturaItem item) {
 		return (item != null) ? this.cacheItems[item.ordinal()] : this.texturaError;
+	}
+
+	public BufferedImage get(final TexturaObjetos obj) {
+		return (obj != null) ? this.cacheObjetos[obj.ordinal()] : this.texturaError;
 	}
 
 	public HojaSprite getHoja(final ClaveHoja clave) {

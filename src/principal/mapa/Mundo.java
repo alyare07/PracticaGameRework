@@ -30,9 +30,9 @@ import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.criaturas.mascotas.Mascota;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
-import principal.entes.objetos.Fogata;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.cofres.Cofre;
+import principal.entes.objetos.fabricables.Fogata;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.particulas.Particula;
 import principal.entes.objetos.recursos.ArbolCosechable;
@@ -1155,6 +1155,16 @@ public class Mundo {
 				final JSONObject wrapper = new JSONObject();
 				wrapper.put("tipoObjeto", "Fogata");
 				wrapper.put("entiti", ((Fogata) e).exportarParaJSON());
+				listaObjetos.add(wrapper);
+			} else if (e instanceof principal.entes.objetos.fabricables.Cama) {
+				final JSONObject wrapper = new JSONObject();
+				wrapper.put("tipoObjeto", "Cama");
+				wrapper.put("entiti", ((principal.entes.objetos.fabricables.Cama) e).exportarParaJSON());
+				listaObjetos.add(wrapper);
+			} else if (e instanceof principal.entes.objetos.fabricables.Carpa) {
+				final JSONObject wrapper = new JSONObject();
+				wrapper.put("tipoObjeto", "Carpa");
+				wrapper.put("entiti", ((principal.entes.objetos.fabricables.Carpa) e).exportarParaJSON());
 				listaObjetos.add(wrapper);
 			}
 		}

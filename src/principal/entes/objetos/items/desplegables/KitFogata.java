@@ -7,8 +7,8 @@ import org.json.simple.JSONObject;
 
 import principal.construccion.AccionColocacion;
 import principal.entes.criaturas.Criatura;
-import principal.entes.objetos.Fogata;
 import principal.entes.objetos.Objeto;
+import principal.entes.objetos.fabricables.Fogata;
 import principal.entes.objetos.items.Consumible;
 import principal.igu.textos.TipoTextoFlotante;
 import principal.mapa.Mundo;
@@ -39,7 +39,8 @@ public class KitFogata extends Consumible {
 			if (mundo.meterEntidad(nuevaFogata)) {
 				mundo.notificarModificacionEstructura();
 				Globales.GESTOR_PARTICULAS.emitirExplosion(x + 8, y + 8, 8);
-				Globales.GESTOR_TEXTOS.agregarTexto("¡Fogata instalada!", x + 8, y - 8, TipoTextoFlotante.ORO_EXP);
+				Globales.GESTOR_TEXTOS.agregarTexto("¡Fogata instalada!", x + 8, y - 8,
+						TipoTextoFlotante.CRAFTEO_EXITO);
 			}
 		}
 	};

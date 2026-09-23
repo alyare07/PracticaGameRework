@@ -69,7 +69,8 @@ public class MenuGuardarPartida extends Menu {
 		final int panelX = Constantes.CENTROX - (ANCHO_PANEL / 2);
 
 		// 1. Caja de texto para el nombre de la partida
-		this.ctNombrePartida = new CajaTextoPixel(new Rectangle(panelX + 110, 72, ANCHO_PANEL - 110, 18), "Mi Partida", 26, false);
+		this.ctNombrePartida = new CajaTextoPixel(new Rectangle(panelX + 110, 72, ANCHO_PANEL - 110, 18), "Mi Partida",
+				26, false);
 		this.componentes.add(this.ctNombrePartida);
 
 		// 2. Slots de guardado
@@ -80,9 +81,10 @@ public class MenuGuardarPartida extends Menu {
 
 		// 3. Botones de acción inferiores
 		final int yBotones = Constantes.ALTO_JUEGO - 36;
-		this.botonGuardarConfirmar = new BotonPixel("Guardar", new Rectangle(Constantes.CENTROX - 110, yBotones, 100, 18), () -> {
-			this.ejecutarGuardado();
-		});
+		this.botonGuardarConfirmar = new BotonPixel("Guardar",
+				new Rectangle(Constantes.CENTROX - 110, yBotones, 100, 18), () -> {
+					this.ejecutarGuardado();
+				});
 
 		this.botonVolver = new BotonPixel("Cancelar", new Rectangle(Constantes.CENTROX + 10, yBotones, 100, 18), () -> {
 			this.alPresionarEscape();
@@ -111,7 +113,9 @@ public class MenuGuardarPartida extends Menu {
 				if (saveJson.get("nombreGuardado") != null) {
 					nombreSlot = saveJson.get("nombreGuardado").toString();
 				}
-				final long timestamp = (saveJson.get("timestamp") != null) ? ((Number) saveJson.get("timestamp")).longValue() : 0L;
+				final long timestamp = (saveJson.get("timestamp") != null)
+						? ((Number) saveJson.get("timestamp")).longValue()
+						: 0L;
 				this.infoSlots[i] = (timestamp > 0) ? FORMATO_FECHA.format(new Date(timestamp)) : "Sin fecha";
 			} else {
 				nombreSlot = "Slot " + slotNum + " [Vacío]";
@@ -119,17 +123,18 @@ public class MenuGuardarPartida extends Menu {
 			}
 
 			final int idx = i;
-			final BotonPixel btn = new BotonPixel(nombreSlot, new Rectangle(panelX, ySlot, ANCHO_PANEL, ALTO_PANEL_SLOT), () -> {
-				this.slotSeleccionado = idx;
-				if (this.slotsOcupados[idx]) {
-					final JSONObject json = GestorGuardado.leerJsonGuardado(idx + 1);
-					if (json != null && json.get("nombreGuardado") != null) {
-						this.ctNombrePartida.setTexto(json.get("nombreGuardado").toString());
-					}
-				} else {
-					this.ctNombrePartida.setTexto("Partida " + (idx + 1));
-				}
-			});
+			final BotonPixel btn = new BotonPixel(nombreSlot,
+					new Rectangle(panelX, ySlot, ANCHO_PANEL, ALTO_PANEL_SLOT), () -> {
+						this.slotSeleccionado = idx;
+						if (this.slotsOcupados[idx]) {
+							final JSONObject json = GestorGuardado.leerJsonGuardado(idx + 1);
+							if ((json != null) && (json.get("nombreGuardado") != null)) {
+								this.ctNombrePartida.setTexto(json.get("nombreGuardado").toString());
+							}
+						} else {
+							this.ctNombrePartida.setTexto("Partida " + (idx + 1));
+						}
+					});
 
 			this.botonesSlots[i] = btn;
 			this.componentes.add(btn);
@@ -137,7 +142,7 @@ public class MenuGuardarPartida extends Menu {
 	}
 
 	private void ejecutarGuardado() {
-		if (this.GP == null || this.GP.getGestorJuego() == null) {
+		if ((this.GP == null) || (this.GP.getGestorJuego() == null)) {
 			return;
 		}
 
@@ -147,7 +152,8 @@ public class MenuGuardarPartida extends Menu {
 		final boolean exito = GestorGuardado.guardarPartida(slotNum, nombre, this.GP.getGestorJuego());
 		if (exito) {
 			GestorSonido.reproducir(IDSonido.SELECT);
-			Globales.GESTOR_TEXTOS.agregarTexto("¡Guardado en Slot " + slotNum + "!", Constantes.CENTROX, Constantes.CENTROY - 40, TipoTextoFlotante.ORO_EXP);
+			Globales.GESTOR_TEXTOS.agregarTextoFijo("¡Guardado en Slot " + slotNum + "!", Constantes.CENTROX,
+					Constantes.CENTROY - 40, TipoTextoFlotante.AVISO_SISTEMA);
 			this.alPresionarEscape();
 		} else {
 			GestorSonido.reproducir(IDSonido.SIN_MUNICION);
@@ -160,7 +166,7 @@ public class MenuGuardarPartida extends Menu {
 
 		// 1. Scroll
 		final int rueda = raton.getRotacionRueda();
-		if (rueda != 0 && this.maxScrollY > 0) {
+		if ((rueda != 0) && (this.maxScrollY > 0)) {
 			this.scrollY = Math.max(0, Math.min(this.maxScrollY, this.scrollY + (rueda * 24)));
 		}
 
@@ -169,7 +175,7 @@ public class MenuGuardarPartida extends Menu {
 		// 2. Selección de Slot
 		if (raton.presionadoClickIzqUnicaAct()) {
 			final Point p = raton.getPuntoPosicionEscalado();
-			if (p.y >= VISTA_Y && p.y <= VISTA_Y + VISTA_ALTO) {
+			if ((p.y >= VISTA_Y) && (p.y <= (VISTA_Y + VISTA_ALTO))) {
 				for (int i = 0; i < TOTAL_SLOTS; i++) {
 					final Rectangle rAparente = new Rectangle(this.botonesSlots[i].getArea().x,
 							this.botonesSlots[i].getArea().y - this.scrollY, this.botonesSlots[i].getArea().width,
@@ -202,7 +208,7 @@ public class MenuGuardarPartida extends Menu {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		if (this.GP != null && this.GP.getGestorJuego() != null) {
+		if ((this.GP != null) && (this.GP.getGestorJuego() != null)) {
 			this.GP.getGestorJuego().pintar(g);
 		}
 
@@ -231,7 +237,7 @@ public class MenuGuardarPartida extends Menu {
 				final BotonPixel btn = this.botonesSlots[i];
 				final int ySlot = btn.getArea().y - this.scrollY;
 
-				if (ySlot + ALTO_PANEL_SLOT >= VISTA_Y && ySlot <= VISTA_Y + VISTA_ALTO) {
+				if (((ySlot + ALTO_PANEL_SLOT) >= VISTA_Y) && (ySlot <= (VISTA_Y + VISTA_ALTO))) {
 					final boolean esElSeleccionado = (i == this.slotSeleccionado);
 					btn.setEnfocado(esElSeleccionado);
 
@@ -242,7 +248,8 @@ public class MenuGuardarPartida extends Menu {
 
 					gClip.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, 12f));
 					final Color cInfo = this.slotsOcupados[i] ? new Color(200, 205, 220) : new Color(120, 125, 135);
-					Render2D.dibujarStringConSombra(gClip, this.infoSlots[i], btn.getArea().x + 14, ySlot + ALTO_PANEL_SLOT - 5, cInfo, Color.BLACK);
+					Render2D.dibujarStringConSombra(gClip, this.infoSlots[i], btn.getArea().x + 14,
+							(ySlot + ALTO_PANEL_SLOT) - 5, cInfo, Color.BLACK);
 				}
 			}
 		} finally {
@@ -251,7 +258,7 @@ public class MenuGuardarPartida extends Menu {
 
 		// Scrollbar
 		if (this.maxScrollY > 0) {
-			final int trackX = panelX + ANCHO_PANEL - 5;
+			final int trackX = (panelX + ANCHO_PANEL) - 5;
 			final int trackY = VISTA_Y + 4;
 			final int trackH = VISTA_ALTO - 8;
 			Render2D.dibujarRectanguloRelleno(g, trackX, trackY, 3, trackH, new Color(30, 35, 45));

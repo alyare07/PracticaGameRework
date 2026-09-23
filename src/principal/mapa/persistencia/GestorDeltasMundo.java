@@ -13,7 +13,7 @@ import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.criaturas.mascotas.Mascota;
-import principal.entes.objetos.Fogata;
+import principal.entes.objetos.fabricables.Fogata;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.recursos.RecursoCosechable;
 import principal.inventario.Contenedor;
@@ -97,6 +97,17 @@ public class GestorDeltasMundo {
 				jsonFog.put("vida", Double.valueOf(f.getVida()));
 				jsonFog.put("tiempoCombustible", Double.valueOf(f.getTiempoCombustibleRestante()));
 				delta.getEstructurasConstruidas().add(jsonFog);
+			} else if (e instanceof principal.entes.objetos.fabricables.Cama) {
+				final principal.entes.objetos.fabricables.Cama c = (principal.entes.objetos.fabricables.Cama) e;
+				final JSONObject jsonCama = c.exportarParaJSON();
+				jsonCama.put("tipo", "Cama");
+				delta.getEstructurasConstruidas().add(jsonCama);
+			} else if (e instanceof principal.entes.objetos.fabricables.Carpa) {
+				final principal.entes.objetos.fabricables.Carpa c = (principal.entes.objetos.fabricables.Carpa) e;
+				final JSONObject jsonCarpa = c.exportarParaJSON();
+				jsonCarpa.put("tipo", "Carpa");
+				jsonCarpa.put("vida", Double.valueOf(c.getVida()));
+				delta.getEstructurasConstruidas().add(jsonCarpa);
 			}
 
 			// 3. Contenedores y Cofres
@@ -272,6 +283,16 @@ public class GestorDeltasMundo {
 					final Fogata f = Fogata.crearDesdeJson(jEst);
 					if (f != null) {
 						mundo.meterEntidad(f);
+					}
+				} else if (tipoStr.equals("Cama")) {
+					final principal.entes.objetos.fabricables.Cama c = principal.entes.objetos.fabricables.Cama.crearDesdeJson(jEst);
+					if (c != null) {
+						mundo.meterEntidad(c);
+					}
+				} else if (tipoStr.equals("Carpa")) {
+					final principal.entes.objetos.fabricables.Carpa c = principal.entes.objetos.fabricables.Carpa.crearDesdeJson(jEst);
+					if (c != null) {
+						mundo.meterEntidad(c);
 					}
 				} else {
 					try {

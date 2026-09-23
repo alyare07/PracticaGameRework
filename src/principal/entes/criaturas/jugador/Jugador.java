@@ -34,6 +34,7 @@ import principal.ia.RastroPosicion;
 import principal.ia.aEstrella.NodoA;
 import principal.ia.dijkstra.DijkstraRework;
 import principal.ia.dijkstra.NodoD;
+import principal.iluminacion.TipoLuz;
 import principal.inventario.equipamiento.SlotEquipamiento;
 import principal.inventario.slot.Slot;
 import principal.mapa.Mundo;
@@ -98,6 +99,7 @@ public class Jugador extends Criatura {
 	protected Lista<NodoD> recorridoD;
 	private boolean generarRecorridoMoverMouse;
 	private boolean moviendoPorRecorrido;
+	private boolean refugiadoEnCarpa = false;
 
 	private final HashSet<Ente> CHECK_LIST_DEBUG = new HashSet<Ente>();
 	private final Rectangle AREA_INTERSECCION_MOVIMIENTO_AUXILIAR = new Rectangle(0, 0, 8, 8);
@@ -163,6 +165,8 @@ public class Jugador extends Criatura {
 		if (Globales.GESTOR_METABOLISMO != null) {
 			Globales.GESTOR_METABOLISMO.reiniciar();
 		}
+		this.desvincularLuz();
+		this.asignarLuz(Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.AURA_JUGADOR, 75));
 	}
 
 	public void recalcularAtributos() {
@@ -274,16 +278,59 @@ public class Jugador extends Criatura {
 
 	@Override
 	public void recibirAtaque(final double damageRecibido, final Ente causante) {
+		// La lona del refugio absorbe el ataque directo protegiendo al pionero
+		if (this.refugiadoEnCarpa) {
+			return;
+		}
+
 		final double factorReduccion = 100.0 / (100.0 + Math.max(0, this.defensaTotal));
 		final double danioEfectivo = Math.max(1, damageRecibido * factorReduccion);
 
 		if (!this.modoDios) {
 			this.reducirVida(danioEfectivo);
-
 		}
 		this.aplicarFuerzaKnockbackYEmitirParticulaDanio(danioEfectivo, causante);
 		this.activarFlashDanio();
+	}
 
+	public void setRefugiadoEnCarpa(final boolean refugiado) {
+		this.refugiadoEnCarpa = refugiado;
+	}
+
+	public boolean isRefugiadoEnCarpa() {
+		return this.refugiadoEnCarpa;
+	}
+
+	public boolean isBajoTecho() {
+		if (this.mundo == null) {
+			return false;
+		}
+		final boolean esInteriorMapa = (this.mundo.getEscenario() != null)
+				&& (this.mundo.getEscenario().getMetadatos() != null)
+				&& this.mundo.getEscenario().getMetadatos().esEspacioInterior();
+
+		return esInteriorMapa || this.atrasDeComplemento || this.refugiadoEnCarpa;
+	}
+
+	public boolean puedeCorrer() {
+		if (this.modoDios) {
+			return true;
+		}
+		if (this.tieneEfectoActivo(TipoEfectoEstado.ATURDIMIENTO)) {
+			return false;
+		}
+		final EfectoEstado efHipotermia = this.getEfecto(TipoEfectoEstado.HIPOTERMIA);
+		if ((efHipotermia != null) && efHipotermia.isActivo() && (efHipotermia.getStacks() >= 3)) {
+			return false;
+		}
+
+		// Sin hidratación, muriendo de hambre o exhausto de sueño, se bloquea el sprint
+		if ((Globales.GESTOR_METABOLISMO != null) && (Globales.GESTOR_METABOLISMO.isDeshidratado()
+				|| Globales.GESTOR_METABOLISMO.isInanicion() || Globales.GESTOR_METABOLISMO.isAgotadoExtremo())) {
+			return false;
+		}
+
+		return true;
 	}
 
 	// =========================================================================
@@ -307,9 +354,11 @@ public class Jugador extends Criatura {
 		// En modo Normal: Se pierde un 30% y el 70% cae al suelo donde murió
 		if (Globales.dificultad == Dificultad.NORMAL) {
 			this.soltarItemsPorMuerte(0.30);
+		} else if ((Globales.dificultad == Dificultad.DIFICIL)
+				|| (Globales.dificultad == Dificultad.HARDCORE_RENACIMIENTO)) {
+			this.soltarItemsPorMuerte(1);
 		}
 		// En modo Fácil: No se suelta nada, conserva todo su inventario intacto
-		// En modo Difícil: Muerte permanente (se gestiona al presionar el botón)
 	}
 
 	private void soltarItemsPorMuerte(final double ratioPerdida) {
@@ -444,12 +493,37 @@ public class Jugador extends Criatura {
 		}
 	}
 
+	public void salirDeCarpa() {
+		if (this.refugiadoEnCarpa) {
+			this.refugiadoEnCarpa = false;
+			this.modificarPosicionY(14.0); // Da un paso al frente hacia la salida
+			this.setEstadoEstandar();
+			Globales.GESTOR_TEXTOS.agregarTexto("Saliste del refugio", this.getCentroX(), this.getPosicionYInt() - 8,
+					principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+		}
+	}
+
 	private void actualizarMovimientos() {
 		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()) {
 			if (!this.estaEstadoEstandar()) {
 				this.setEstadoEstandar();
 			}
 			return;
+		}
+
+		// Si está refugiado adentro de la carpa, bloquea movimiento salvo que intente
+		// salir caminando (WASD)
+		if (this.refugiadoEnCarpa) {
+			final boolean arr = Globales.TECLADO.TECLA_ARRIBA.presionado();
+			final boolean abj = Globales.TECLADO.TECLA_ABAJO.presionado();
+			final boolean izq = Globales.TECLADO.TECLA_IZQUIERDA.presionado();
+			final boolean der = Globales.TECLADO.TECLA_DERECHA.presionado();
+
+			if (!arr && !abj && !izq && !der) {
+				this.setEstadoEstandar();
+				return;
+			}
+			this.salirDeCarpa();
 		}
 
 		if (this.mundo == null) {
@@ -953,6 +1027,16 @@ public class Jugador extends Criatura {
 	}
 
 	private void realizarAtaque(final Mundo mundo) {
+		if (this.refugiadoEnCarpa || Globales.GESTOR_DIALOGOS.isActivo()
+				|| Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()
+				|| Globales.GESTOR_INVENTARIO.getInventarioJugador().esVisible()
+				|| Globales.GESTOR_INVENTARIO.hayInventarioTerceroAbierto()) {
+			this.dibujarAtaque = false;
+			if (this.estaEstadoAtacando()) {
+				this.removerEstado(Estado.ATACANDO);
+			}
+			return;
+		}
 		final Arma armaEquipada = this.getArmaEquipada();
 		if ((armaEquipada == null) || (mundo == null)) {
 			return;
@@ -1204,28 +1288,6 @@ public class Jugador extends Criatura {
 
 			this.estamina = Math.min(this.maxEstamina, this.estamina + recuperacionPorTick);
 		}
-	}
-
-	public boolean puedeCorrer() {
-		if (this.modoDios) {
-			return true;
-		}
-		if (this.tieneEfectoActivo(TipoEfectoEstado.ATURDIMIENTO)) {
-			return false;
-		}
-		final EfectoEstado efHipotermia = this.getEfecto(TipoEfectoEstado.HIPOTERMIA);
-		if ((efHipotermia != null) && efHipotermia.isActivo() && (efHipotermia.getStacks() >= 3)) {
-			return false;
-		}
-
-		// Sin hidratación o muriendo de inanición, el cuerpo no tiene energía para
-		// esprintar
-		if ((Globales.GESTOR_METABOLISMO != null)
-				&& (Globales.GESTOR_METABOLISMO.isDeshidratado() || Globales.GESTOR_METABOLISMO.isInanicion())) {
-			return false;
-		}
-
-		return true;
 	}
 
 	@Override
@@ -1610,7 +1672,11 @@ public class Jugador extends Criatura {
 			json.put("hambre", Double.valueOf(Globales.GESTOR_METABOLISMO.getHambre()));
 			json.put("sed", Double.valueOf(Globales.GESTOR_METABOLISMO.getSed()));
 		}
-
+		if (Globales.GESTOR_METABOLISMO != null) {
+			json.put("hambre", Double.valueOf(Globales.GESTOR_METABOLISMO.getHambre()));
+			json.put("sed", Double.valueOf(Globales.GESTOR_METABOLISMO.getSed()));
+			json.put("suenio", Double.valueOf(Globales.GESTOR_METABOLISMO.getSuenio()));
+		}
 		return json;
 	}
 
@@ -1650,6 +1716,17 @@ public class Jugador extends Criatura {
 				&& (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
 			Globales.GESTOR_INVENTARIO.getInventarioJugador()
 					.importarInventarioJSON((JSONObject) json.get("inventario"));
+		}
+		if (Globales.GESTOR_METABOLISMO != null) {
+			if (json.get("hambre") != null) {
+				Globales.GESTOR_METABOLISMO.setHambre(((Number) json.get("hambre")).doubleValue());
+			}
+			if (json.get("sed") != null) {
+				Globales.GESTOR_METABOLISMO.setSed(((Number) json.get("sed")).doubleValue());
+			}
+			if (json.get("suenio") != null) {
+				Globales.GESTOR_METABOLISMO.setSuenio(((Number) json.get("suenio")).doubleValue());
+			}
 		}
 
 		this.recalcularAtributos();

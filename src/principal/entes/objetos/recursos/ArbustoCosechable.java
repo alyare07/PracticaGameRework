@@ -157,7 +157,7 @@ public class ArbustoCosechable extends RecursoCosechable implements Interactuabl
 			final int dropY = this.getPosicionYInt() + (this.getAlto() / 2);
 			this.mundo.meterEntidad(new BayaSilvestre(dropX, dropY, cantidadBayas));
 			Globales.GESTOR_TEXTOS.agregarTexto("¡Inventario lleno!", this.getCentroX(), this.getPosicionYInt(),
-					principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+					principal.igu.textos.TipoTextoFlotante.BLOQUEO);
 		} else {
 			Globales.GESTOR_TEXTOS.agregarTexto("+" + cantidadBayas + " Bayas", this.getCentroX(),
 					this.getPosicionYInt(), principal.igu.textos.TipoTextoFlotante.CURACION);

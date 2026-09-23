@@ -61,7 +61,7 @@ public class ZonaTP extends Ente {
 
 				final String msg = this.condicion.getMensajeRechazo();
 				Globales.GESTOR_TEXTOS.agregarTexto(msg, this.getPosicionXInt() + (this.AREA.width / 2),
-						this.getPosicionYInt() - 6, TipoTextoFlotante.ESTADO);
+						this.getPosicionYInt() - 6, TipoTextoFlotante.BLOQUEO);
 			}
 		}
 	}

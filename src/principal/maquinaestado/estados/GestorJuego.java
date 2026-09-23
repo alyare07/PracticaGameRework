@@ -18,13 +18,10 @@ import principal.configuracion.Dificultad;
 import principal.controles.Raton;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura.Direccion;
-import principal.entes.facciones.GestorFacciones;
 import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
 import principal.entes.proyectil.explosivo.BolaFuego;
-import principal.iluminacion.FuenteLuz;
-import principal.iluminacion.TipoLuz;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.Tile;
@@ -60,7 +57,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	private BotonPixel botonMuerte;
 
 	private Tile tilePisado = null;
-	private FuenteLuz auxFuenteLuzTempoPrueba;
 
 	private int lastSegundosJugados = -1;
 	private String cachedTextoTiempoJugado = "0h 0m 0s";
@@ -79,6 +75,14 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 	@Override
 	public void actualizar() {
+		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
+
+		// 0. Transición Cinemática de la Singularidad Óptica (Dormir)
+		GestorTransicionSueno.getInstancia().actualizar(dt);
+		if (GestorTransicionSueno.getInstancia().isActivo()) {
+			Globales.CAMARA.actualizar();
+			return; // Bloquea la locomoción, armas y combate mientras duerme
+		}
 		// 1. Control Modal del Taller de Crafteo y Cocina
 		if (principal.crafteo.MenuCrafteo.getInstancia().isAbierto()) {
 			// El mundo sigue vivo en tiempo real de fondo (simulación continua)
@@ -133,16 +137,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.GESTOR_INVENTARIO.actualizar(this.RATON, this.mapa.getMundoActual());
 		this.mapa.actualizar();
 
-		if (Globales.TECLADO.TECLA_DIJKSTRA.presionadoUnicaActualizacion()) {
-			if (Globales.JUGADOR.getFaccionBit() == GestorFacciones.FACCION_JUGADOR) {
-				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_BANDIDOS);
-			} else {
-				Globales.JUGADOR.setFaccion(GestorFacciones.FACCION_JUGADOR);
-			}
-		}
-
-		final double dt = (Globales.delta > 0.0) ? Globales.delta : (1.0 / 60.0);
-
 		Globales.JUGADOR.actualizar();
 
 		if (Globales.TECLADO.TECLA_CONSTRUCCION.presionadoUnicaActualizacion()) {
@@ -176,14 +170,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.GESTOR_CRAFTEO.actualizar(this.mapa.getMundoActual());
 		this.actualizarEventos(dt);
 
-		if (this.auxFuenteLuzTempoPrueba != null) {
-			this.auxFuenteLuzTempoPrueba.orientarSegunDireccion(Globales.JUGADOR.getDireccion());
-		}
 	}
 
 	private void actualizarControlesDebug() {
 		this.actualizarCambioCamaraConEntesYZoom();
-		if (Globales.RATON.presionadoClickIzqUnicaAct()) {
+		if (Globales.RATON.presionadoClickIzqUnicaAct() && Globales.TECLADO.TECLA_DEBUG.presionado()) {
 			final Rectangle puntoR = Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara();
 			Globales.JUGADOR.setPosicion(puntoR.getX(), puntoR.getY());
 		}
@@ -239,9 +230,14 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			final int btnX = Constantes.CENTROX - (btnW / 2);
 			final int btnY = Constantes.ALTO_JUEGO - 65;
 
-			if (Globales.dificultad == Dificultad.DIFICIL) {
+			if (Globales.dificultad == Dificultad.HARDCORE_REAL) {
 				this.botonMuerte = new BotonPixel("Fin del Juego", new Rectangle(btnX, btnY, btnW, btnH), () -> {
 					this.ejecutarFinDelJuego();
+				});
+			} else if (Globales.dificultad == Dificultad.HARDCORE_RENACIMIENTO) {
+				this.botonMuerte = new BotonPixel("Reencarnar", new Rectangle(btnX, btnY, btnW, btnH), () -> {
+
+					this.ejecutarReaparicion();
 				});
 			} else {
 				this.botonMuerte = new BotonPixel("Reaparecer", new Rectangle(btnX, btnY, btnW, btnH), () -> {
@@ -410,6 +406,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		this.pintarPantallaDerrota(g);
+		GestorTransicionSueno.getInstancia().pintar(g); // Capa Óptica de la Singularidad
 		Globales.CAMARA.pintarLetterbox(g);
 		this.pintarDebug(g);
 
@@ -599,9 +596,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			gc.setCompleto(true);
 		}
 
-		this.auxFuenteLuzTempoPrueba = Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.AURA_JUGADOR,
-				75);
-		this.auxFuenteLuzTempoPrueba.setOffset(4, 3);
 	}
 
 	public void cargarPartidaGuardada(final GestorCarga gc, final JSONObject saveJson) {
@@ -707,10 +701,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		Globales.partidaIniciada = true;
-
-		this.auxFuenteLuzTempoPrueba = Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.AURA_JUGADOR,
-				75);
-		this.auxFuenteLuzTempoPrueba.setOffset(4, 3);
 
 		if (gc != null) {
 			gc.setPorcentajeCarga(100);

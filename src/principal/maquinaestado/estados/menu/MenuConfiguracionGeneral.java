@@ -32,7 +32,8 @@ public class MenuConfiguracionGeneral extends Menu {
 	private static final int FILA_ALTO = 26;
 	private static final int VISTA_Y = 95;
 
-	private static final String[] NIVELES_VOLUMEN = { "0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%" };
+	private static final String[] NIVELES_VOLUMEN = { "0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%",
+			"90%", "100%" };
 
 	private SelectorOpcionPixel selectorVolumenMaster;
 	private SelectorOpcionPixel selectorVolumenMusica;
@@ -71,24 +72,24 @@ public class MenuConfiguracionGeneral extends Menu {
 
 		// 1. Selector Volumen General
 		final int idxGen = Math.max(0, Math.min(10, (int) Math.round(GestorConfiguracion.getVolumenGeneral() * 10.0)));
-		this.selectorVolumenMaster = new SelectorOpcionPixel(new Rectangle(xItem, yItem, anchoItem, 16), "Volumen General",
-				NIVELES_VOLUMEN, idxGen, () -> {
+		this.selectorVolumenMaster = new SelectorOpcionPixel(new Rectangle(xItem, yItem, anchoItem, 16),
+				"Volumen General", NIVELES_VOLUMEN, idxGen, () -> {
 					GestorConfiguracion.setVolumenGeneral(this.selectorVolumenMaster.getIndiceSeleccionado() / 10.0);
 				});
 		yItem += FILA_ALTO;
 
 		// 2. Selector Volumen Música
 		final int idxMus = Math.max(0, Math.min(10, (int) Math.round(GestorConfiguracion.getVolumenMusica() * 10.0)));
-		this.selectorVolumenMusica = new SelectorOpcionPixel(new Rectangle(xItem, yItem, anchoItem, 16), "Volumen Musica",
-				NIVELES_VOLUMEN, idxMus, () -> {
+		this.selectorVolumenMusica = new SelectorOpcionPixel(new Rectangle(xItem, yItem, anchoItem, 16),
+				"Volumen Musica", NIVELES_VOLUMEN, idxMus, () -> {
 					GestorConfiguracion.setVolumenMusica(this.selectorVolumenMusica.getIndiceSeleccionado() / 10.0);
 				});
 		yItem += FILA_ALTO;
 
 		// 3. Selector Volumen Efectos
 		final int idxSfx = Math.max(0, Math.min(10, (int) Math.round(GestorConfiguracion.getVolumenEfectos() * 10.0)));
-		this.selectorVolumenEfectos = new SelectorOpcionPixel(new Rectangle(xItem, yItem, anchoItem, 16), "Efectos de Sonido",
-				NIVELES_VOLUMEN, idxSfx, () -> {
+		this.selectorVolumenEfectos = new SelectorOpcionPixel(new Rectangle(xItem, yItem, anchoItem, 16),
+				"Efectos de Sonido", NIVELES_VOLUMEN, idxSfx, () -> {
 					GestorConfiguracion.setVolumenEfectos(this.selectorVolumenEfectos.getIndiceSeleccionado() / 10.0);
 					GestorSonido.reproducir(IDSonido.GOLPE_1);
 				});
@@ -103,11 +104,12 @@ public class MenuConfiguracionGeneral extends Menu {
 
 		// 4. Botones de acción inferiores
 		final int yBotones = Constantes.ALTO_JUEGO - 42;
-		this.botonGuardar = new BotonPixel("Guardar", new Rectangle(Constantes.CENTROX - 110, yBotones, 100, 18), () -> {
-			GestorConfiguracion.guardarConfiguracion();
-			Globales.GESTOR_TEXTOS.agregarTexto("Configuracion de Audio Guardada", Constantes.CENTROX,
-					Constantes.CENTROY - 40, TipoTextoFlotante.ORO_EXP);
-		});
+		this.botonGuardar = new BotonPixel("Guardar", new Rectangle(Constantes.CENTROX - 110, yBotones, 100, 18),
+				() -> {
+					GestorConfiguracion.guardarConfiguracion();
+					Globales.GESTOR_TEXTOS.agregarTextoFijo("Configuracion de Audio Guardada", Constantes.CENTROX,
+							Constantes.CENTROY - 40, TipoTextoFlotante.AVISO_SISTEMA);
+				});
 
 		this.botonVolver = new BotonPixel("Volver", new Rectangle(Constantes.CENTROX + 10, yBotones, 100, 18), () -> {
 			this.alPresionarEscape();
@@ -162,7 +164,7 @@ public class MenuConfiguracionGeneral extends Menu {
 
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_DOWN)
 				|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_S)) {
-			this.indiceFilaEnfocada = (this.indiceFilaEnfocada >= totalFilas - 1) ? 0 : this.indiceFilaEnfocada + 1;
+			this.indiceFilaEnfocada = (this.indiceFilaEnfocada >= (totalFilas - 1)) ? 0 : this.indiceFilaEnfocada + 1;
 			this.actualizarFocoVisual();
 			GestorSonido.reproducir(IDSonido.SELECT_MENU);
 		}
@@ -186,7 +188,7 @@ public class MenuConfiguracionGeneral extends Menu {
 				this.selectores.get(this.indiceFilaEnfocada).siguiente();
 			} else {
 				final int idxBoton = this.indiceFilaEnfocada - this.selectores.size();
-				final int nuevoIdx = (idxBoton >= this.botones.size() - 1) ? 0 : idxBoton + 1;
+				final int nuevoIdx = (idxBoton >= (this.botones.size() - 1)) ? 0 : idxBoton + 1;
 				this.indiceFilaEnfocada = this.selectores.size() + nuevoIdx;
 				this.actualizarFocoVisual();
 				GestorSonido.reproducir(IDSonido.SELECT_MENU);

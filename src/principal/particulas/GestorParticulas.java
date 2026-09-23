@@ -47,6 +47,22 @@ public class GestorParticulas {
 		}
 	}
 
+	/**
+	 * Emite una nube de polvo radial en 360 grados con ligera elevación. Ideal para
+	 * la colocación de estructuras, caída de rocas o pisadas pesadas.
+	 */
+	public void emitirPolvo(final double x, final double y, final int cantidad) {
+		for (int i = 0; i < cantidad; i++) {
+			final double angulo = this.random.nextDouble() * Math.PI * 2.0;
+			final double velocidad = 15.0 + (this.random.nextDouble() * 45.0);
+
+			final double vx = Math.cos(angulo) * velocidad;
+			final double vy = (Math.sin(angulo) * velocidad) - 8.0; // Ligera flotabilidad
+
+			this.spawnParticula(x, y, vx, vy, TipoParticula.POLVO_TIERRA, 0.8 + (this.random.nextDouble() * 0.5));
+		}
+	}
+
 	public void emitirSangre(final double x, final double y, final double dirX, final double dirY, final int cantidad) {
 		for (int i = 0; i < cantidad; i++) {
 			final double dispersion = (this.random.nextDouble() * 1.6) - 0.8;

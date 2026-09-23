@@ -94,6 +94,24 @@ public class Mapa1 extends Mapa {
 		mExt_nieve.setNombreMundo(EXTERIOR_NIEVE);
 		mExt_nieve.setMapa(this);
 		this.MUNDOS.put(EXTERIOR_NIEVE, mExt_nieve);
+
+		// =====================================================================
+		// ENTIDADES DE PRUEBA: BLOQUE 5 (Refugio, Cama, Carpa y Salto Temporal)
+		// =====================================================================
+		// 1. Carpa ya montada en el exterior (cerca del spawn para probar [E] y
+		// resguardo)
+		mExterior.meterEntidad(new principal.entes.objetos.fabricables.Carpa(1840, 1750));
+
+		// 2. Kit de Carpa en el suelo (para recogerlo y probar el despliegue con el
+		// ratón)
+		mExterior.meterEntidad(new principal.entes.objetos.items.desplegables.KitCarpa(1895, 1795, 2));
+
+		// 3. Fogata encendida cerca de la carpa (para probar calor, luz y cocina)
+		mExterior.meterEntidad(new principal.entes.objetos.fabricables.Fogata(1805, 1755, 5, true, false));
+
+		// 4. Cama de descanso colocada dentro de la casa (para probar el sueño en
+		// interiores)
+		mInterior.meterEntidad(new principal.entes.objetos.fabricables.Cama(1870, 1760));
 	}
 
 	@Override
@@ -128,7 +146,7 @@ public class Mapa1 extends Mapa {
 			mExt.meterEntidad(new principal.entes.criaturas.animales.Gallina(1860, 1820));
 
 			// 2. Bloque 4: Fogata encendida con 8 leños en el campamento
-			mExt.meterEntidad(new principal.entes.objetos.Fogata(1810, 1835, 8, true, false));
+			mExt.meterEntidad(new principal.entes.objetos.fabricables.Fogata(1810, 1835, 8, true, false));
 
 			final ArbolCofre arbolcofre1 = new ArbolCofre(1800, 1900);
 

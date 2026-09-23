@@ -305,12 +305,22 @@ public class Mundo {
 		this.actualizarZonas();
 		this.actualizarParticulas();
 		this.actualizarProyectiles();
+
+		// Invocación a peligros subterráneos (Zero-GC)
+		if (Globales.GESTOR_DERRUMBES != null) {
+			Globales.GESTOR_DERRUMBES.actualizar(this);
+		}
+
 		this.updateNextCodAct();
 	}
 
 	public void pintar(final Graphics2D g) {
 		this.ESCENARIO.getTerreno().pintar(g);
 		this.pintarParticulas(g);
+		// Dibuja sombras en el suelo ANTES de las entidades
+		if (Globales.GESTOR_DERRUMBES != null) {
+			Globales.GESTOR_DERRUMBES.pintar(g);
+		}
 		this.pintarZonas(g);
 		this.pintarProyectiles(g);
 
@@ -1165,6 +1175,11 @@ public class Mundo {
 				final JSONObject wrapper = new JSONObject();
 				wrapper.put("tipoObjeto", "Carpa");
 				wrapper.put("entiti", ((principal.entes.objetos.fabricables.Carpa) e).exportarParaJSON());
+				listaObjetos.add(wrapper);
+			} else if (e instanceof principal.entes.objetos.EntradaCueva) {
+				final JSONObject wrapper = new JSONObject();
+				wrapper.put("tipoObjeto", "EntradaCueva");
+				wrapper.put("entiti", ((principal.entes.objetos.EntradaCueva) e).exportarParaJSON());
 				listaObjetos.add(wrapper);
 			}
 		}

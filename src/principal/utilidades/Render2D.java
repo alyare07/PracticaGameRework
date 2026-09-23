@@ -31,7 +31,7 @@ public final class Render2D {
 		}
 	}
 
-	private static AlphaComposite obtenerComposite(final float alpha) {
+	public static AlphaComposite obtenerComposite(final float alpha) {
 		final int indice = Math.max(0, Math.min(100, Math.round(alpha * 100.0f)));
 		return COMPOSITES_OPACIDAD[indice];
 	}
@@ -399,6 +399,16 @@ public final class Render2D {
 		objetosDibujados++;
 		g.setColor(color);
 		g.drawOval(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho, alto);
+	}
+
+	public static void dibujarFiguraEllipseRellenoRefCamara(final Graphics2D g, final int x, final int y,
+			final int ancho, final int alto, final Color color) {
+		if (g == null) {
+			return;
+		}
+		objetosDibujados++;
+		g.setColor(color);
+		g.fillOval(Globales.getXDesplazamientoCamara(x), Globales.getYDesplazamientoCamara(y), ancho, alto);
 	}
 
 	public static void dibujarImagenRefCamara(final Graphics2D g, final Image img, final int x, final int y) {

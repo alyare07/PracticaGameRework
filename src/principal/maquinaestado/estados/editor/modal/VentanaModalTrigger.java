@@ -10,6 +10,7 @@ import principal.controles.Raton;
 import principal.mapa.escenario.tps.PuertaArea;
 import principal.mapa.escenario.tps.PuertaMapa;
 import principal.mapa.escenario.tps.PuertaMundo;
+import principal.mapa.escenario.tps.PuertaSalidaCueva;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.maquinaestado.estados.menu.herramientas.BotonPixel;
 import principal.maquinaestado.estados.menu.herramientas.CajaTextoPixel;
@@ -23,9 +24,9 @@ import principal.utilidades.audio.sonido.IDSonido;
 /**
  * Inspector modal interactivo para configurar Triggers (ZonaTP). Carga y
  * muestra en tiempo real los valores actuales de la puerta seleccionada
- * (PuertaMapa, PuertaMundo o PuertaArea).
+ * (PuertaMapa, PuertaMundo, PuertaArea o PuertaSalidaCueva).
  * 
- * @version 2.1 (Vanilla Java 8 - Dynamic Value Loading)
+ * @version 2.2 (Vanilla Java 8 - Dynamic Cave Exit Support)
  */
 public class VentanaModalTrigger extends ComponenteMenu {
 
@@ -36,8 +37,8 @@ public class VentanaModalTrigger extends ComponenteMenu {
 	private static final Color COLOR_BORDE = new Color(255, 60, 60);
 
 	private static final String[] TIPOS_PUERTA = { "A Otro Mapa (.mp)", "Entre Mundos (Mismo Mapa)",
-			"Local (Coordenadas X, Y)" };
-	private int idxTipoPuerta = 0; // 0 = Mapa, 1 = Mundo, 2 = Local
+			"Local (Coordenadas X, Y)", "Salida de Cueva (Dinámica)" };
+	private int idxTipoPuerta = 0; // 0 = Mapa, 1 = Mundo, 2 = Local, 3 = Salida Cueva
 
 	private ZonaTP triggerSeleccionado;
 	private boolean abierta = false;
@@ -85,8 +86,13 @@ public class VentanaModalTrigger extends ComponenteMenu {
 
 		final Object puerta = trigger.getPuertaTP();
 
-		// Carga dinámica de los valores reales almacenados en la puerta
-		if (puerta instanceof PuertaMundo) {
+		if (puerta instanceof PuertaSalidaCueva) {
+			this.idxTipoPuerta = 3;
+			this.ctParametro1.setVisible(false);
+			this.ctParametro2.setVisible(false);
+			this.ctParametro3.setVisible(false);
+
+		} else if (puerta instanceof PuertaMundo) {
 			this.idxTipoPuerta = 1;
 			final PuertaMundo pm = (PuertaMundo) puerta;
 			this.ctParametro1.setVisible(false);
@@ -151,6 +157,9 @@ public class VentanaModalTrigger extends ComponenteMenu {
 			final int dy = this.ctParametro3.getNumeroEntero(0);
 			this.triggerSeleccionado.setPuertaTP(new PuertaArea(new Rectangle(dx, dy, 16, 16)));
 			break;
+		case 3: // PuertaSalidaCueva (Retorno Dinámico)
+			this.triggerSeleccionado.setPuertaTP(new PuertaSalidaCueva());
+			break;
 		}
 	}
 
@@ -182,7 +191,6 @@ public class VentanaModalTrigger extends ComponenteMenu {
 			this.ctParametro1.setVisible(true);
 			this.ctParametro2.setVisible(true);
 			this.ctParametro3.setVisible(true);
-
 			this.ctParametro1.setTexto("Mapa1");
 			this.ctParametro2.setTexto("Exterior");
 			this.ctParametro3.setTexto("Comienzo");
@@ -200,6 +208,11 @@ public class VentanaModalTrigger extends ComponenteMenu {
 			this.ctParametro3.setVisible(true);
 			this.ctParametro2.setTexto("500");
 			this.ctParametro3.setTexto("350");
+			break;
+		case 3: // Salida Cueva (Sin parámetros manuales)
+			this.ctParametro1.setVisible(false);
+			this.ctParametro2.setVisible(false);
+			this.ctParametro3.setVisible(false);
 			break;
 		}
 	}
@@ -241,14 +254,27 @@ public class VentanaModalTrigger extends ComponenteMenu {
 			lbl1 = "";
 			lbl2 = "Destino X:";
 			lbl3 = "Destino Y:";
+		} else if (this.idxTipoPuerta == 3) {
+			lbl1 = "";
+			lbl2 = "";
+			lbl3 = "";
 		}
 
 		Render2D.dibujarStringConSombra(g, "Tipo de Puerta:", x + 16, y + 54, Color.WHITE, Color.BLACK);
 		if (!lbl1.isEmpty()) {
 			Render2D.dibujarStringConSombra(g, lbl1, x + 16, y + 80, Color.WHITE, Color.BLACK);
 		}
-		Render2D.dibujarStringConSombra(g, lbl2, x + 16, y + 108, Color.WHITE, Color.BLACK);
-		Render2D.dibujarStringConSombra(g, lbl3, x + 16, y + 136, Color.WHITE, Color.BLACK);
+		if (!lbl2.isEmpty()) {
+			Render2D.dibujarStringConSombra(g, lbl2, x + 16, y + 108, Color.WHITE, Color.BLACK);
+		}
+		if (!lbl3.isEmpty()) {
+			Render2D.dibujarStringConSombra(g, lbl3, x + 16, y + 136, Color.WHITE, Color.BLACK);
+		}
+
+		if (this.idxTipoPuerta == 3) {
+			final String info = "Retorno dinámico automático al mundo\ny coordenadas exactas de la entrada exterior.";
+			Render2D.dibujarStringConSombra(g, info, x + 35, y + 95, new Color(130, 220, 255), Color.BLACK);
+		}
 
 		// Selector de Tipo de Puerta
 		Render2D.dibujarRectanguloRelleno(g, this.areaBtnTipo, new Color(28, 35, 48));

@@ -117,6 +117,11 @@ public class Cama extends ObjetoFabricable implements Interactuable {
 			return;
 		}
 
+		// Registra esta cama como punto de respawn
+		if (Globales.GESTOR_RESURRECCION != null) {
+			Globales.GESTOR_RESURRECCION.registrarLecho(this);
+		}
+
 		GestorTransicionSueno.getInstancia().iniciar(horas, true);
 	}
 

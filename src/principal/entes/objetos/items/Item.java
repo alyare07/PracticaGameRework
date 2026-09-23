@@ -194,6 +194,13 @@ public abstract class Item extends Objeto {
 			return Consumible.crearConsumible(entiti);
 		}
 
+		// Portátiles y Antorcha
+		if (tipoStr.equals("Antorcha")) {
+			final int x = (entiti.get("x") != null) ? ((Number) entiti.get("x")).intValue() : 0;
+			final int y = (entiti.get("y") != null) ? ((Number) entiti.get("y")).intValue() : 0;
+			return new principal.entes.objetos.items.Antorcha(x, y);
+		}
+
 		return Consumible.crearConsumible(entiti);
 	}
 }

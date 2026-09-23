@@ -36,6 +36,7 @@ import principal.ia.dijkstra.DijkstraRework;
 import principal.ia.dijkstra.NodoD;
 import principal.iluminacion.TipoLuz;
 import principal.inventario.equipamiento.SlotEquipamiento;
+import principal.inventario.equipamiento.SlotManager;
 import principal.inventario.slot.Slot;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
@@ -165,8 +166,6 @@ public class Jugador extends Criatura {
 		if (Globales.GESTOR_METABOLISMO != null) {
 			Globales.GESTOR_METABOLISMO.reiniciar();
 		}
-		this.desvincularLuz();
-		this.asignarLuz(Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.AURA_JUGADOR, 75));
 	}
 
 	public void recalcularAtributos() {
@@ -177,7 +176,7 @@ public class Jugador extends Criatura {
 		int aislaFrio = 0;
 		int aislaCalor = 0;
 		int sofoco = 0;
-
+		this.actualizarIluminacion();
 		if ((Globales.GESTOR_INVENTARIO != null) && (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
 			final ArrayList<SlotEquipamiento> slots = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotManager()
 					.getSlotsEquipamiento();
@@ -345,6 +344,50 @@ public class Jugador extends Criatura {
 		super.eliminar();
 	}
 
+	public void actualizarIluminacion() {
+		if (Globales.GESTOR_LUZ == null) {
+			return;
+		}
+
+		// 1. Determinar qué luz le corresponde según el equipo que sostenga
+		TipoLuz tipoDeseado = TipoLuz.AURA_JUGADOR;
+		double radioDeseado = 55.0;
+
+		if ((Globales.GESTOR_INVENTARIO != null) && (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
+			final SlotManager sm = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotManager();
+
+			// Evaluar Mano Secundaria [SEC]
+			final Item itemSec = (sm.getSlotManoSecundaria() != null) ? sm.getSlotManoSecundaria().getItem() : null;
+			// Evaluar Mano Principal [ARM]
+			final Item itemArm = (sm.getSlotArma() != null) ? sm.getSlotArma().getItem() : null;
+
+			final Item itemEvaluado = (itemSec != null) ? itemSec : itemArm;
+
+			if (itemEvaluado != null) {
+				final String nombreLower = itemEvaluado.getNombre().toLowerCase();
+				if (nombreLower.contains("antorcha") || nombreLower.contains("fuego")) {
+					tipoDeseado = TipoLuz.ANTORCHA;
+					radioDeseado = 100.0;
+				} else if (nombreLower.contains("linterna") || nombreLower.contains("farol")) {
+					tipoDeseado = TipoLuz.LINTERNA_CONICA;
+					radioDeseado = 135.0;
+				}
+			}
+		}
+
+		// 2. Si la luz fue apagada o desvinculada (ej. por morir), reactivarla
+		if ((this.luzAsignada == null) || !this.luzAsignada.isActiva()) {
+			this.asignarLuz(Globales.GESTOR_LUZ.agregarLuzAnclada(this, tipoDeseado, radioDeseado));
+			return;
+		}
+
+		// 3. Mutación en caliente O(1) sin new FuenteLuz (Zero-GC)
+		if (this.luzAsignada.getTipo() != tipoDeseado) {
+			this.luzAsignada.setTipo(tipoDeseado);
+			this.luzAsignada.setRadioBase(radioDeseado);
+		}
+	}
+
 	private void procesarMuertePorDificultad() {
 		GestorSonido.reproducir(IDSonido.CRIATURA_MUERTA);
 		if (Globales.CAMARA != null) {
@@ -354,8 +397,10 @@ public class Jugador extends Criatura {
 		// En modo Normal: Se pierde un 30% y el 70% cae al suelo donde murió
 		if (Globales.dificultad == Dificultad.NORMAL) {
 			this.soltarItemsPorMuerte(0.30);
-		} else if ((Globales.dificultad == Dificultad.DIFICIL)
-				|| (Globales.dificultad == Dificultad.HARDCORE_RENACIMIENTO)) {
+		} else if (Globales.dificultad == Dificultad.DIFICIL) {
+			this.soltarItemsPorMuerte(0.5);
+		} else if ((Globales.dificultad == Dificultad.HARDCORE_RENACIMIENTO)
+				|| (Globales.dificultad == Dificultad.HARDCORE_REAL)) {
 			this.soltarItemsPorMuerte(1);
 		}
 		// En modo Fácil: No se suelta nada, conserva todo su inventario intacto
@@ -434,6 +479,10 @@ public class Jugador extends Criatura {
 		if (Globales.GESTOR_METABOLISMO != null) {
 			Globales.GESTOR_METABOLISMO.reiniciar();
 		}
+		if (Globales.GESTOR_TERMICO_JUGADOR != null) {
+			Globales.GESTOR_TERMICO_JUGADOR.reiniciar();
+		}
+		this.actualizarIluminacion();
 		this.verificarZoneBox();
 	}
 
@@ -460,6 +509,7 @@ public class Jugador extends Criatura {
 		if (this.eliminado) {
 			return;
 		}
+		this.actualizarIluminacion();
 
 		if (Globales.GESTOR_DIALOGOS.isActivo() || Globales.GESTOR_EVENTOS.haySecuenciaEnCurso()) {
 			if (!this.estaEstadoEstandar()) {

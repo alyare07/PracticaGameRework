@@ -85,14 +85,32 @@ public class ZonaTP extends Ente {
 		if (this.puertaTP instanceof PuertaArea) {
 			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA, new Color(140, 134, 230, 110));
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.AREA, new Color(140, 134, 230, 220));
+
 		} else if ((this.puertaTP instanceof PuertaMundo) || (this.puertaTP instanceof PuertaZona)) {
 			final Color cFondo = (this.condicion != null) ? new Color(255, 180, 40, 110) : new Color(245, 20, 243, 110);
 			final Color cBorde = (this.condicion != null) ? new Color(255, 215, 50, 240) : new Color(245, 20, 243, 220);
 			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA, cFondo);
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.AREA, cBorde);
+
 		} else if (this.puertaTP instanceof PuertaMapa) {
 			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA, new Color(251, 20, 43, 110));
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.AREA, new Color(251, 20, 43, 220));
+
+		} else if (this.puertaTP instanceof PuertaSalidaCueva) {
+			// Verde esmeralda distintivo para salidas dinámicas de cueva
+			Render2D.dibujarRectanguloRellenoRefCamara(g, this.AREA, new Color(50, 205, 120, 115));
+			Render2D.dibujarRectanguloContornoRefCamara(g, this.AREA, new Color(50, 255, 140, 230));
+
+			if (Globales.isEstadoEditor()) {
+				final java.awt.Font fontPrevia = g.getFont();
+				g.setFont(Globales.GESTOR_FUENTES.getFuente(7f));
+				final String txt = "[SALIDA]";
+				final int anchoTxt = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, txt);
+				final int tx = (this.AREA.x + (this.AREA.width / 2)) - (anchoTxt / 2);
+				final int ty = this.AREA.y - 3;
+				Render2D.dibujarStringConSombraRefCamara(g, txt, tx, ty, new Color(50, 255, 140), Color.BLACK);
+				g.setFont(fontPrevia);
+			}
 		}
 	}
 

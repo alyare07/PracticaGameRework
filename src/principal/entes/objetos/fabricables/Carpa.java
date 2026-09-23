@@ -199,6 +199,11 @@ public class Carpa extends ObjetoFabricable implements Interactuable {
 			return;
 		}
 
+		// Registra la carpa como punto de respawn (se filtra por dificultad adentro)
+		if (Globales.GESTOR_RESURRECCION != null) {
+			Globales.GESTOR_RESURRECCION.registrarLecho(this);
+		}
+
 		GestorTransicionSueno.getInstancia().iniciar(horas, false);
 	}
 

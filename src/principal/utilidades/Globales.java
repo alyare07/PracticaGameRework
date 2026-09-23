@@ -16,6 +16,7 @@ import principal.crafteo.GestorCrafteo;
 import principal.dialogos.GestorDialogos;
 import principal.entes.criaturas.grupo.GestorGrupo;
 import principal.entes.criaturas.jugador.GestorMetabolismoJugador;
+import principal.entes.criaturas.jugador.GestorResurreccion;
 import principal.entes.criaturas.jugador.GestorTermicoJugador;
 import principal.entes.criaturas.jugador.Jugador;
 import principal.eventos.GestorEventos;
@@ -24,6 +25,7 @@ import principal.igu.textos.GestorTextosFlotantes;
 import principal.iluminacion.GestorLuz;
 import principal.interaccion.GestorInteraccion;
 import principal.inventario.vault.InventarioVault;
+import principal.mapa.peligros.GestorDerrumbes;
 import principal.mapa.persistencia.GestorDeltasMundo;
 import principal.mapa.renderEntidades.camara.Camara;
 import principal.maquinaestado.estados.GestorJuego;
@@ -90,11 +92,11 @@ public class Globales {
 	public static final GestorInventario GESTOR_INVENTARIO = new GestorInventario();
 	public static final int LADO_CURSOR = 4;
 	public static Camara CAMARA = new Camara(JUGADOR);
-
 	// =========================================================================
 	// === 6. SUBSISTEMAS DE PARTÍCULAS, LUZ, CLIMA, IA Y TERMODINÁMICA
 	// =========================================================================
 	public static final GestorAstronomico GESTOR_ASTRONOMICO = new GestorAstronomico();
+
 	public static final GestorTextosFlotantes GESTOR_TEXTOS = new GestorTextosFlotantes();
 	public static final GestorParticulas GESTOR_PARTICULAS = new GestorParticulas();
 	public static final GestorLuz GESTOR_LUZ = new GestorLuz();
@@ -110,7 +112,8 @@ public class Globales {
 	public static final GestorInteraccion GESTOR_INTERACCION = new GestorInteraccion();
 	public static final GestorDialogos GESTOR_DIALOGOS = new GestorDialogos();
 	public static final GestorEventos GESTOR_EVENTOS = new GestorEventos();
-
+	public static final GestorDerrumbes GESTOR_DERRUMBES = new GestorDerrumbes();
+	public static final GestorResurreccion GESTOR_RESURRECCION = new GestorResurreccion();
 	// =========================================================================
 	// === MÉTODOS DE ESCALADO Y CONSULTA
 	// =========================================================================

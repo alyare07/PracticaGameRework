@@ -74,6 +74,10 @@ public final class GestorGuardado {
 			// 3. Serializar Jugador (con atributos, inventario y efectos)
 			saveJson.put("jugador", Globales.JUGADOR.exportarParaJSON());
 
+			if (Globales.GESTOR_RESURRECCION != null) {
+				saveJson.put("resurreccion", Globales.GESTOR_RESURRECCION.exportarJSON());
+			}
+
 			// 4. Serializar Séquito y Mascotas Activas
 			if (Globales.GESTOR_GRUPO != null) {
 				saveJson.put("grupo", Globales.GESTOR_GRUPO.exportarJSON());

@@ -317407,6 +317407,21 @@
     },
     "objetos": [
         {
+  "tipoObjeto": "EntradaCueva",
+  "entiti": {
+    "x": 576,
+    "y": 512,
+    "mundoDestino": "cueva_1",
+    "spawnDestino": "Comienzo",
+    "duracionHoras": 72.0,
+    "timestampColapso": -1.0,
+    "colapsada": false,
+    "hoja": "DUNGEON_16",
+    "idxAbierta": 50,
+    "idxColapsada": 813
+  }
+},
+        {
             "tipoObjeto": "ArbolCosechable",
             "entiti": {
                 "x": 2359,

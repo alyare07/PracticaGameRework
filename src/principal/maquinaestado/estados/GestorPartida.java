@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 
 import org.json.simple.JSONObject;
 
+import principal.iluminacion.TipoLuz;
 import principal.mapa.Mundo;
 import principal.mapa.mapas.Mapa1;
 import principal.mapa.mapas.MapaManager;
@@ -35,6 +36,8 @@ public class GestorPartida implements EstadoJuego {
 		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, Mapa1.EXTERIOR, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true);
 		this.MP = new MenuPartida(ge, this);
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
+		Globales.JUGADOR.desvincularLuz();
+		Globales.JUGADOR.asignarLuz(Globales.GESTOR_LUZ.agregarLuzAnclada(Globales.JUGADOR, TipoLuz.AURA_JUGADOR, 75));
 	}
 
 	/**

@@ -24,7 +24,7 @@ public class MotorIGU {
 	private final TermometroIGU TERMOMETRO;
 	private final EfectosEstadoIGU EFECTOS_ESTADO;
 	private final MetabolismoIGU METABOLISMO;
-
+	private final BarraEstabilidadCueva BARRA_CUEVA;
 	private boolean visible = true;
 
 	public MotorIGU() {
@@ -36,6 +36,7 @@ public class MotorIGU {
 		this.TERMOMETRO = new TermometroIGU();
 		this.EFECTOS_ESTADO = new EfectosEstadoIGU();
 		this.METABOLISMO = new MetabolismoIGU();
+		this.BARRA_CUEVA = new BarraEstabilidadCueva();
 	}
 
 	public void actualizar() {
@@ -47,6 +48,9 @@ public class MotorIGU {
 		this.TERMOMETRO.actualizar();
 		this.EFECTOS_ESTADO.actualizar();
 		this.METABOLISMO.actualizar();
+		if (this.esAmbienteCueva()) {
+			this.BARRA_CUEVA.actualizar();
+		}
 	}
 
 	public void pintar(final Graphics2D g) {
@@ -54,7 +58,7 @@ public class MotorIGU {
 		if (!this.visible || ((Globales.GESTOR_EVENTOS != null) && Globales.GESTOR_EVENTOS.haySecuenciaEnCurso())) {
 			return;
 		}
-
+		final boolean enCueva = this.esAmbienteCueva();
 		// 1. Capa inferior del HUD: Viñeta atmosférica de pantalla completa
 		this.VINETA_TERMICA.pintar(g);
 
@@ -66,11 +70,17 @@ public class MotorIGU {
 		this.TERMOMETRO.pintar(g);
 		this.METABOLISMO.pintar(g);
 		this.EFECTOS_ESTADO.pintar(g);
+		if (enCueva) {
+			this.BARRA_CUEVA.pintar(g);
+		}
 
 		// 3. Capa final superior: Tooltips flotantes
 		this.EFECTOS_ESTADO.pintarTooltips(g);
 		this.TERMOMETRO.pintarTooltips(g);
 		this.METABOLISMO.pintarTooltips(g);
+		if (enCueva) {
+			this.BARRA_CUEVA.pintarTooltip(g);
+		}
 	}
 
 	public void fijarJefe(final Criatura jefe) {
@@ -107,6 +117,13 @@ public class MotorIGU {
 
 	public EfectosEstadoIGU getEfectosEstado() {
 		return this.EFECTOS_ESTADO;
+	}
+
+	private boolean esAmbienteCueva() {
+		return (Globales.JUGADOR != null) && (Globales.JUGADOR.getMundo() != null)
+				&& (Globales.JUGADOR.getMundo().getEscenario() != null)
+				&& (Globales.JUGADOR.getMundo().getEscenario().getMetadatos() != null)
+				&& Globales.JUGADOR.getMundo().getEscenario().getMetadatos().esCueva();
 	}
 
 	public VinetaTermicaIGU getVinetaTermica() {

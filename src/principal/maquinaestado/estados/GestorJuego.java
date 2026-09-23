@@ -38,8 +38,6 @@ import principal.utilidades.GestorTiempo;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 import principal.utilidades.audio.musica.GestorMusica;
-import principal.utilidades.audio.sonido.GestorSonido;
-import principal.utilidades.audio.sonido.IDSonido;
 
 public final class GestorJuego implements EstadoJuego, cargaMapa {
 
@@ -252,15 +250,10 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		this.mostrarPantallaMuerte = false;
 		this.botonMuerte = null;
 
-		final Mundo mundoActual = (this.mapa != null) ? this.mapa.getMundoActual() : null;
-		if (mundoActual != null) {
-			Globales.JUGADOR.reaparecer(mundoActual);
+		// Delega la resurrección al gestor seguro
+		if (Globales.GESTOR_RESURRECCION != null) {
+			Globales.GESTOR_RESURRECCION.ejecutarReaparicion(this);
 		}
-
-		Globales.CAMARA.setEntidadEnfocada(Globales.JUGADOR);
-		Globales.CAMARA.habilitarGestorLimite();
-		Globales.CAMARA.getGestorEfectos().detenerTodosLosEfectos();
-		GestorSonido.reproducir(IDSonido.SELECT);
 	}
 
 	private void ejecutarFinDelJuego() {
@@ -438,8 +431,8 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			final Font fontPrevia = g.getFont();
 
 			// 2. Título principal de muerte
-			final String texto = (Globales.dificultad == Dificultad.DIFICIL) ? "FIN DEL JUEGO" : "HAS MUERTO";
-			final Color color = (Globales.dificultad == Dificultad.DIFICIL) ? new Color(255, 30, 40)
+			final String texto = (Globales.dificultad == Dificultad.HARDCORE_REAL) ? "FIN DEL JUEGO" : "HAS MUERTO";
+			final Color color = (Globales.dificultad == Dificultad.HARDCORE_REAL) ? new Color(255, 30, 40)
 					: new Color(235, 45, 45);
 
 			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.BOLD, 36f));
@@ -454,10 +447,14 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			final String subtitulo;
 			if (Globales.dificultad == Dificultad.FACIL) {
 				subtitulo = "Dificultad Fácil · Inventario y equipo conservados";
-			} else if (Globales.dificultad == Dificultad.NORMAL) {
+			} else if (Globales.dificultad == Dificultad.DIFICIL) {
+				subtitulo = "Dificultad Dificil · La mitad de tus ítems cayeron en el lugar de tu muerte y el resto desapareció!";
+			} else if (Globales.dificultad == Dificultad.HARDCORE_RENACIMIENTO) {
+				subtitulo = "Dificultad Hardcore - Legado · Este personaje ha muerto para siempre y renaceras como nueva criatura!";
+			} else if (Globales.dificultad == Dificultad.HARDCORE_REAL) {
+				subtitulo = "Dificultad Hardcore - Real · Muerte permanente";
+			} else {// if (Globales.dificultad == Dificultad.NORMAL) {
 				subtitulo = "Dificultad Normal · 70% de tus ítems cayeron en el lugar de tu muerte";
-			} else {
-				subtitulo = "Dificultad Difícil · Muerte permanente";
 			}
 
 			final int anchoSub = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, subtitulo);
@@ -684,6 +681,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		Globales.JUGADOR.setMundo(mundoActivo);
 		if (saveJson.get("jugador") instanceof JSONObject) {
 			Globales.JUGADOR.importarDeJSON((JSONObject) saveJson.get("jugador"));
+		}
+
+		// Restaurar Anclaje de Resurrección (Cama / Carpa)
+		if ((saveJson.get("resurreccion") instanceof JSONObject) && (Globales.GESTOR_RESURRECCION != null)) {
+			Globales.GESTOR_RESURRECCION.importarJSON((JSONObject) saveJson.get("resurreccion"));
 		}
 
 		// Restaurar Séquito / Grupo

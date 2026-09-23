@@ -259,6 +259,7 @@ public class MundoEditor extends Mundo {
 			jo.put("y", Integer.valueOf(tp.getPosicionYInt()));
 			jo.put("w", Integer.valueOf(tp.getAncho()));
 			jo.put("h", Integer.valueOf(tp.getAlto()));
+
 			if (tp.getPuertaTP() instanceof PuertaMapa) {
 				jo.put("tipo", "PuertaMapa");
 				jo.put("mapa", ((PuertaMapa) tp.getPuertaTP()).getRutaMapaDestino());
@@ -270,14 +271,17 @@ public class MundoEditor extends Mundo {
 				jo.put("mundo", ((PuertaMundo) tp.getPuertaTP()).getNombreMundoDestino());
 				jo.put("spawn", ((PuertaMundo) tp.getPuertaTP()).getNombreSpawnDestino());
 
-			} else if (tp.getPuertaTP() instanceof PuertaArea) { // puerta area
+			} else if (tp.getPuertaTP() instanceof PuertaArea) {
 				jo.put("tipo", "PuertaArea");
 				jo.put("destX", ((PuertaArea) tp.getPuertaTP()).getXDestino());
 				jo.put("destY", ((PuertaArea) tp.getPuertaTP()).getYDestino());
 				jo.put("destW", ((PuertaArea) tp.getPuertaTP()).getWDestino());
 				jo.put("destH", ((PuertaArea) tp.getPuertaTP()).getHDestino());
 
+			} else if (tp.getPuertaTP() instanceof principal.mapa.escenario.tps.PuertaSalidaCueva) {
+				jo.put("tipo", "PuertaSalidaCueva");
 			}
+
 			lista.add(jo);
 		}
 		return lista;

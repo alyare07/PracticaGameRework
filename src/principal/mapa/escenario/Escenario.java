@@ -268,6 +268,8 @@ public class Escenario implements Serializable {
 					obj = RocaCosechable.crearDesdeJson(entiti);
 				} else if (tipo.equals("Fogata")) {
 					obj = Fogata.crearDesdeJson(entiti);
+				} else if (tipo.equals("EntradaCueva")) {
+					obj = principal.entes.objetos.EntradaCueva.crearDesdeJson(entiti);
 				}
 
 				if (obj != null) {
@@ -283,7 +285,6 @@ public class Escenario implements Serializable {
 		if (mundo == null) {
 			return;
 		}
-
 		final JSONParser parse = new JSONParser();
 		JSONArray lista = null;
 		try {
@@ -300,7 +301,6 @@ public class Escenario implements Serializable {
 				final int w = ((Number) json.get("w")).intValue();
 				final int h = ((Number) json.get("h")).intValue();
 				final String tipoPuerta = json.get("tipo").toString();
-
 				final Rectangle areaTP = new Rectangle(x, y, w, h);
 				ZonaTP zonaTP = null;
 
@@ -317,6 +317,8 @@ public class Escenario implements Serializable {
 					final String nombreMundo = json.get("mundo").toString();
 					final String spawn = json.get("spawn").toString();
 					zonaTP = new ZonaTP(areaTP, new PuertaMundo(nombreMundo, spawn));
+				} else if (tipoPuerta.equals("PuertaSalidaCueva")) {
+					zonaTP = new ZonaTP(areaTP, new principal.mapa.escenario.tps.PuertaSalidaCueva());
 				}
 
 				if (zonaTP != null) {

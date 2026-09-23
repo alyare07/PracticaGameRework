@@ -43,6 +43,7 @@ public class Mapa1 extends Mapa {
 	public static final String INTERIOR_CASA1 = "interior_casa1";
 	public static final String EXTERIOR_DESIERTO = "ext_desierto";
 	public static final String EXTERIOR_NIEVE = "ext_nieve";
+	public static final String CUEVA_1 = "cueva_1";
 
 	public Mapa1(final GestorCarga gc, final int porcentajeCarga, final GestorPartida gp) {
 		super(gc, porcentajeCarga, gp);
@@ -94,6 +95,15 @@ public class Mapa1 extends Mapa {
 		mExt_nieve.setNombreMundo(EXTERIOR_NIEVE);
 		mExt_nieve.setMapa(this);
 		this.MUNDOS.put(EXTERIOR_NIEVE, mExt_nieve);
+
+		// 4. cueva 1
+		gc.setDetalleCarga("Generando mundo " + CUEVA_1);
+		final Mundo mCueva1 = new Mundo(
+				this.cargarEscenario(gc, porcentajeCargaEscenario, new File("mundos/cueva_1.json")),
+				new Point(1878, 1796), gc, porcentajeCargaMundo);
+		mCueva1.setNombreMundo(CUEVA_1);
+		mCueva1.setMapa(this);
+		this.MUNDOS.put(CUEVA_1, mCueva1);
 
 		// =====================================================================
 		// ENTIDADES DE PRUEBA: BLOQUE 5 (Refugio, Cama, Carpa y Salto Temporal)
@@ -149,7 +159,7 @@ public class Mapa1 extends Mapa {
 			mExt.meterEntidad(new principal.entes.objetos.fabricables.Fogata(1810, 1835, 8, true, false));
 
 			final ArbolCofre arbolcofre1 = new ArbolCofre(1800, 1900);
-
+			arbolcofre1.getInventario().agregarItem(new principal.entes.objetos.items.Antorcha());
 			// Herramientas
 			arbolcofre1.getInventario()
 					.agregarItem(new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));

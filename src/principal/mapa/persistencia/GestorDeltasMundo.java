@@ -108,6 +108,11 @@ public class GestorDeltasMundo {
 				jsonCarpa.put("tipo", "Carpa");
 				jsonCarpa.put("vida", Double.valueOf(c.getVida()));
 				delta.getEstructurasConstruidas().add(jsonCarpa);
+			} else if (e instanceof principal.entes.objetos.EntradaCueva) {
+				final principal.entes.objetos.EntradaCueva cueva = (principal.entes.objetos.EntradaCueva) e;
+				final JSONObject jsonCueva = cueva.exportarParaJSON();
+				jsonCueva.put("tipo", "EntradaCueva");
+				delta.getEstructurasConstruidas().add(jsonCueva);
 			}
 
 			// 3. Contenedores y Cofres
@@ -285,14 +290,22 @@ public class GestorDeltasMundo {
 						mundo.meterEntidad(f);
 					}
 				} else if (tipoStr.equals("Cama")) {
-					final principal.entes.objetos.fabricables.Cama c = principal.entes.objetos.fabricables.Cama.crearDesdeJson(jEst);
+					final principal.entes.objetos.fabricables.Cama c = principal.entes.objetos.fabricables.Cama
+							.crearDesdeJson(jEst);
 					if (c != null) {
 						mundo.meterEntidad(c);
 					}
 				} else if (tipoStr.equals("Carpa")) {
-					final principal.entes.objetos.fabricables.Carpa c = principal.entes.objetos.fabricables.Carpa.crearDesdeJson(jEst);
+					final principal.entes.objetos.fabricables.Carpa c = principal.entes.objetos.fabricables.Carpa
+							.crearDesdeJson(jEst);
 					if (c != null) {
 						mundo.meterEntidad(c);
+					}
+				} else if (tipoStr.equals("EntradaCueva")) {
+					final principal.entes.objetos.EntradaCueva cueva = principal.entes.objetos.EntradaCueva
+							.crearDesdeJson(jEst);
+					if (cueva != null) {
+						mundo.meterEntidad(cueva);
 					}
 				} else {
 					try {

@@ -59,6 +59,8 @@ public final class RegistroEntidades {
 		registrar(new AdaptadoresEstructuras.AdaptadorCarpa());
 		registrar(new AdaptadoresEstructuras.AdaptadorCama());
 		registrar(new AdaptadoresEstructuras.AdaptadorEntradaCueva());
+		registrar(new AdaptadoresEstructuras.AdaptadorEdificio());
+		registrar(new AdaptadoresEstructuras.AdaptadorZonaTP());
 
 		// 3. CONTENEDORES Y RECURSOS
 		registrar(new AdaptadoresContenedoresYRecursos.AdaptadorCofrePequeno());

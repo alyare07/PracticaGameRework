@@ -139,6 +139,12 @@ public class GrupoPaleta {
 		paletaObjetos.agregarEntrada("Entrada a Cueva", (dungeon != null ? dungeon.getSprite(50) : null), false,
 				(x, y) -> new EntradaCueva(x, y, "cueva_1", "Comienzo"));
 
+		// Edificios funcionales completos desde TipoEdificio
+		for (final principal.entes.estructuras.TipoEdificio e : principal.entes.estructuras.TipoEdificio.values()) {
+			paletaObjetos.agregarEntrada(e.getNombre(), e.getTextura(), false,
+					(x, y) -> new principal.entes.estructuras.Edificio(x, y, e));
+		}
+
 		// Complementos del escenario desde el Enum TipoModeloComplemento
 		for (final TipoModeloComplemento m : TipoModeloComplemento.values()) {
 			if (m != TipoModeloComplemento.BARRERA_INVISIBLE) {

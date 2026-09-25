@@ -1074,13 +1074,6 @@ public class Mundo {
 		return this.ENTES_REGISTRADOS.size() + this.ESCENARIO.getTerreno().getCantidadTiles();
 	}
 
-	public void moverJugadorPuntoComienzo() {
-		final Spawn spawn = this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO);
-		if (spawn != null) {
-			spawn.moverJugadorCentrado();
-		}
-	}
-
 	public void llenarSpawn(final ArrayList<Spawn> lista) {
 		if (lista != null) {
 			for (final Spawn spawn : lista) {
@@ -1090,7 +1083,30 @@ public class Mundo {
 	}
 
 	public Spawn getSpawn(final String nombreSpawn) {
-		return this.PUNTOS_SPAWN_JUGADOR.get(nombreSpawn);
+		if (nombreSpawn == null) {
+			return null;
+		}
+		final Spawn s = this.PUNTOS_SPAWN_JUGADOR.get(nombreSpawn);
+		if (s != null) {
+			return s;
+		}
+		// Búsqueda tolerante a mayúsculas/minúsculas ("comienzo" vs "Comienzo")
+		for (final java.util.Map.Entry<String, Spawn> entry : this.PUNTOS_SPAWN_JUGADOR.entrySet()) {
+			if (entry.getKey().equalsIgnoreCase(nombreSpawn)) {
+				return entry.getValue();
+			}
+		}
+		return null;
+	}
+
+	public void moverJugadorPuntoComienzo() {
+		final Spawn spawn = this.getSpawn(CLAVE_PUNTO_SPAWN_COMIENZO);
+		if (spawn != null) {
+			spawn.moverJugadorCentrado();
+		} else if (!this.PUNTOS_SPAWN_JUGADOR.isEmpty()) {
+			// Fallback: Si no existe "Comienzo", usa el primer spawn disponible
+			this.PUNTOS_SPAWN_JUGADOR.values().iterator().next().moverJugadorCentrado();
+		}
 	}
 
 	private final AccionEntidad<Criatura> visitorRecolectarCriaturas = new AccionEntidad<Criatura>() {

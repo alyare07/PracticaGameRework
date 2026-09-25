@@ -52,7 +52,10 @@ public enum ClaveHoja {
 
 	// Items equipados
 	EQUIPADO_CASCO1("/imagenes/sprites/objetos/equipados/equipado_casco0.png", 32, 32),
-	EQUIPADO_PETO1("/imagenes/sprites/objetos/equipados/equipado_peto0.png", 32, 32);
+	EQUIPADO_PETO1("/imagenes/sprites/objetos/equipados/equipado_peto0.png", 32, 32),
+
+	// Casas
+	CASAS_64("/imagenes/texturas/house/casas64.png", 64, 64);
 
 	private final String ruta;
 	private final int anchoFrame;

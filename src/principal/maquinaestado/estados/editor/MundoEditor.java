@@ -17,9 +17,6 @@ import principal.iluminacion.ZonaAmbiente;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.escenario.Escenario;
-import principal.mapa.escenario.tps.PuertaArea;
-import principal.mapa.escenario.tps.PuertaMapa;
-import principal.mapa.escenario.tps.PuertaMundo;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
@@ -254,35 +251,23 @@ public class MundoEditor extends Mundo {
 		final JSONArray lista = new JSONArray();
 		for (int i = 0; i < this.triggersEditor.size(); i++) {
 			final ZonaTP tp = this.triggersEditor.get(i);
-			final JSONObject jo = new JSONObject();
-			jo.put("x", Integer.valueOf(tp.getPosicionXInt()));
-			jo.put("y", Integer.valueOf(tp.getPosicionYInt()));
-			jo.put("w", Integer.valueOf(tp.getAncho()));
-			jo.put("h", Integer.valueOf(tp.getAlto()));
-
-			if (tp.getPuertaTP() instanceof PuertaMapa) {
-				jo.put("tipo", "PuertaMapa");
-				jo.put("mapa", ((PuertaMapa) tp.getPuertaTP()).getRutaMapaDestino());
-				jo.put("mundo", ((PuertaMapa) tp.getPuertaTP()).getNombreMundoDestino());
-				jo.put("spawn", ((PuertaMapa) tp.getPuertaTP()).getNombreSpawnDelMundoDestino());
-
-			} else if (tp.getPuertaTP() instanceof PuertaMundo) {
-				jo.put("tipo", "PuertaMundo");
-				jo.put("mundo", ((PuertaMundo) tp.getPuertaTP()).getNombreMundoDestino());
-				jo.put("spawn", ((PuertaMundo) tp.getPuertaTP()).getNombreSpawnDestino());
-
-			} else if (tp.getPuertaTP() instanceof PuertaArea) {
-				jo.put("tipo", "PuertaArea");
-				jo.put("destX", ((PuertaArea) tp.getPuertaTP()).getXDestino());
-				jo.put("destY", ((PuertaArea) tp.getPuertaTP()).getYDestino());
-				jo.put("destW", ((PuertaArea) tp.getPuertaTP()).getWDestino());
-				jo.put("destH", ((PuertaArea) tp.getPuertaTP()).getHDestino());
-
-			} else if (tp.getPuertaTP() instanceof principal.mapa.escenario.tps.PuertaSalidaCueva) {
-				jo.put("tipo", "PuertaSalidaCueva");
+			final JSONObject sobre = principal.persistencia.json.RegistroEntidades.exportar(tp);
+			if (sobre != null) {
+				final JSONObject datos = (JSONObject) sobre
+						.get(principal.persistencia.json.RegistroEntidades.CLAVE_DATOS);
+				// El objeto 'datos' ya contiene x, y, w, h y el payload de la puerta
+				if (datos != null) {
+					final JSONObject jPuerta = (JSONObject) datos.get("puerta");
+					if (jPuerta != null) {
+						// Aplana las claves de la puerta para compatibilidad con el cargador de
+						// triggers
+						for (final Object k : jPuerta.keySet()) {
+							datos.put(k, jPuerta.get(k));
+						}
+					}
+					lista.add(datos);
+				}
 			}
-
-			lista.add(jo);
 		}
 		return lista;
 	}

@@ -12,7 +12,6 @@ import principal.entes.objetos.fabricables.Fogata;
 import principal.mapa.Mundo;
 import principal.persistencia.json.AdaptadorEntidad;
 import principal.persistencia.json.LectorJSON;
-import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
 
 /**
@@ -218,5 +217,95 @@ public final class AdaptadoresEstructuras {
 			cueva.setMundo(mundo);
 			return cueva;
 		}
+	}
+
+	public static class AdaptadorZonaTP implements AdaptadorEntidad<principal.mapa.escenario.tps.ZonaTP> {
+		@Override
+		public String getId() {
+			return "ZONA_TP";
+		}
+
+		@Override
+		public Class<principal.mapa.escenario.tps.ZonaTP> getClaseEntidad() {
+			return principal.mapa.escenario.tps.ZonaTP.class;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public JSONObject serializar(final principal.mapa.escenario.tps.ZonaTP tp) {
+			final JSONObject json = new JSONObject();
+			json.put("x", Integer.valueOf(tp.getPosicionXInt()));
+			json.put("y", Integer.valueOf(tp.getPosicionYInt()));
+			json.put("w", Integer.valueOf(tp.getAncho()));
+			json.put("h", Integer.valueOf(tp.getAlto()));
+
+			final JSONObject jPuerta = principal.mapa.escenario.tps.SerializadorPuertas
+					.serializarPuerta(tp.getPuertaTP());
+			if (jPuerta != null) {
+				json.put("puerta", jPuerta);
+			}
+			return json;
+		}
+
+		@Override
+		public principal.mapa.escenario.tps.ZonaTP deserializar(final JSONObject d, final Mundo mundo) {
+			final int x = LectorJSON.getInt(d, "x", 0);
+			final int y = LectorJSON.getInt(d, "y", 0);
+			final int w = LectorJSON.getInt(d, "w", 16);
+			final int h = LectorJSON.getInt(d, "h", 16);
+
+			final JSONObject jPuerta = LectorJSON.getObjeto(d, "puerta");
+			final principal.mapa.escenario.tps.PuertaTP puerta = (jPuerta != null)
+					? principal.mapa.escenario.tps.SerializadorPuertas.deserializarPuerta(jPuerta)
+					: principal.mapa.escenario.tps.SerializadorPuertas.deserializarPuerta(d);
+
+			final principal.mapa.escenario.tps.ZonaTP tp = new principal.mapa.escenario.tps.ZonaTP(
+					new java.awt.Rectangle(x, y, w, h), puerta);
+			tp.setMundo(mundo);
+			return tp;
+		}
+	}
+
+	public static class AdaptadorEdificio implements AdaptadorEntidad<principal.entes.estructuras.Edificio> {
+		@Override
+		public String getId() {
+			return "EDIFICIO";
+		}
+
+		@Override
+		public Class<principal.entes.estructuras.Edificio> getClaseEntidad() {
+			return principal.entes.estructuras.Edificio.class;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public JSONObject serializar(final principal.entes.estructuras.Edificio e) {
+			final JSONObject json = new JSONObject();
+			json.put("x", Integer.valueOf(e.getPosicionXInt()));
+			json.put("y", Integer.valueOf(e.getPosicionYInt()));
+			json.put("tipoEdificio", e.getTipoEdificio().name());
+			json.put("mundoDestino", e.getNombreMundoDestino());
+			json.put("spawnDestino", e.getNombreSpawnDestino());
+			json.put("bloqueada", Boolean.valueOf(e.isBloqueada()));
+			return json;
+		}
+
+		@Override
+		public principal.entes.estructuras.Edificio deserializar(final JSONObject d, final Mundo mundo) {
+			final int x = LectorJSON.getInt(d, "x", 0);
+			final int y = LectorJSON.getInt(d, "y", 0);
+			final principal.entes.estructuras.TipoEdificio tipo = LectorJSON.getEnum(d, "tipoEdificio",
+					principal.entes.estructuras.TipoEdificio.CASA_CAMPO,
+					principal.entes.estructuras.TipoEdificio.class);
+			final String mDest = LectorJSON.getString(d, "mundoDestino", null);
+			final String spDest = LectorJSON.getString(d, "spawnDestino", "Entrada");
+			final boolean bloq = LectorJSON.getBoolean(d, "bloqueada", false);
+
+			final principal.entes.estructuras.Edificio e = new principal.entes.estructuras.Edificio(x, y, tipo, mDest,
+					spDest, bloq);
+			e.setMundo(mundo);
+			return e;
+		}
+
 	}
 }

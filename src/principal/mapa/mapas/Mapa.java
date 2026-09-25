@@ -61,14 +61,32 @@ public abstract class Mapa {
 	 * Transfiere de forma atómica al jugador entre mundos pertenecientes a este
 	 * mapa.
 	 */
+	public Mundo getMundo(final String nombreMundo) {
+		if (nombreMundo == null) {
+			return null;
+		}
+		final Mundo m = this.MUNDOS.get(nombreMundo);
+		if (m != null) {
+			return m;
+		}
+		// Búsqueda tolerante a mayúsculas/minúsculas
+		for (final java.util.Map.Entry<String, Mundo> entry : this.MUNDOS.entrySet()) {
+			if (entry.getKey().equalsIgnoreCase(nombreMundo)) {
+				return entry.getValue();
+			}
+		}
+		return null;
+	}
+
 	public void cambiarMundoInterno(final String nombreMundoDestino, final String nombreSpawnDestino) {
-		if ((nombreMundoDestino == null) || !this.MUNDOS.containsKey(nombreMundoDestino)) {
+		final Mundo nuevoMundo = this.getMundo(nombreMundoDestino);
+
+		if (nuevoMundo == null) {
 			System.err.println("[Mapa] El mundo destino '" + nombreMundoDestino + "' no existe en este mapa.");
 			return;
 		}
 
 		final Mundo mundoViejo = this.mundoActual;
-		final Mundo nuevoMundo = this.MUNDOS.get(nombreMundoDestino);
 
 		// 1. Guardar cambios del mundo que se abandona en su Delta
 		if (mundoViejo != null) {
@@ -88,11 +106,10 @@ public abstract class Mapa {
 			nuevoMundo.moverJugadorPuntoComienzo();
 		}
 
-		// 4. Aplicar cambios persistentes del nuevo mundo (árboles talados, cofres,
-		// construcciones)
+		// 4. Aplicar cambios persistentes del nuevo mundo
 		Globales.GESTOR_DELTAS.aplicarDelta(nuevoMundo);
 
-		// 5. Configurar atmósfera (Iluminación, Clima, Niebla, Música)
+		// 5. Configurar atmósfera
 		nuevoMundo.aplicarMetadatosAtmosfericos();
 
 		// 6. Recalcular límites de cámara y actualizar inventario
@@ -111,10 +128,6 @@ public abstract class Mapa {
 
 	public Mundo getMundoActual() {
 		return this.mundoActual;
-	}
-
-	public Mundo getMundo(final String nombreMundo) {
-		return this.MUNDOS.get(nombreMundo);
 	}
 
 	public Collection<Mundo> getMundos() {

@@ -14,6 +14,7 @@ import principal.mapa.escenario.Escenario;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
+import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.recursos.TipoTerreno;
 
@@ -34,7 +35,9 @@ public class MapaPlano extends Mapa {
 	protected void establecerMundos(final GestorCarga gc, final int porcentajeCarga) {
 		gc.setDetalleCarga("Generando terreno");
 		final Terreno t = new Terreno(1500, 1500, 16, TipoTerreno.CESPED_2);
-		this.MUNDOS.put(EXTERIOR, new Mundo(new Escenario(t, "[]", "[]", "[]", "[]"), new Point(326, 268)));
+		this.MUNDOS.put(EXTERIOR,
+				new Mundo(new Escenario(t, null, null, null, null, null, null, null, null, new MetadatosEscenario()),
+						new Point()));
 	}
 
 	@Override

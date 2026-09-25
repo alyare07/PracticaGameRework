@@ -11,10 +11,8 @@ import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.cofres.CofreMediano;
 import principal.entes.objetos.cofres.CofrePequeño;
 import principal.entes.objetos.fabricables.Fogata;
-import principal.entes.objetos.recursos.ArbolCosechable;
-import principal.entes.objetos.recursos.RocaCosechable;
+import principal.entes.objetos.recursos.minerales.MineralRoca;
 import principal.mapa.Mundo;
-import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
 
 public class ComandoSpawn extends Comando {
@@ -31,7 +29,7 @@ public class ComandoSpawn extends Comando {
 
 	@Override
 	public void ejecutar(final String[] args, final EmisorRespuesta emisor) {
-		if (Globales.JUGADOR == null || Globales.JUGADOR.getMundo() == null) {
+		if ((Globales.JUGADOR == null) || (Globales.JUGADOR.getMundo() == null)) {
 			this.enviarError(emisor, "El mundo actual no está disponible para generar entidades.");
 			return;
 		}
@@ -39,13 +37,14 @@ public class ComandoSpawn extends Comando {
 		final Mundo mundo = Globales.JUGADOR.getMundo();
 
 		if (args.length == 0) {
-			this.enviarInfo(emisor, "Uso: spawn <tipo> [subtipo] [x] [y]\nOpciones de tipo: bandido, comerciante, mascota, arbol, roca, cofre, fogata");
+			this.enviarInfo(emisor,
+					"Uso: spawn <tipo> [subtipo] [x] [y]\nOpciones de tipo: bandido, comerciante, mascota, arbol, roca, cofre, fogata");
 			return;
 		}
 
 		final String tipo = args[0].toLowerCase().trim();
-		double x = Globales.JUGADOR.getCentroX();
-		double y = Globales.JUGADOR.getCentroY();
+		final double x = Globales.JUGADOR.getCentroX();
+		final double y = Globales.JUGADOR.getCentroY();
 
 		if (tipo.equals("bandido") || tipo.equals("enemigo")) {
 			final String subtipo = (args.length >= 2) ? args[1].toLowerCase() : "pistolero";
@@ -85,15 +84,8 @@ public class ComandoSpawn extends Comando {
 			return;
 		}
 
-		if (tipo.equals("arbol") || tipo.equals("tree")) {
-			final ArbolCosechable arbol = new ArbolCosechable((int) x - 16, (int) y - 16, ClaveHoja.ARBOLES_32, 0);
-			mundo.meterEntidad(arbol);
-			this.enviarInfo(emisor, "Árbol talable generado en la posición.");
-			return;
-		}
-
 		if (tipo.equals("roca") || tipo.equals("rock") || tipo.equals("mineral")) {
-			final RocaCosechable roca = new RocaCosechable((int) x - 16, (int) y - 16, ClaveHoja.DUNGEON_16, 813);
+			final MineralRoca roca = new MineralRoca((int) x - 16, (int) y - 16);
 			mundo.meterEntidad(roca);
 			this.enviarInfo(emisor, "Roca minable generada en la posición.");
 			return;
@@ -116,6 +108,7 @@ public class ComandoSpawn extends Comando {
 			return;
 		}
 
-		this.enviarError(emisor, "Tipo de spawn no reconocido: '" + tipo + "'. Opciones: bandido, comerciante, mascota, arbol, roca, cofre, fogata");
+		this.enviarError(emisor, "Tipo de spawn no reconocido: '" + tipo
+				+ "'. Opciones: bandido, comerciante, mascota, arbol, roca, cofre, fogata");
 	}
 }

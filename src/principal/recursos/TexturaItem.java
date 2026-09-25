@@ -57,6 +57,8 @@ public enum TexturaItem {
 	// --- Munición y Balística ---
 	CAJA_MUNICION_INV(ClaveHoja.CAJA_MUNICION_16, 0), CAJA_MUNICION_MAPA(ClaveHoja.CAJA_MUNICION_8, 0),
 	BALA_PROYECTIL(ClaveHoja.BALA_4, 0),
+	// ANTORCHAS
+	ANTORCHA_INV(ClaveHoja.ITEMS_16, 170), ANTORCHA_MAPA(ClaveHoja.ITEMS_12, 170),
 
 	// --- Granadas y Arrojadizos ---
 	GRANADA_T1_INV(ClaveHoja.GRANADAS_16, 0), GRANADA_T1_MAPA(ClaveHoja.GRANADAS_10, 0),

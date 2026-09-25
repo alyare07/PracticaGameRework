@@ -13,11 +13,12 @@ import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.criaturas.mascotas.Mascota;
-import principal.entes.objetos.fabricables.Fogata;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.recursos.RecursoCosechable;
 import principal.inventario.Contenedor;
 import principal.mapa.Mundo;
+import principal.persistencia.json.LectorJSON;
+import principal.persistencia.json.RegistroEntidades;
 import principal.utilidades.Globales;
 
 public class GestorDeltasMundo {
@@ -62,13 +63,12 @@ public class GestorDeltasMundo {
 		delta.getCriaturasModificadas().clear();
 		delta.getCriaturasDinamicas().clear();
 
-		// Capturar el estado climático vivo del mundo
 		if (mundo.getEstadoClima() != null) {
 			delta.setClimaModificado(mundo.getEstadoClima().exportarJSON());
 		}
 
 		for (final Ente e : mundo.getEntes()) {
-			if (e.estaEliminado()) {
+			if ((e == null) || e.estaEliminado()) {
 				continue;
 			}
 
@@ -79,9 +79,10 @@ public class GestorDeltasMundo {
 					final String clave = IdentificadorEspacial.generarClave(rc.getPosicionXInt(), rc.getPosicionYInt());
 					delta.getCriaturasModificadas().put(clave, rc.exportarEstadoRecursoJSON());
 				}
+				continue;
 			}
 
-			// 2. Estructuras construibles y Fogatas
+			// 2. Estructuras Construibles (Muros de jugador)
 			if (e instanceof EstructuraConstruible) {
 				final EstructuraConstruible est = (EstructuraConstruible) e;
 				final JSONObject jsonEst = new JSONObject();
@@ -90,29 +91,7 @@ public class GestorDeltasMundo {
 				jsonEst.put("tipo", est.getTipo().name());
 				jsonEst.put("hp", Double.valueOf(est.getVida()));
 				delta.getEstructurasConstruidas().add(jsonEst);
-			} else if (e instanceof Fogata) {
-				final Fogata f = (Fogata) e;
-				final JSONObject jsonFog = f.exportarParaJSON();
-				jsonFog.put("tipo", "Fogata");
-				jsonFog.put("vida", Double.valueOf(f.getVida()));
-				jsonFog.put("tiempoCombustible", Double.valueOf(f.getTiempoCombustibleRestante()));
-				delta.getEstructurasConstruidas().add(jsonFog);
-			} else if (e instanceof principal.entes.objetos.fabricables.Cama) {
-				final principal.entes.objetos.fabricables.Cama c = (principal.entes.objetos.fabricables.Cama) e;
-				final JSONObject jsonCama = c.exportarParaJSON();
-				jsonCama.put("tipo", "Cama");
-				delta.getEstructurasConstruidas().add(jsonCama);
-			} else if (e instanceof principal.entes.objetos.fabricables.Carpa) {
-				final principal.entes.objetos.fabricables.Carpa c = (principal.entes.objetos.fabricables.Carpa) e;
-				final JSONObject jsonCarpa = c.exportarParaJSON();
-				jsonCarpa.put("tipo", "Carpa");
-				jsonCarpa.put("vida", Double.valueOf(c.getVida()));
-				delta.getEstructurasConstruidas().add(jsonCarpa);
-			} else if (e instanceof principal.entes.objetos.EntradaCueva) {
-				final principal.entes.objetos.EntradaCueva cueva = (principal.entes.objetos.EntradaCueva) e;
-				final JSONObject jsonCueva = cueva.exportarParaJSON();
-				jsonCueva.put("tipo", "EntradaCueva");
-				delta.getEstructurasConstruidas().add(jsonCueva);
+				continue;
 			}
 
 			// 3. Contenedores y Cofres
@@ -124,18 +103,26 @@ public class GestorDeltasMundo {
 							propietario.getPosicionYInt());
 					final JSONArray itemsJson = new JSONArray();
 					for (final Item item : c.getInventario().getItems()) {
-						itemsJson.add(item.getJsonItem());
+						final JSONObject sobre = RegistroEntidades.exportar(item);
+						if (sobre != null) {
+							itemsJson.add(sobre);
+						}
 					}
 					delta.getCofresModificados().put(clave, itemsJson);
 				}
+				continue;
 			}
 
 			// 4. Ítems en el suelo
-			if ((e instanceof Item) && !(e instanceof Contenedor)) {
+			if (e instanceof Item) {
 				final Item item = (Item) e;
 				if (item.getTipoItem() != Item.COD_ITEM_MONEDA) {
-					delta.getItemsEnSuelo().add(item.getJsonItem());
+					final JSONObject sobre = RegistroEntidades.exportar(item);
+					if (sobre != null) {
+						delta.getItemsEnSuelo().add(sobre);
+					}
 				}
+				continue;
 			}
 
 			// 5. Criaturas
@@ -147,13 +134,27 @@ public class GestorDeltasMundo {
 							&& (Globales.GESTOR_GRUPO.estaEnEscoltaActiva(c) || c.getBlackboard().isSiguiendoLider());
 
 					if (!enEscoltaActiva) {
-						delta.getCriaturasDinamicas().add(c.getJsonCriatura());
+						final JSONObject sobre = RegistroEntidades.exportar(c);
+						if (sobre != null) {
+							delta.getCriaturasDinamicas().add(sobre);
+						}
 					}
 				} else {
 					final String clave = IdentificadorEspacial.generarClave(c.getPosicionXInicial(),
 							c.getPosicionYInicial());
-					final JSONObject jCriat = c.getJsonCriatura();
-					delta.getCriaturasModificadas().put(clave, jCriat);
+					final JSONObject sobre = RegistroEntidades.exportar(c);
+					if (sobre != null) {
+						delta.getCriaturasModificadas().put(clave, sobre);
+					}
+				}
+				continue;
+			}
+
+			// 6. Objetos Fabricables y Entidades Dinámicas registradas
+			if (RegistroEntidades.soporta(e)) {
+				final JSONObject sobre = RegistroEntidades.exportar(e);
+				if (sobre != null) {
+					delta.getEstructurasConstruidas().add(sobre);
 				}
 			}
 		}
@@ -178,7 +179,6 @@ public class GestorDeltasMundo {
 			return;
 		}
 
-		// FASE 0: Restaurar Estado Clima del Mundo (antes de conmutar atmósfera)
 		if ((delta.getClimaModificado() != null) && (mundo.getEstadoClima() != null)) {
 			mundo.getEstadoClima().importarJSON(delta.getClimaModificado());
 		}
@@ -186,11 +186,11 @@ public class GestorDeltasMundo {
 		// FASE 1: Purga de destruidos
 		final ArrayList<Ente> aEliminar = new ArrayList<Ente>();
 		for (final Ente e : mundo.getEntes()) {
-			if ((e instanceof RecursoCosechable) || (e instanceof Fogata)) {
-				if (delta.isEntidadDestruida(e.getPosicionXInt(), e.getPosicionYInt())) {
-					aEliminar.add(e);
-				}
-			} else if ((e instanceof Criatura) && !(e instanceof Jugador)) {
+			if (e instanceof Jugador) {
+				continue;
+			}
+
+			if (e instanceof Criatura) {
 				final Criatura c = (Criatura) e;
 				if (delta.isEntidadDestruida(c.getPosicionXInicial(), c.getPosicionYInicial())
 						|| delta.isEntidadDestruida(c.getPosicionXInt(), c.getPosicionYInt())) {
@@ -205,6 +205,8 @@ public class GestorDeltasMundo {
 					}
 				}
 			} else if (e instanceof Item) {
+				aEliminar.add(e);
+			} else if (delta.isEntidadDestruida(e.getPosicionXInt(), e.getPosicionYInt())) {
 				aEliminar.add(e);
 			}
 		}
@@ -234,32 +236,27 @@ public class GestorDeltasMundo {
 				final JSONObject jCriat = delta.getCriaturasModificadas().get(clave);
 
 				if (jCriat != null) {
-					final JSONObject entiti = (jCriat.get("entiti") instanceof JSONObject)
-							? (JSONObject) jCriat.get("entiti")
-							: jCriat;
-					c.importarDatosCriaturaBase(entiti);
+					final JSONObject datos = LectorJSON.getObjeto(jCriat, RegistroEntidades.CLAVE_DATOS);
+					c.importarDatosCriaturaBase(datos != null ? datos : jCriat);
 				}
 			}
 		}
 
 		// FASE 3: Restaurar Mascotas Estacionadas
 		for (int i = 0; i < delta.getCriaturasDinamicas().size(); i++) {
-			final JSONObject jObj = delta.getCriaturasDinamicas().get(i);
-			final JSONObject entiti = (jObj.get("entiti") instanceof JSONObject) ? (JSONObject) jObj.get("entiti")
-					: jObj;
-
-			final String nombre = (entiti.get("nombre") != null) ? entiti.get("nombre").toString() : "";
-			boolean yaExiste = false;
-			for (final Ente ent : mundo.getEntes()) {
-				if ((ent instanceof Criatura) && ((Criatura) ent).getNombre().equalsIgnoreCase(nombre)) {
-					yaExiste = true;
-					break;
+			final JSONObject jSobre = delta.getCriaturasDinamicas().get(i);
+			final Ente mascotaInst = RegistroEntidades.importar(jSobre, mundo);
+			if (mascotaInst instanceof Mascota) {
+				final Mascota mascota = (Mascota) mascotaInst;
+				boolean yaExiste = false;
+				for (final Ente ent : mundo.getEntes()) {
+					if ((ent instanceof Criatura)
+							&& ((Criatura) ent).getNombre().equalsIgnoreCase(mascota.getNombre())) {
+						yaExiste = true;
+						break;
+					}
 				}
-			}
-
-			if (!yaExiste) {
-				final Mascota mascota = Mascota.crearDesdeJSON(entiti);
-				if (mascota != null) {
+				if (!yaExiste) {
 					mundo.meterEntidad(mascota);
 					if (Globales.GESTOR_GRUPO != null) {
 						Globales.GESTOR_GRUPO.registrarEnRoster(mascota);
@@ -268,52 +265,37 @@ public class GestorDeltasMundo {
 			}
 		}
 
-		// FASE 4: Restaurar Estructuras Construidas
+		// FASE 4: Restaurar Estructuras Construidas mediante RegistroEntidades
 		for (int i = 0; i < delta.getEstructurasConstruidas().size(); i++) {
-			final JSONObject jEst = delta.getEstructurasConstruidas().get(i);
-			final String tipoStr = (jEst.get("tipo") != null) ? jEst.get("tipo").toString() : "";
-			final int x = ((Number) jEst.get("x")).intValue();
-			final int y = ((Number) jEst.get("y")).intValue();
+			final JSONObject jSobre = delta.getEstructurasConstruidas().get(i);
 
-			boolean yaExiste = false;
-			for (final Ente ent : mundo.getEntes()) {
-				if ((ent.getPosicionXInt() == x) && (ent.getPosicionYInt() == y)) {
-					yaExiste = true;
-					break;
+			// Caso especial: EstructuraConstruible (Muros de la grilla)
+			if (jSobre.containsKey("hp") && jSobre.containsKey("tipo")) {
+				final int x = LectorJSON.getInt(jSobre, "x", 0);
+				final int y = LectorJSON.getInt(jSobre, "y", 0);
+				final TipoEstructura tipo = LectorJSON.getEnum(jSobre, "tipo", null, TipoEstructura.class);
+				if (tipo != null) {
+					final EstructuraConstruible est = new EstructuraConstruible(x, y, tipo);
+					est.setVida(LectorJSON.getDouble(jSobre, "hp", est.getVida()));
+					mundo.meterEntidad(est);
 				}
+				continue;
 			}
 
-			if (!yaExiste) {
-				if (tipoStr.equals("Fogata")) {
-					final Fogata f = Fogata.crearDesdeJson(jEst);
-					if (f != null) {
-						mundo.meterEntidad(f);
+			// Caso Universal: Fabricables, Camas, Carpas, Fogatas, etc.
+			final Ente instanciado = RegistroEntidades.importar(jSobre, mundo);
+			if (instanciado != null) {
+				boolean yaExiste = false;
+				for (final Ente ent : mundo.getEntes()) {
+					if ((ent.getPosicionXInt() == instanciado.getPosicionXInt())
+							&& (ent.getPosicionYInt() == instanciado.getPosicionYInt())
+							&& (ent.getClass() == instanciado.getClass())) {
+						yaExiste = true;
+						break;
 					}
-				} else if (tipoStr.equals("Cama")) {
-					final principal.entes.objetos.fabricables.Cama c = principal.entes.objetos.fabricables.Cama
-							.crearDesdeJson(jEst);
-					if (c != null) {
-						mundo.meterEntidad(c);
-					}
-				} else if (tipoStr.equals("Carpa")) {
-					final principal.entes.objetos.fabricables.Carpa c = principal.entes.objetos.fabricables.Carpa
-							.crearDesdeJson(jEst);
-					if (c != null) {
-						mundo.meterEntidad(c);
-					}
-				} else if (tipoStr.equals("EntradaCueva")) {
-					final principal.entes.objetos.EntradaCueva cueva = principal.entes.objetos.EntradaCueva
-							.crearDesdeJson(jEst);
-					if (cueva != null) {
-						mundo.meterEntidad(cueva);
-					}
-				} else {
-					try {
-						final TipoEstructura tipo = TipoEstructura.valueOf(tipoStr);
-						final EstructuraConstruible est = new EstructuraConstruible(x, y, tipo);
-						mundo.meterEntidad(est);
-					} catch (final Exception ignored) {
-					}
+				}
+				if (!yaExiste) {
+					mundo.meterEntidad(instanciado);
 				}
 			}
 		}
@@ -331,7 +313,7 @@ public class GestorDeltasMundo {
 						c.getInventario().vaciar();
 						for (final Object objItem : items) {
 							if (objItem instanceof JSONObject) {
-								final Item item = Item.crearItemDesdeJson((JSONObject) objItem);
+								final Item item = (Item) RegistroEntidades.importar((JSONObject) objItem, null);
 								if (item != null) {
 									c.getInventario().agregarItem(item);
 								}
@@ -344,10 +326,10 @@ public class GestorDeltasMundo {
 
 		// FASE 6: Restaurar Ítems en el suelo
 		for (int i = 0; i < delta.getItemsEnSuelo().size(); i++) {
-			final JSONObject jItem = delta.getItemsEnSuelo().get(i);
-			final Item item = Item.crearItemDesdeJson(jItem);
-			if (item != null) {
-				mundo.meterEntidad(item);
+			final JSONObject jSobre = delta.getItemsEnSuelo().get(i);
+			final Ente itemInst = RegistroEntidades.importar(jSobre, mundo);
+			if (itemInst instanceof Item) {
+				mundo.meterEntidad(itemInst);
 			}
 		}
 	}

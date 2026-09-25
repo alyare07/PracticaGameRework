@@ -16,6 +16,7 @@ public enum ClaveHoja {
 
 	// --- OBJETOS ---
 	FOGATA("/imagenes/sprites/objetos/campfire.png", 16, 16),
+	ANTORCHA_8X12("/imagenes/objetos/antorcha_8x12.png", 8, 12),
 	ARBUSTO_COSECHABLES("/imagenes/objetos/comidas/arbustos_cosechables.png", 16, 16),
 	OBJETOS_X16("/imagenes/objetos/objetos_X16.png", 16, 16), OBJETOS_X32("/imagenes/objetos/objetos_X32.png", 32, 32),
 
@@ -26,9 +27,10 @@ public enum ClaveHoja {
 
 	// --- Terrenos y Escenario ---
 	TERRENOS_16("/imagenes/texturas/terrenos16.png", 16, 16), DUNGEON_16("/imagenes/texturas/dungeon.png", 16, 16),
-	ARBOLES_32("/imagenes/texturas/trees.png", 32, 32),
+	ARBOLES_32("/imagenes/texturas/trees.png", 32, 32), ARBOLES_32x48("/imagenes/texturas/arboles32x48.png", 32, 48),
 	ARBOLES_NEVADOS_32("/imagenes/texturas/treesNevado.png", 32, 32), CASA_1("/imagenes/texturas/house/1.png", 64, 64),
 	COFRES_16("/imagenes/objetos/cofres.png", 16, 16),
+	MINERALES_COSECHABLES_16("/imagenes/objetos/rocas16.png", 16, 16),
 
 	// --- Ítems y Equipamiento ---
 	ITEMS_16("/imagenes/objetos/items.png", 16, 16), ITEMS_12("/imagenes/objetos/itemsx12.png", 12, 12),

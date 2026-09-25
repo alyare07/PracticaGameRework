@@ -28,15 +28,10 @@ import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.criaturas.enemigos.Enemigo;
 import principal.entes.criaturas.jugador.Jugador;
 import principal.entes.criaturas.mascotas.Mascota;
-import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
-import principal.entes.objetos.cofres.Cofre;
-import principal.entes.objetos.fabricables.Fogata;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.particulas.Particula;
-import principal.entes.objetos.recursos.ArbolCosechable;
-import principal.entes.objetos.recursos.RocaCosechable;
 import principal.entes.proyectil.GestorProyectiles;
 import principal.entes.proyectil.Proyectil;
 import principal.entes.proyectil.ProyectilGeneral;
@@ -145,7 +140,7 @@ public class Mundo {
 	}
 
 	public Mundo(final Terreno terrenoSoloParaEDITOR) {
-		this.ESCENARIO = new Escenario(terrenoSoloParaEDITOR, "[]", "[]", "[]", "[]", "[]", "[]", "[]", "[]",
+		this.ESCENARIO = new Escenario(terrenoSoloParaEDITOR, null, null, null, null, null, null, null, null,
 				new MetadatosEscenario());
 		this.estadoClima = new principal.clima.EstadoClima(PerfilClima.TEMPLADO_BOSQUE, TipoClima.DESPEJADO);
 		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO,
@@ -1118,6 +1113,10 @@ public class Mundo {
 		}
 	};
 
+// =========================================================================
+	// SERIALIZACIÓN UNIVERSAL MEDIANTE REGISTRO DE ENTIDADES (ZERO-HARDCODE)
+	// =========================================================================
+
 	@SuppressWarnings("unchecked")
 	public JSONArray getSpawnsInJson() {
 		final JSONArray listaPuntosSpawn = new JSONArray();
@@ -1136,67 +1135,38 @@ public class Mundo {
 		final JSONArray listaObjetos = new JSONArray();
 
 		for (final Ente e : this.getEntes()) {
-			if (e.estaEliminado()) {
+			if ((e == null) || e.estaEliminado() || (e instanceof Jugador)) {
 				continue;
 			}
+
+			final JSONObject sobre = principal.persistencia.json.RegistroEntidades.exportar(e);
+			if (sobre == null) {
+				continue;
+			}
+
 			if (e instanceof Criatura) {
-				if (!(e instanceof Jugador)) {
-					listaCriaturas.add(((Criatura) e).getJsonCriatura());
-				}
+				listaCriaturas.add(sobre);
 			} else if (e instanceof Complemento) {
-				listaComplementos.add(((Complemento) e).exportarParaJSON());
+				listaComplementos.add(sobre);
 			} else if (e instanceof Item) {
-				listaItems.add(((Item) e).getJsonItem());
-			} else if (e instanceof Cofre) {
-				listaObjetos.add(((Cofre) e).exportarParaJson());
-			} else if (e instanceof ArbolCofre) {
-				listaObjetos.add(((ArbolCofre) e).exportarParaJson());
-			} else if (e instanceof ArbolCosechable) {
-				final JSONObject wrapper = new JSONObject();
-				wrapper.put("tipoObjeto", "ArbolCosechable");
-				wrapper.put("entiti", ((ArbolCosechable) e).exportarParaJSON());
-				listaObjetos.add(wrapper);
-			} else if (e instanceof RocaCosechable) {
-				final JSONObject wrapper = new JSONObject();
-				wrapper.put("tipoObjeto", "RocaCosechable");
-				wrapper.put("entiti", ((RocaCosechable) e).exportarParaJSON());
-				listaObjetos.add(wrapper);
-			} else if (e instanceof Fogata) {
-				final JSONObject wrapper = new JSONObject();
-				wrapper.put("tipoObjeto", "Fogata");
-				wrapper.put("entiti", ((Fogata) e).exportarParaJSON());
-				listaObjetos.add(wrapper);
-			} else if (e instanceof principal.entes.objetos.fabricables.Cama) {
-				final JSONObject wrapper = new JSONObject();
-				wrapper.put("tipoObjeto", "Cama");
-				wrapper.put("entiti", ((principal.entes.objetos.fabricables.Cama) e).exportarParaJSON());
-				listaObjetos.add(wrapper);
-			} else if (e instanceof principal.entes.objetos.fabricables.Carpa) {
-				final JSONObject wrapper = new JSONObject();
-				wrapper.put("tipoObjeto", "Carpa");
-				wrapper.put("entiti", ((principal.entes.objetos.fabricables.Carpa) e).exportarParaJSON());
-				listaObjetos.add(wrapper);
-			} else if (e instanceof principal.entes.objetos.EntradaCueva) {
-				final JSONObject wrapper = new JSONObject();
-				wrapper.put("tipoObjeto", "EntradaCueva");
-				wrapper.put("entiti", ((principal.entes.objetos.EntradaCueva) e).exportarParaJSON());
-				listaObjetos.add(wrapper);
+				listaItems.add(sobre);
+			} else if (e instanceof Objeto) {
+				listaObjetos.add(sobre);
 			}
 		}
 
-		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class), listaComplementos);
-		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class), listaCriaturas);
-		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class), listaItems);
-		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class), listaObjetos);
-		listas.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class), this.getSpawnsInJson());
+		listas.put("complementos", listaComplementos);
+		listas.put("criaturas", listaCriaturas);
+		listas.put("items", listaItems);
+		listas.put("objetos", listaObjetos);
+		listas.put("spawns", this.getSpawnsInJson());
 		return listas;
 	}
 
 	@SuppressWarnings("unchecked")
 	public JSONObject getMundoEnJson() {
 		final JSONObject jsonMundo = this.getEntesInJson();
-		jsonMundo.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class),
-				this.ESCENARIO.getTerreno().getTilesJson());
+		jsonMundo.put("terreno", this.ESCENARIO.getTerreno().getTilesJson());
 		return jsonMundo;
 	}
 }

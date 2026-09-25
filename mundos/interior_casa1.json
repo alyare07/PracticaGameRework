@@ -2142,52 +2142,5 @@
         "alto": 320,
         "ladoTile": 16
     },
-    "objetos": [
-        {
-            "tipoObjeto": "Cofre",
-            "entiti": {
-                "tipo": "Cofre Pequeño",
-                "x": 302,
-                "y": 0,
-                "items": [
-                ]
-            }
-        },
-        {
-            "tipoObjeto": "Cofre",
-            "entiti": {
-                "tipo": "Cofre Mediano",
-                "x": 2,
-                "y": 1,
-                "items": [
-                    {
-                        "tipo": "Herramienta",
-                        "entiti": {
-                            "damage": 8,
-                            "potencia": 35.0,
-                            "cadencia": 350,
-                            "codModelo": "Hacha de Tala",
-                            "x": 0,
-                            "y": 0,
-                            "tipoHerramienta": "HACHA",
-                            "alcance": 14
-                        }
-                    },
-                    {
-                        "tipo": "Herramienta",
-                        "entiti": {
-                            "damage": 6,
-                            "potencia": 30.0,
-                            "cadencia": 400,
-                            "codModelo": "Pico de Minería",
-                            "x": 0,
-                            "y": 0,
-                            "tipoHerramienta": "PICO",
-                            "alcance": 14
-                        }
-                    }
-                ]
-            }
-        }
-    ]
+    "objetos": []
 }

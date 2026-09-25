@@ -15,17 +15,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import principal.clima.TipoClima;
 import principal.controles.Raton;
 import principal.entes.AsistenteCamara;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
-import principal.entes.modelos.complemento.ListaModeloComplemento;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
-import principal.entes.objetos.items.Item;
 import principal.graficos.SuperficieDibujo;
 import principal.iluminacion.FuenteLuz;
 import principal.iluminacion.IntensidadNiebla;
@@ -258,7 +256,7 @@ public class EditorMapa implements EstadoJuego {
 	}
 
 	public EditorMapa(final Terreno terreno, final GestorEstados ge) {
-		this(new Escenario(terreno, "[]", "[]", "[]", "[]", "[]", "[]", "[]", "[]", new MetadatosEscenario()), ge);
+		this(new Escenario(terreno, null, null, null, null, null, null, null, null, new MetadatosEscenario()), ge);
 	}
 
 	public EditorMapa(final String rutaMapa, final GestorEstados ge) {
@@ -271,23 +269,28 @@ public class EditorMapa implements EstadoJuego {
 		// 1. GESTIÓN Y CONFIGURACIÓN
 		this.barraSuperior
 				.add(new BotonPixel("Mundo", new Rectangle(2, 2, 34, 14), () -> this.modalMundo.abrir(this.metadatos)));
-		this.barraSuperior.add(new BotonPixel("Guardar", new Rectangle(38, 2, 42, 14), () -> {
-			this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
+		this.barraSuperior.add(new BotonPixel("Guardar", new Rectangle(38, 2, 40, 14), () -> {
+			this.guardarMapa("Mapa_" + java.time.LocalDateTime.now().toString().replace(":", "-") + ".mp");
 			GestorSonido.reproducir(IDSonido.GOLPE_1);
 		}));
-		this.barraSuperior
-				.add(new BotonPixel("Salir", new Rectangle(82, 2, 28, 14), () -> this.modalConfirmarSalir.abrir()));
 
-		// 2. HERRAMIENTAS Y MODOS
-		this.barraSuperior.add(new BotonTogglePixel("GRD", new Rectangle(114, 2, 22, 14), () -> this.mostrarGrid,
+		// 2. BOTONES DESHACER / REHACER
+		this.barraSuperior.add(new BotonPixel("<-", new Rectangle(80, 2, 16, 14), () -> this.ejecutarDeshacer()));
+		this.barraSuperior.add(new BotonPixel("->", new Rectangle(98, 2, 16, 14), () -> this.ejecutarRehacer()));
+
+		this.barraSuperior
+				.add(new BotonPixel("Salir", new Rectangle(116, 2, 28, 14), () -> this.modalConfirmarSalir.abrir()));
+
+		// 3. HERRAMIENTAS Y MODOS
+		this.barraSuperior.add(new BotonTogglePixel("GRD", new Rectangle(146, 2, 20, 14), () -> this.mostrarGrid,
 				() -> this.mostrarGrid = !this.mostrarGrid));
-		this.barraSuperior.add(new BotonTogglePixel("LUZ", new Rectangle(138, 2, 22, 14), () -> this.modoPreviewLuz,
+		this.barraSuperior.add(new BotonTogglePixel("LUZ", new Rectangle(168, 2, 20, 14), () -> this.modoPreviewLuz,
 				() -> this.modoPreviewLuz = !this.modoPreviewLuz));
-		this.barraSuperior.add(new BotonTogglePixel("IA", new Rectangle(162, 2, 20, 14), () -> this.mostrarOverlayIA,
+		this.barraSuperior.add(new BotonTogglePixel("IA", new Rectangle(190, 2, 18, 14), () -> this.mostrarOverlayIA,
 				() -> this.mostrarOverlayIA = !this.mostrarOverlayIA));
-		this.barraSuperior.add(new BotonTogglePixel("SNP", new Rectangle(184, 2, 22, 14), () -> this.modoSnapGrilla,
+		this.barraSuperior.add(new BotonTogglePixel("SNP", new Rectangle(210, 2, 20, 14), () -> this.modoSnapGrilla,
 				() -> this.modoSnapGrilla = !this.modoSnapGrilla));
-		this.barraSuperior.add(new BotonTogglePixel("RGL", new Rectangle(208, 2, 22, 14), () -> this.modoRegla, () -> {
+		this.barraSuperior.add(new BotonTogglePixel("RGL", new Rectangle(232, 2, 20, 14), () -> this.modoRegla, () -> {
 			this.modoRegla = !this.modoRegla;
 			if (this.modoRegla && this.tileApuntadoValido) {
 				this.startReglaX = this.AREA_MOUSE_APUNTADO.x;
@@ -295,23 +298,23 @@ public class EditorMapa implements EstadoJuego {
 			}
 		}));
 
-		// 3. CAPAS DE RENDER
-		this.barraSuperior.add(new BotonTogglePixel("TER", new Rectangle(234, 2, 22, 14), () -> this.verCapaTerreno,
+		// 4. CAPAS DE RENDER
+		this.barraSuperior.add(new BotonTogglePixel("TER", new Rectangle(254, 2, 20, 14), () -> this.verCapaTerreno,
 				() -> this.verCapaTerreno = !this.verCapaTerreno));
-		this.barraSuperior.add(new BotonTogglePixel("ENT", new Rectangle(258, 2, 22, 14), () -> this.verCapaEntidades,
+		this.barraSuperior.add(new BotonTogglePixel("ENT", new Rectangle(276, 2, 20, 14), () -> this.verCapaEntidades,
 				() -> this.verCapaEntidades = !this.verCapaEntidades));
-		this.barraSuperior.add(new BotonTogglePixel("TRG", new Rectangle(282, 2, 22, 14), () -> this.verCapaTriggers,
+		this.barraSuperior.add(new BotonTogglePixel("TRG", new Rectangle(298, 2, 20, 14), () -> this.verCapaTriggers,
 				() -> this.verCapaTriggers = !this.verCapaTriggers));
 
-		// 4. CLIMA Y HORA TEST
-		this.barraSuperior.add(new BotonPixel("CLM", new Rectangle(308, 2, 22, 14), () -> {
+		// 5. CLIMA Y HORA TEST
+		this.barraSuperior.add(new BotonPixel("CLM", new Rectangle(320, 2, 20, 14), () -> {
 			if (Globales.GESTOR_CLIMA != null) {
-				final TipoClima[] climas = TipoClima.values();
+				final principal.clima.TipoClima[] climas = principal.clima.TipoClima.values();
 				this.idxClimaTest = (this.idxClimaTest + 1) % climas.length;
 				Globales.GESTOR_CLIMA.setClima(climas[this.idxClimaTest], 0.0);
 			}
 		}));
-		this.barraSuperior.add(new BotonPixel("HOR", new Rectangle(332, 2, 22, 14), () -> {
+		this.barraSuperior.add(new BotonPixel("HOR", new Rectangle(342, 2, 20, 14), () -> {
 			if (Globales.GESTOR_ASTRONOMICO != null) {
 				final principal.astronomia.GestorAstronomico.FaseDia[] fases = principal.astronomia.GestorAstronomico.FaseDia
 						.values();
@@ -320,16 +323,16 @@ public class EditorMapa implements EstadoJuego {
 			}
 		}));
 
-		// 5. PINCELES DIRECTOS
-		this.barraSuperior.add(new BotonTogglePixel("1x", new Rectangle(358, 2, 18, 14), () -> this.tamanoPincel == 1,
+		// 6. PINCELES DIRECTOS
+		this.barraSuperior.add(new BotonTogglePixel("1x", new Rectangle(364, 2, 18, 14), () -> this.tamanoPincel == 1,
 				() -> this.tamanoPincel = 1));
-		this.barraSuperior.add(new BotonTogglePixel("2x", new Rectangle(378, 2, 18, 14), () -> this.tamanoPincel == 2,
+		this.barraSuperior.add(new BotonTogglePixel("2x", new Rectangle(384, 2, 18, 14), () -> this.tamanoPincel == 2,
 				() -> this.tamanoPincel = 2));
-		this.barraSuperior.add(new BotonTogglePixel("3x", new Rectangle(398, 2, 18, 14), () -> this.tamanoPincel == 3,
+		this.barraSuperior.add(new BotonTogglePixel("3x", new Rectangle(404, 2, 18, 14), () -> this.tamanoPincel == 3,
 				() -> this.tamanoPincel = 3));
-		this.barraSuperior.add(new BotonTogglePixel("4x", new Rectangle(418, 2, 18, 14), () -> this.tamanoPincel == 4,
+		this.barraSuperior.add(new BotonTogglePixel("4x", new Rectangle(424, 2, 18, 14), () -> this.tamanoPincel == 4,
 				() -> this.tamanoPincel = 4));
-		this.barraSuperior.add(new BotonTogglePixel("O/[]", new Rectangle(438, 2, 22, 14), () -> this.pincelCircular,
+		this.barraSuperior.add(new BotonTogglePixel("O/[]", new Rectangle(444, 2, 22, 14), () -> this.pincelCircular,
 				() -> this.pincelCircular = !this.pincelCircular));
 	}
 
@@ -458,7 +461,40 @@ public class EditorMapa implements EstadoJuego {
 	}
 
 	private void actualizarAtajosTeclado() {
-		// Pinceles
+		// =====================================================================
+		// 1. COMBINACIONES CON CONTROL (DESHACER / REHACER / GUARDAR RÁPIDO)
+		// =====================================================================
+		final boolean ctrl = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_CONTROL);
+		final boolean shift = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_SHIFT);
+
+		if (ctrl) {
+			// Ctrl + Z / Ctrl + Shift + Z
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_Z)) {
+				if (shift) {
+					this.ejecutarRehacer();
+				} else {
+					this.ejecutarDeshacer();
+				}
+				return;
+			}
+
+			// Ctrl + Y
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_Y)) {
+				this.ejecutarRehacer();
+				return;
+			}
+
+			// Ctrl + S (Guardado Rápido)
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_S)) {
+				this.guardarMapa("Mapa_" + java.time.LocalDateTime.now().toString().replace(":", "-") + ".mp");
+				GestorSonido.reproducir(IDSonido.GOLPE_1);
+				return;
+			}
+		}
+
+		// =====================================================================
+		// 2. ATAJOS DE PINCELES Y HERRAMIENTAS
+		// =====================================================================
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_1)) {
 			this.tamanoPincel = 1;
 		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_2)) {
@@ -483,7 +519,7 @@ public class EditorMapa implements EstadoJuego {
 			GestorSonido.reproducir(IDSonido.GOLPE_1);
 		}
 
-		// Conmutador Snap a Grilla (S)
+		// Conmutador Snap a Grilla (T)
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_T)) {
 			this.modoSnapGrilla = !this.modoSnapGrilla;
 			GestorSonido.reproducir(IDSonido.GOLPE_1);
@@ -698,6 +734,7 @@ public class EditorMapa implements EstadoJuego {
 			return;
 		}
 
+		// 1. CUENTAGOTAS DE ENTIDADES Y OBJETOS
 		if (this.verCapaEntidades) {
 			this.enteMuestreado = null;
 			this.AREA_CUENTAGOTAS.setBounds(this.AREA_MOUSE_APUNTADO.x - 2, this.AREA_MOUSE_APUNTADO.y - 2, 4, 4);
@@ -714,71 +751,49 @@ public class EditorMapa implements EstadoJuego {
 			if (this.enteMuestreado != null) {
 				boolean seleccionado = false;
 
+				// Caso A: Criaturas
 				if (this.enteMuestreado instanceof Criatura) {
 					this.PALETAS.seleccionarPestanaPorNombre("Criaturas");
 					final PaletaCriaturas pc = (PaletaCriaturas) this.PALETAS.getPaletaActual();
 					if (pc != null) {
 						seleccionado = pc.seleccionarPorNombre(this.enteMuestreado.getClass().getSimpleName());
 					}
-				} else if (this.enteMuestreado instanceof Complemento) {
-					final int cod = ((Complemento) this.enteMuestreado).getCodigoModelo();
-					String nombreBusqueda = "Casa Grande";
-
-					switch (cod) {
-					case ListaModeloComplemento.COD_CASA_1:
-						nombreBusqueda = "Casa Grande";
-						break;
-					case ListaModeloComplemento.COD_ARBOL_1:
-						nombreBusqueda = "Árbol Decorativo 1";
-						break;
-					case ListaModeloComplemento.COD_ARBOL_2:
-						nombreBusqueda = "Árbol Decorativo 2";
-						break;
-					case ListaModeloComplemento.COD_BARRERA_INVISIBLE:
-						nombreBusqueda = "Barrera Invisible";
-						break;
-					default:
-						nombreBusqueda = "Árbol Decorativo";
-						break;
+				}
+				// Caso B: Árboles Cosechables (Selecciona la especie exacta)
+				else if (this.enteMuestreado instanceof principal.entes.objetos.recursos.ArbolCosechable) {
+					this.PALETAS.seleccionarPestanaPorNombre("Recursos");
+					final PaletaComplento pRec = (PaletaComplento) this.PALETAS.getPaletaActual();
+					if (pRec != null) {
+						final principal.entes.objetos.recursos.arboles.TipoArbol t = ((principal.entes.objetos.recursos.ArbolCosechable) this.enteMuestreado)
+								.getTipoArbol();
+						seleccionado = pRec.seleccionarPorNombre(t.getNombre());
 					}
-
+				}
+				// Caso C: Minerales (Selecciona la veta exacta)
+				else if (this.enteMuestreado instanceof principal.entes.objetos.recursos.minerales.MineralCosechable) {
+					this.PALETAS.seleccionarPestanaPorNombre("Recursos");
+					final PaletaComplento pRec = (PaletaComplento) this.PALETAS.getPaletaActual();
+					if (pRec != null) {
+						seleccionado = pRec.seleccionarPorNombre(this.enteMuestreado.getClass().getSimpleName());
+					}
+				}
+				// Caso D: Complementos del escenario (Obtiene el nombre directo del Enum)
+				else if (this.enteMuestreado instanceof Complemento) {
+					final principal.entes.modelos.complemento.TipoModeloComplemento mod = ((Complemento) this.enteMuestreado)
+							.getModelo();
 					this.PALETAS.seleccionarPestanaPorNombre("Objetos");
 					final PaletaComplento pObj = (PaletaComplento) this.PALETAS.getPaletaActual();
-					if (pObj != null) {
-						seleccionado = pObj.seleccionarPorNombre(nombreBusqueda);
+					if ((pObj != null) && (mod != null)) {
+						seleccionado = pObj.seleccionarPorNombre(mod.getNombre());
 					}
-				} else if (this.enteMuestreado instanceof Objeto) {
+				}
+				// Caso E: Otros objetos interactivos (Cofres, Fogatas, etc.)
+				else if (this.enteMuestreado instanceof Objeto) {
 					final String simpleName = this.enteMuestreado.getClass().getSimpleName();
-					String pestana = "Objetos";
-					String termino = simpleName;
-
-					if (simpleName.contains("ArbolCosechable")) {
-						pestana = "Recursos";
-						termino = "Árbol Talable";
-					} else if (simpleName.contains("RocaCosechable")) {
-						pestana = "Recursos";
-						termino = "Roca Minable";
-					} else if (simpleName.contains("Fogata")) {
-						pestana = "Objetos";
-						termino = "Fogata";
-					} else if (simpleName.contains("ArbolCofre")) {
-						pestana = "Objetos";
-						termino = "Árbol Cofre Secreto";
-					} else if (simpleName.contains("CofreMediano")) {
-						pestana = "Objetos";
-						termino = "Cofre Mediano";
-					} else if (simpleName.contains("CofrePequeño") || simpleName.contains("CofrePequeno")) {
-						pestana = "Objetos";
-						termino = "Cofre Pequeño";
-					} else if (simpleName.contains("CuadradoInvisible")) {
-						pestana = "Objetos";
-						termino = "Cuadrado Invisible";
-					}
-
-					this.PALETAS.seleccionarPestanaPorNombre(pestana);
+					this.PALETAS.seleccionarPestanaPorNombre("Objetos");
 					final PaletaComplento pComp = (PaletaComplento) this.PALETAS.getPaletaActual();
 					if (pComp != null) {
-						seleccionado = pComp.seleccionarPorNombre(termino);
+						seleccionado = pComp.seleccionarPorNombre(simpleName);
 					}
 				}
 
@@ -789,6 +804,7 @@ public class EditorMapa implements EstadoJuego {
 			}
 		}
 
+		// 2. CUENTAGOTAS DE SUELO (TERRENO)
 		if (this.verCapaTerreno) {
 			final Tile tile = this.TERRENO.getTileReferenciado(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y);
 			if (tile != null) {
@@ -1564,6 +1580,24 @@ public class EditorMapa implements EstadoJuego {
 		g.setFont(fontPrevia);
 	}
 
+	public void ejecutarDeshacer() {
+		if (this.HISTORIAL.puedeDeshacer()) {
+			this.HISTORIAL.deshacer();
+			GestorSonido.reproducir(IDSonido.SELECT);
+		} else {
+			GestorSonido.reproducir(IDSonido.SIN_MUNICION);
+		}
+	}
+
+	public void ejecutarRehacer() {
+		if (this.HISTORIAL.puedeRehacer()) {
+			this.HISTORIAL.rehacer();
+			GestorSonido.reproducir(IDSonido.SELECT);
+		} else {
+			GestorSonido.reproducir(IDSonido.SIN_MUNICION);
+		}
+	}
+
 	private void pintarPreviewColocacion(final Graphics2D g) {
 		if (!this.tileApuntadoValido || this.itemPuntero.contieneItem()) {
 			return;
@@ -1729,17 +1763,16 @@ public class EditorMapa implements EstadoJuego {
 		this.validarIntegridadEscenario();
 
 		final JSONObject jsonEntes = this.MUNDO_EDITOR.getEntesInJson();
-		final String criaturas = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class);
-		final String items = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class);
-		final String complementos = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class);
-		final String objetos = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class);
-		final String spawns = Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class);
 
-		final Escenario esc = new Escenario(this.TERRENO, jsonEntes.get(criaturas).toString(),
-				jsonEntes.get(items).toString(), jsonEntes.get(complementos).toString(),
-				jsonEntes.get(objetos).toString(), jsonEntes.get(spawns).toString(),
-				this.MUNDO_EDITOR.getTriggersEnJson().toString(), this.MUNDO_EDITOR.getZonasAmbienteEnJson().toString(),
-				this.MUNDO_EDITOR.getLucesEnJson().toString(), this.metadatos);
+		final JSONArray criaturas = (JSONArray) jsonEntes.get("criaturas");
+		final JSONArray items = (JSONArray) jsonEntes.get("items");
+		final JSONArray complementos = (JSONArray) jsonEntes.get("complementos");
+		final JSONArray objetos = (JSONArray) jsonEntes.get("objetos");
+		final JSONArray spawns = (JSONArray) jsonEntes.get("spawns");
+
+		final Escenario esc = new Escenario(this.TERRENO, criaturas, items, complementos, objetos, spawns,
+				this.MUNDO_EDITOR.getTriggersEnJson(), this.MUNDO_EDITOR.getZonasAmbienteEnJson(),
+				this.MUNDO_EDITOR.getLucesEnJson(), this.metadatos);
 
 		final File carpetaDestino = new File("mundos" + File.separator + nombre);
 		EscenarioLoader.exportarEscenario(esc, carpetaDestino);

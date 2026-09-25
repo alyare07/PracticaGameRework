@@ -6,6 +6,7 @@ import java.util.Set;
 
 import principal.animaciones.Animacion;
 import principal.animaciones.AnimacionDireccionada;
+import principal.animaciones.objetos.AnimacionesAntorcha;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.criaturas.Criatura.Estado;
 import principal.entes.criaturas.jugador.Jugador;
@@ -71,6 +72,7 @@ public class AnimacionesJugador {
 	public static final String ARMADO_ESTANDAR = "Armado Estandar";
 	public static final String ARMADO_CAMINANDO = "Armado Caminando";
 
+	AnimacionesAntorcha ANIMACIONES_ANTORCHA_EQUIPADA = new AnimacionesAntorcha();
 	private final int TIEMPO_MS_POR_FRAME = 150;
 
 	public AnimacionesJugador() {
@@ -315,5 +317,10 @@ public class AnimacionesJugador {
 		} else {
 			Render2D.dibujarImagen(g, spritePeto, x, y + bobY);
 		}
+	}
+
+	public void pintarAntorchaEquipada(final Graphics2D g, final int x, final int y, final Direccion direccion) {
+		this.ANIMACIONES_ANTORCHA_EQUIPADA.pintar(g, x + 7, y, AnimacionesAntorcha.ENCENDIDA, true);
+
 	}
 }

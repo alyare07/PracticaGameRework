@@ -9,15 +9,6 @@ import java.util.ArrayList;
 import org.json.simple.JSONObject;
 
 import principal.entes.objetos.Objeto;
-import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
-import principal.entes.objetos.items.armas.distancia.fuego.automaticas.AmetralladoraPesada;
-import principal.entes.objetos.items.armas.distancia.fuego.automaticas.RifleAsalto;
-import principal.entes.objetos.items.armas.distancia.fuego.automaticas.SubfusilLigero;
-import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaAutomatica;
-import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaRecortada;
-import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaTactica;
-import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
-import principal.entes.objetos.items.herramientas.Herramienta;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 
@@ -119,88 +110,25 @@ public abstract class Item extends Objeto {
 		return this.AREA_ENTE_RETORNO;
 	}
 
-	protected abstract JSONObject exportarParaJSON();
+	// =========================================================================
+	// PERSISTENCIA MEDIANTE REGISTRO DE ENTIDADES (ZERO-HARDCODE)
+	// =========================================================================
 
-	public abstract String exportarTipoItem();
-
-	@SuppressWarnings("unchecked")
 	public JSONObject getJsonItem() {
-		final JSONObject datosItem = this.exportarParaJSON();
-		final JSONObject item = new JSONObject();
-		item.put("tipo", this.exportarTipoItem());
-		item.put("entiti", datosItem);
-		return item;
+		return principal.persistencia.json.RegistroEntidades.exportar(this);
 	}
 
-	public static Item crearItemDesdeJson(final JSONObject json) {
-		if (json == null) {
-			return null;
-		}
-
-		final Object tipoObj = json.get("tipo");
-		final String tipoStr = (tipoObj != null) ? tipoObj.toString() : "";
-
-		JSONObject entiti = null;
-		if (json.get("entiti") instanceof JSONObject) {
-			entiti = (JSONObject) json.get("entiti");
-		} else {
-			entiti = json;
-		}
-
-		// 1. Armas de fuego
-		if (tipoStr.equals("Pistola")) {
-			return Pistola.crearDesdeJson(entiti);
-		}
-		if (tipoStr.equals("EscopetaRecortada")) {
-			return EscopetaRecortada.crearDesdeJson(entiti);
-		}
-		if (tipoStr.equals("EscopetaTactica")) {
-			return EscopetaTactica.crearDesdeJson(entiti);
-		}
-		if (tipoStr.equals("EscopetaAutomatica")) {
-			return EscopetaAutomatica.crearDesdeJson(entiti);
-		}
-		if (tipoStr.equals("SubfusilLigero")) {
-			return SubfusilLigero.crearDesdeJson(entiti);
-		}
-		if (tipoStr.equals("RifleAsalto")) {
-			return RifleAsalto.crearDesdeJson(entiti);
-		}
-		if (tipoStr.equals("AmetralladoraPesada")) {
-			return AmetralladoraPesada.crearDesdeJson(entiti);
-		}
-
-		// 2. Equipamiento (Cascos, Armaduras, Botas, Anillos)
-		if (tipoStr.equals("PiezaEquipo")) {
-			return principal.entes.objetos.items.equipamiento.PiezaEquipo.crearDesdeJson(entiti);
-		}
-
-		// 3. Arrojadizos / Granadas
-		if (tipoStr.equals("GranadaT1") || tipoStr.equals("Granada")) {
-			return GranadaT1.crearDesdeJson(entiti);
-		}
-
-		// 4. Herramientas (Hachas / Picos)
-		if (tipoStr.equals("Herramienta")) {
-			return Herramienta.crearDesdeJson(entiti);
-		}
-		if (tipoStr.equals("ItemMoneda") || tipoStr.equals("Moneda")) {
-			return principal.entes.objetos.items.monedas.ItemMoneda.crearDesdeJson(entiti);
-		}
-
-		// 5. Consumibles, Pociones, Materiales y Cajas de Munición
-		if (tipoStr.equals("Consumible") || tipoStr.equals("RecursoMaterial") || tipoStr.equals("CajaMunicion")
-				|| tipoStr.equals("PocionVidaMenor")) {
-			return Consumible.crearConsumible(entiti);
-		}
-
-		// Portátiles y Antorcha
-		if (tipoStr.equals("Antorcha")) {
-			final int x = (entiti.get("x") != null) ? ((Number) entiti.get("x")).intValue() : 0;
-			final int y = (entiti.get("y") != null) ? ((Number) entiti.get("y")).intValue() : 0;
-			return new principal.entes.objetos.items.Antorcha(x, y);
-		}
-
-		return Consumible.crearConsumible(entiti);
+	public static Item crearItemDesdeJson(final JSONObject sobre) {
+		final principal.entes.Ente e = principal.persistencia.json.RegistroEntidades.importar(sobre, null);
+		return (e instanceof Item) ? (Item) e : null;
 	}
+
+	protected JSONObject exportarParaJSON() {
+		return null; // Delegado en AdaptadorEntidad
+	}
+
+	public String exportarTipoItem() {
+		return this.getClass().getSimpleName();
+	}
+
 }

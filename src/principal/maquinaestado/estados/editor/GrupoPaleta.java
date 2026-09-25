@@ -8,28 +8,33 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
 import principal.controles.Raton;
-import principal.entes.modelos.complemento.ListaModeloComplemento;
+import principal.entes.modelos.complemento.TipoModeloComplemento;
 import principal.entes.objetos.ArbolCofre;
 import principal.entes.objetos.Complemento;
+import principal.entes.objetos.EntradaCueva;
 import principal.entes.objetos.cofres.CofreMediano;
 import principal.entes.objetos.cofres.CofrePequeño;
 import principal.entes.objetos.especial.CuadradoInvisible;
 import principal.entes.objetos.especial.ListaObjetosEspeciales;
+import principal.entes.objetos.fabricables.Cama;
+import principal.entes.objetos.fabricables.Carpa;
 import principal.entes.objetos.fabricables.Fogata;
 import principal.entes.objetos.recursos.ArbolCosechable;
-import principal.entes.objetos.recursos.RocaCosechable;
+import principal.entes.objetos.recursos.ArbustoCosechable;
+import principal.entes.objetos.recursos.arboles.TipoArbol;
+import principal.entes.objetos.recursos.minerales.MineralCarbon;
+import principal.entes.objetos.recursos.minerales.MineralCobre;
+import principal.entes.objetos.recursos.minerales.MineralCristal;
+import principal.entes.objetos.recursos.minerales.MineralHierro;
+import principal.entes.objetos.recursos.minerales.MineralOro;
+import principal.entes.objetos.recursos.minerales.MineralRoca;
 import principal.recursos.ClaveHoja;
+import principal.recursos.TexturaObjetos;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 import principal.utilidades.Render2D;
 
-/**
- * Gestor maestro de pestañas del panel lateral del editor. Organiza las 6
- * categorías: Suelos, Recursos, Objetos, Criaturas, Ítems y Triggers/Eventos.
- * 
- * @version 2.3 (Vanilla Java 8 - Eyedropper & Programmatic Tab Switch)
- */
 public class GrupoPaleta {
 
 	private final ArrayList<Paleta> LISTA = new ArrayList<Paleta>();
@@ -57,66 +62,115 @@ public class GrupoPaleta {
 		final int yPaleta = this.AREA_CABECERA.y + this.AREA_CABECERA.height;
 		final int altoPaleta = this.AREA.height - this.AREA_CABECERA.height;
 
-		final HojaSprite arboles = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.ARBOLES_32);
+		final HojaSprite arboles = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.ARBOLES_32x48);
 		final HojaSprite arbolesNevados = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.ARBOLES_NEVADOS_32);
-		final HojaSprite dungeon = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.DUNGEON_16);
-		final HojaSprite casa = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.CASA_1);
+		final HojaSprite minerales = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.MINERALES_COSECHABLES_16);
+		final HojaSprite arbustos = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.ARBUSTO_COSECHABLES);
 		final HojaSprite cofres = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.COFRES_16);
 		final HojaSprite hojaFogata = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.FOGATA);
+		final HojaSprite dungeon = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.DUNGEON_16);
 		final BufferedImage transparente = Globales.GESTOR_TEXTURAS.getTexturaTransparente();
 
+		// =====================================================================
 		// 1. PESTAÑA: SUELOS & HERRAMIENTAS
+		// =====================================================================
 		final PaletaTile paletaSuelos = new PaletaTile(this.AREA.x, yPaleta, this.AREA.width, altoPaleta,
 				Constantes.LADO_TILE);
 		this.registrarPaleta("Suelos", paletaSuelos);
 
-		// 2. PESTAÑA: RECURSOS COSECHABLES
+		// 2. PESTAÑA: RECURSOS COSECHABLES (ÁRBOLES, ARBUSTOS Y MINERALES)
 		final PaletaComplento paletaRecursos = new PaletaComplento(this.AREA.x, yPaleta, this.AREA.width, altoPaleta,
 				32);
-		paletaRecursos.agregarEntrada("Árbol Talable 1", arboles.getSprite(0), true,
-				(x, y) -> new ArbolCosechable(x, y, ClaveHoja.ARBOLES_32, 0));
-		paletaRecursos.agregarEntrada("Árbol Talable 2", arboles.getSprite(1), true,
-				(x, y) -> new ArbolCosechable(x, y, ClaveHoja.ARBOLES_32, 1));
-		paletaRecursos.agregarEntrada("Árbol Nevado Talable", arbolesNevados.getSprite(0), true,
-				(x, y) -> new ArbolCosechable(x, y, ClaveHoja.ARBOLES_NEVADOS_32, 0));
-		paletaRecursos.agregarEntrada("Roca Minable", dungeon.getSprite(813), true,
-				(x, y) -> new RocaCosechable(x, y, ClaveHoja.DUNGEON_16, 813));
+
+		// Todos los árboles talables desde el Enum TipoArbol con su sprite exacto
+		if (arboles != null) {
+			for (final TipoArbol t : TipoArbol.values()) {
+				paletaRecursos.agregarEntrada(t.getNombre(), arboles.getSprite(t.getSpriteIndex()), true,
+						(x, y) -> new ArbolCosechable(x, y, t));
+			}
+		}
+
+		// Arbusto de bayas
+		if (arbustos != null) {
+			paletaRecursos.agregarEntrada("Arbusto Silvestre", arbustos.getSprite(1), true,
+					(x, y) -> new ArbustoCosechable(x, y));
+		}
+
+		// Los 6 Minerales
+		if (minerales != null) {
+			paletaRecursos.agregarEntrada("Roca de Piedra", minerales.getSprite(MineralRoca.SPRITE_INDEX), true,
+					(x, y) -> new MineralRoca(x, y));
+			paletaRecursos.agregarEntrada("Veta de Cobre", minerales.getSprite(MineralCobre.SPRITE_INDEX), true,
+					(x, y) -> new MineralCobre(x, y));
+			paletaRecursos.agregarEntrada("Veta de Hierro", minerales.getSprite(MineralHierro.SPRITE_INDEX), true,
+					(x, y) -> new MineralHierro(x, y));
+			paletaRecursos.agregarEntrada("Veta de Oro", minerales.getSprite(MineralOro.SPRITE_INDEX), true,
+					(x, y) -> new MineralOro(x, y));
+			paletaRecursos.agregarEntrada("Veta de Carbón", minerales.getSprite(MineralCarbon.SPRITE_INDEX), true,
+					(x, y) -> new MineralCarbon(x, y));
+			paletaRecursos.agregarEntrada("Cristal Arcano", minerales.getSprite(MineralCristal.SPRITE_INDEX), true,
+					(x, y) -> new MineralCristal(x, y));
+		}
 		this.registrarPaleta("Recursos", paletaRecursos);
 
-		// 3. PESTAÑA: OBJETOS Y COMPLEMENTOS
+		// =====================================================================
+		// 3. PESTAÑA: OBJETOS, ESTRUCTURAS Y COMPLEMENTOS
+		// =====================================================================
 		final PaletaComplento paletaObjetos = new PaletaComplento(this.AREA.x, yPaleta, this.AREA.width, altoPaleta,
 				32);
-		paletaObjetos.agregarEntrada("Casa Grande", casa.getSprite(0), false,
-				(x, y) -> new Complemento(x, y, ListaModeloComplemento.COD_CASA_1));
-		paletaObjetos.agregarEntrada("Árbol Decorativo 1", arboles.getSprite(0), false,
-				(x, y) -> new Complemento(x, y, ListaModeloComplemento.COD_ARBOL_1));
-		paletaObjetos.agregarEntrada("Árbol Decorativo 2", arboles.getSprite(1), false,
-				(x, y) -> new Complemento(x, y, ListaModeloComplemento.COD_ARBOL_2));
-		paletaObjetos.agregarEntrada("Cofre Mediano", (cofres != null ? cofres.getSprite(1) : null), false,
-				(x, y) -> new CofreMediano(x, y));
+
+		// Contenedores
 		paletaObjetos.agregarEntrada("Cofre Pequeño", (cofres != null ? cofres.getSprite(1) : null), false,
 				(x, y) -> new CofrePequeño(x, y));
-		paletaObjetos.agregarEntrada("Árbol Cofre Secreto", arboles.getSprite(1), false,
-				(x, y) -> new ArbolCofre(x, y));
+		paletaObjetos.agregarEntrada("Cofre Mediano", (cofres != null ? cofres.getSprite(1) : null), false,
+				(x, y) -> new CofreMediano(x, y));
+		if (arboles != null) {
+			paletaObjetos.agregarEntrada("Árbol Cofre Secreto", arboles.getSprite(1), false,
+					(x, y) -> new ArbolCofre(x, y));
+		}
+
+		// Estructuras y Refugios
 		paletaObjetos.agregarEntrada("Fogata", (hojaFogata != null ? hojaFogata.getSprite(0) : null), false,
 				(x, y) -> new Fogata(x, y));
+		paletaObjetos.agregarEntrada("Carpa de Pionero", Globales.GESTOR_TEXTURAS.get(TexturaObjetos.CARPA_X32), false,
+				(x, y) -> new Carpa(x, y));
+		paletaObjetos.agregarEntrada("Cama de Interior", Globales.GESTOR_TEXTURAS.get(TexturaObjetos.CAMA_X32), false,
+				(x, y) -> new Cama(x, y));
+		paletaObjetos.agregarEntrada("Entrada a Cueva", (dungeon != null ? dungeon.getSprite(50) : null), false,
+				(x, y) -> new EntradaCueva(x, y, "cueva_1", "Comienzo"));
+
+		// Complementos del escenario desde el Enum TipoModeloComplemento
+		for (final TipoModeloComplemento m : TipoModeloComplemento.values()) {
+			if (m != TipoModeloComplemento.BARRERA_INVISIBLE) {
+				paletaObjetos.agregarEntrada(m.getNombre(), m.getTextura(), false, (x, y) -> new Complemento(x, y, m));
+			}
+		}
+
+		// Barreras invisibles
 		paletaObjetos.agregarEntrada("Barrera Invisible", transparente, false,
-				(x, y) -> new Complemento(x, y, ListaModeloComplemento.COD_BARRERA_INVISIBLE));
+				(x, y) -> new Complemento(x, y, TipoModeloComplemento.BARRERA_INVISIBLE));
 		paletaObjetos.agregarEntrada("Cuadrado Invisible", transparente, false,
 				(x, y) -> new CuadradoInvisible(x, y, ListaObjetosEspeciales.COD_CUADRADO_INVISIBLE_X32));
+
 		this.registrarPaleta("Objetos", paletaObjetos);
 
-		// 4. PESTAÑA: CRIATURAS Y ENEMIGOS
+		// =====================================================================
+		// 4. PESTAÑA: CRIATURAS Y FAUNA
+		// =====================================================================
 		final PaletaCriaturas paletaCriaturas = new PaletaCriaturas(this.AREA.x, yPaleta, this.AREA.width, altoPaleta,
 				32);
 		this.registrarPaleta("Criaturas", paletaCriaturas);
 
+		// =====================================================================
 		// 5. PESTAÑA: ÍTEMS Y EQUIPAMIENTO
+		// =====================================================================
 		final PaletaItems paletaItems = new PaletaItems(this.AREA.x, yPaleta, this.AREA.width, altoPaleta, 32,
 				this.editor);
 		this.indicePaletaItem = this.registrarPaleta("Items", paletaItems);
 
+		// =====================================================================
 		// 6. PESTAÑA: TRIGGERS, VOLÚMENES Y LUCES
+		// =====================================================================
 		final PaletaTriggers paletaTriggers = new PaletaTriggers(this.AREA.x, yPaleta, this.AREA.width, altoPaleta, 32);
 		this.registrarPaleta("Triggers", paletaTriggers);
 	}

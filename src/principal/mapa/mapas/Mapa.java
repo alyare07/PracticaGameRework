@@ -1,6 +1,7 @@
 package principal.mapa.mapas;
 
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,13 +12,8 @@ import javax.swing.JOptionPane;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import principal.entes.criaturas.Criatura;
-import principal.entes.objetos.Complemento;
-import principal.entes.objetos.Objeto;
-import principal.entes.objetos.items.Item;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
-import principal.mapa.Tile;
 import principal.mapa.escenario.Escenario;
 import principal.mapa.escenario.EscenarioLoader;
 import principal.maquinaestado.estados.GestorPartida;
@@ -150,25 +146,36 @@ public abstract class Mapa {
 		final ArrayList<Spawn> listaSpawn = new ArrayList<Spawn>();
 		Spawn comienzo = null;
 		JSONObject jsonSpawn = null;
-		for (final Object obj : (JSONArray) jsonMundo
-				.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class))) {
-			jsonSpawn = (JSONObject) obj;
-			listaSpawn.add(new Spawn(Integer.parseInt(jsonSpawn.get("x").toString()),
-					Integer.parseInt(jsonSpawn.get("y").toString()), jsonSpawn.get("nombre").toString()));
-			if (jsonSpawn.get("nombre").toString().equals(Mundo.CLAVE_PUNTO_SPAWN_COMIENZO)) {
-				comienzo = new Spawn(Integer.parseInt(jsonSpawn.get("x").toString()),
-						Integer.parseInt(jsonSpawn.get("y").toString()), jsonSpawn.get("nombre").toString());
+
+		final JSONArray listaSpawns = (JSONArray) jsonMundo.get("spawns");
+		if (listaSpawns != null) {
+			for (final Object obj : listaSpawns) {
+				jsonSpawn = (JSONObject) obj;
+				final int sx = ((Number) jsonSpawn.get("x")).intValue();
+				final int sy = ((Number) jsonSpawn.get("y")).intValue();
+				final String nombreSpawn = jsonSpawn.get("nombre").toString();
+
+				listaSpawn.add(new Spawn(sx, sy, nombreSpawn));
+				if (nombreSpawn.equals(Mundo.CLAVE_PUNTO_SPAWN_COMIENZO)) {
+					comienzo = new Spawn(sx, sy, nombreSpawn);
+				}
 			}
 		}
-		final Mundo m = new Mundo(new Escenario(
-				new Terreno((JSONObject) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class))),
-				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class)))
-						.toString(),
-				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class))).toString(),
-				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class)))
-						.toString(),
-				((JSONArray) jsonMundo.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class))).toString()),
-				comienzo.getPoint());
+
+		final JSONObject jsonTerreno = (JSONObject) jsonMundo.get("terreno");
+		final Terreno terreno = new Terreno(
+				jsonTerreno != null ? jsonTerreno : (JSONObject) jsonMundo.get("principal.mapa.Tile"));
+
+		final JSONArray arrCriaturas = (JSONArray) jsonMundo.get("criaturas");
+		final JSONArray arrItems = (JSONArray) jsonMundo.get("items");
+		final JSONArray arrComplementos = (JSONArray) jsonMundo.get("complementos");
+		final JSONArray arrObjetos = (JSONArray) jsonMundo.get("objetos");
+
+		final Escenario esc = new Escenario(terreno, arrCriaturas, arrItems, arrComplementos, arrObjetos, listaSpawns,
+				null, null, null, new principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario());
+
+		final Point pComienzo = (comienzo != null) ? comienzo.getPoint() : new Point(0, 0);
+		final Mundo m = new Mundo(esc, pComienzo);
 		m.setMapa(this);
 		m.llenarSpawn(listaSpawn);
 		return m;

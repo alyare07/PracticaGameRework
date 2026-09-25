@@ -8,9 +8,6 @@ import java.util.ArrayList;
 
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
-import principal.entes.modelos.complemento.ListaModeloComplemento;
-import principal.entes.modelos.complemento.ModeloComplemento;
-import principal.entes.modelos.complemento.ModeloComplementoT1;
 import principal.entes.objetos.Complemento;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.Item;
@@ -235,15 +232,10 @@ public class ZoneBox extends Ente {
 			if (c.esSolido() && !c.estaEliminado()) {
 				// Descarta primero en O(1) si la línea ni siquiera toca el bounding box general
 				if (c.getArea().intersectsLine(x0, y0, x1, y1)) {
-					final ModeloComplemento modelo = ListaModeloComplemento.getModeloComplemento(c.getCodigoModelo());
-					if (modelo instanceof ModeloComplementoT1) {
-						final Rectangle m = ((ModeloComplementoT1) modelo).getMargenesInterseccion();
-						this.RECT_RAYCAST_AUX.setBounds(c.getPosicionXInt() + m.x, c.getPosicionYInt() + m.y,
-								c.getAncho() - m.width - m.x, c.getAlto() - m.height - m.y);
-						if (this.RECT_RAYCAST_AUX.intersectsLine(x0, y0, x1, y1)) {
-							return true;
-						}
-					} else if (c.intersecta(this.LINEA_RAYCAST_AUX)) {
+					final Rectangle m = c.getModelo().getMargenesInterseccion();
+					this.RECT_RAYCAST_AUX.setBounds(c.getPosicionXInt() + m.x, c.getPosicionYInt() + m.y,
+							c.getAncho() - m.width - m.x, c.getAlto() - m.height - m.y);
+					if (this.RECT_RAYCAST_AUX.intersectsLine(x0, y0, x1, y1)) {
 						return true;
 					}
 				}

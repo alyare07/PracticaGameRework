@@ -93,6 +93,10 @@ public class EstructuraConstruible extends Objeto {
 		return this.vida;
 	}
 
+	public void setVida(final double vida) {
+		this.vida = vida;
+	}
+
 	public double getVidaMaxima() {
 		return this.vidaMaxima;
 	}

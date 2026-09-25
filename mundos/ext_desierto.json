@@ -8,78 +8,7 @@
         }
     ],
     "complementos": [],
-    "criaturas": [
-        {
-            "tipo": "Bandido",
-            "entiti": {
-                "vida": 50.0,
-                "x": 292,
-                "vidaMaxima": 50.0,
-                "y": 32,
-                "subtipo": "Garrote"
-            }
-        },
-        {
-            "tipo": "Bandido",
-            "entiti": {
-                "vida": 50.0,
-                "x": 626,
-                "vidaMaxima": 50.0,
-                "y": 270,
-                "subtipo": "Garrote"
-            }
-        },
-        {
-            "tipo": "Bandido",
-            "entiti": {
-                "vida": 50.0,
-                "x": 695,
-                "vidaMaxima": 50.0,
-                "y": 196,
-                "subtipo": "Garrote"
-            }
-        },
-        {
-            "tipo": "Bandido",
-            "entiti": {
-                "vida": 50.0,
-                "x": 402,
-                "vidaMaxima": 50.0,
-                "y": 110,
-                "subtipo": "Garrote"
-            }
-        },
-        {
-            "tipo": "Bandido",
-            "entiti": {
-                "vida": 50.0,
-                "x": 495,
-                "vidaMaxima": 50.0,
-                "y": 21,
-                "subtipo": "Garrote"
-            }
-        },
-        {
-            "tipo": "Bandido",
-            "entiti": {
-                "vida": 50.0,
-                "x": 146,
-                "vidaMaxima": 50.0,
-                "y": 78,
-                "subtipo": "Garrote"
-            }
-        },
-        {
-            "tipo": "Bandido",
-            "entiti": {
-                "vida": 50.0,
-                "x": 683,
-                "vidaMaxima": 50.0,
-                "y": 20,
-                "subtipo": "Garrote"
-            }
-        }
-    ],
+    "criaturas": [],
     "metadatos": {
         "luzA": 255,
         "musicaFondo": "FONDO_RELAX",

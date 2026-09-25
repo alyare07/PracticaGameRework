@@ -7,9 +7,12 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
 import principal.entes.criaturas.Criatura;
+import principal.entes.criaturas.animales.Gallina;
 import principal.entes.criaturas.enemigos.bandido.BandidoGarrote;
 import principal.entes.criaturas.enemigos.bandido.BandidoGranadero;
 import principal.entes.criaturas.enemigos.bandido.BandidoPistolero;
+import principal.entes.criaturas.mascotas.Mascota;
+import principal.entes.criaturas.neutrales.Comerciante;
 import principal.mapa.Tile;
 import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
@@ -54,18 +57,32 @@ public class PaletaCriaturas extends Paleta {
 
 	private void cargarCriaturas() {
 		final HojaSprite hojaBandido = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.BANDIDO);
+		final HojaSprite hojaComerciante = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.CHARACTER_2);
+		final HojaSprite hojaGallina = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.GALLINA);
 
-		final BufferedImage iconPistolero = (hojaBandido != null) ? hojaBandido.getSprite(24) : null;
-		this.agregarEntrada("Bandido Pistolero", iconPistolero, 10, 6, 12, 20,
-				(x, y) -> new BandidoPistolero(x, y, 50, 50, null));
+		// 1. BANDIDOS
+		if (hojaBandido != null) {
+			this.agregarEntrada("Bandido Pistolero", hojaBandido.getSprite(24), 10, 6, 12, 20,
+					(x, y) -> new BandidoPistolero(x, y, 50, 50, null));
+			this.agregarEntrada("Bandido Garrote", hojaBandido.getSprite(48), 10, 6, 12, 20,
+					(x, y) -> new BandidoGarrote(x, y, 50, 50, null));
+			this.agregarEntrada("Bandido Granadero", hojaBandido.getSprite(0), 10, 6, 12, 20,
+					(x, y) -> new BandidoGranadero(x, y, 50, 50, null));
+		}
 
-		final BufferedImage iconGarrote = (hojaBandido != null) ? hojaBandido.getSprite(48) : null;
-		this.agregarEntrada("Bandido Garrote", iconGarrote, 10, 6, 12, 20,
-				(x, y) -> new BandidoGarrote(x, y, 50, 50, null));
+		// 2. NEUTRALES Y ALDEANOS
+		if (hojaComerciante != null) {
+			this.agregarEntrada("Comerciante", hojaComerciante.getSprite(0), 10, 6, 12, 20,
+					(x, y) -> new Comerciante(x, y));
+			this.agregarEntrada("Mascota Acompañante", hojaComerciante.getSprite(1), 10, 6, 12, 20,
+					(x, y) -> new Mascota(x, y));
+		}
 
-		final BufferedImage iconGranadero = (hojaBandido != null) ? hojaBandido.getSprite(0) : null;
-		this.agregarEntrada("Bandido Granadero", iconGranadero, 10, 6, 12, 20,
-				(x, y) -> new BandidoGranadero(x, y, 50, 50, null));
+		// 3. FAUNA MENOR
+		if (hojaGallina != null) {
+			this.agregarEntrada("Gallina Silvestre", hojaGallina.getSprite(0), 0, 0, 16, 16,
+					(x, y) -> new Gallina(x, y));
+		}
 	}
 
 	public void agregarEntrada(final String nombre, final BufferedImage icono, final int margenX, final int margenY,
@@ -108,7 +125,7 @@ public class PaletaCriaturas extends Paleta {
 	protected void pintarElementoEnSlot(final Graphics2D g, final int index, final int slotX, final int slotY) {
 		final EntradaCriatura entrada = this.ENTRADAS.get(index);
 		if (entrada.icono != null) {
-			Render2D.dibujarImagen(g, entrada.icono, slotX, slotY);
+			this.dibujarIconoAjustadoAlSlot(g, entrada.icono, slotX, slotY);
 		}
 
 		final Font fontPrevia = g.getFont();

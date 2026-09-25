@@ -26,14 +26,11 @@ import principal.entes.objetos.items.herramientas.Herramienta;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
 import principal.entes.objetos.items.municiones.CajaMunicion;
 import principal.entes.objetos.items.pociones.PocionVidaMenor;
-import principal.entes.objetos.recursos.ArbolCosechable;
-import principal.entes.objetos.recursos.RocaCosechable;
 import principal.mapa.Mundo;
 import principal.mapa.escenario.tps.PuertaArea;
 import principal.maquinaestado.estados.GestorJuego;
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
-import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
 
 public class Mapa1 extends Mapa {
@@ -145,9 +142,6 @@ public class Mapa1 extends Mapa {
 
 		final Mundo mExt = this.MUNDOS.get(EXTERIOR);
 		if (mExt != null) {
-			mExt.meterEntidad(new ArbolCosechable(1789, 1854, ClaveHoja.ARBOLES_32, 0));
-			mExt.meterEntidad(new ArbolCosechable(1777, 1854, ClaveHoja.ARBOLES_32, 1));
-			mExt.meterEntidad(new RocaCosechable(1954, 1777, ClaveHoja.DUNGEON_16, 813));
 
 			// 1. Bloque 1 y 3: Arbustos y Gallinas
 			mExt.meterEntidad(new principal.entes.objetos.recursos.ArbustoCosechable(1820, 1850));
@@ -177,9 +171,6 @@ public class Mapa1 extends Mapa {
 			arbolcofre1.getInventario().agregarItem(new principal.entes.objetos.items.comidas.CuencoAguaHervida(2));
 
 			arbolcofre1.getInventario().agregarItem(new EscopetaAutomatica());
-			mExt.meterEntidad(new ArbolCosechable(1789, 1854, ClaveHoja.ARBOLES_32, 0));
-			mExt.meterEntidad(new ArbolCosechable(1777, 1854, ClaveHoja.ARBOLES_32, 1));
-			mExt.meterEntidad(new RocaCosechable(1954, 1777, ClaveHoja.DUNGEON_16, 813));
 
 			arbolcofre1.getInventario().agregarItem(new EscopetaAutomatica());
 			arbolcofre1.getInventario().agregarItem(new EscopetaRecortada());

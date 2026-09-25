@@ -56,6 +56,9 @@ public class GestorPrincipal {
 		this.enFuncionamiento = true;
 		this.tiempoInicioSesionMs = System.currentTimeMillis();
 
+		// Inicialización del subsistema polimórfico de persistencia JSON
+		principal.persistencia.json.RegistroEntidades.inicializar();
+
 		this.gestorEstados = new GestorEstados();
 		this.superficieDibujo = SuperficieDibujo.obtenerSuperficieDibujo();
 		this.ventana = new Ventana("Juego RPG", this.superficieDibujo);

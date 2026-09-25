@@ -9,6 +9,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
 import principal.controles.Raton;
+import principal.entes.objetos.items.Antorcha;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.armas.distancia.fuego.Pistola;
 import principal.entes.objetos.items.armas.distancia.fuego.automaticas.AmetralladoraPesada;
@@ -18,17 +19,26 @@ import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaAut
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaRecortada;
 import principal.entes.objetos.items.armas.distancia.fuego.escopetas.EscopetaTactica;
 import principal.entes.objetos.items.arrojadizos.granadas.GranadaT1;
+import principal.entes.objetos.items.comidas.BayaSilvestre;
+import principal.entes.objetos.items.comidas.CarnePolloCocida;
+import principal.entes.objetos.items.comidas.CarnePolloCruda;
+import principal.entes.objetos.items.comidas.CuencoAguaHervida;
+import principal.entes.objetos.items.comidas.CuencoAguaSucia;
+import principal.entes.objetos.items.comidas.CuencoVacio;
+import principal.entes.objetos.items.desplegables.KitCama;
+import principal.entes.objetos.items.desplegables.KitCarpa;
+import principal.entes.objetos.items.desplegables.KitFogata;
+import principal.entes.objetos.items.desplegables.KitFogataAzul;
 import principal.entes.objetos.items.equipamiento.PiezaEquipo;
 import principal.entes.objetos.items.equipamiento.TipoEquipo;
 import principal.entes.objetos.items.herramientas.Herramienta;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
 import principal.entes.objetos.items.materiales.RecursoMaterial;
+import principal.entes.objetos.items.monedas.ItemMoneda;
 import principal.entes.objetos.items.municiones.CajaMunicion;
 import principal.entes.objetos.items.pociones.PocionVidaMenor;
 import principal.mapa.Tile;
 import principal.maquinaestado.estados.menu.herramientas.CajaTextoPixel;
-import principal.recursos.TexturaItem;
-import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
@@ -66,78 +76,94 @@ public class PaletaItems extends Paleta {
 			final EditorMapa editor) {
 		super(x, y + 20, ancho, alto - 20, ladoSlot);
 		this.editor = editor;
-
-		// Caja de texto numérica en la cabecera de la paleta
-		this.ctCantidad = new CajaTextoPixel(new Rectangle(x + ancho - 45, y + 2, 40, 16), "10", 4, true);
+		this.ctCantidad = new CajaTextoPixel(new Rectangle((x + ancho) - 45, y + 2, 40, 16), "10", 4, true);
 
 		this.cargarCatalogoItems();
 	}
 
-	private void cargarCatalogoItems() {
-		// 1. Pociones
-		this.agregarEntrada("Poción de Vida Menor", Globales.GESTOR_TEXTURAS.get(TexturaItem.POCION_ROJA_INV), true,
-				cant -> new PocionVidaMenor(cant));
-
-		// 2. Materiales de Construcción
-		this.agregarEntrada("Madera", Globales.GESTOR_TEXTURAS.get(TexturaItem.MADERA_INV), true,
-				cant -> RecursoMaterial.crearMadera(0, 0, cant));
-		this.agregarEntrada("Piedra", Globales.GESTOR_TEXTURAS.get(TexturaItem.PIEDRA_INV), true,
-				cant -> RecursoMaterial.crearPiedra(0, 0, cant));
-
-		// 3. Munición
-		this.agregarEntrada("Munición 9mm", Globales.GESTOR_TEXTURAS.get(TexturaItem.CAJA_MUNICION_INV), true,
-				cant -> CajaMunicion.crear9mm(0, 0, cant));
-		this.agregarEntrada("Cartuchos Calibre 12", Globales.GESTOR_TEXTURAS.get(TexturaItem.CAJA_MUNICION_INV), true,
-				cant -> CajaMunicion.crearCartuchos12(0, 0, cant));
-		this.agregarEntrada("Munición 7.62mm", Globales.GESTOR_TEXTURAS.get(TexturaItem.CAJA_MUNICION_INV), true,
-				cant -> CajaMunicion.crear762mm(0, 0, cant));
-		this.agregarEntrada("Munición Pesada", Globales.GESTOR_TEXTURAS.get(TexturaItem.CAJA_MUNICION_INV), true,
-				cant -> CajaMunicion.crearPesada(0, 0, cant));
-
-		// 4. Arrojadizos
-		this.agregarEntrada("Granada T1", Globales.GESTOR_TEXTURAS.get(TexturaItem.GRANADA_T1_INV), true,
-				cant -> new GranadaT1(cant));
-
-		// 5. Herramientas
-		this.agregarEntrada("Hacha de Tala", Globales.GESTOR_TEXTURAS.get(TexturaItem.HACHA_BASICO_INV), false,
-				cant -> new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
-		this.agregarEntrada("Pico de Minería", Globales.GESTOR_TEXTURAS.get(TexturaItem.PICO_BASICO_INV), false,
-				cant -> new Herramienta(Herramienta.COD_PICO, 6, 14, 400, TipoHerramienta.PICO, 30.0));
-
-		// 6. Armas de Fuego
-		this.agregarEntrada("Pistola 9mm", Globales.GESTOR_TEXTURAS.get(TexturaItem.PISTOLA_INV), false,
-				cant -> new Pistola(Pistola.COD_PISTOLA));
-		this.agregarEntrada("Escopeta Recortada", Globales.GESTOR_TEXTURAS.get(TexturaItem.ESCOPETA_RECORTADA_INV), false,
-				cant -> new EscopetaRecortada());
-		this.agregarEntrada("Escopeta Táctica", Globales.GESTOR_TEXTURAS.get(TexturaItem.ESCOPETA_TACTICA_INV), false,
-				cant -> new EscopetaTactica());
-		this.agregarEntrada("Escopeta Automática", Globales.GESTOR_TEXTURAS.get(TexturaItem.ESCOPETA_AUTOMATICA_INV), false,
-				cant -> new EscopetaAutomatica());
-		this.agregarEntrada("Subfusil Ligero", Globales.GESTOR_TEXTURAS.get(TexturaItem.SUBFUSIL_LIGERO_INV), false,
-				cant -> new SubfusilLigero());
-		this.agregarEntrada("Rifle de Asalto", Globales.GESTOR_TEXTURAS.get(TexturaItem.RIFLE_ASALTO_INV), false,
-				cant -> new RifleAsalto());
-		this.agregarEntrada("Ametralladora Pesada", Globales.GESTOR_TEXTURAS.get(TexturaItem.AMETRALLADORA_PESADA_INV), false,
-				cant -> new AmetralladoraPesada());
-
-		// 7. Equipamiento y Joyería
-		this.agregarEntrada("Casco Ligero", Globales.GESTOR_TEXTURAS.get(TexturaItem.CASCO_BASE_INV), false,
-				cant -> new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5));
-		this.agregarEntrada("Armadura Ligera", Globales.GESTOR_TEXTURAS.get(TexturaItem.ARMADURA_BASE_INV), false,
-				cant -> new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15));
-		this.agregarEntrada("Botas de Cuero", Globales.GESTOR_TEXTURAS.get(TexturaItem.BOTAS_CUERO_INV), false,
-				cant -> new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3));
-		this.agregarEntrada("Anillo de Oro", Globales.GESTOR_TEXTURAS.get(TexturaItem.ANILLO_ORO_INV), false,
-				cant -> new PiezaEquipo(PiezaEquipo.COD_ANILLO_ORO, TipoEquipo.ANILLO, 2, 2, 2, 0));
-		this.agregarEntrada("Anillo de Plata", Globales.GESTOR_TEXTURAS.get(TexturaItem.ANILLO_PLATA_INV), false,
-				cant -> new PiezaEquipo(PiezaEquipo.COD_ANILLO_PLATA, TipoEquipo.ANILLO, 1, 1, 1, 0));
+	private void registrarEntradaItem(final Item muestra, final boolean esConsumible, final CreadorItem creador) {
+		if (muestra != null) {
+			this.ENTRADAS
+					.add(new EntradaItem(muestra.getNombre(), muestra.getTexturaInventario(), esConsumible, creador));
+		}
 	}
 
-	public void agregarEntrada(final String nombre, final BufferedImage icono, final boolean esConsumible,
-			final CreadorItem creador) {
-		if ((nombre != null) && (icono != null) && (creador != null)) {
-			this.ENTRADAS.add(new EntradaItem(nombre, icono, esConsumible, creador));
-		}
+	private void cargarCatalogoItems() {
+		// 1. POCIONES Y CURACIÓN
+		this.registrarEntradaItem(new PocionVidaMenor(1), true, cant -> new PocionVidaMenor(cant));
+
+		// 2. MATERIAS PRIMAS Y MENAS DE MINERÍA
+		this.registrarEntradaItem(RecursoMaterial.crearMadera(0, 0, 1), true,
+				cant -> RecursoMaterial.crearMadera(0, 0, cant));
+		this.registrarEntradaItem(RecursoMaterial.crearPiedra(0, 0, 1), true,
+				cant -> RecursoMaterial.crearPiedra(0, 0, cant));
+		this.registrarEntradaItem(new RecursoMaterial(1, RecursoMaterial.COD_CARBON), true,
+				cant -> new RecursoMaterial(0, 0, cant, RecursoMaterial.COD_CARBON));
+		this.registrarEntradaItem(new RecursoMaterial(1, RecursoMaterial.COD_COBRE), true,
+				cant -> new RecursoMaterial(0, 0, cant, RecursoMaterial.COD_COBRE));
+		this.registrarEntradaItem(new RecursoMaterial(1, RecursoMaterial.COD_HIERRO), true,
+				cant -> new RecursoMaterial(0, 0, cant, RecursoMaterial.COD_HIERRO));
+		this.registrarEntradaItem(new RecursoMaterial(1, RecursoMaterial.COD_ORO), true,
+				cant -> new RecursoMaterial(0, 0, cant, RecursoMaterial.COD_ORO));
+		this.registrarEntradaItem(new RecursoMaterial(1, RecursoMaterial.COD_CRISTAL), true,
+				cant -> new RecursoMaterial(0, 0, cant, RecursoMaterial.COD_CRISTAL));
+
+		// 3. COMIDAS Y VÍVERES
+		this.registrarEntradaItem(new BayaSilvestre(1), true, cant -> new BayaSilvestre(cant));
+		this.registrarEntradaItem(new CarnePolloCruda(1), true, cant -> new CarnePolloCruda(cant));
+		this.registrarEntradaItem(new CarnePolloCocida(1), true, cant -> new CarnePolloCocida(cant));
+		this.registrarEntradaItem(new CuencoVacio(1), true, cant -> new CuencoVacio(cant));
+		this.registrarEntradaItem(new CuencoAguaSucia(1), true, cant -> new CuencoAguaSucia(cant));
+		this.registrarEntradaItem(new CuencoAguaHervida(1), true, cant -> new CuencoAguaHervida(cant));
+
+		// 4. MUNICIONES
+		this.registrarEntradaItem(CajaMunicion.crear9mm(0, 0, 1), true, cant -> CajaMunicion.crear9mm(0, 0, cant));
+		this.registrarEntradaItem(CajaMunicion.crearCartuchos12(0, 0, 1), true,
+				cant -> CajaMunicion.crearCartuchos12(0, 0, cant));
+		this.registrarEntradaItem(CajaMunicion.crear762mm(0, 0, 1), true, cant -> CajaMunicion.crear762mm(0, 0, cant));
+		this.registrarEntradaItem(CajaMunicion.crearPesada(0, 0, 1), true,
+				cant -> CajaMunicion.crearPesada(0, 0, cant));
+
+		// 5. EXPLOSIVOS Y ARROJADIZOS
+		this.registrarEntradaItem(new GranadaT1(1), true, cant -> new GranadaT1(cant));
+
+		// 6. HERRAMIENTAS
+		this.registrarEntradaItem(new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0),
+				false, cant -> new Herramienta(Herramienta.COD_HACHA, 8, 14, 350, TipoHerramienta.HACHA, 35.0));
+		this.registrarEntradaItem(new Herramienta(Herramienta.COD_PICO, 6, 14, 400, TipoHerramienta.PICO, 30.0), false,
+				cant -> new Herramienta(Herramienta.COD_PICO, 6, 14, 400, TipoHerramienta.PICO, 30.0));
+
+		// 7. ARMAS DE FUEGO
+		this.registrarEntradaItem(new Pistola(Pistola.COD_PISTOLA), false, cant -> new Pistola(Pistola.COD_PISTOLA));
+		this.registrarEntradaItem(new EscopetaRecortada(), false, cant -> new EscopetaRecortada());
+		this.registrarEntradaItem(new EscopetaTactica(), false, cant -> new EscopetaTactica());
+		this.registrarEntradaItem(new EscopetaAutomatica(), false, cant -> new EscopetaAutomatica());
+		this.registrarEntradaItem(new SubfusilLigero(), false, cant -> new SubfusilLigero());
+		this.registrarEntradaItem(new RifleAsalto(), false, cant -> new RifleAsalto());
+		this.registrarEntradaItem(new AmetralladoraPesada(), false, cant -> new AmetralladoraPesada());
+
+		// 8. EQUIPAMIENTO Y JOYERÍA
+		this.registrarEntradaItem(new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5), false,
+				cant -> new PiezaEquipo(PiezaEquipo.COD_CASCO_BASE, TipoEquipo.CASCO, 0, 0, 3, 5));
+		this.registrarEntradaItem(new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15), false,
+				cant -> new PiezaEquipo(PiezaEquipo.COD_ARMADURA_BASE, TipoEquipo.TORSO, 4, 0, 0, 15));
+		this.registrarEntradaItem(new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3), false,
+				cant -> new PiezaEquipo(PiezaEquipo.COD_BOTAS_CUERO, TipoEquipo.BOTAS, 0, 6, 0, 3));
+		this.registrarEntradaItem(new PiezaEquipo(PiezaEquipo.COD_ANILLO_ORO, TipoEquipo.ANILLO, 2, 2, 2, 0), false,
+				cant -> new PiezaEquipo(PiezaEquipo.COD_ANILLO_ORO, TipoEquipo.ANILLO, 2, 2, 2, 0));
+		this.registrarEntradaItem(new PiezaEquipo(PiezaEquipo.COD_ANILLO_PLATA, TipoEquipo.ANILLO, 1, 1, 1, 0), false,
+				cant -> new PiezaEquipo(PiezaEquipo.COD_ANILLO_PLATA, TipoEquipo.ANILLO, 1, 1, 1, 0));
+
+		// 9. KITS DESPLEGABLES Y PORTÁTILES
+		this.registrarEntradaItem(new Antorcha(), false, cant -> new Antorcha());
+		this.registrarEntradaItem(new KitFogata(1), true, cant -> new KitFogata(cant));
+		this.registrarEntradaItem(new KitFogataAzul(1), true, cant -> new KitFogataAzul(cant));
+		this.registrarEntradaItem(new KitCarpa(1), true, cant -> new KitCarpa(cant));
+		this.registrarEntradaItem(new KitCama(1), true, cant -> new KitCama(cant));
+
+		// 10. MONEDAS
+		this.registrarEntradaItem(ItemMoneda.crearPlata(0, 0, 1), true, cant -> ItemMoneda.crearPlata(0, 0, cant));
+		this.registrarEntradaItem(ItemMoneda.crearOro(0, 0, 1), true, cant -> ItemMoneda.crearOro(0, 0, cant));
 	}
 
 	@Override
@@ -150,7 +176,6 @@ public class PaletaItems extends Paleta {
 
 		final Point pClick = raton.getPuntoPosicionEscalado();
 
-		// Clic en paginación
 		if (this.botonPaginaAnterior.contains(pClick)) {
 			this.anteriorPagina();
 			return;
@@ -160,7 +185,6 @@ public class PaletaItems extends Paleta {
 			return;
 		}
 
-		// Clic en una casilla de ítem para tomarlo con el cursor (ItemPuntero)
 		if (this.AREA.contains(pClick)) {
 			final int relX = pClick.x - (this.AREA.x + this.MARGEN);
 			final int relY = pClick.y - (this.AREA.y + this.MARGEN);
@@ -193,7 +217,6 @@ public class PaletaItems extends Paleta {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		// 1. Cabecera con selector de cantidad
 		final int cabY = this.AREA.y - 20;
 		Render2D.dibujarRectanguloRelleno(g, this.AREA.x, cabY, this.AREA.width, 20, new Color(35, 35, 40));
 		Render2D.dibujarRectanguloContorno(g, this.AREA.x, cabY, this.AREA.width, 20, Color.BLACK);
@@ -204,8 +227,6 @@ public class PaletaItems extends Paleta {
 		g.setFont(fontPrevia);
 
 		this.ctCantidad.pintar(g);
-
-		// 2. Grilla de slots
 		super.pintar(g);
 	}
 

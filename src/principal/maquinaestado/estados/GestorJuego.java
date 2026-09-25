@@ -407,6 +407,12 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			final ArrayList<Ente> entesIntersectadosRaton = this.getMundo().getEnteIntersectados(
 					Globales.RATON.getRectanguloPosicionEscaladoConDesplazamientoCamara(), true, true);
 			for (final Ente e : entesIntersectadosRaton) {
+				if (e instanceof Complemento) {
+					Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltip(g,
+							e.getClass().getSimpleName() + ((Complemento) e).getCodigoModelo(), Color.WHITE,
+							Color.BLACK);
+					continue;
+				}
 				Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltip(g, e.getClass().getSimpleName(), Color.WHITE,
 						Color.BLACK);
 			}

@@ -15,10 +15,15 @@ public class RecursoMaterial extends Consumible {
 
 	public static final String COD_MADERA = "Madera";
 	public static final String COD_PIEDRA = "Piedra";
+	public static final String COD_COBRE = "Mena de Cobre";
+	public static final String COD_HIERRO = "Mena de Hierro";
+	public static final String COD_ORO = "Mena de Oro";
+	public static final String COD_CARBON = "Carbón";
+	public static final String COD_CRISTAL = "Cristal Arcano";
 
 	public RecursoMaterial(final int x, final int y, final int cantidad, final String codModelo) {
 		super(x, y, cantidad, codModelo, codModelo, resolverTexturaInv(codModelo), resolverTexturaMapa(codModelo), 999);
-		this.precioBasePlata = COD_MADERA.equals(codModelo) ? 2L : 3L; // 2 Plata madera, 3 Plata piedra
+		this.asignarPrecioBase();
 		this.rellenarInfo(this.LISTA_INFO);
 	}
 
@@ -34,10 +39,38 @@ public class RecursoMaterial extends Consumible {
 		return new RecursoMaterial(x, y, cantidad, COD_PIEDRA);
 	}
 
+	private void asignarPrecioBase() {
+		switch (this.codigoModelo) {
+		case COD_MADERA:
+			this.precioBasePlata = 2L;
+			break;
+		case COD_PIEDRA:
+			this.precioBasePlata = 3L;
+			break;
+		case COD_CARBON:
+			this.precioBasePlata = 5L;
+			break;
+		case COD_COBRE:
+			this.precioBasePlata = 8L;
+			break;
+		case COD_HIERRO:
+			this.precioBasePlata = 15L;
+			break;
+		case COD_ORO:
+			this.precioBasePlata = 40L;
+			break;
+		case COD_CRISTAL:
+			this.precioBasePlata = 75L;
+			break;
+		default:
+			this.precioBasePlata = 3L;
+			break;
+		}
+	}
+
 	@Override
 	public void consumir(final Criatura c) {
-		// Los materiales no se consumen directamente; se usan para crafteo,
-		// construcción o venta
+		// Material no consumible de forma directa
 	}
 
 	@Override
@@ -66,7 +99,7 @@ public class RecursoMaterial extends Consumible {
 		}
 		final int x = (json.get("x") != null) ? ((Number) json.get("x")).intValue() : 0;
 		final int y = (json.get("y") != null) ? ((Number) json.get("y")).intValue() : 0;
-		final String codModelo = (json.get("codModelo") != null) ? json.get("codModelo").toString() : COD_MADERA;
+		final String codModelo = (json.get("codModelo") != null) ? json.get("codModelo").toString() : COD_PIEDRA;
 		final int cant = (json.get("cant") != null) ? ((Number) json.get("cant")).intValue() : 1;
 
 		final RecursoMaterial rm = new RecursoMaterial(x, y, cant, codModelo);
@@ -79,8 +112,8 @@ public class RecursoMaterial extends Consumible {
 	@Override
 	protected void rellenarInfo(final ArrayList<String> listaInfo) {
 		listaInfo.clear();
-		listaInfo.add("Material básico recolectado.");
-		listaInfo.add("Utilizado para crafteo, construcción o venta.");
+		listaInfo.add("Materia prima recolectada.");
+		listaInfo.add("Usado en forja, cocina, construcción o venta.");
 	}
 
 	@Override
@@ -89,24 +122,22 @@ public class RecursoMaterial extends Consumible {
 	}
 
 	private static TexturaItem resolverTexturaInv(final String cod) {
-		switch (cod) {
-		case RecursoMaterial.COD_MADERA:
+		if (COD_MADERA.equals(cod)) {
 			return TexturaItem.MADERA_INV;
-		case RecursoMaterial.COD_PIEDRA:
-			return TexturaItem.PIEDRA_INV;
-		default:
-			return TexturaItem.PARTICULA_SANGRE_8;
 		}
+		if (COD_PIEDRA.equals(cod)) {
+			return TexturaItem.PIEDRA_INV;
+		}
+		return TexturaItem.PIEDRA_INV;
 	}
 
 	private static TexturaItem resolverTexturaMapa(final String cod) {
-		switch (cod) {
-		case RecursoMaterial.COD_MADERA:
+		if (COD_MADERA.equals(cod)) {
 			return TexturaItem.MADERA_MAPA;
-		case RecursoMaterial.COD_PIEDRA:
-			return TexturaItem.PIEDRA_MAPA;
-		default:
-			return TexturaItem.PARTICULA_SANGRE_8;
 		}
+		if (COD_PIEDRA.equals(cod)) {
+			return TexturaItem.PIEDRA_MAPA;
+		}
+		return TexturaItem.PIEDRA_MAPA;
 	}
 }

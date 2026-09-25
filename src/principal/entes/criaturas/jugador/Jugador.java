@@ -20,6 +20,7 @@ import principal.entes.efectos.EfectoEstado;
 import principal.entes.efectos.TipoEfectoEstado;
 import principal.entes.facciones.GestorFacciones;
 import principal.entes.objetos.Objeto;
+import principal.entes.objetos.items.Antorcha;
 import principal.entes.objetos.items.Consumible;
 import principal.entes.objetos.items.Item;
 import principal.entes.objetos.items.Portable;
@@ -1354,9 +1355,14 @@ public class Jugador extends Criatura {
 
 	@Override
 	public void pintar(final Graphics2D g) {
+		if (this.direccion == Direccion.NORTE) {
+			this.pintarAntorcha(g);
+		}
 		Animaciones.JUGADOR.pintar(g, Globales.getXDesplazamientoCamara(this.getPosicionXIntDibujado()),
 				Globales.getYDesplazamientoCamara(this.getPosicionYIntDibujado()));
-
+		if (this.direccion != Direccion.NORTE) {
+			this.pintarAntorcha(g);
+		}
 		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
 			g.setColor(Color.BLUE);
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.getAreaInterseccionMovimiento());
@@ -1377,6 +1383,17 @@ public class Jugador extends Criatura {
 		if (this.modoDios) {
 			Render2D.dibujarImagenRefCamara(g, Globales.GESTOR_TEXTURAS.get(TexturaItem.CORONA_MAPA),
 					this.getCentroX() - 5, this.getPosicionYInt() - 12);
+		}
+	}
+
+	private void pintarAntorcha(final Graphics2D g) {
+		final SlotManager sm = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotManager();
+		if (sm.getSlotManoSecundaria().contieneItem()) {
+			if (sm.getSlotManoSecundaria().getItem() instanceof Antorcha) {
+				final Antorcha antorcha = (Antorcha) sm.getSlotManoSecundaria().getItem();
+				Animaciones.JUGADOR.pintarAntorchaEquipada(g, this.getPosicionXInt(), this.getPosicionYInt(),
+						this.direccion);
+			}
 		}
 	}
 
@@ -1517,7 +1534,7 @@ public class Jugador extends Criatura {
 
 	public Rectangle getAreaInterseccionMovimiento(final double despX, final double despY) {
 		final int xBase = (int) Math.round(this.getPosicionX() + 2.0 + despX);
-		final int yBase = (int) Math.round(this.getPosicionY() + 12.0 + despY);
+		final int yBase = (int) Math.round(this.getPosicionY() + 11.0 + despY);
 		this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR.setBounds(xBase, yBase, 8, 8);
 		return this.AREA_INTERSECCION_MOVIMIENTO_AUXILIAR;
 	}

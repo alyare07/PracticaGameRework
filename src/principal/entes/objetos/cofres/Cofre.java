@@ -13,7 +13,7 @@ import principal.interaccion.Interactuable;
 import principal.inventario.Contenedor;
 import principal.inventario.vault.InventarioVault;
 import principal.inventario.vault.InventarioVault.EstadoInventario;
-import principal.utilidades.Globales;
+import principal.persistencia.json.RegistroEntidades;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
@@ -26,7 +26,7 @@ public abstract class Cofre extends Objeto implements Contenedor, Interactuable 
 
 	public Cofre(final int x, final int y, final int cantSlot, final int cantMaxSlotH, final String nombre) {
 		super(x, y);
-		this.NOMBRE = nombre;
+		this.NOMBRE = (nombre != null) ? nombre : "Cofre";
 		this.INVENTARIO = new InventarioVault(this, cantSlot, cantMaxSlotH, this.NOMBRE);
 	}
 
@@ -68,41 +68,16 @@ public abstract class Cofre extends Objeto implements Contenedor, Interactuable 
 	}
 
 	@SuppressWarnings("unchecked")
-	public JSONObject exportarParaJson() {
-		final JSONObject json = new JSONObject();
-		json.put("tipo", this.getTipoCofre());
-		json.put("x", this.getPosicionXInt());
-		json.put("y", this.getPosicionYInt());
-		json.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class), this.getListaJsonItems());
-
-		final JSONObject jsonPrincipal = new JSONObject();
-		jsonPrincipal.put("tipoObjeto", Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Cofre.class));
-		jsonPrincipal.put("entiti", json);
-		return jsonPrincipal;
-	}
-
-	@SuppressWarnings("unchecked")
-	protected JSONArray getListaJsonItems() {
+	public JSONArray getListaJsonItems() {
 		final JSONArray lista = new JSONArray();
 		for (final Item i : this.INVENTARIO.getItems()) {
-			lista.add(i.getJsonItem());
+			final JSONObject sobre = RegistroEntidades.exportar(i);
+			if (sobre != null) {
+				lista.add(sobre);
+			}
 		}
 		return lista;
 	}
-
-	public static Cofre crearDesdeJSON(final JSONObject json) {
-		Cofre c = null;
-		final String tipo = json.get("tipo").toString();
-
-		if (tipo.equals(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(CofrePequeño.class))) {
-			c = CofrePequeño.crearDesdeJson(json);
-		} else if (tipo.equals(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(CofreMediano.class))) {
-			c = CofreMediano.crearDesdeJson(json);
-		}
-		return c;
-	}
-
-	protected abstract String getTipoCofre();
 
 	@Override
 	public Ente getEntePropietario() {

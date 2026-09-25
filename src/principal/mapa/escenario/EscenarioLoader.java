@@ -9,25 +9,19 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
-import principal.entes.criaturas.Criatura;
-import principal.entes.objetos.Complemento;
-import principal.entes.objetos.Objeto;
-import principal.entes.objetos.items.Item;
 import principal.mapa.Terreno;
-import principal.mapa.Tile;
-import principal.mapa.mapas.Spawn;
 import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
+import principal.persistencia.json.LectorJSON;
 import principal.utilidades.Globales;
 
 /**
  * Gestor de importación y exportación de escenarios con cifrado simétrico AES.
- * 
- * @version 3.1 (Vanilla Java 8 - Encrypted World Exporter)
+ * Trabaja directamente sobre estructuras JSON sin re-parseos intermedios.
  */
 public abstract class EscenarioLoader {
 
@@ -38,29 +32,18 @@ public abstract class EscenarioLoader {
 	public static void exportarEscenario(final Escenario esc, final File ruta) {
 		final JSONObject jsonExp = new JSONObject();
 
-		try {
-			final JSONParser parser = new JSONParser();
-			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class),
-					parser.parse(esc.LISTA_CREACION_CRIATURAS_JSON));
-			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class),
-					parser.parse(esc.LISTA_CREACION_ITEMS_JSON));
-			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class),
-					parser.parse(esc.LISTA_CREACION_OBJETOS_JSON));
-			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class),
-					parser.parse(esc.LISTA_CREACION_COMPLEMENTOS_JSON));
-			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class),
-					parser.parse(esc.LISTA_CREACION_SPAWNS_JSON));
+		jsonExp.put("criaturas", esc.getListaCriaturas());
+		jsonExp.put("items", esc.getListaItems());
+		jsonExp.put("complementos", esc.getListaComplementos());
+		jsonExp.put("objetos", esc.getListaObjetos());
+		jsonExp.put("spawns", esc.getListaSpawns());
 
-			jsonExp.put("triggers", parser.parse(esc.LISTA_CREACION_TRIGGERS_JSON));
-			jsonExp.put("zonasAmbiente", parser.parse(esc.LISTA_CREACION_ZONAS_AMBIENTE_JSON));
-			jsonExp.put("luces", parser.parse(esc.LISTA_CREACION_LUCES_JSON));
+		jsonExp.put("triggers", esc.getListaTriggers());
+		jsonExp.put("zonasAmbiente", esc.getListaZonasAmbiente());
+		jsonExp.put("luces", esc.getListaLuces());
 
-			jsonExp.put("metadatos", esc.getMetadatos().exportarJSON());
-			jsonExp.put(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class), esc.getTerreno().getTilesJson());
-
-		} catch (final ParseException e) {
-			e.printStackTrace();
-		}
+		jsonExp.put("metadatos", esc.getMetadatos().exportarJSON());
+		jsonExp.put("terreno", esc.getTerreno().getTilesJson());
 
 		final String jsonPlano = jsonExp.toJSONString();
 		final String jsonEncriptado = Globales.FUNCIONES.ENCRIPTADOR_STRING.encriptar(jsonPlano);
@@ -69,9 +52,10 @@ public abstract class EscenarioLoader {
 				new OutputStreamWriter(new FileOutputStream(ruta), StandardCharsets.UTF_8))) {
 			writer.write(jsonEncriptado);
 			writer.flush();
-			System.out.println("[EscenarioLoader] Escenario cifrado y exportado en: " + ruta.getAbsolutePath());
+			System.out.println("[EscenarioLoader] Escenario exportado correctamente en: " + ruta.getAbsolutePath());
 		} catch (final Exception e) {
 			System.err.println("[EscenarioLoader] Error al exportar escenario: " + e.getMessage());
+			e.printStackTrace();
 		}
 	}
 
@@ -81,7 +65,7 @@ public abstract class EscenarioLoader {
 
 	public static Escenario importarEscenario(final File ruta, final GestorCarga gc, final int porcentajeCarga) {
 		Escenario esc = null;
-		int pesoCarga = 20;
+		final int pesoCarga = 20;
 
 		try {
 			if (gc != null) {
@@ -101,48 +85,41 @@ public abstract class EscenarioLoader {
 				gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
 			}
 
-			pesoCarga = 20;
 			final String textoDescifrado = Globales.FUNCIONES.ENCRIPTADOR_STRING.desencriptar(sb.toString());
 			final JSONObject jsonImp = (JSONObject) new JSONParser().parse(textoDescifrado);
 
-			final String jsonCriaturas = obtenerArrayStringSeguro(jsonImp,
-					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Criatura.class));
-			final String jsonItems = obtenerArrayStringSeguro(jsonImp,
-					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Item.class));
-			final String jsonObjetos = obtenerArrayStringSeguro(jsonImp,
-					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Objeto.class));
-			final String jsonComplementos = obtenerArrayStringSeguro(jsonImp,
-					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Complemento.class));
-			final String jsonSpawns = obtenerArrayStringSeguro(jsonImp,
-					Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Spawn.class));
+			final JSONArray arrCriaturas = LectorJSON.getArray(jsonImp, "criaturas");
+			final JSONArray arrItems = LectorJSON.getArray(jsonImp, "items");
+			final JSONArray arrComplementos = LectorJSON.getArray(jsonImp, "complementos");
+			final JSONArray arrObjetos = LectorJSON.getArray(jsonImp, "objetos");
+			final JSONArray arrSpawns = LectorJSON.getArray(jsonImp, "spawns");
 
-			final String jsonTriggers = obtenerArrayStringSeguro(jsonImp, "triggers");
-			final String jsonZonas = obtenerArrayStringSeguro(jsonImp, "zonasAmbiente");
-			final String jsonLuces = obtenerArrayStringSeguro(jsonImp, "luces");
+			final JSONArray arrTriggers = LectorJSON.getArray(jsonImp, "triggers");
+			final JSONArray arrZonas = LectorJSON.getArray(jsonImp, "zonasAmbiente");
+			final JSONArray arrLuces = LectorJSON.getArray(jsonImp, "luces");
 
 			MetadatosEscenario meta = new MetadatosEscenario();
-			if (jsonImp.get("metadatos") instanceof JSONObject) {
-				meta = MetadatosEscenario.crearDesdeJSON((JSONObject) jsonImp.get("metadatos"));
+			final JSONObject jsonMeta = LectorJSON.getObjeto(jsonImp, "metadatos");
+			if (jsonMeta != null) {
+				meta = MetadatosEscenario.crearDesdeJSON(jsonMeta);
 			}
 
 			if (gc != null) {
-				gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
+				gc.setDetalleCarga("Construyendo terreno");
 			}
 
-			pesoCarga = 60;
-			if (gc != null) {
-				gc.setDetalleCarga("Construyendo terreno y chunks");
+			// Compatibilidad de clave para terreno
+			JSONObject jsonTerreno = LectorJSON.getObjeto(jsonImp, "terreno");
+			if (jsonTerreno == null) {
+				jsonTerreno = LectorJSON.getObjeto(jsonImp, "principal.mapa.Tile");
 			}
-
-			final JSONObject jsonTerreno = (JSONObject) (new JSONParser())
-					.parse(jsonImp.get(Globales.FUNCIONES.GESTOR_TIPOS_EN_CARGA.getTipo(Tile.class)).toString());
 
 			final Terreno terreno = new Terreno(jsonTerreno);
-			esc = new Escenario(terreno, jsonCriaturas, jsonItems, jsonComplementos, jsonObjetos, jsonSpawns,
-					jsonTriggers, jsonZonas, jsonLuces, meta);
+			esc = new Escenario(terreno, arrCriaturas, arrItems, arrComplementos, arrObjetos, arrSpawns, arrTriggers,
+					arrZonas, arrLuces, meta);
 
 			if (gc != null) {
-				gc.setPorcentajeCarga(gc.getPorcentaje() + ((pesoCarga * porcentajeCarga) / 100));
+				gc.setPorcentajeCarga(gc.getPorcentaje() + ((60 * porcentajeCarga) / 100));
 			}
 
 		} catch (final Exception e) {
@@ -150,12 +127,5 @@ public abstract class EscenarioLoader {
 			e.printStackTrace();
 		}
 		return esc;
-	}
-
-	private static String obtenerArrayStringSeguro(final JSONObject json, final String clave) {
-		if ((json != null) && (clave != null) && json.containsKey(clave) && (json.get(clave) != null)) {
-			return json.get(clave).toString();
-		}
-		return "[]";
 	}
 }

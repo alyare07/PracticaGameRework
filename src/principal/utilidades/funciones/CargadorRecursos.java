@@ -21,24 +21,24 @@ import javax.sound.sampled.Clip;
 import javax.sound.sampled.DataLine;
 
 public class CargadorRecursos {
-	
+
 	protected CargadorRecursos() {
-		
+
 	}
-	
+
 	public BufferedImage cargarImagenCompatibleOpaca(final String ruta) {
 		Image imagen = null;
 		try {
 			imagen = ImageIO.read(CargadorRecursos.class.getResource(ruta));
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 
-		GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
+		final GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
 				.getDefaultConfiguration();
-		BufferedImage imagenAcelerada = gc.createCompatibleImage(imagen.getWidth(null), imagen.getHeight(null),
+		final BufferedImage imagenAcelerada = gc.createCompatibleImage(imagen.getWidth(null), imagen.getHeight(null),
 				Transparency.OPAQUE);
-		Graphics2D g = (Graphics2D) imagenAcelerada.getGraphics();
+		final Graphics2D g = (Graphics2D) imagenAcelerada.getGraphics();
 		g.drawImage(imagen, 0, 0, null);
 		g.dispose();
 		return imagenAcelerada;
@@ -48,15 +48,22 @@ public class CargadorRecursos {
 		Image imagen = null;
 		try {
 			imagen = ImageIO.read(CargadorRecursos.class.getResource(ruta));
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
+		} catch (final ExceptionInInitializerError e) {
+			System.err.println("ERROR AL CARGAR LA IMAGEN: " + ruta);
+			// Obtener la causa real del problema
+			System.err.println("Causa real: " + e.getCause());
+		} catch (final Exception e) {
+			System.err.println("ERROR AL CARGAR LA IMAGEN: " + ruta);
+			// Obtener la causa real del problema
+			System.err.println("Causa real: " + e.getCause());
 		}
-
-		GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
+		final GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
 				.getDefaultConfiguration();
-		BufferedImage imagenAcelerada = gc.createCompatibleImage(imagen.getWidth(null), imagen.getHeight(null),
+		final BufferedImage imagenAcelerada = gc.createCompatibleImage(imagen.getWidth(null), imagen.getHeight(null),
 				Transparency.TRANSLUCENT);
-		Graphics2D g = (Graphics2D) imagenAcelerada.getGraphics();
+		final Graphics2D g = (Graphics2D) imagenAcelerada.getGraphics();
 		g.drawImage(imagen, 0, 0, null);
 		g.dispose();
 		return imagenAcelerada;
@@ -64,14 +71,14 @@ public class CargadorRecursos {
 
 	public String leerArchivoTexto(final String ruta) {
 		String contenido = "";
-		InputStream entradaBytes = CargadorRecursos.class.getResourceAsStream(ruta);
-		BufferedReader lector = new BufferedReader(new InputStreamReader(entradaBytes));
+		final InputStream entradaBytes = CargadorRecursos.class.getResourceAsStream(ruta);
+		final BufferedReader lector = new BufferedReader(new InputStreamReader(entradaBytes));
 		String linea;
 		try {
 			while ((linea = lector.readLine()) != null) {
 				contenido += linea;
 			}
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		} finally {
 			try {
@@ -81,7 +88,7 @@ public class CargadorRecursos {
 				if (lector != null) {
 					lector.close();
 				}
-			} catch (IOException ex) {
+			} catch (final IOException ex) {
 				ex.printStackTrace();
 			}
 		}
@@ -90,12 +97,12 @@ public class CargadorRecursos {
 
 	public Font cargarFuente(final String ruta) {
 		Font fuente = null;
-		InputStream entradaBytes = CargadorRecursos.class.getResourceAsStream(ruta);
+		final InputStream entradaBytes = CargadorRecursos.class.getResourceAsStream(ruta);
 		try {
 			fuente = Font.createFont(Font.TRUETYPE_FONT, entradaBytes);
-		} catch (FontFormatException e) {
+		} catch (final FontFormatException e) {
 			e.printStackTrace();
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 
@@ -106,12 +113,12 @@ public class CargadorRecursos {
 	public Clip cargarSonido(final String ruta) {
 		Clip clip = null;
 		try {
-			InputStream is = CargadorRecursos.class.getResourceAsStream(ruta);
-			AudioInputStream ais = AudioSystem.getAudioInputStream(new BufferedInputStream(is));
-			DataLine.Info info = new DataLine.Info(Clip.class, ais.getFormat());
+			final InputStream is = CargadorRecursos.class.getResourceAsStream(ruta);
+			final AudioInputStream ais = AudioSystem.getAudioInputStream(new BufferedInputStream(is));
+			final DataLine.Info info = new DataLine.Info(Clip.class, ais.getFormat());
 			clip = (Clip) AudioSystem.getLine(info);
 			clip.open(ais);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			e.printStackTrace();
 		}
 

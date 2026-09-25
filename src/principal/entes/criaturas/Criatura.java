@@ -1320,13 +1320,8 @@ public abstract class Criatura extends Ente {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	public JSONObject getJsonCriatura() {
-		final JSONObject datosCriatura = this.exportarParaJSON();
-		final JSONObject criatura = new JSONObject();
-		criatura.put("tipo", this.exportarTipoCriatura());
-		criatura.put("entiti", datosCriatura);
-		return criatura;
+		return principal.persistencia.json.RegistroEntidades.exportar(this);
 	}
 
 	public double getVelocidad() {

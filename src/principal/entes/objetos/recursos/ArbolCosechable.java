@@ -10,48 +10,41 @@ import org.json.simple.JSONObject;
 import principal.entes.Ente;
 import principal.entes.objetos.Objeto;
 import principal.entes.objetos.items.herramientas.TipoHerramienta;
-import principal.entes.objetos.items.materiales.RecursoMaterial;
+import principal.entes.objetos.recursos.arboles.DispensadorBotinArbol;
+import principal.entes.objetos.recursos.arboles.TipoArbol;
 import principal.recursos.ClaveHoja;
 import principal.utilidades.Globales;
 import principal.utilidades.HojaSprite;
 import principal.utilidades.Render2D;
 
-/**
- * Recurso talable que rinde madera y reacciona al viento con balanceo
- * procedural mientras conserva su copa (Zero-GC / O(1)).
- * 
- * @version 2.0 (Vanilla Java 8 - Procedural Wind Swaying)
- */
 public class ArbolCosechable extends RecursoCosechable {
 
 	private static final long serialVersionUID = 1L;
 
-	private boolean esTocon = false;
-	private final ClaveHoja hoja;
-	private final int spriteIndex;
+	public static final int ANCHO_BASE = 32;
+	public static final int ALTO_BASE = 48;
 
-	public ArbolCosechable(final int x, final int y, final ClaveHoja hoja, final int spriteIndex) {
-		super(x, y, 100.0, TipoHerramienta.HACHA);
-		this.hoja = (hoja != null) ? hoja : ClaveHoja.ARBOLES_32;
-		this.spriteIndex = Math.max(0, spriteIndex);
+	private final TipoArbol tipoArbol;
+	private boolean esTocon = false;
+	private DispensadorBotinArbol dispensadorBotin;
+
+	public ArbolCosechable(final int x, final int y, final TipoArbol tipoArbol) {
+		super(x, y, (tipoArbol != null ? tipoArbol.getDurabilidadBase() : 100.0), TipoHerramienta.HACHA);
+		this.tipoArbol = (tipoArbol != null) ? tipoArbol : TipoArbol.ROBLE;
+		this.dispensadorBotin = this.tipoArbol.getDispensadorPorDefecto();
 	}
 
 	public ArbolCosechable(final int x, final int y) {
-		this(x, y, ClaveHoja.ARBOLES_32, 0);
-	}
-
-	@Deprecated
-	public ArbolCosechable(final int x, final int y, final int codViejo) {
-		this(x, y, ClaveHoja.ARBOLES_32, 0);
+		this(x, y, TipoArbol.ROBLE);
 	}
 
 	@Override
 	public void pintar(final Graphics2D g) {
 		final BufferedImage img = this.getTextura();
-		final int px = this.getPosicionXInt();
+		final int px = this.getPosicionXInt() + this.shakeOffsetX;
 		final int py = this.getPosicionYInt();
 
-		// Solo se mece con el viento si conserva la copa (no es tocón)
+		// Solo se mece con el viento si conserva la copa (el tocón es rígido)
 		if (!this.esTocon && (Globales.GESTOR_CLIMA != null)) {
 			final double balanceo = Globales.GESTOR_CLIMA.getFactorBalanceoVegetacion(px, py);
 			if (balanceo != 0.0) {
@@ -63,14 +56,16 @@ public class ArbolCosechable extends RecursoCosechable {
 			Render2D.dibujarImagenRefCamara(g, img, px, py);
 		}
 
-		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.estadoJuego) {
+		if (Globales.TECLADO.TECLA_VER_COLISIONES.presionado() && Globales.isEstadoJuego()) {
 			Render2D.dibujarRectanguloContornoRefCamara(g, this.getArea(), Color.ORANGE);
 		}
 	}
 
 	@Override
 	public Rectangle getArea() {
-		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt() + 10, this.getPosicionYInt() + 18, 12, 14);
+		this.AREA_ENTE_RETORNO.setBounds(this.getPosicionXInt() + this.tipoArbol.getColX(),
+				this.getPosicionYInt() + this.tipoArbol.getColY(), this.tipoArbol.getColAncho(),
+				this.tipoArbol.getColAlto());
 		return this.AREA_ENTE_RETORNO;
 	}
 
@@ -79,9 +74,12 @@ public class ArbolCosechable extends RecursoCosechable {
 		if (!this.esTocon) {
 			this.soltarBotin();
 			this.esTocon = true;
-			this.durabilidadMaxima = 40.0;
+			this.durabilidadMaxima = Math.max(20.0, this.tipoArbol.getDurabilidadBase() * 0.40);
 			this.durabilidad = this.durabilidadMaxima;
 			this.activarShake();
+			if (this.mundo != null) {
+				this.mundo.notificarModificacionEstructura();
+			}
 		} else {
 			this.soltarBotin();
 			super.destruir(causante);
@@ -90,84 +88,67 @@ public class ArbolCosechable extends RecursoCosechable {
 
 	@Override
 	protected void soltarBotin() {
-		if (this.mundo == null) {
-			return;
+		if ((this.mundo != null) && (this.dispensadorBotin != null)) {
+			this.dispensadorBotin.soltar(this, this.mundo, this.esTocon);
 		}
-
-		final int dropX = this.getCentroX() - 4;
-		final int dropY = this.getPosicionYInt() + (this.getAlto() / 2);
-
-		final int cantidadMadera = this.esTocon ? 2 : 5;
-		this.mundo.meterEntidad(RecursoMaterial.crearMadera(dropX, dropY, cantidadMadera));
-		Globales.GESTOR_PARTICULAS.emitirPolvoPaso(this.getCentroX(), this.getCentroY(), 18);
 	}
 
 	@Override
 	protected void emitirParticulasImpacto() {
-		Globales.GESTOR_PARTICULAS.emitirPolvoPaso(this.getCentroX(), this.getCentroY(), 6);
+		Globales.GESTOR_PARTICULAS.emitirPolvoPaso(this.getCentroX(), this.getCentroY() + 10, 6);
 	}
 
 	@Override
 	public BufferedImage getTextura() {
-		final HojaSprite h = Globales.GESTOR_TEXTURAS.getHoja(this.hoja);
-		return (h != null) ? h.getSprite(this.spriteIndex) : Globales.GESTOR_TEXTURAS.getTexturaError();
+		if (Globales.GESTOR_TEXTURAS == null) {
+			return null;
+		}
+		final HojaSprite hoja = Globales.GESTOR_TEXTURAS.getHoja(ClaveHoja.ARBOLES_32x48);
+		if (hoja == null) {
+			return Globales.GESTOR_TEXTURAS.getTexturaError();
+		}
+		// Si es tocón, usa siempre el sprite 19
+		final int idx = this.esTocon ? TipoArbol.SPRITE_TOCON : this.tipoArbol.getSpriteIndex();
+		return hoja.getSprite(idx);
 	}
 
 	@Override
 	public int getAncho() {
-		return 32;
+		return ANCHO_BASE;
 	}
 
 	@Override
 	public int getAlto() {
-		return 32;
+		return ALTO_BASE;
 	}
 
 	@Override
 	public Objeto copiar() {
-		return new ArbolCosechable(this.getPosicionXInt(), this.getPosicionYInt(), this.hoja, this.spriteIndex);
+		final ArbolCosechable copia = new ArbolCosechable(this.getPosicionXInt(), this.getPosicionYInt(),
+				this.tipoArbol);
+		copia.esTocon = this.esTocon;
+		copia.durabilidad = this.durabilidad;
+		copia.durabilidadMaxima = this.durabilidadMaxima;
+		copia.dispensadorBotin = this.dispensadorBotin;
+		return copia;
+	}
+
+	public TipoArbol getTipoArbol() {
+		return this.tipoArbol;
 	}
 
 	public boolean isEsTocon() {
 		return this.esTocon;
 	}
 
-	public ClaveHoja getHoja() {
-		return this.hoja;
+	public void setEsTocon(final boolean esTocon) {
+		this.esTocon = esTocon;
 	}
 
-	public int getSpriteIndex() {
-		return this.spriteIndex;
-	}
-
-	@SuppressWarnings("unchecked")
-	public JSONObject exportarParaJSON() {
-		final JSONObject json = new JSONObject();
-		json.put("x", Integer.valueOf(this.getPosicionXInt()));
-		json.put("y", Integer.valueOf(this.getPosicionYInt()));
-		json.put("hoja", this.hoja.name());
-		json.put("spriteIndex", Integer.valueOf(this.spriteIndex));
-		return json;
-	}
-
-	public static ArbolCosechable crearDesdeJson(final JSONObject json) {
-		if (json == null) {
-			return new ArbolCosechable(0, 0, ClaveHoja.ARBOLES_32, 0);
+	public void setDispensadorBotin(final DispensadorBotinArbol dispensador) {
+		if (dispensador != null) {
+			this.dispensadorBotin = dispensador;
 		}
-
-		final int x = (json.get("x") != null) ? ((Number) json.get("x")).intValue() : 0;
-		final int y = (json.get("y") != null) ? ((Number) json.get("y")).intValue() : 0;
-
-		ClaveHoja hoja = ClaveHoja.ARBOLES_32;
-		if (json.get("hoja") != null) {
-			try {
-				hoja = ClaveHoja.valueOf(json.get("hoja").toString());
-			} catch (final Exception ignored) {
-			}
-		}
-
-		final int spriteIndex = (json.get("spriteIndex") != null) ? ((Number) json.get("spriteIndex")).intValue() : 0;
-		return new ArbolCosechable(x, y, hoja, spriteIndex);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -179,11 +160,7 @@ public class ArbolCosechable extends RecursoCosechable {
 	@Override
 	protected void importarDatosEspecificos(final JSONObject json) {
 		if (json.get("esTocon") != null) {
-			final boolean tocon = Boolean.parseBoolean(json.get("esTocon").toString());
-			if (tocon && !this.esTocon) {
-				this.esTocon = true;
-				this.durabilidadMaxima = 40.0;
-			}
+			this.esTocon = Boolean.parseBoolean(json.get("esTocon").toString());
 		}
 	}
 }

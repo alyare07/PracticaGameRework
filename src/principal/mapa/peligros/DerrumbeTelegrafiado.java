@@ -7,7 +7,7 @@ import java.awt.Rectangle;
 
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.jugador.Jugador;
-import principal.entes.objetos.recursos.RocaCosechable;
+import principal.entes.objetos.recursos.minerales.MineralRoca;
 import principal.mapa.Mundo;
 import principal.mapa.renderEntidades.camara.efectos.TipoEfectoCamara;
 import principal.utilidades.AccionEntidad;
@@ -138,7 +138,7 @@ public class DerrumbeTelegrafiado {
 
 		// 5. Inyección limpia de la Roca Minable en la grilla espacial
 		if (!mundo.colisionaConZonaUObjetoSolido(new Rectangle(this.snapX, this.snapY, 16, 16))) {
-			final RocaCosechable roca = new RocaCosechable(this.snapX, this.snapY);
+			final MineralRoca roca = new MineralRoca(this.snapX, this.snapY);
 			mundo.meterEntidad(roca);
 			mundo.notificarModificacionEstructura();
 		}

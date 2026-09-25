@@ -247,4 +247,9 @@ public class ArbustoCosechable extends RecursoCosechable implements Interactuabl
 
 		return new ArbustoCosechable(x, y, horaCosecha);
 	}
+
+	@Override
+	public boolean esSolido() {
+		return false;
+	}
 }

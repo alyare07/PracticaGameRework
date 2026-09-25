@@ -124,9 +124,13 @@ public class SuperficieDibujo extends Canvas {
 					// 8. Información Debug
 					g.setFont(FUENTE_DEBUG);
 					g.setColor(Color.GREEN);
-					Render2D.dibujarString(g, "APS: " + Globales.aps, 20, 35);
-					Render2D.dibujarString(g, "FPS: " + Globales.fps, 20, 50);
-					Render2D.dibujarString(g, "OPF: " + (Render2D.getContadorObjetos() + 1), 20, 65);
+					if (Globales.isEstadoEditor()) {
+						Render2D.dibujarString(g, "OPF: " + (Render2D.getContadorObjetos() + 1), 20, 20);
+					} else if (Globales.isEstadoJuego()) {
+						Render2D.dibujarString(g, "APS: " + Globales.aps, 20, 35);
+						Render2D.dibujarString(g, "FPS: " + Globales.fps, 20, 50);
+						Render2D.dibujarString(g, "OPF: " + (Render2D.getContadorObjetos() + 1), 20, 65);
+					}
 
 				} finally {
 					if (g != null) {

@@ -17,6 +17,11 @@ import principal.iluminacion.ZonaAmbiente;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
 import principal.mapa.escenario.Escenario;
+import principal.mapa.escenario.tps.PuertaArea;
+import principal.mapa.escenario.tps.PuertaMapa;
+import principal.mapa.escenario.tps.PuertaMundo;
+import principal.mapa.escenario.tps.PuertaSalidaCueva;
+import principal.mapa.escenario.tps.PuertaTP;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
@@ -43,7 +48,6 @@ public class MundoEditor extends Mundo {
 	public MundoEditor(final Escenario esc) {
 		super(esc, new Point(0, 0));
 		if (esc != null) {
-			esc.generarTriggers(this);
 			this.sincronizarElementosCargadosDesdeEscenario();
 		}
 	}
@@ -54,10 +58,20 @@ public class MundoEditor extends Mundo {
 	 * interactiva ('E', borrado y traslado).
 	 */
 	private void sincronizarElementosCargadosDesdeEscenario() {
-		// 1. Sincronizar Triggers (ZonaTP) presentes en el mundo
+		// 1. Sincronizar Triggers (ZonaTP) deduplicando por geometría espacial
 		for (final Ente e : this.ENTES_REGISTRADOS) {
-			if ((e instanceof ZonaTP) && !this.triggersEditor.contains(e)) {
-				this.triggersEditor.add((ZonaTP) e);
+			if (e instanceof ZonaTP) {
+				final ZonaTP tp = (ZonaTP) e;
+				boolean yaExiste = false;
+				for (int i = 0; i < this.triggersEditor.size(); i++) {
+					if (this.triggersEditor.get(i).getArea().equals(tp.getArea())) {
+						yaExiste = true;
+						break;
+					}
+				}
+				if (!yaExiste) {
+					this.triggersEditor.add(tp);
+				}
 			}
 		}
 
@@ -99,11 +113,40 @@ public class MundoEditor extends Mundo {
 	/**
 	 * Dibuja los elementos específicos de triggers y ambientes en el editor.
 	 */
+	/**
+	 * Dibuja los elementos específicos de triggers, ambientes y luces en el editor.
+	 */
 	public void pintarTriggersYAmbientes(final Graphics2D g) {
 		final Font fontPrevia = g.getFont();
-		g.setFont(FUENTE_DEBUG);
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, 12f));
 
-		// 1. Zonas de Ambiente / Biomas
+		// =====================================================================
+		// 1. Triggers TP (ZonaTP) con Bounding Box y Etiqueta Contextual
+		// =====================================================================
+		for (int i = 0; i < this.triggersEditor.size(); i++) {
+			final ZonaTP tp = this.triggersEditor.get(i);
+			final int tx = tp.getPosicionXInt();
+			final int ty = tp.getPosicionYInt();
+			final int tw = tp.getAncho();
+			final int th = tp.getAlto();
+
+			// Caja semi-translúcida y borde rojo distintivo
+			Render2D.dibujarRectanguloRellenoRefCamara(g, tx, ty, tw, th, new Color(255, 60, 60, 80));
+			Render2D.dibujarRectanguloContornoRefCamara(g, tx, ty, tw, th, new Color(255, 70, 70, 220));
+
+			// Etiqueta de ruta contextual centrada sobre el trigger
+			final String etiqueta = this.resolverEtiquetaTrigger(tp);
+			final int anchoTxt = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, etiqueta);
+			final int posXTexto = (tx + (tw / 2)) - (anchoTxt / 2);
+			final int posYTexto = ty - 3;
+
+			Render2D.dibujarStringConSombraRefCamara(g, etiqueta, posXTexto, posYTexto, new Color(255, 130, 130),
+					Color.BLACK);
+		}
+
+		// =====================================================================
+		// 2. Zonas de Ambiente / Biomas
+		// =====================================================================
 		for (int i = 0; i < this.zonasAmbienteEditor.size(); i++) {
 			final ZonaAmbiente z = this.zonasAmbienteEditor.get(i);
 			final Rectangle lim = z.getLimites();
@@ -116,7 +159,9 @@ public class MundoEditor extends Mundo {
 			Render2D.dibujarStringConSombraRefCamara(g, label, lim.x + 4, lim.y + 10, Color.WHITE, Color.BLACK);
 		}
 
-		// 2. Luces Estáticas
+		// =====================================================================
+		// 3. Luces Estáticas
+		// =====================================================================
 		for (int i = 0; i < this.lucesEstaticasEditor.size(); i++) {
 			final FuenteLuz luz = this.lucesEstaticasEditor.get(i);
 			final int x = (int) Math.round(luz.getPosX());
@@ -246,6 +291,40 @@ public class MundoEditor extends Mundo {
 		return this.lucesEstaticasEditor;
 	}
 
+	private String resolverEtiquetaTrigger(final ZonaTP tp) {
+		if ((tp == null) || (tp.getPuertaTP() == null)) {
+			return "[TP]";
+		}
+
+		final PuertaTP puerta = tp.getPuertaTP();
+
+		// 1. A otro mapa: "mapa -> mundo -> spawn"
+		if (puerta instanceof PuertaMapa) {
+			final PuertaMapa pmap = (PuertaMapa) puerta;
+			return pmap.getRutaMapaDestino() + " -> " + pmap.getNombreMundoDestino() + " -> "
+					+ pmap.getNombreSpawnDelMundoDestino();
+		}
+
+		// 2. Entre mundos del mismo mapa: "mundo -> spawn"
+		if (puerta instanceof PuertaMundo) {
+			final PuertaMundo pm = (PuertaMundo) puerta;
+			return pm.getNombreMundoDestino() + " -> " + pm.getNombreSpawnDestino();
+		}
+
+		// 3. Local por coordenadas: "(coordX, coordY)"
+		if (puerta instanceof PuertaArea) {
+			final PuertaArea pa = (PuertaArea) puerta;
+			return "(" + pa.getXDestino() + ", " + pa.getYDestino() + ")";
+		}
+
+		// 4. Salida de cueva dinámica
+		if (puerta instanceof PuertaSalidaCueva) {
+			return "[Salida Cueva]";
+		}
+
+		return "[TP: " + puerta.getClass().getSimpleName() + "]";
+	}
+
 	@SuppressWarnings("unchecked")
 	public JSONArray getTriggersEnJson() {
 		final JSONArray lista = new JSONArray();
@@ -253,20 +332,7 @@ public class MundoEditor extends Mundo {
 			final ZonaTP tp = this.triggersEditor.get(i);
 			final JSONObject sobre = principal.persistencia.json.RegistroEntidades.exportar(tp);
 			if (sobre != null) {
-				final JSONObject datos = (JSONObject) sobre
-						.get(principal.persistencia.json.RegistroEntidades.CLAVE_DATOS);
-				// El objeto 'datos' ya contiene x, y, w, h y el payload de la puerta
-				if (datos != null) {
-					final JSONObject jPuerta = (JSONObject) datos.get("puerta");
-					if (jPuerta != null) {
-						// Aplana las claves de la puerta para compatibilidad con el cargador de
-						// triggers
-						for (final Object k : jPuerta.keySet()) {
-							datos.put(k, jPuerta.get(k));
-						}
-					}
-					lista.add(datos);
-				}
+				lista.add(sobre);
 			}
 		}
 		return lista;

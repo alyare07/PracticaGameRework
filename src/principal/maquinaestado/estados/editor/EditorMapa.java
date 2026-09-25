@@ -84,11 +84,13 @@ public class EditorMapa implements EstadoJuego {
 	private final int ANCHO;
 	private final int ALTO;
 	private final Terreno TERRENO;
-
+	private final Rectangle AREA_CHECK_OCUPACION = new Rectangle();
 	private int x;
 	private int y;
 	private final AsistenteCamara asistenteCamara;
-
+	// Control de arrastre y anti-apilamiento de entidades
+	private int ultimoTileColocadoX = Integer.MIN_VALUE;
+	private int ultimoTileColocadoY = Integer.MIN_VALUE;
 	private final Raton RATON = SuperficieDibujo.obtenerSuperficieDibujo().RATON;
 	private final Rectangle areaTileSelected = new Rectangle();
 	private boolean tileApuntadoValido = false;
@@ -113,7 +115,20 @@ public class EditorMapa implements EstadoJuego {
 	private final VentanaModalLuz modalLuz = new VentanaModalLuz();
 	private final VentanaModalSpawn modalSpawn;
 	private final VentanaModalConfirmarSalir modalConfirmarSalir;
+	// Modal de Ayuda (F1) y Minimapa Radar (M)
+	private final principal.maquinaestado.estados.editor.modal.VentanaModalAyuda modalAyuda = new principal.maquinaestado.estados.editor.modal.VentanaModalAyuda();
+	private boolean mostrarMinimapa = true;
+	private final Rectangle areaMinimapa = new Rectangle(6, ALTO_BARRA_SUP + 6, 80, 60);
 
+	// Referencias directas a botones para Tooltips de Historial
+	private BotonPixel btnDeshacer;
+	private BotonPixel btnRehacer;
+
+	// Colores accesibles para Heatmap IA (Anti-Daltonismo / Universal A11y)
+	private static final Color COLOR_IA_SOLIDO_ACC = new Color(255, 80, 20, 100); // Naranja Bermellón
+	private static final Color COLOR_IA_ESTRECHO_ACC = new Color(255, 210, 30, 80); // Oro
+	private static final Color COLOR_IA_LIBRE_ACC = new Color(0, 190, 255, 45); // Azul Cian
+	private static final Color COLOR_IA_HATCH = new Color(255, 255, 255, 120); // Tramado geométrico
 	// Botonera de la Barra Superior Extensible
 	private final ArrayList<ComponenteMenu> barraSuperior = new ArrayList<ComponenteMenu>();
 
@@ -123,7 +138,7 @@ public class EditorMapa implements EstadoJuego {
 
 	private int tamanoPincel = 1;
 	private boolean pincelCircular = false;
-	private boolean mostrarGrid = false;
+	private int modoGrid = 0;
 	private boolean modoPreviewLuz = false;
 
 	// Snap Semántico a Grilla vs Modo Libre
@@ -154,15 +169,15 @@ public class EditorMapa implements EstadoJuego {
 	private int startRectTileY = 0;
 
 	// Clima y Hora
-	private int idxClimaTest = 0;
-	private int idxHoraTest = 0;
+	private final int idxClimaTest = 0;
+	private final int idxHoraTest = 0;
 
 	private final GestorTiempo GT_COLOCACION = new GestorTiempo();
 	private static final int TIEMPO_ESPERA_MS_COLOCACION = 180;
 
 	private final MundoEditor MUNDO_EDITOR;
 	private MetadatosEscenario metadatos = new MetadatosEscenario();
-
+	private final ArrayList<Ente> listaLoteTemp = new ArrayList<Ente>(256);
 	// Estructuras Zero-GC preasignadas
 	private final Rectangle AREA_MOUSE_APUNTADO = new Rectangle(-1, -1, 1, 1);
 	private final Rectangle AREA_BORRADO_AUX = new Rectangle();
@@ -274,23 +289,29 @@ public class EditorMapa implements EstadoJuego {
 			GestorSonido.reproducir(IDSonido.GOLPE_1);
 		}));
 
-		// 2. BOTONES DESHACER / REHACER
-		this.barraSuperior.add(new BotonPixel("<-", new Rectangle(80, 2, 16, 14), () -> this.ejecutarDeshacer()));
-		this.barraSuperior.add(new BotonPixel("->", new Rectangle(98, 2, 16, 14), () -> this.ejecutarRehacer()));
+		// 2. BOTONES DESHACER / REHACER (Con referencia para Tooltips)
+		this.btnDeshacer = new BotonPixel("<-", new Rectangle(80, 2, 16, 14), () -> this.ejecutarDeshacer());
+		this.btnRehacer = new BotonPixel("->", new Rectangle(98, 2, 16, 14), () -> this.ejecutarRehacer());
+		this.barraSuperior.add(this.btnDeshacer);
+		this.barraSuperior.add(this.btnRehacer);
 
 		this.barraSuperior
 				.add(new BotonPixel("Salir", new Rectangle(116, 2, 28, 14), () -> this.modalConfirmarSalir.abrir()));
 
 		// 3. HERRAMIENTAS Y MODOS
-		this.barraSuperior.add(new BotonTogglePixel("GRD", new Rectangle(146, 2, 20, 14), () -> this.mostrarGrid,
-				() -> this.mostrarGrid = !this.mostrarGrid));
-		this.barraSuperior.add(new BotonTogglePixel("LUZ", new Rectangle(168, 2, 20, 14), () -> this.modoPreviewLuz,
+		this.barraSuperior.add(new BotonPixel("GRD", new Rectangle(146, 2, 22, 14), () -> {
+			this.modoGrid = (this.modoGrid + 1) % 3;
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}));
+		this.barraSuperior.add(new BotonTogglePixel("MAP", new Rectangle(170, 2, 22, 14), () -> this.mostrarMinimapa,
+				() -> this.mostrarMinimapa = !this.mostrarMinimapa));
+		this.barraSuperior.add(new BotonTogglePixel("LUZ", new Rectangle(194, 2, 20, 14), () -> this.modoPreviewLuz,
 				() -> this.modoPreviewLuz = !this.modoPreviewLuz));
-		this.barraSuperior.add(new BotonTogglePixel("IA", new Rectangle(190, 2, 18, 14), () -> this.mostrarOverlayIA,
+		this.barraSuperior.add(new BotonTogglePixel("IA", new Rectangle(216, 2, 18, 14), () -> this.mostrarOverlayIA,
 				() -> this.mostrarOverlayIA = !this.mostrarOverlayIA));
-		this.barraSuperior.add(new BotonTogglePixel("SNP", new Rectangle(210, 2, 20, 14), () -> this.modoSnapGrilla,
+		this.barraSuperior.add(new BotonTogglePixel("SNP", new Rectangle(236, 2, 20, 14), () -> this.modoSnapGrilla,
 				() -> this.modoSnapGrilla = !this.modoSnapGrilla));
-		this.barraSuperior.add(new BotonTogglePixel("RGL", new Rectangle(232, 2, 20, 14), () -> this.modoRegla, () -> {
+		this.barraSuperior.add(new BotonTogglePixel("RGL", new Rectangle(258, 2, 20, 14), () -> this.modoRegla, () -> {
 			this.modoRegla = !this.modoRegla;
 			if (this.modoRegla && this.tileApuntadoValido) {
 				this.startReglaX = this.AREA_MOUSE_APUNTADO.x;
@@ -299,40 +320,30 @@ public class EditorMapa implements EstadoJuego {
 		}));
 
 		// 4. CAPAS DE RENDER
-		this.barraSuperior.add(new BotonTogglePixel("TER", new Rectangle(254, 2, 20, 14), () -> this.verCapaTerreno,
+		this.barraSuperior.add(new BotonTogglePixel("TER", new Rectangle(280, 2, 20, 14), () -> this.verCapaTerreno,
 				() -> this.verCapaTerreno = !this.verCapaTerreno));
-		this.barraSuperior.add(new BotonTogglePixel("ENT", new Rectangle(276, 2, 20, 14), () -> this.verCapaEntidades,
+		this.barraSuperior.add(new BotonTogglePixel("ENT", new Rectangle(302, 2, 20, 14), () -> this.verCapaEntidades,
 				() -> this.verCapaEntidades = !this.verCapaEntidades));
-		this.barraSuperior.add(new BotonTogglePixel("TRG", new Rectangle(298, 2, 20, 14), () -> this.verCapaTriggers,
+		this.barraSuperior.add(new BotonTogglePixel("TRG", new Rectangle(324, 2, 20, 14), () -> this.verCapaTriggers,
 				() -> this.verCapaTriggers = !this.verCapaTriggers));
 
-		// 5. CLIMA Y HORA TEST
-		this.barraSuperior.add(new BotonPixel("CLM", new Rectangle(320, 2, 20, 14), () -> {
-			if (Globales.GESTOR_CLIMA != null) {
-				final principal.clima.TipoClima[] climas = principal.clima.TipoClima.values();
-				this.idxClimaTest = (this.idxClimaTest + 1) % climas.length;
-				Globales.GESTOR_CLIMA.setClima(climas[this.idxClimaTest], 0.0);
-			}
-		}));
-		this.barraSuperior.add(new BotonPixel("HOR", new Rectangle(342, 2, 20, 14), () -> {
-			if (Globales.GESTOR_ASTRONOMICO != null) {
-				final principal.astronomia.GestorAstronomico.FaseDia[] fases = principal.astronomia.GestorAstronomico.FaseDia
-						.values();
-				this.idxHoraTest = (this.idxHoraTest + 1) % fases.length;
-				Globales.GESTOR_ASTRONOMICO.setHora(fases[this.idxHoraTest]);
-			}
-		}));
+		// 5. AYUDA RÁPIDA F1
+		this.barraSuperior.add(new BotonPixel("?", new Rectangle(346, 2, 16, 14), () -> this.modalAyuda.conmutar()));
 
-		// 6. PINCELES DIRECTOS
-		this.barraSuperior.add(new BotonTogglePixel("1x", new Rectangle(364, 2, 18, 14), () -> this.tamanoPincel == 1,
+		// 6. PINCELES DIRECTOS (Incluye Pinceles Masivos 10x y 20x)
+		this.barraSuperior.add(new BotonTogglePixel("1x", new Rectangle(366, 2, 16, 14), () -> this.tamanoPincel == 1,
 				() -> this.tamanoPincel = 1));
-		this.barraSuperior.add(new BotonTogglePixel("2x", new Rectangle(384, 2, 18, 14), () -> this.tamanoPincel == 2,
+		this.barraSuperior.add(new BotonTogglePixel("2x", new Rectangle(384, 2, 16, 14), () -> this.tamanoPincel == 2,
 				() -> this.tamanoPincel = 2));
-		this.barraSuperior.add(new BotonTogglePixel("3x", new Rectangle(404, 2, 18, 14), () -> this.tamanoPincel == 3,
+		this.barraSuperior.add(new BotonTogglePixel("3x", new Rectangle(402, 2, 16, 14), () -> this.tamanoPincel == 3,
 				() -> this.tamanoPincel = 3));
-		this.barraSuperior.add(new BotonTogglePixel("4x", new Rectangle(424, 2, 18, 14), () -> this.tamanoPincel == 4,
+		this.barraSuperior.add(new BotonTogglePixel("4x", new Rectangle(420, 2, 16, 14), () -> this.tamanoPincel == 4,
 				() -> this.tamanoPincel = 4));
-		this.barraSuperior.add(new BotonTogglePixel("O/[]", new Rectangle(444, 2, 22, 14), () -> this.pincelCircular,
+		this.barraSuperior.add(new BotonTogglePixel("10x", new Rectangle(438, 2, 22, 14), () -> this.tamanoPincel == 10,
+				() -> this.tamanoPincel = 10));
+		this.barraSuperior.add(new BotonTogglePixel("20x", new Rectangle(462, 2, 22, 14), () -> this.tamanoPincel == 20,
+				() -> this.tamanoPincel = 20));
+		this.barraSuperior.add(new BotonTogglePixel("O/[]", new Rectangle(486, 2, 22, 14), () -> this.pincelCircular,
 				() -> this.pincelCircular = !this.pincelCircular));
 	}
 
@@ -358,6 +369,14 @@ public class EditorMapa implements EstadoJuego {
 	@Override
 	public void actualizar() {
 		// 1. Modales (Bloqueo absoluto)
+		if (this.modalAyuda.isAbierta()) {
+			this.modalAyuda.actualizar(this.RATON);
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)
+					|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_F1)) {
+				this.modalAyuda.cerrar();
+			}
+			return;
+		}
 		if (this.modalConfirmarSalir.isAbierta()) {
 			this.modalConfirmarSalir.actualizar(this.RATON);
 			return;
@@ -450,6 +469,19 @@ public class EditorMapa implements EstadoJuego {
 		}
 
 		this.actualizarInspeccionConTeclaE();
+		// Minimapa Fast-Travel
+		if (this.actualizarMinimapaRaton()) {
+			this.MUNDO_EDITOR.actualizar();
+			return;
+		}
+		// Si se suelta el clic izquierdo, reseteamos el rastreador de celda
+		if (!this.RATON.presionadoClickIzq()) {
+			this.ultimoTileColocadoX = Integer.MIN_VALUE;
+			this.ultimoTileColocadoY = Integer.MIN_VALUE;
+		}
+
+		this.alterarElementoSeleccionado();
+		this.borrarElemento();
 		this.alterarElementoSeleccionado();
 		this.borrarElemento();
 
@@ -458,6 +490,155 @@ public class EditorMapa implements EstadoJuego {
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_ESCAPE)) {
 			this.modalConfirmarSalir.abrir();
 		}
+	}
+
+	private boolean actualizarMinimapaRaton() {
+		if (!this.mostrarMinimapa || (this.RATON == null)) {
+			return false;
+		}
+
+		final Point pMouse = this.RATON.getPuntoPosicionEscalado();
+		if (this.areaMinimapa.contains(pMouse) && this.RATON.presionadoClickIzq()) {
+			final double relX = (double) (pMouse.x - this.areaMinimapa.x) / this.areaMinimapa.width;
+			final double relY = (double) (pMouse.y - this.areaMinimapa.y) / this.areaMinimapa.height;
+
+			this.x = (int) Math.round(relX * this.ANCHO);
+			this.y = (int) Math.round(relY * this.ALTO);
+			this.asistenteCamara.setPosicion(this.x, this.y);
+			return true;
+		}
+		return false;
+	}
+
+	private String obtenerInfoHoverCursor() {
+		if (!this.tileApuntadoValido) {
+			return "";
+		}
+
+		// 1. Spawns o Triggers en hover
+		if (this.verCapaTriggers) {
+			for (final Spawn s : this.MUNDO_EDITOR.getPuntosSpawn()) {
+				if (s.getArea().contains(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y)) {
+					return "[SPAWN: " + s.getNombre() + "]";
+				}
+			}
+			for (final ZonaTP tp : this.MUNDO_EDITOR.getTriggersEditor()) {
+				if (tp.getArea().contains(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y)) {
+					return "[TP -> "
+							+ (tp.getPuertaTP() != null ? tp.getPuertaTP().getClass().getSimpleName() : "Vacio") + "]";
+				}
+			}
+		}
+
+		// 2. Entidades / Objetos en hover
+		if (this.verCapaEntidades) {
+			this.enteMuestreado = null;
+			this.AREA_CUENTAGOTAS.setBounds(this.AREA_MOUSE_APUNTADO.x - 1, this.AREA_MOUSE_APUNTADO.y - 1, 2, 2);
+			this.MUNDO_EDITOR.paraCadaEnteEn(this.AREA_CUENTAGOTAS, false, false, new AccionEntidad<Ente>() {
+				@Override
+				public void ejecutar(final Ente ente) {
+					if ((EditorMapa.this.enteMuestreado == null) && (ente != null) && !ente.estaEliminado()) {
+						EditorMapa.this.enteMuestreado = ente;
+					}
+				}
+			});
+
+			if (this.enteMuestreado != null) {
+				return "[ENTE: " + this.enteMuestreado.getClass().getSimpleName() + " ("
+						+ this.enteMuestreado.getAncho() + "x" + this.enteMuestreado.getAlto() + ")]";
+			}
+		}
+
+		// 3. Suelo / Terreno
+		if (this.verCapaTerreno) {
+			final Tile t = this.TERRENO.getTileReferenciado(this.AREA_MOUSE_APUNTADO.x, this.AREA_MOUSE_APUNTADO.y);
+			if (t != null) {
+				return "[TILE: " + t.getTipoTerreno().getNombre() + (t.esSolido() ? " (SOLIDO)" : " (LIBRE)") + " Var:"
+						+ t.getVariacionPropia() + "]";
+			}
+		}
+
+		return "";
+	}
+
+	private Color obtenerColorMinimapa(final TipoTerreno tipo) {
+		if (tipo == null) {
+			return Color.BLACK;
+		}
+		switch (tipo) {
+		case AGUA:
+		case PANTANO_AGUA:
+			return new Color(30, 80, 160);
+		case CESPED:
+		case CESPED_3:
+			return new Color(45, 115, 40);
+		case CESPED_2:
+			return new Color(90, 125, 45);
+		case TIERRA:
+		case TIERRA_2:
+			return new Color(110, 75, 45);
+		case ARENA:
+			return new Color(205, 180, 100);
+		case PIEDRA:
+		case DUNGEON_LADRILLO:
+			return new Color(85, 90, 100);
+		case CESPED_3_NEVADO:
+		case HIELO_SUELO:
+			return new Color(220, 235, 245);
+		case LAVA:
+			return new Color(220, 60, 20);
+		case VACIO:
+			return Color.BLACK;
+		default:
+			return tipo.isSolido() ? new Color(70, 70, 75) : new Color(60, 100, 50);
+		}
+	}
+
+	private void pintarMinimapa(final Graphics2D g) {
+		if (!this.mostrarMinimapa) {
+			return;
+		}
+
+		final int mx = this.areaMinimapa.x;
+		final int my = this.areaMinimapa.y;
+		final int mw = this.areaMinimapa.width;
+		final int mh = this.areaMinimapa.height;
+
+		// 1. Marco ornamental
+		Render2D.dibujarRectanguloRelleno(g, mx, my, mw, mh, new Color(16, 20, 28, 220));
+		Render2D.dibujarRectanguloContorno(g, mx - 1, my - 1, mw + 2, mh + 2, Color.BLACK);
+		Render2D.dibujarRectanguloContorno(g, mx, my, mw, mh, new Color(220, 180, 50, 180));
+
+		// 2. Muestreo del Terreno (Fast Grid Sample)
+		final int tilesX = this.TERRENO.getAncho() / this.LADO_TILE;
+		final int tilesY = this.TERRENO.getAlto() / this.LADO_TILE;
+
+		for (int py = 0; py < mh; py += 2) {
+			final int ty = (py * tilesY) / mh;
+			for (int px = 0; px < mw; px += 2) {
+				final int tx = (px * tilesX) / mw;
+				final Tile t = this.TERRENO.getTileGrid(tx, ty);
+				if (t != null) {
+					g.setColor(this.obtenerColorMinimapa(t.getTipoTerreno()));
+					g.fillRect(mx + px, my + py, 2, 2);
+				}
+			}
+		}
+
+		// 3. Rectángulo Frustum de la Cámara
+		final double z = Math.max(0.2, Globales.CAMARA.getZoom());
+		final int camW = (int) Math.round((Constantes.ANCHO_JUEGO / z) * ((double) mw / this.ANCHO));
+		final int camH = (int) Math.round((Constantes.ALTO_JUEGO / z) * ((double) mh / this.ALTO));
+		final int camX = (mx + (int) Math.round(((double) this.x / this.ANCHO) * mw)) - (camW / 2);
+		final int camY = (my + (int) Math.round(((double) this.y / this.ALTO) * mh)) - (camH / 2);
+
+		Render2D.dibujarRectanguloContorno(g, camX, camY, Math.max(4, camW), Math.max(4, camH), Color.WHITE);
+
+		// Badge
+		final Font fPrev = g.getFont();
+		g.setFont(FUENTE_INFO);
+		Render2D.dibujarStringConSombra(g, "RADAR (M)", mx + 3, my + mh + 8, Color.YELLOW, Color.BLACK);
+		g.setFont(fPrev);
 	}
 
 	private void actualizarAtajosTeclado() {
@@ -503,14 +684,30 @@ public class EditorMapa implements EstadoJuego {
 			this.tamanoPincel = 3;
 		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_4)) {
 			this.tamanoPincel = 4;
+		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_5)) {
+			this.tamanoPincel = 10;
+		} else if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_6)) {
+			this.tamanoPincel = 20;
 		}
 
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_C)) {
 			this.pincelCircular = !this.pincelCircular;
 		}
 
+		// Ayuda Rápida (F1)
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_F1)) {
+			this.modalAyuda.conmutar();
+		}
+
+		// Rejilla Cíclica (G: Off -> Sutil -> Alto Contraste)
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_G)) {
-			this.mostrarGrid = !this.mostrarGrid;
+			this.modoGrid = (this.modoGrid + 1) % 3;
+			GestorSonido.reproducir(IDSonido.GOLPE_1);
+		}
+
+		// Radar / Minimapa Fast Travel (M)
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_M)) {
+			this.mostrarMinimapa = !this.mostrarMinimapa;
 			GestorSonido.reproducir(IDSonido.GOLPE_1);
 		}
 
@@ -983,7 +1180,9 @@ public class EditorMapa implements EstadoJuego {
 		final int mouseTileY = Math.floorDiv(this.AREA_MOUSE_APUNTADO.y, this.LADO_TILE);
 		final int cantTilesX = this.TERRENO.getAncho() / this.LADO_TILE;
 
-		// 1. SUELOS
+		// =====================================================================
+		// 1. SUELOS (Con Soporte Real de Pincel Circular)
+		// =====================================================================
 		if ((paleta instanceof PaletaTile) && this.verCapaTerreno) {
 			final PaletaTile pTile = (PaletaTile) paleta;
 			final Tile tilePaleta = pTile.getTileSeleccionado();
@@ -1004,8 +1203,22 @@ public class EditorMapa implements EstadoJuego {
 					final int startTX = this.areaTileSelected.x / this.LADO_TILE;
 					final int startTY = this.areaTileSelected.y / this.LADO_TILE;
 
+					// Calibración euclidiana para formas circulares
+					final double centro = (this.tamanoPincel - 1) / 2.0;
+					final double radioMax = (this.tamanoPincel - 0.5) / 2.0;
+					final double radioMaxCuadrado = radioMax * radioMax;
+
 					for (int dy = 0; dy < this.tamanoPincel; dy++) {
 						for (int dx = 0; dx < this.tamanoPincel; dx++) {
+							// Filtro circular: Descarta las esquinas si es circular
+							if (this.pincelCircular && (this.tamanoPincel > 2)) {
+								final double distX = dx - centro;
+								final double distY = dy - centro;
+								if (((distX * distX) + (distY * distY)) > radioMaxCuadrado) {
+									continue;
+								}
+							}
+
 							final int curTX = startTX + dx;
 							final int curTY = startTY + dy;
 							final int idx = (curTY * cantTilesX) + curTX;
@@ -1058,74 +1271,208 @@ public class EditorMapa implements EstadoJuego {
 				}
 			}
 		}
-		// 2. RECURSOS Y COMPLEMENTOS
+		// =====================================================================
+		// 2. RECURSOS Y COMPLEMENTOS (Pincel Simple 1x o Brocha de Dispersión >1x)
+		// =====================================================================
 		else if ((paleta instanceof PaletaComplento) && this.verCapaEntidades) {
 			final PaletaComplento paletaObj = (PaletaComplento) paleta;
-			if (this.RATON.presionadoClickIzq()
-					&& this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
-				this.GT_COLOCACION.establecerReferenciaTiempoActual();
 
-				final PaletaComplento.EntradaPaleta entrada = paletaObj.getEntradaSeleccionada();
-				if ((entrada != null) && (entrada.icono != null)) {
-					final int imgW = entrada.icono.getWidth();
-					final int imgH = entrada.icono.getHeight();
-					int posX, posY;
+			if (this.RATON.presionadoClickIzq()) {
+				// Anti-apilamiento por arrastre continuo en el mismo tile
+				if (snap && (mouseTileX == this.ultimoTileColocadoX) && (mouseTileY == this.ultimoTileColocadoY)) {
+					return;
+				}
 
-					if (snap) {
-						if ((imgW > this.LADO_TILE) || (imgH > this.LADO_TILE)) {
-							posX = (mouseTileX * this.LADO_TILE) - ((imgW - this.LADO_TILE) / 2);
-							posY = (mouseTileY * this.LADO_TILE) - (imgH - this.LADO_TILE);
-						} else {
-							posX = mouseTileX * this.LADO_TILE;
-							posY = mouseTileY * this.LADO_TILE;
+				if (this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
+					this.GT_COLOCACION.establecerReferenciaTiempoActual();
+
+					final PaletaComplento.EntradaPaleta entrada = paletaObj.getEntradaSeleccionada();
+					if ((entrada != null) && (entrada.icono != null)) {
+						final int imgW = entrada.icono.getWidth();
+						final int imgH = entrada.icono.getHeight();
+
+						// -------------------------------------------------------------
+						// CASO A: Pincel 1x (Colocación Individual Quirúrgica)
+						// -------------------------------------------------------------
+						if (this.tamanoPincel == 1) {
+							int posX, posY;
+
+							if (snap) {
+								if ((imgW > this.LADO_TILE) || (imgH > this.LADO_TILE)) {
+									posX = (mouseTileX * this.LADO_TILE) - ((imgW - this.LADO_TILE) / 2);
+									posY = (mouseTileY * this.LADO_TILE) - (imgH - this.LADO_TILE);
+								} else {
+									posX = mouseTileX * this.LADO_TILE;
+									posY = mouseTileY * this.LADO_TILE;
+								}
+								this.AREA_CHECK_OCUPACION.setBounds((mouseTileX * this.LADO_TILE) + 2,
+										(mouseTileY * this.LADO_TILE) + 2, this.LADO_TILE - 4, this.LADO_TILE - 4);
+							} else {
+								posX = this.AREA_MOUSE_APUNTADO.x - (imgW / 2);
+								posY = this.AREA_MOUSE_APUNTADO.y - (imgH / 2);
+								this.AREA_CHECK_OCUPACION.setBounds(this.AREA_MOUSE_APUNTADO.x - 4,
+										this.AREA_MOUSE_APUNTADO.y - 4, 8, 8);
+							}
+
+							if (!this.existeEnteEnArea(this.AREA_CHECK_OCUPACION)) {
+								final Objeto nuevoObj = paletaObj.crearInstanciaSeleccionada(posX, posY);
+								if (nuevoObj != null) {
+									this.MUNDO_EDITOR.meterEntidad(nuevoObj);
+									this.HISTORIAL.registrarAccion(
+											new principal.maquinaestado.estados.editor.historial.AccionHistorialEntidad(
+													this.MUNDO_EDITOR, nuevoObj, true));
+									this.ultimoTileColocadoX = mouseTileX;
+									this.ultimoTileColocadoY = mouseTileY;
+									GestorSonido.reproducir(IDSonido.GOLPE_1);
+								}
+							}
 						}
-					} else {
-						posX = this.AREA_MOUSE_APUNTADO.x - (imgW / 2);
-						posY = this.AREA_MOUSE_APUNTADO.y - (imgH / 2);
-					}
+						// -------------------------------------------------------------
+						// CASO B: Brocha de Dispersión / Bosque (tamanoPincel > 1)
+						// -------------------------------------------------------------
+						else {
+							this.listaLoteTemp.clear();
 
-					final Objeto nuevoObj = paletaObj.crearInstanciaSeleccionada(posX, posY);
-					if (nuevoObj != null) {
-						this.MUNDO_EDITOR.meterEntidad(nuevoObj);
-						this.HISTORIAL.registrarAccion(new AccionHistorialEntidad(this.MUNDO_EDITOR, nuevoObj, true));
+							// Radio en tiles según el tamaño de pincel (2x -> radio 1, 3x -> radio 2, 4x ->
+							// radio 3)
+							final int radioTiles = this.tamanoPincel - 1;
+							final double radioTilesCuadrado = (radioTiles + 0.3) * (radioTiles + 0.3);
+
+							// Densidad orgánica calibrada según escala del pincel
+							final double probabilidadSpawn;
+							if (this.tamanoPincel == 2) {
+								probabilidadSpawn = 0.45;
+							} else if (this.tamanoPincel == 3) {
+								probabilidadSpawn = 0.32;
+							} else if (this.tamanoPincel == 4) {
+								probabilidadSpawn = 0.25;
+							} else if (this.tamanoPincel <= 10) {
+								probabilidadSpawn = 0.18; // ~40-50 árboles
+							} else {
+								probabilidadSpawn = 0.10; // ~100-140 árboles en radio 20x
+							}
+
+							for (int dy = -radioTiles; dy <= radioTiles; dy++) {
+								for (int dx = -radioTiles; dx <= radioTiles; dx++) {
+									// Filtro euclidiano circular para la dispersión
+									if (((dx * dx) + (dy * dy)) > radioTilesCuadrado) {
+										continue;
+									}
+
+									// Probabilidad aleatoria de densidad
+									if (Math.random() > probabilidadSpawn) {
+										continue;
+									}
+
+									final int targetTX = mouseTileX + dx;
+									final int targetTY = mouseTileY + dy;
+
+									// Validación del terreno
+									final Tile t = this.TERRENO.getTileGrid(targetTX, targetTY);
+									if ((t == null) || t.esSolido()) {
+										continue;
+									}
+
+									// Comprobar que el suelo de la celda esté libre
+									this.AREA_CHECK_OCUPACION.setBounds((targetTX * this.LADO_TILE) + 2,
+											(targetTY * this.LADO_TILE) + 2, this.LADO_TILE - 4, this.LADO_TILE - 4);
+									if (this.existeEnteEnArea(this.AREA_CHECK_OCUPACION)) {
+										continue;
+									}
+
+									// Calcular posición de anclaje de la entidad en esa celda
+									int px, py;
+									if ((imgW > this.LADO_TILE) || (imgH > this.LADO_TILE)) {
+										px = (targetTX * this.LADO_TILE) - ((imgW - this.LADO_TILE) / 2);
+										py = (targetTY * this.LADO_TILE) - (imgH - this.LADO_TILE);
+									} else {
+										px = targetTX * this.LADO_TILE;
+										py = targetTY * this.LADO_TILE;
+									}
+
+									final Objeto scatterObj = paletaObj.crearInstanciaSeleccionada(px, py);
+									if (scatterObj != null) {
+										this.MUNDO_EDITOR.meterEntidad(scatterObj);
+										this.listaLoteTemp.add(scatterObj);
+									}
+								}
+							}
+
+							// Transacción Atómica de Historial (1 solo Ctrl+Z para todo el bosque)
+							if (!this.listaLoteTemp.isEmpty()) {
+								this.HISTORIAL.registrarAccion(
+										new principal.maquinaestado.estados.editor.historial.AccionHistorialEntidadLote(
+												this.MUNDO_EDITOR, this.listaLoteTemp, true));
+								this.ultimoTileColocadoX = mouseTileX;
+								this.ultimoTileColocadoY = mouseTileY;
+								GestorSonido.reproducir(IDSonido.GOLPE_1);
+							}
+						}
 					}
 				}
 			}
 		}
-		// 3. CRIATURAS
+		// =====================================================================
+		// 3. CRIATURAS (Con Validación de Huella en Suelo)
+		// =====================================================================
 		else if ((paleta instanceof PaletaCriaturas) && this.verCapaEntidades) {
 			final PaletaCriaturas paletaCriat = (PaletaCriaturas) paleta;
-			if (this.RATON.presionadoClickIzq()
-					&& this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
-				this.GT_COLOCACION.establecerReferenciaTiempoActual();
 
-				final PaletaCriaturas.EntradaCriatura entrada = paletaCriat.getEntradaSeleccionada();
-				if ((entrada != null) && (entrada.icono != null)) {
-					int hitboxX, hitboxY;
+			if (this.RATON.presionadoClickIzq()) {
+				if (snap && (mouseTileX == this.ultimoTileColocadoX) && (mouseTileY == this.ultimoTileColocadoY)) {
+					return;
+				}
 
-					if (snap) {
-						hitboxX = (mouseTileX * this.LADO_TILE) + ((this.LADO_TILE - entrada.anchoHitbox) / 2);
-						hitboxY = (mouseTileY * this.LADO_TILE) + ((this.LADO_TILE - entrada.altoHitbox) / 2);
-					} else {
-						final int spriteX = this.AREA_MOUSE_APUNTADO.x - (entrada.icono.getWidth() / 2);
-						final int spriteY = this.AREA_MOUSE_APUNTADO.y - (entrada.icono.getHeight() / 2);
-						hitboxX = spriteX + entrada.margenX;
-						hitboxY = spriteY + entrada.margenY;
-					}
+				if (this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
+					this.GT_COLOCACION.establecerReferenciaTiempoActual();
 
-					final Criatura nuevaCriat = entrada.creador.crear(hitboxX, hitboxY);
-					if (nuevaCriat != null) {
-						this.MUNDO_EDITOR.meterEntidad(nuevaCriat);
-						this.HISTORIAL.registrarAccion(new AccionHistorialEntidad(this.MUNDO_EDITOR, nuevaCriat, true));
+					final PaletaCriaturas.EntradaCriatura entrada = paletaCriat.getEntradaSeleccionada();
+					if ((entrada != null) && (entrada.icono != null)) {
+						int hitboxX, hitboxY;
+
+						if (snap) {
+							hitboxX = (mouseTileX * this.LADO_TILE) + ((this.LADO_TILE - entrada.anchoHitbox) / 2);
+							hitboxY = (mouseTileY * this.LADO_TILE) + ((this.LADO_TILE - entrada.altoHitbox) / 2);
+							this.AREA_CHECK_OCUPACION.setBounds((mouseTileX * this.LADO_TILE) + 2,
+									(mouseTileY * this.LADO_TILE) + 2, this.LADO_TILE - 4, this.LADO_TILE - 4);
+						} else {
+							final int spriteX = this.AREA_MOUSE_APUNTADO.x - (entrada.icono.getWidth() / 2);
+							final int spriteY = this.AREA_MOUSE_APUNTADO.y - (entrada.icono.getHeight() / 2);
+							hitboxX = spriteX + entrada.margenX;
+							hitboxY = spriteY + entrada.margenY;
+							this.AREA_CHECK_OCUPACION.setBounds(hitboxX + 1, hitboxY + 1,
+									Math.max(2, entrada.anchoHitbox - 2), Math.max(2, entrada.altoHitbox - 2));
+						}
+
+						// Guardián estricto: Si ya hay un ente o criatura en esa celda, bloquea
+						if (this.existeEnteEnArea(this.AREA_CHECK_OCUPACION)) {
+							return;
+						}
+
+						final Criatura nuevaCriat = entrada.creador.crear(hitboxX, hitboxY);
+						if (nuevaCriat != null) {
+							this.MUNDO_EDITOR.meterEntidad(nuevaCriat);
+							this.HISTORIAL
+									.registrarAccion(new AccionHistorialEntidad(this.MUNDO_EDITOR, nuevaCriat, true));
+							this.ultimoTileColocadoX = mouseTileX;
+							this.ultimoTileColocadoY = mouseTileY;
+						}
 					}
 				}
 			}
 		}
+		// =====================================================================
 		// 4. TRIGGERS / VOLÚMENES / LUCES / SPAWNS
+		// =====================================================================
 		else if ((paleta instanceof PaletaTriggers) && this.verCapaTriggers) {
 			final PaletaTriggers pTriggers = (PaletaTriggers) paleta;
 			if (this.RATON.presionadoClickIzq()
 					&& this.GT_COLOCACION.transcurrioMiliSegundos(TIEMPO_ESPERA_MS_COLOCACION)) {
+
+				if (snap && (mouseTileX == this.ultimoTileColocadoX) && (mouseTileY == this.ultimoTileColocadoY)) {
+					return;
+				}
+
 				this.GT_COLOCACION.establecerReferenciaTiempoActual();
 
 				final PaletaTriggers.EntradaTrigger ent = pTriggers.getEntradaSeleccionada();
@@ -1138,22 +1485,39 @@ public class EditorMapa implements EstadoJuego {
 						final int spawnX = snap ? snapTileX : this.AREA_MOUSE_APUNTADO.x;
 						final int spawnY = snap ? snapTileY : this.AREA_MOUSE_APUNTADO.y;
 
+						// Prevenir Spawns superpuestos en las mismas coordenadas
+						for (final Spawn s : this.MUNDO_EDITOR.getPuntosSpawn()) {
+							if ((s.getX() == spawnX) && (s.getY() == spawnY)) {
+								return;
+							}
+						}
+
 						String nombreSpawn = Mundo.CLAVE_PUNTO_SPAWN_COMIENZO;
 						if (this.MUNDO_EDITOR.getSpawn(Mundo.CLAVE_PUNTO_SPAWN_COMIENZO) != null) {
-							nombreSpawn = "Spawn_" + (this.MUNDO_EDITOR.getPuntosSpawn().size() + 1);
+							nombreSpawn = "spawn_" + (this.MUNDO_EDITOR.getPuntosSpawn().size() + 1);
 						}
 						final Spawn nuevoSpawn = new Spawn(spawnX, spawnY, nombreSpawn);
 						this.MUNDO_EDITOR.agregarSpawn(nuevoSpawn);
 						this.HISTORIAL.registrarAccion(new AccionHistorialSpawn(this.MUNDO_EDITOR, nuevoSpawn, true));
 						break;
+
 					case TELEPORT_PUERTA:
 						final int tpX = snap ? snapTileX : (this.AREA_MOUSE_APUNTADO.x - 10);
 						final int tpY = snap ? snapTileY : (this.AREA_MOUSE_APUNTADO.y - 10);
+
+						// Prevenir Triggers superpuestos en las mismas coordenadas
+						for (final ZonaTP t : this.MUNDO_EDITOR.getTriggersEditor()) {
+							if ((t.getPosicionXInt() == tpX) && (t.getPosicionYInt() == tpY)) {
+								return;
+							}
+						}
+
 						final ZonaTP tp = new ZonaTP(new Rectangle(tpX, tpY, 20, 20),
-								new PuertaMapa("Mapa1", "Exterior", "Comienzo", false, null));
+								new PuertaMapa("Mapa1", "Exterior", Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, false, null));
 						this.MUNDO_EDITOR.agregarTrigger(tp);
 						this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, tp, true));
 						break;
+
 					case ZONA_AMBIENTE_BIOMA:
 						final int zbX = snap ? snapTileX : (this.AREA_MOUSE_APUNTADO.x - 64);
 						final int zbY = snap ? snapTileY : (this.AREA_MOUSE_APUNTADO.y - 64);
@@ -1162,6 +1526,7 @@ public class EditorMapa implements EstadoJuego {
 						this.MUNDO_EDITOR.agregarZonaAmbiente(zb);
 						this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, zb, true));
 						break;
+
 					case ZONA_AMBIENTE_CUEVA:
 						final int zcX = snap ? snapTileX : (this.AREA_MOUSE_APUNTADO.x - 64);
 						final int zcY = snap ? snapTileY : (this.AREA_MOUSE_APUNTADO.y - 64);
@@ -1170,6 +1535,7 @@ public class EditorMapa implements EstadoJuego {
 						this.MUNDO_EDITOR.agregarZonaAmbiente(zc);
 						this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, zc, true));
 						break;
+
 					case LUZ_ANTORCHA:
 						if (Globales.GESTOR_LUZ != null) {
 							final int luzX = snap ? (snapTileX + 8) : this.AREA_MOUSE_APUNTADO.x;
@@ -1180,6 +1546,7 @@ public class EditorMapa implements EstadoJuego {
 							this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, luz, true));
 						}
 						break;
+
 					case LUZ_FOGATA:
 						if (Globales.GESTOR_LUZ != null) {
 							final int fogX = snap ? (snapTileX + 8) : this.AREA_MOUSE_APUNTADO.x;
@@ -1190,9 +1557,12 @@ public class EditorMapa implements EstadoJuego {
 							this.HISTORIAL.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, luz, true));
 						}
 						break;
+
 					default:
 						break;
 					}
+					this.ultimoTileColocadoX = mouseTileX;
+					this.ultimoTileColocadoY = mouseTileY;
 					GestorSonido.reproducir(IDSonido.GOLPE_1);
 				}
 			}
@@ -1371,7 +1741,7 @@ public class EditorMapa implements EstadoJuego {
 				Globales.GESTOR_CLIMA.pintar(gBuf);
 			}
 
-			if (this.mostrarGrid) {
+			if (this.modoGrid > 0) {
 				this.pintarGridOverlay(gBuf);
 			}
 
@@ -1406,6 +1776,8 @@ public class EditorMapa implements EstadoJuego {
 		// 4. Studio Layout: Barra Superior y Barra Inferior de Estado
 		this.pintarBarraSuperior(g);
 		this.pintarBarraInferiorEstado(g);
+		this.pintarMinimapa(g);
+		this.pintarTooltipsBarraSuperior(g);
 
 		// 5. Paleta lateral
 		this.PALETAS.pintar(g);
@@ -1418,6 +1790,7 @@ public class EditorMapa implements EstadoJuego {
 		this.modalLuz.pintar(g);
 		this.modalSpawn.pintar(g);
 		this.modalConfirmarSalir.pintar(g);
+		this.modalAyuda.pintar(g);
 
 		// 7. Ítem flotante
 		this.itemPuntero.pintar(g, this.RATON.getPuntoPosicionEscalado());
@@ -1443,17 +1816,40 @@ public class EditorMapa implements EstadoJuego {
 
 		final String toolInfo = (this.PALETAS.getPaletaActual() instanceof PaletaTile)
 				? ((PaletaTile) this.PALETAS.getPaletaActual()).getHerramientaSeleccionada().getNombreVisible()
-				: "Colocación";
+				: "Colocacion";
 
+		// Mitad Izquierda: Telemetría Técnica
 		final String telemetria = "Cursor: (" + this.AREA_MOUSE_APUNTADO.x + ", " + this.AREA_MOUSE_APUNTADO.y
 				+ ") | Cam: (" + this.x + ", " + this.y + ") | Zoom: "
 				+ String.format("%.2f", Globales.CAMARA.getZoom()) + "x | Tool: " + toolInfo + " (" + this.tamanoPincel
 				+ "x" + this.tamanoPincel + (this.pincelCircular ? "O" : "[]") + ") | Undo/Redo: "
-				+ this.HISTORIAL.getCantidadDeshacer() + "/" + this.HISTORIAL.getCantidadRehacer() + " | FPS: "
-				+ Globales.fps;
+				+ this.HISTORIAL.getCantidadDeshacer() + "/" + this.HISTORIAL.getCantidadRehacer();
 
 		Render2D.dibujarStringConSombra(g, telemetria, 6, this.AREA_BARRA_INFERIOR.y + 10, Color.WHITE, Color.BLACK);
+
+		// Mitad Derecha: Hover Inspector Contextual (1.B)
+		final String hoverInfo = this.obtenerInfoHoverCursor();
+		if (!hoverInfo.isEmpty()) {
+			final int anchoHover = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, hoverInfo);
+			final int hoverX = this.AREA_BARRA_INFERIOR.width - anchoHover - 8;
+			Render2D.dibujarStringConSombra(g, hoverInfo, hoverX, this.AREA_BARRA_INFERIOR.y + 10,
+					new Color(130, 220, 255), Color.BLACK);
+		}
+
 		g.setFont(fontPrevia);
+	}
+
+	private boolean existeEnteEnArea(final Rectangle areaEvaluar) {
+		this.enteMuestreado = null;
+		this.MUNDO_EDITOR.paraCadaEnteEn(areaEvaluar, false, false, new AccionEntidad<Ente>() {
+			@Override
+			public void ejecutar(final Ente ente) {
+				if ((EditorMapa.this.enteMuestreado == null) && (ente != null) && !ente.estaEliminado()) {
+					EditorMapa.this.enteMuestreado = ente;
+				}
+			}
+		});
+		return this.enteMuestreado != null;
 	}
 
 	private void pintarHeatmapNavegacionIA(final Graphics2D g) {
@@ -1481,7 +1877,10 @@ public class EditorMapa implements EstadoJuego {
 				}
 
 				if (tile.esSolido() || this.MUNDO_EDITOR.colisionaConObjetoSolido(tile.getArea())) {
-					Render2D.dibujarRectanguloRellenoRefCamara(g, px, py, lado, lado, COLOR_IA_SOLIDO);
+					// Sólido: Naranja Bermellón + Patrón de Tramado Cruzado 'X' para Daltonismo
+					Render2D.dibujarRectanguloRellenoRefCamara(g, px, py, lado, lado, COLOR_IA_SOLIDO_ACC);
+					Render2D.dibujarLineaRefCamara(g, px, py, px + lado, py + lado, COLOR_IA_HATCH);
+					Render2D.dibujarLineaRefCamara(g, px + lado, py, px, py + lado, COLOR_IA_HATCH);
 				} else {
 					int vecinosSolidos = 0;
 					final Tile tN = this.TERRENO.getTileGrid(tx, ty - 1);
@@ -1503,9 +1902,11 @@ public class EditorMapa implements EstadoJuego {
 					}
 
 					if (vecinosSolidos >= 2) {
-						Render2D.dibujarRectanguloRellenoRefCamara(g, px, py, lado, lado, COLOR_IA_ESTRECHO);
+						// Estrecho: Oro translúcido
+						Render2D.dibujarRectanguloRellenoRefCamara(g, px, py, lado, lado, COLOR_IA_ESTRECHO_ACC);
 					} else {
-						Render2D.dibujarRectanguloRellenoRefCamara(g, px, py, lado, lado, COLOR_IA_LIBRE);
+						// Libre: Azul Cian translúcido
+						Render2D.dibujarRectanguloRellenoRefCamara(g, px, py, lado, lado, COLOR_IA_LIBRE_ACC);
 					}
 				}
 			}
@@ -1540,9 +1941,14 @@ public class EditorMapa implements EstadoJuego {
 	}
 
 	private void pintarGridOverlay(final Graphics2D g) {
+		if (this.modoGrid == 0) {
+			return; // 0 = Desactivada
+		}
+
 		final int lado = this.LADO_TILE;
-		final Color cGrid = new Color(255, 255, 255, 35);
-		final Color cChunk = new Color(255, 215, 0, 60);
+		// 1 = Blanca Sutil, 2 = Magenta Alto Contraste (para biomas claros/nieve)
+		final Color cGrid = (this.modoGrid == 1) ? new Color(255, 255, 255, 35) : new Color(255, 0, 200, 85);
+		final Color cChunk = (this.modoGrid == 1) ? new Color(255, 215, 0, 60) : new Color(0, 255, 255, 130);
 
 		for (int gx = 0; gx < this.ANCHO; gx += lado) {
 			final boolean esChunk = ((gx % Terreno.LADO_CHUNK) == 0);
@@ -1551,6 +1957,22 @@ public class EditorMapa implements EstadoJuego {
 		for (int gy = 0; gy < this.ALTO; gy += lado) {
 			final boolean esChunk = ((gy % Terreno.LADO_CHUNK) == 0);
 			Render2D.dibujarLineaRefCamara(g, 0, gy, this.ANCHO, gy, esChunk ? cChunk : cGrid);
+		}
+	}
+
+	private void pintarTooltipsBarraSuperior(final Graphics2D g) {
+		final Point pMouse = this.RATON.getPuntoPosicionEscalado();
+
+		if ((this.btnDeshacer != null) && this.btnDeshacer.getArea().contains(pMouse)) {
+			final String txt = this.HISTORIAL.puedeDeshacer()
+					? "Deshacer: " + this.HISTORIAL.peekDeshacer().getDescripcion()
+					: "Deshacer: Pila vacia";
+			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltip(g, txt, Color.WHITE, new Color(20, 24, 32, 230));
+		} else if ((this.btnRehacer != null) && this.btnRehacer.getArea().contains(pMouse)) {
+			final String txt = this.HISTORIAL.puedeRehacer()
+					? "Rehacer: " + this.HISTORIAL.peekRehacer().getDescripcion()
+					: "Rehacer: Pila vacia";
+			Globales.FUNCIONES.GENERADOR_TOOLTIP.dibujarTooltip(g, txt, Color.WHITE, new Color(20, 24, 32, 230));
 		}
 	}
 
@@ -1645,8 +2067,22 @@ public class EditorMapa implements EstadoJuego {
 			if ((entrada != null) && (entrada.icono != null)) {
 				final int imgW = entrada.icono.getWidth();
 				final int imgH = entrada.icono.getHeight();
-				int posX, posY;
 
+				// Modo Dispersión: Dibuja radio de influencia del bosque
+				if (this.tamanoPincel > 1) {
+					final int radioTiles = this.tamanoPincel - 1;
+					final int radioPx = radioTiles * this.LADO_TILE;
+					final int centroX = (mouseTileX * this.LADO_TILE) + (this.LADO_TILE / 2);
+					final int centroY = (mouseTileY * this.LADO_TILE) + (this.LADO_TILE / 2);
+
+					Render2D.dibujarFiguraEllipseRellenoRefCamara(g, centroX - radioPx, centroY - radioPx, radioPx * 2,
+							radioPx * 2, new Color(40, 220, 100, 60));
+					// Contorno
+					Render2D.dibujarFiguraEllipseRefCamara(g, centroX - radioPx, centroY - radioPx, radioPx * 2,
+							radioPx * 2, new Color(40, 240, 100, 180));
+				}
+
+				int posX, posY;
 				if (snap) {
 					if ((imgW > this.LADO_TILE) || (imgH > this.LADO_TILE)) {
 						posX = (mouseTileX * this.LADO_TILE) - ((imgW - this.LADO_TILE) / 2);

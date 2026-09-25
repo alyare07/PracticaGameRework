@@ -1,15 +1,10 @@
 {
     "luces": [],
-    "Spawns": [
+    "spawns": [
         {
             "x": 64,
             "y": 736,
             "nombre": "comienzo"
-        },
-        {
-            "x": 0,
-            "y": 0,
-            "nombre": "Comienzo"
         }
     ],
     "complementos": [],
@@ -25,25 +20,21 @@
         "tipoAmbiente": "EXTERIOR"
     },
     "triggers": [
-        {
-            "tipo": "PuertaMundo",
-            "spawn": "regreso_nieve",
-            "w": 20,
-            "mundo": "exterior",
+    {
+        "tipo": "ZONA_TP",
+        "datos": {
             "x": 16,
-            "h": 20,
-            "y": 768
-        },
-        {
-            "tipo": "PuertaMundo",
-            "spawn": "regreso_nieve",
+            "y": 768,
             "w": 20,
-            "mundo": "exterior",
-            "x": 16,
             "h": 20,
-            "y": 768
+            "puerta": {
+                "tipo": "PuertaMundo",
+                "mundo": "exterior",
+                "spawn": "regreso_nieve"
+            }
         }
-    ],
+    }
+],
     "zonasAmbiente": [],
     "items": [],
     "terreno": {

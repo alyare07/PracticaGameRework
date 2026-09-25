@@ -15,11 +15,23 @@ import principal.recursos.TipoTerreno;
 import principal.utilidades.Constantes;
 import principal.utilidades.Globales;
 import principal.utilidades.Render2D;
+import principal.utilidades.audio.sonido.GestorSonido;
+import principal.utilidades.audio.sonido.IDSonido;
 
+/**
+ * Asistente para la creación de nuevos mapas con límites de seguridad de
+ * memoria (Clamping 15..2000 tiles) y monitor de consumo de RAM en tiempo real.
+ * 
+ * @version 2.0 (Vanilla Java 8 - OOM Defense)
+ */
 public class MenuEditorNuevo extends Menu {
 
-	private static final int PANEL_ANCHO = 320;
-	private static final int PANEL_ALTO = 160;
+	private static final int PANEL_ANCHO = 340;
+	private static final int PANEL_ALTO = 175;
+
+	public static final int MIN_TILES = 15;
+	public static final int MAX_TILES = 2000;
+	private static final long LIMITE_ALERTA_RAM = 1000000L; // 1 Millón de celdas (~1000x1000)
 
 	private CajaTextoPixel ctAncho;
 	private CajaTextoPixel ctAlto;
@@ -44,7 +56,7 @@ public class MenuEditorNuevo extends Menu {
 		final int panelX = Constantes.CENTROX - (PANEL_ANCHO / 2);
 		final int panelY = Constantes.CENTROY - (PANEL_ALTO / 2) - 10;
 
-		// 1. Campos numéricos de dimensiones
+		// 1. Campos numéricos de dimensiones (Límite 4 dígitos)
 		this.ctAncho = new CajaTextoPixel(new Rectangle((panelX + PANEL_ANCHO) - 75, panelY + 25, 55, 16), "50", 4,
 				true);
 		this.ctAlto = new CajaTextoPixel(new Rectangle((panelX + PANEL_ANCHO) - 75, panelY + 55, 55, 16), "50", 4,
@@ -55,16 +67,21 @@ public class MenuEditorNuevo extends Menu {
 		this.componentes.add(this.ctAncho);
 		this.componentes.add(this.ctAlto);
 
-		// 2. Botones de acción
+		// 2. Botones de acción con Clamping defensivo
 		final int yBotones = panelY + PANEL_ALTO + 12;
 		this.botonCrear = new BotonPixel("Crear", new Rectangle(Constantes.CENTROX - 105, yBotones, 100, 18), () -> {
-			final int ancho = this.ctAncho.getNumeroEntero(50);
-			final int alto = this.ctAlto.getNumeroEntero(50);
-			final TipoTerreno tipoInicial = TipoTerreno.values()[this.indiceTerreno];
+			final int rawAncho = this.ctAncho.getNumeroEntero(50);
+			final int rawAlto = this.ctAlto.getNumeroEntero(50);
 
-			if ((ancho > 0) && (alto > 0)) {
-				this.GE.editorMapa(ancho, alto, tipoInicial);
-			}
+			// Clamping estricto contra OutOfMemoryError
+			final int ancho = Math.max(MIN_TILES, Math.min(MAX_TILES, rawAncho));
+			final int alto = Math.max(MIN_TILES, Math.min(MAX_TILES, rawAlto));
+
+			this.ctAncho.setTexto(String.valueOf(ancho));
+			this.ctAlto.setTexto(String.valueOf(alto));
+
+			final TipoTerreno tipoInicial = TipoTerreno.values()[this.indiceTerreno];
+			this.GE.editorMapa(ancho, alto, tipoInicial);
 		});
 
 		this.botonVolver = new BotonPixel("Volver", new Rectangle(Constantes.CENTROX + 5, yBotones, 100, 18), () -> {
@@ -88,6 +105,7 @@ public class MenuEditorNuevo extends Menu {
 			final Point p = Globales.RATON.getPuntoPosicionEscalado();
 			if (this.areaSelectorTerreno.contains(p)) {
 				this.indiceTerreno = (this.indiceTerreno + 1) % TipoTerreno.values().length;
+				GestorSonido.reproducir(IDSonido.SELECT_MENU);
 			}
 		}
 	}
@@ -139,9 +157,37 @@ public class MenuEditorNuevo extends Menu {
 		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, 14f));
 		Render2D.dibujarStringConSombra(g, tipoActual.getNombre(), this.areaSelectorTerreno.x + 22,
 				this.areaSelectorTerreno.y + 13, Color.WHITE, Color.BLACK);
+
+		// 4. Telemetría de Memoria en Vivo (Monitor de Seguridad)
+		final int curW = this.ctAncho.getNumeroEntero(50);
+		final int curH = this.ctAlto.getNumeroEntero(50);
+		final long totalTiles = (long) curW * (long) curH;
+
+		String infoMemoria = "Total: " + String.format("%,d", totalTiles) + " celdas (Carga Normal)";
+		Color colorMemoria = new Color(130, 220, 120); // Verde
+
+		if (totalTiles > LIMITE_ALERTA_RAM) {
+			infoMemoria = "[!] " + String.format("%,d", totalTiles) + " celdas (Mapa Masivo - Requiere RAM)";
+			colorMemoria = new Color(255, 180, 40); // Naranja alerta
+		}
+		if ((curW > MAX_TILES) || (curH > MAX_TILES)) {
+			infoMemoria = "[!] Excede limite (" + MAX_TILES + "x" + MAX_TILES + "). Sera ajustado.";
+			colorMemoria = new Color(255, 80, 80); // Rojo
+		}
+
+		Render2D.dibujarRectanguloRelleno(g, panelX + 16, panelY + 120, PANEL_ANCHO - 32, 16,
+				new Color(10, 12, 16, 200));
+		Render2D.dibujarRectanguloContorno(g, panelX + 16, panelY + 120, PANEL_ANCHO - 32, 16, new Color(40, 45, 55));
+		Render2D.dibujarStringConSombra(g, infoMemoria, panelX + 22, panelY + 132, colorMemoria, Color.BLACK);
+
+		// Rango permitido
+		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, 11f));
+		Render2D.dibujarStringConSombra(g, "Rango seguro: " + MIN_TILES + " a " + MAX_TILES + " tiles por eje.",
+				panelX + 16, panelY + 150, Color.GRAY, Color.BLACK);
+
 		g.setFont(fontPrevia);
 
-		// 4. Componentes y Botones
+		// 5. Componentes y Botones
 		this.ctAncho.pintar(g);
 		this.ctAlto.pintar(g);
 		this.botonCrear.pintar(g);

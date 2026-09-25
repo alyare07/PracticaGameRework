@@ -1,7 +1,6 @@
 package principal.mapa.escenario;
 
 import java.awt.Color;
-import java.awt.Rectangle;
 import java.io.Serializable;
 import java.util.ArrayList;
 
@@ -18,9 +17,6 @@ import principal.iluminacion.TipoLuz;
 import principal.iluminacion.ZonaAmbiente;
 import principal.mapa.Mundo;
 import principal.mapa.Terreno;
-import principal.mapa.escenario.tps.PuertaArea;
-import principal.mapa.escenario.tps.PuertaMapa;
-import principal.mapa.escenario.tps.PuertaMundo;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.mapa.mapas.Spawn;
 import principal.maquinaestado.estados.editor.metadatos.MetadatosEscenario;
@@ -141,34 +137,9 @@ public class Escenario implements Serializable {
 
 		for (final Object obj : this.LISTA_TRIGGERS) {
 			if (obj instanceof JSONObject) {
-				final JSONObject json = (JSONObject) obj;
-				final int x = LectorJSON.getInt(json, "x", 0);
-				final int y = LectorJSON.getInt(json, "y", 0);
-				final int w = LectorJSON.getInt(json, "w", 16);
-				final int h = LectorJSON.getInt(json, "h", 16);
-				final String tipoPuerta = LectorJSON.getString(json, "tipo", "");
-				final Rectangle areaTP = new Rectangle(x, y, w, h);
-				ZonaTP zonaTP = null;
-
-				if (tipoPuerta.equals("PuertaMapa")) {
-					final String ruta = LectorJSON.getString(json, "mapa", "Mapa1");
-					final String mDest = LectorJSON.getString(json, "mundo", "Exterior");
-					final String sp = LectorJSON.getString(json, "spawn", "Comienzo");
-					zonaTP = new ZonaTP(areaTP, new PuertaMapa(ruta, mDest, sp, false, null));
-				} else if (tipoPuerta.equals("PuertaArea")) {
-					final int dx = LectorJSON.getInt(json, "destX", 0);
-					final int dy = LectorJSON.getInt(json, "destY", 0);
-					zonaTP = new ZonaTP(areaTP, new PuertaArea(new Rectangle(dx, dy, 16, 16)));
-				} else if (tipoPuerta.equals("PuertaMundo")) {
-					final String mDest = LectorJSON.getString(json, "mundo", "Exterior");
-					final String sp = LectorJSON.getString(json, "spawn", "Comienzo");
-					zonaTP = new ZonaTP(areaTP, new PuertaMundo(mDest, sp));
-				} else if (tipoPuerta.equals("PuertaSalidaCueva")) {
-					zonaTP = new ZonaTP(areaTP, new principal.mapa.escenario.tps.PuertaSalidaCueva());
-				}
-
-				if (zonaTP != null) {
-					mundo.meterEntidad(zonaTP);
+				final Ente e = RegistroEntidades.importar((JSONObject) obj, mundo);
+				if (e instanceof ZonaTP) {
+					mundo.meterEntidad(e);
 				}
 			}
 		}

@@ -1,10 +1,10 @@
 {
     "luces": [],
-    "Spawns": [
+    "spawns": [
         {
             "x": 64,
             "y": 48,
-            "nombre": "Comienzo"
+            "nombre": "comienzo"
         }
     ],
     "complementos": [],
@@ -21,14 +21,19 @@
         "tipoAmbiente": "CUEVA"
     },
     "triggers": [
-        {
-            "tipo": "PuertaSalidaCueva",
-            "w": 20,
-            "x": 2,
-            "h": 20,
-            "y": 4
-        }
-    ],
+  {
+    "tipo": "ZONA_TP",
+    "datos": {
+      "x": 2,
+      "y": 4,
+      "w": 20,
+      "h": 20,
+      "puerta": {
+        "tipo": "PuertaSalidaCueva"
+      }
+    }
+  }
+],
     "zonasAmbiente": [],
     "items": [],
     "terreno": {

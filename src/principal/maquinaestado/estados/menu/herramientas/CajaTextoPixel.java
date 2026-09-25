@@ -30,17 +30,26 @@ public class CajaTextoPixel extends ComponenteMenu {
 	private String texto;
 	private final int limiteCaracteres;
 	private final boolean soloNumeros;
+	private final boolean forzarMinusculas;
 
 	private boolean activo = false;
 	private final GestorTiempo gtCursor = new GestorTiempo();
 	private boolean cursorVisible = true;
 
+	// Constructor original (mantiene retrocompatibilidad con false por defecto)
 	public CajaTextoPixel(final Rectangle area, final String textoInicial, final int limiteCaracteres,
 			final boolean soloNumeros) {
+		this(area, textoInicial, limiteCaracteres, soloNumeros, false);
+	}
+
+	// Nuevo constructor con control estricto de minúsculas
+	public CajaTextoPixel(final Rectangle area, final String textoInicial, final int limiteCaracteres,
+			final boolean soloNumeros, final boolean forzarMinusculas) {
 		super(area);
-		this.texto = (textoInicial != null) ? textoInicial : "";
 		this.limiteCaracteres = Math.max(1, limiteCaracteres);
 		this.soloNumeros = soloNumeros;
+		this.forzarMinusculas = forzarMinusculas;
+		this.setTexto(textoInicial);
 	}
 
 	@Override
@@ -94,7 +103,9 @@ public class CajaTextoPixel extends ComponenteMenu {
 			for (int code = KeyEvent.VK_A; code <= KeyEvent.VK_Z; code++) {
 				if (Globales.TECLADO.isTeclaPresionadaUnaVez(code)) {
 					if (this.texto.length() < this.limiteCaracteres) {
-						final boolean shift = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_SHIFT);
+						// Si forzarMinusculas es true, ignoramos Shift por completo
+						final boolean shift = !this.forzarMinusculas
+								&& Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_SHIFT);
 						char c = (char) code;
 						if (!shift) {
 							c = Character.toLowerCase(c);
@@ -150,7 +161,11 @@ public class CajaTextoPixel extends ComponenteMenu {
 	}
 
 	public void setTexto(final String texto) {
-		this.texto = (texto != null) ? texto : "";
+		if (texto == null) {
+			this.texto = "";
+			return;
+		}
+		this.texto = this.forzarMinusculas ? texto.toLowerCase() : texto;
 	}
 
 	public int getNumeroEntero(final int valorPorDefecto) {

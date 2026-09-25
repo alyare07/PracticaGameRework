@@ -53,19 +53,20 @@ public class VentanaModalSpawn extends ComponenteMenu {
 		final int x = this.area.x;
 		final int y = this.area.y;
 
-		this.ctNombre = new CajaTextoPixel(new Rectangle(x + 110, y + 42, 190, 16), "Comienzo", 24, false);
+		this.ctNombre = new CajaTextoPixel(new Rectangle(x + 110, y + 42, 190, 16), Mundo.CLAVE_PUNTO_SPAWN_COMIENZO,
+				24, false, true);
 
-		this.btnHacerComienzo = new BotonPixel("Marcar como 'Comienzo'", new Rectangle(x + 20, y + 72, 280, 16), () -> {
+		this.btnHacerComienzo = new BotonPixel("Marcar como 'comienzo'", new Rectangle(x + 20, y + 72, 280, 16), () -> {
 			this.ctNombre.setTexto(Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
 			GestorSonido.reproducir(IDSonido.GOLPE_1);
 		});
 
-		this.btnGuardar = new BotonPixel("Guardar", new Rectangle(x + 30, y + ALTO_MODAL - 28, 120, 18), () -> {
+		this.btnGuardar = new BotonPixel("Guardar", new Rectangle(x + 30, (y + ALTO_MODAL) - 28, 120, 18), () -> {
 			this.guardarCambios();
 			this.cerrar();
 		});
 
-		this.btnCerrar = new BotonPixel("Cancelar", new Rectangle(x + 170, y + ALTO_MODAL - 28, 120, 18), () -> {
+		this.btnCerrar = new BotonPixel("Cancelar", new Rectangle(x + 170, (y + ALTO_MODAL) - 28, 120, 18), () -> {
 			this.cerrar();
 		});
 	}
@@ -92,14 +93,19 @@ public class VentanaModalSpawn extends ComponenteMenu {
 			return;
 		}
 
-		final String nuevoNombre = this.ctNombre.getTexto().trim();
+		String nuevoNombre = this.ctNombre.getTexto().trim();
 		if (nuevoNombre.isEmpty()) {
 			return;
 		}
 
+		// Normalización SSOT: Si es el spawn inicial, forzar siempre la constante en
+		// minúscula
+		if (nuevoNombre.equalsIgnoreCase(Mundo.CLAVE_PUNTO_SPAWN_COMIENZO)) {
+			nuevoNombre = Mundo.CLAVE_PUNTO_SPAWN_COMIENZO;
+		}
+
 		final String nombreAnterior = this.spawnSeleccionado.getNombre();
-		if (!nuevoNombre.equalsIgnoreCase(nombreAnterior)) {
-			// Reemplazo atómico en la tabla hash de Mundo para mantener clave y valor sincronizados
+		if (!nuevoNombre.equals(nombreAnterior)) {
 			this.mundo.eliminarSpawn(nombreAnterior);
 			this.spawnSeleccionado.setNombre(nuevoNombre);
 			this.mundo.agregarSpawn(this.spawnSeleccionado);
@@ -130,7 +136,8 @@ public class VentanaModalSpawn extends ComponenteMenu {
 		final int h = this.area.height;
 
 		// 1. Fondo sombreado y marco ornamental
-		Render2D.dibujarRectanguloRelleno(g, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO, new Color(0, 0, 0, 180));
+		Render2D.dibujarRectanguloRelleno(g, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO,
+				new Color(0, 0, 0, 180));
 		Render2D.dibujarRectanguloRelleno(g, x, y, w, h, COLOR_FONDO);
 		Render2D.dibujarRectanguloContorno(g, x - 1, y - 1, w + 2, h + 2, COLOR_BORDE_SOMBRA);
 		Render2D.dibujarRectanguloContorno(g, x, y, w, h, COLOR_BORDE);
@@ -141,14 +148,16 @@ public class VentanaModalSpawn extends ComponenteMenu {
 
 		final String titulo = "CONFIGURACION DE PUNTO DE SPAWN";
 		final int anchoTit = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, titulo);
-		Render2D.dibujarStringConSombra(g, titulo, x + ((w - anchoTit) / 2), y + 20, new Color(255, 220, 80), Color.BLACK);
+		Render2D.dibujarStringConSombra(g, titulo, x + ((w - anchoTit) / 2), y + 20, new Color(255, 220, 80),
+				Color.BLACK);
 
 		// 3. Coordenadas y Etiquetas
 		g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, 14f));
 		Render2D.dibujarStringConSombra(g, "Nombre:", x + 16, y + 54, Color.WHITE, Color.BLACK);
 
 		if (this.spawnSeleccionado != null) {
-			final String posTxt = "Posicion: (" + this.spawnSeleccionado.getX() + ", " + this.spawnSeleccionado.getY() + ")";
+			final String posTxt = "Posicion: (" + this.spawnSeleccionado.getX() + ", " + this.spawnSeleccionado.getY()
+					+ ")";
 			Render2D.dibujarStringConSombra(g, posTxt, x + 16, y + 104, Color.LIGHT_GRAY, Color.BLACK);
 		}
 

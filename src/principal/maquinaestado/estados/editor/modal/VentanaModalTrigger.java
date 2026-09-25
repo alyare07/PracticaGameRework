@@ -7,6 +7,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 
 import principal.controles.Raton;
+import principal.mapa.Mundo;
 import principal.mapa.escenario.tps.PuertaArea;
 import principal.mapa.escenario.tps.PuertaMapa;
 import principal.mapa.escenario.tps.PuertaMundo;
@@ -62,9 +63,10 @@ public class VentanaModalTrigger extends ComponenteMenu {
 		final int y = this.area.y;
 
 		this.areaBtnTipo.setBounds(x + 130, y + 40, 190, 18);
-		this.ctParametro1 = new CajaTextoPixel(new Rectangle(x + 130, y + 68, 190, 16), "Mapa1", 18, false);
-		this.ctParametro2 = new CajaTextoPixel(new Rectangle(x + 130, y + 96, 190, 16), "Exterior", 18, false);
-		this.ctParametro3 = new CajaTextoPixel(new Rectangle(x + 130, y + 124, 190, 16), "Comienzo", 18, false);
+		this.ctParametro1 = new CajaTextoPixel(new Rectangle(x + 130, y + 68, 190, 16), "Mapa1", 18, false, true);
+		this.ctParametro2 = new CajaTextoPixel(new Rectangle(x + 130, y + 96, 190, 16), "Exterior", 18, false, true);
+		this.ctParametro3 = new CajaTextoPixel(new Rectangle(x + 130, y + 124, 190, 16),
+				Mundo.CLAVE_PUNTO_SPAWN_COMIENZO.toLowerCase(), 18, false, true);
 
 		this.btnAplicar = new BotonPixel("Guardar", new Rectangle(x + 40, (y + ALTO_MODAL) - 30, 110, 18), () -> {
 			this.guardarCambios();
@@ -99,7 +101,8 @@ public class VentanaModalTrigger extends ComponenteMenu {
 			this.ctParametro2.setVisible(true);
 			this.ctParametro3.setVisible(true);
 			this.ctParametro2.setTexto(pm.getNombreMundoDestino() != null ? pm.getNombreMundoDestino() : "Exterior");
-			this.ctParametro3.setTexto(pm.getNombreSpawnDestino() != null ? pm.getNombreSpawnDestino() : "Comienzo");
+			this.ctParametro3.setTexto(pm.getNombreSpawnDestino() != null ? pm.getNombreSpawnDestino()
+					: Mundo.CLAVE_PUNTO_SPAWN_COMIENZO.toLowerCase());
 
 		} else if (puerta instanceof PuertaArea) {
 			this.idxTipoPuerta = 2;
@@ -119,8 +122,9 @@ public class VentanaModalTrigger extends ComponenteMenu {
 			this.ctParametro1.setTexto(pmap.getRutaMapaDestino() != null ? pmap.getRutaMapaDestino() : "Mapa1");
 			this.ctParametro2
 					.setTexto(pmap.getNombreMundoDestino() != null ? pmap.getNombreMundoDestino() : "Exterior");
-			this.ctParametro3.setTexto(
-					pmap.getNombreSpawnDelMundoDestino() != null ? pmap.getNombreSpawnDelMundoDestino() : "Comienzo");
+			this.ctParametro3
+					.setTexto(pmap.getNombreSpawnDelMundoDestino() != null ? pmap.getNombreSpawnDelMundoDestino()
+							: Mundo.CLAVE_PUNTO_SPAWN_COMIENZO.toLowerCase());
 
 		} else {
 			this.idxTipoPuerta = 0;
@@ -193,7 +197,7 @@ public class VentanaModalTrigger extends ComponenteMenu {
 			this.ctParametro3.setVisible(true);
 			this.ctParametro1.setTexto("Mapa1");
 			this.ctParametro2.setTexto("Exterior");
-			this.ctParametro3.setTexto("Comienzo");
+			this.ctParametro3.setTexto("comienzo");
 			break;
 		case 1:
 			this.ctParametro1.setVisible(false);

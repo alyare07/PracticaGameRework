@@ -86,7 +86,7 @@ public class Mundo {
 	protected int codPintado;
 	protected principal.clima.EstadoClima estadoClima;
 
-	public static final String CLAVE_PUNTO_SPAWN_COMIENZO = "Comienzo";
+	public static final String CLAVE_PUNTO_SPAWN_COMIENZO = "comienzo";
 
 	final ArrayList<Ente> LISTA_ENTES_TEMP = new ArrayList<>();
 	final HashSet<Item> LISTA_ITEMS_TEMP = new HashSet<>();
@@ -109,34 +109,62 @@ public class Mundo {
 		if (gc != null) {
 			gc.setDetalleCarga("Generando items y complementos");
 		}
-		for (final Item i : this.ESCENARIO.generarItemsEnTerreno()) {
-			this.meterEntidad(i);
+		if (this.ESCENARIO != null) {
+			for (final Item i : this.ESCENARIO.generarItemsEnTerreno()) {
+				this.meterEntidad(i);
+			}
+			this.ESCENARIO.generarListaComplementos(this);
 		}
-		esc.generarListaComplementos(this);
 
 		if (gc != null) {
 			gc.setDetalleCarga("Generando criaturas y objetos");
 		}
-		this.generarCriaturas(esc.generarListaCriaturas(this));
-		this.ESCENARIO.generarObjetosEnTerreno(this);
+		if (this.ESCENARIO != null) {
+			this.generarCriaturas(this.ESCENARIO.generarListaCriaturas(this));
+			this.ESCENARIO.generarObjetosEnTerreno(this);
 
-		for (final Spawn s : esc.generarSpawns()) {
-			this.PUNTOS_SPAWN_JUGADOR.put(s.getNombre(), s);
+			for (final Spawn s : this.ESCENARIO.generarSpawns()) {
+				this.PUNTOS_SPAWN_JUGADOR.put(s.getNombre(), s);
+			}
 		}
 
-		if (!this.PUNTOS_SPAWN_JUGADOR.containsKey(CLAVE_PUNTO_SPAWN_COMIENZO)) {
+		// 1. Verificación tolerante a mayúsculas/minúsculas para el punto inicial
+		if (this.getSpawn(CLAVE_PUNTO_SPAWN_COMIENZO) == null) {
 			final Point pComienzo = (comienzo != null) ? comienzo : new Point(0, 0);
 			this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, new Spawn(pComienzo, CLAVE_PUNTO_SPAWN_COMIENZO));
 		}
 
-		esc.generarTriggers(this);
-		esc.generarZonasAmbiente();
-		esc.generarLucesEstaticas();
+		// 2. Generación de elementos estructurales y lumínicos
+		if (this.ESCENARIO != null) {
+			this.ESCENARIO.generarTriggers(this);
+			this.ESCENARIO.generarZonasAmbiente();
+			this.ESCENARIO.generarLucesEstaticas();
+		}
 
-		final Spawn spawnBase = this.PUNTOS_SPAWN_JUGADOR.get(CLAVE_PUNTO_SPAWN_COMIENZO);
-		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
-		this.dijkstra.actualizar(new Point(spawnBase.getX(), spawnBase.getY()));
-		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
+		// 3. Resolución segura del Spawn Base para la IA (Cero-NPE Garantizado)
+		Spawn spawnBase = this.getSpawn(CLAVE_PUNTO_SPAWN_COMIENZO);
+
+		if ((spawnBase == null) && !this.PUNTOS_SPAWN_JUGADOR.isEmpty()) {
+			spawnBase = this.PUNTOS_SPAWN_JUGADOR.values().iterator().next();
+		}
+
+		if (spawnBase == null) {
+			final Point pFallback = (comienzo != null) ? comienzo : new Point(0, 0);
+			spawnBase = new Spawn(pFallback, CLAVE_PUNTO_SPAWN_COMIENZO);
+			this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO, spawnBase);
+		}
+
+		// 4. Inicialización Condicional de Pathfinding (Zero-OOM en Editor)
+		if (!Globales.isEstadoEditor()) {
+			this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
+			this.dijkstra.actualizar(new Point(spawnBase.getX(), spawnBase.getY()));
+			this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
+		} else {
+			// En el editor de mapas la IA de persecución se apaga, ahorrando 100% de CPU y
+			// RAM
+			this.dijkstra = null;
+			this.AESTRELLA_X12X20 = null;
+		}
 	}
 
 	public Mundo(final Terreno terrenoSoloParaEDITOR) {
@@ -145,8 +173,10 @@ public class Mundo {
 		this.estadoClima = new principal.clima.EstadoClima(PerfilClima.TEMPLADO_BOSQUE, TipoClima.DESPEJADO);
 		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO,
 				new Spawn(new Point(0, 0), CLAVE_PUNTO_SPAWN_COMIENZO));
-		this.dijkstra = new DijkstraRework(this, new Dimension(16, 16));
-		this.AESTRELLA_X12X20 = new AEstrella(this, new Dimension(Constantes.LADO_TILE, Constantes.LADO_TILE));
+
+		// Apagado en editor
+		this.dijkstra = null;
+		this.AESTRELLA_X12X20 = null;
 		this.generarZonas();
 	}
 
@@ -875,6 +905,9 @@ public class Mundo {
 	private static final Font FUENTE_DEBUG_NODOS = new Font(Font.SANS_SERIF, Font.PLAIN, 6);
 
 	private void pintarNodosOptimizado(final Graphics2D g) {
+		if (this.dijkstra == null) {
+			return; // IA apagada en el editor
+		}
 		final Font fontOriginal = g.getFont();
 		g.setFont(FUENTE_DEBUG_NODOS);
 		final Color color = Globales.TECLADO.TECLA_OCULTAR_TERRENO.presionado() ? Color.WHITE : Color.BLACK;
@@ -983,9 +1016,13 @@ public class Mundo {
 	}
 
 	public void teletransportarJugadorASpawn(final String nombreSpawn) {
-		if (this.PUNTOS_SPAWN_JUGADOR.containsKey(nombreSpawn)) {
-			final Spawn spawn = this.getSpawn(nombreSpawn);
+		final Spawn spawn = this.getSpawn(nombreSpawn);
+		if (spawn != null) {
 			Globales.JUGADOR.setPosicion(spawn.getX(), spawn.getY());
+		} else {
+			System.err.println("[Mundo] WARN: No se encontro el spawn '" + nombreSpawn + "' en " + this.nombreMundo
+					+ ". Fallback a Comienzo.");
+			this.moverJugadorPuntoComienzo();
 		}
 	}
 
@@ -1152,6 +1189,11 @@ public class Mundo {
 
 		for (final Ente e : this.getEntes()) {
 			if ((e == null) || e.estaEliminado() || (e instanceof Jugador)) {
+				continue;
+			}
+
+			// SSOT: ZonaTP posee canal de persistencia dedicado ("triggers")
+			if (e instanceof principal.mapa.escenario.tps.ZonaTP) {
 				continue;
 			}
 

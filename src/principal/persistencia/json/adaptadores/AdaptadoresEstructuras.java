@@ -255,9 +255,8 @@ public final class AdaptadoresEstructuras {
 			final int h = LectorJSON.getInt(d, "h", 16);
 
 			final JSONObject jPuerta = LectorJSON.getObjeto(d, "puerta");
-			final principal.mapa.escenario.tps.PuertaTP puerta = (jPuerta != null)
-					? principal.mapa.escenario.tps.SerializadorPuertas.deserializarPuerta(jPuerta)
-					: principal.mapa.escenario.tps.SerializadorPuertas.deserializarPuerta(d);
+			final principal.mapa.escenario.tps.PuertaTP puerta = principal.mapa.escenario.tps.SerializadorPuertas
+					.deserializarPuerta(jPuerta);
 
 			final principal.mapa.escenario.tps.ZonaTP tp = new principal.mapa.escenario.tps.ZonaTP(
 					new java.awt.Rectangle(x, y, w, h), puerta);

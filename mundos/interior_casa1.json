@@ -1,9 +1,9 @@
 {
     "luces": [],
-    "Spawns": [
+    "spawns": [
         {
             "x": 45,
-            "y": 277,
+            "y": 267,
             "nombre": "Comienzo"
         }
     ],
@@ -21,16 +21,21 @@
         "tipoAmbiente": "INTERIOR"
     },
     "triggers": [
-        {
-            "tipo": "PuertaMundo",
-            "spawn": "regreso_casa1",
-            "w": 20,
-            "mundo": "exterior",
-            "x": 0,
-            "h": 20,
-            "y": 288
-        }
-    ],
+  {
+    "tipo": "ZONA_TP",
+    "datos": {
+      "x": 0,
+      "y": 288,
+      "w": 20,
+      "h": 20,
+      "puerta": {
+        "tipo": "PuertaMundo",
+        "mundo": "exterior",
+        "spawn": "regreso_casa1"
+      }
+    }
+  }
+],
     "zonasAmbiente": [],
     "items": [],
     "terreno": {

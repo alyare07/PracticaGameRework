@@ -87,4 +87,18 @@ public class HistorialEditor {
 	public int getCantidadRehacer() {
 		return this.pilaRehacer.size();
 	}
+
+	/**
+	 * Retorna la acción en la cima de deshacer sin extraerla (para tooltips).
+	 */
+	public AccionHistorial peekDeshacer() {
+		return this.pilaDeshacer.peek();
+	}
+
+	/**
+	 * Retorna la acción en la cima de rehacer sin extraerla (para tooltips).
+	 */
+	public AccionHistorial peekRehacer() {
+		return this.pilaRehacer.peek();
+	}
 }

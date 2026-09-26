@@ -156,6 +156,10 @@ public class GestorProyectiles {
 		this.cantidadActivos = 0;
 	}
 
+	public void vaciar() {
+		this.limpiar();
+	}
+
 	public int getCantidadActivos() {
 		return this.cantidadActivos;
 	}

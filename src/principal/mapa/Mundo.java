@@ -63,7 +63,7 @@ public class Mundo {
 	protected final Escenario ESCENARIO;
 	protected final HashMap<String, Spawn> PUNTOS_SPAWN_JUGADOR = new HashMap<String, Spawn>();
 	private boolean forzarUnaActualizacionDijkstra;
-
+	protected volatile boolean disposed = false;
 	protected ZoneBox[] ZONAS_ARRAY;
 	protected int cantZonasX;
 	protected int cantZonasY;
@@ -328,6 +328,10 @@ public class Mundo {
 	public void actualizar() {
 		this.actualizarDijkstra();
 		this.actualizarZonas();
+		if (this.disposed) {
+			return; // <-- Si cambió de mundo en actualizarZonas, no procesa partículas ni
+					// proyectiles viejos
+		}
 		this.actualizarParticulas();
 		this.actualizarProyectiles();
 
@@ -454,6 +458,9 @@ public class Mundo {
 		for (int gridY = inicioGridY; gridY <= finGridY; gridY++) {
 			final int offsetFila = gridY * this.cantZonasX;
 			for (int gridX = inicioGridX; gridX <= finGridX; gridX++) {
+				if (this.disposed || (this.ZONAS_ARRAY == null)) {
+					return; // Si el mundo fue destruido por un trigger, aborta de inmediato
+				}
 				zbAux = this.ZONAS_ARRAY[offsetFila + gridX];
 				if (zbAux != null) {
 					zbAux.actualizar();
@@ -1226,5 +1233,63 @@ public class Mundo {
 		final JSONObject jsonMundo = this.getEntesInJson();
 		jsonMundo.put("terreno", this.ESCENARIO.getTerreno().getTilesJson());
 		return jsonMundo;
+	}
+
+	public boolean isDisposed() {
+		return this.disposed;
+	}
+
+	/**
+	 * Destruye de forma determinista el submundo y desvincula todas sus referencias
+	 * para garantizar 0 bytes residuales en el Heap (Potato Memory Guard).
+	 */
+	public void dispose() {
+		this.disposed = true;
+		if (this.dijkstra != null) {
+			this.dijkstra.destruir();
+		}
+		// 1. Apagar de inmediato el hilo secundario de Dijkstra
+		if (this.dijkstra != null) {
+			this.dijkstra.destruir();
+		}
+
+		// 2. Limpiar la grilla de ZoneBox
+		if (this.ZONAS_ARRAY != null) {
+			for (int i = 0; i < this.ZONAS_ARRAY.length; i++) {
+				if (this.ZONAS_ARRAY[i] != null) {
+					this.ZONAS_ARRAY[i].limpiar(); // Asegúrate de que ZoneBox tenga un método limpiar()
+					this.ZONAS_ARRAY[i] = null;
+				}
+			}
+			this.ZONAS_ARRAY = null;
+		}
+
+		// 3. Desvincular entidades vivas y anular la cola de render
+		for (final Ente e : this.ENTES_REGISTRADOS) {
+			if (e != null) {
+				e.desvincularDeZonas();
+				if (e.getLuzAsignada() != null) {
+					e.desvincularLuz();
+				}
+			}
+		}
+		this.ENTES_REGISTRADOS.clear();
+
+		for (int i = 0; i < this.colaRenderEntidades.length; i++) {
+			this.colaRenderEntidades[i] = null;
+		}
+		this.cantEntidadesEnCola = 0;
+
+		// 4. Limpiar proyectiles, partículas y spawns
+		this.PARTICULAS.clear();
+		this.GESTOR_PROYECTILES.vaciar();
+		this.PUNTOS_SPAWN_JUGADOR.clear();
+
+		// 5. Limpiar listas de trabajo temporal (Zero-GC buffers)
+		this.LISTA_ENTES_TEMP.clear();
+		this.LISTA_ITEMS_TEMP.clear();
+		this.LISTA_CRIATURAS_TEMP.clear();
+
+		this.mapaAsignado = null;
 	}
 }

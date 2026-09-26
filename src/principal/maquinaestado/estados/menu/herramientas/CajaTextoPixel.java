@@ -5,6 +5,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
 
 import principal.controles.Raton;
@@ -15,17 +16,15 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Campo de texto y números interactivo Pixel-Art con control de foco estricto
- * para prevenir fugas de teclado hacia la cámara o el mapa (Zero-GC).
- * 
- * @version 1.1 (Vanilla Java 8)
+ * Campo de texto y números interactivo Pixel-Art. Soporta mayúsculas (Shift /
+ * Caps Lock), espacios, guiones y números (Zero-GC).
  */
 public class CajaTextoPixel extends ComponenteMenu {
 
 	private static final Color COLOR_FONDO_NORMAL = new Color(20, 24, 32, 240);
 	private static final Color COLOR_FONDO_ACTIVO = new Color(28, 35, 48, 255);
 	private static final Color COLOR_BORDE_NORMAL = new Color(55, 60, 75);
-	private static final Color COLOR_BORDE_ACTIVO = new Color(220, 180, 50); // Oro
+	private static final Color COLOR_BORDE_ACTIVO = new Color(220, 180, 50);
 
 	private String texto;
 	private final int limiteCaracteres;
@@ -35,14 +34,15 @@ public class CajaTextoPixel extends ComponenteMenu {
 	private boolean activo = false;
 	private final GestorTiempo gtCursor = new GestorTiempo();
 	private boolean cursorVisible = true;
+	private boolean permitirEspacios = true;
+	private int ultimaTeclaPresionada = -1;
+	private final GestorTiempo gtRepeticion = new GestorTiempo();
 
-	// Constructor original (mantiene retrocompatibilidad con false por defecto)
 	public CajaTextoPixel(final Rectangle area, final String textoInicial, final int limiteCaracteres,
 			final boolean soloNumeros) {
 		this(area, textoInicial, limiteCaracteres, soloNumeros, false);
 	}
 
-	// Nuevo constructor con control estricto de minúsculas
 	public CajaTextoPixel(final Rectangle area, final String textoInicial, final int limiteCaracteres,
 			final boolean soloNumeros, final boolean forzarMinusculas) {
 		super(area);
@@ -80,10 +80,19 @@ public class CajaTextoPixel extends ComponenteMenu {
 			this.gtCursor.establecerReferenciaTiempoActual();
 		}
 
+		// Liberar repetición si se soltó la tecla física
+		if ((this.ultimaTeclaPresionada != -1) && !Globales.TECLADO.presionaTeclaEnLista(this.ultimaTeclaPresionada)) {
+			this.ultimaTeclaPresionada = -1;
+		}
+
 		// 3. Borrado (Backspace)
 		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_BACK_SPACE)) {
-			if (!this.texto.isEmpty()) {
-				this.texto = this.texto.substring(0, this.texto.length() - 1);
+			if (this.puedeEscribirTecla(KeyEvent.VK_BACK_SPACE)) {
+
+				if (!this.texto.isEmpty()) {
+					this.texto = this.texto.substring(0, this.texto.length() - 1);
+				}
+				this.registrarPulsacion(KeyEvent.VK_BACK_SPACE);
 			}
 			return;
 		}
@@ -91,38 +100,92 @@ public class CajaTextoPixel extends ComponenteMenu {
 		// 4. Captura de Números (0..9)
 		for (int code = KeyEvent.VK_0; code <= KeyEvent.VK_9; code++) {
 			if (Globales.TECLADO.isTeclaPresionadaUnaVez(code)) {
-				if (this.texto.length() < this.limiteCaracteres) {
-					this.texto += (char) code;
+				if (this.puedeEscribirTecla(code)) {
+					if (this.texto.length() < this.limiteCaracteres) {
+						this.texto += (char) code;
+					}
+					this.registrarPulsacion(code);
 				}
 				return;
 			}
 		}
 
-		// 5. Captura de Letras y Guiones si no es solo numérico
+		// 5. Captura de Letras, Espacios y Puntuación
 		if (!this.soloNumeros) {
+			// Detección de Mayúsculas: Shift presionado O Bloq Mayús activo
+			boolean mayusculas = false;
+			if (!this.forzarMinusculas) {
+				mayusculas = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_SHIFT);
+				try {
+					final boolean capsLock = Toolkit.getDefaultToolkit().getLockingKeyState(KeyEvent.VK_CAPS_LOCK);
+					mayusculas = mayusculas ^ capsLock; // XOR: Si ambos están activos, se invierten a minúscula
+				} catch (final Throwable ignored) {
+				}
+			}
+
+			// Letras A-Z
 			for (int code = KeyEvent.VK_A; code <= KeyEvent.VK_Z; code++) {
 				if (Globales.TECLADO.isTeclaPresionadaUnaVez(code)) {
-					if (this.texto.length() < this.limiteCaracteres) {
-						// Si forzarMinusculas es true, ignoramos Shift por completo
-						final boolean shift = !this.forzarMinusculas
-								&& Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_SHIFT);
-						char c = (char) code;
-						if (!shift) {
-							c = Character.toLowerCase(c);
+					if (this.puedeEscribirTecla(code)) {
+						if (this.texto.length() < this.limiteCaracteres) {
+							char c = (char) code;
+							if (!mayusculas) {
+								c = Character.toLowerCase(c);
+							}
+							this.texto += c;
 						}
-						this.texto += c;
+						this.registrarPulsacion(code);
 					}
 					return;
 				}
 			}
 
+			// Espacio (Solo si no es numérico y la caja permite espacios)
+			if (this.permitirEspacios && Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_SPACE)) {
+				if (this.puedeEscribirTecla(KeyEvent.VK_SPACE)) {
+					if (this.texto.length() < this.limiteCaracteres) {
+						this.texto += " ";
+					}
+					this.registrarPulsacion(KeyEvent.VK_SPACE);
+				}
+				return;
+			}
+
+			// Guión normal (-) y Guión bajo (_)
 			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_MINUS)
 					|| Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_UNDERSCORE)) {
-				if (this.texto.length() < this.limiteCaracteres) {
-					this.texto += "_";
+				if (this.puedeEscribirTecla(KeyEvent.VK_MINUS)) {
+					if (this.texto.length() < this.limiteCaracteres) {
+						final boolean shift = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_SHIFT);
+						this.texto += shift ? "_" : "-";
+					}
+					this.registrarPulsacion(KeyEvent.VK_MINUS);
+				}
+				return;
+			}
+
+			// Punto (.)
+			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_PERIOD)) {
+				if (this.puedeEscribirTecla(KeyEvent.VK_PERIOD)) {
+					if (this.texto.length() < this.limiteCaracteres) {
+						this.texto += ".";
+					}
+					this.registrarPulsacion(KeyEvent.VK_PERIOD);
 				}
 			}
 		}
+	}
+
+	private boolean puedeEscribirTecla(final int code) {
+		if (this.ultimaTeclaPresionada != code) {
+			return true;
+		}
+		return this.gtRepeticion.transcurrioMiliSegundos(350);
+	}
+
+	private void registrarPulsacion(final int code) {
+		this.ultimaTeclaPresionada = code;
+		this.gtRepeticion.establecerReferenciaTiempoActual();
 	}
 
 	@Override
@@ -168,12 +231,24 @@ public class CajaTextoPixel extends ComponenteMenu {
 		this.texto = this.forzarMinusculas ? texto.toLowerCase() : texto;
 	}
 
+	public boolean isPermitirEspacios() {
+		return this.permitirEspacios;
+	}
+
+	public CajaTextoPixel setPermitirEspacios(final boolean permitirEspacios) {
+		this.permitirEspacios = permitirEspacios;
+		if (!permitirEspacios && (this.texto != null)) {
+			this.texto = this.texto.replace(" ", "_");
+		}
+		return this;
+	}
+
 	public int getNumeroEntero(final int valorPorDefecto) {
 		if (this.texto.isEmpty()) {
 			return valorPorDefecto;
 		}
 		try {
-			return Integer.parseInt(this.texto);
+			return Integer.parseInt(this.texto.trim());
 		} catch (final NumberFormatException e) {
 			return valorPorDefecto;
 		}

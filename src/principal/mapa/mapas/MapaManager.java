@@ -1,47 +1,51 @@
 package principal.mapa.mapas;
 
+import java.io.File;
+
 import principal.maquinaestado.estados.GestorPartida;
 import principal.maquinaestado.estados.pantallaCarga.GestorCarga;
 import principal.utilidades.Globales;
 
+/**
+ * Fachada agnóstica para la instanciación de mapas. Erradica los switchs
+ * hardcodeados y carga proyectos directamente desde el disco.
+ */
 public abstract class MapaManager {
 
-	public static final String MAPA_1 = Mapa1.NOMBRE_MAPA;
-	public static final String MAPA_0 = MapaPlano.NOMBRE_MAPA;
+	// Claves canónicas estándar para proyectos por defecto
+	public static final String MAPA_1 = "mapa1";
+	public static final String MAPA_0 = "mapaplano";
 
 	protected static GestorPartida gestorPartida;
 
 	private MapaManager() {
 	}
 
-	public static Mapa cargarMapa1(final GestorCarga gc) {
-		final Mapa mapa = new Mapa1(gc, 100, gestorPartida);
-		if (mapa.getMundoActual() != null) {
-			// Conserva el nombre de mundo real ("exterior") consistente con el mapa y
-			// triggers
-			mapa.getMundoActual().setNombreMundo(Mapa1.EXTERIOR);
-			Globales.GESTOR_DELTAS.aplicarDelta(mapa.getMundoActual());
-		}
-		return mapa;
-	}
-
 	public static Mapa cargarMapa(final String nombreMapa, final GestorCarga gc) {
-		Mapa mapa = null;
-		switch (nombreMapa) {
-		case MAPA_1:
-			mapa = cargarMapa1(gc);
-			break;
-		case MAPA_0:
-			mapa = new MapaPlano(gc, 100, gestorPartida);
-			if (mapa.getMundoActual() != null) {
-				mapa.getMundoActual().setNombreMundo(MapaPlano.EXTERIOR);
-				Globales.GESTOR_DELTAS.aplicarDelta(mapa.getMundoActual());
-			}
-			break;
-		default:
-			System.err.println("Error: No se encontró la definición para cargar el mapa: " + nombreMapa);
+		if ((nombreMapa == null) || nombreMapa.trim().isEmpty()) {
+			System.err.println("[MapaManager] Error: Nombre de mapa inválido.");
 			return null;
 		}
+
+		// Resolución de carpeta de proyecto: 1. mapas/ 2. mundos/
+		File directorio = new File("mapas", nombreMapa);
+		if (!directorio.exists() || !directorio.isDirectory()) {
+			directorio = new File("mundos", nombreMapa);
+		}
+
+		if (!directorio.exists() || !directorio.isDirectory()) {
+			System.err.println(
+					"[MapaManager] Error: No se encontró la carpeta del proyecto en: " + directorio.getAbsolutePath());
+			return null;
+		}
+
+		final Mapa mapa = new Mapa(directorio, gc, 100, gestorPartida);
+
+		// Sincronizar estado inicial con deltas
+		if (mapa.getMundoActual() != null) {
+			Globales.GESTOR_DELTAS.aplicarDelta(mapa.getMundoActual());
+		}
+
 		return mapa;
 	}
 

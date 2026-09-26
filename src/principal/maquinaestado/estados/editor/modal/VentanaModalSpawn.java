@@ -55,7 +55,7 @@ public class VentanaModalSpawn extends ComponenteMenu {
 
 		this.ctNombre = new CajaTextoPixel(new Rectangle(x + 110, y + 42, 190, 16), Mundo.CLAVE_PUNTO_SPAWN_COMIENZO,
 				24, false, true);
-
+		this.ctNombre.setPermitirEspacios(false);
 		this.btnHacerComienzo = new BotonPixel("Marcar como 'comienzo'", new Rectangle(x + 20, y + 72, 280, 16), () -> {
 			this.ctNombre.setTexto(Mundo.CLAVE_PUNTO_SPAWN_COMIENZO);
 			GestorSonido.reproducir(IDSonido.GOLPE_1);

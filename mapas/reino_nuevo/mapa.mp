@@ -1,0 +1,1 @@
+{"spawnComienzo":"comienzo","idMapa":"reino_nuevo","nombreVisible":"reino_nuevo","mundoComienzo":"exterior","submundos":[{"archivo":"submundos\/exterior.wld","id":"exterior","modoCarga":"PESADO","tipoAmbiente":"EXTERIOR"},{"archivo":"..\/mapa1\/submundos\/interior_casa1.wld","id":"interior_casa1","modoCarga":"LIGERO","tipoAmbiente":"INTERIOR"}]}

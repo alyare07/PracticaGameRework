@@ -75,24 +75,45 @@ public class MundoEditor extends Mundo {
 			}
 		}
 
-		// 2. Sincronizar Zonas de Ambiente desde el gestor global (Zero-GC)
+		// 2. Sincronizar Zonas de Ambiente deduplicando por límites espaciales
 		if (Globales.GESTOR_ZONAS_AMBIENTE != null) {
 			final int totalZonas = Globales.GESTOR_ZONAS_AMBIENTE.getCantidadZonas();
 			for (int i = 0; i < totalZonas; i++) {
 				final ZonaAmbiente z = Globales.GESTOR_ZONAS_AMBIENTE.getZonaPorIndice(i);
-				if ((z != null) && !this.zonasAmbienteEditor.contains(z)) {
-					this.zonasAmbienteEditor.add(z);
+				if (z != null) {
+					boolean yaExiste = false;
+					for (int j = 0; j < this.zonasAmbienteEditor.size(); j++) {
+						if (this.zonasAmbienteEditor.get(j).getLimites().equals(z.getLimites())) {
+							yaExiste = true;
+							break;
+						}
+					}
+					if (!yaExiste) {
+						this.zonasAmbienteEditor.add(z);
+					}
 				}
 			}
 		}
 
-		// 3. Sincronizar Fuentes de Luz estáticas desde el gestor global (Zero-GC)
+		// 3. Sincronizar Fuentes de Luz deduplicando por coordenadas (X, Y)
 		if (Globales.GESTOR_LUZ != null) {
 			final int totalLuces = Globales.GESTOR_LUZ.getCantidadActivas();
 			for (int i = 0; i < totalLuces; i++) {
 				final FuenteLuz luz = Globales.GESTOR_LUZ.getLuzPorIndice(i);
-				if ((luz != null) && (luz.getEnteAnclado() == null) && !this.lucesEstaticasEditor.contains(luz)) {
-					this.lucesEstaticasEditor.add(luz);
+				if ((luz != null) && (luz.getEnteAnclado() == null)) {
+					boolean yaExiste = false;
+					for (int j = 0; j < this.lucesEstaticasEditor.size(); j++) {
+						final FuenteLuz lExistente = this.lucesEstaticasEditor.get(j);
+						// Si están a menos de 1 pixel de distancia, es la misma luz
+						if ((Math.abs(lExistente.getPosX() - luz.getPosX()) < 1.0)
+								&& (Math.abs(lExistente.getPosY() - luz.getPosY()) < 1.0)) {
+							yaExiste = true;
+							break;
+						}
+					}
+					if (!yaExiste) {
+						this.lucesEstaticasEditor.add(luz);
+					}
 				}
 			}
 		}

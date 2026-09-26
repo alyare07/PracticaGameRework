@@ -98,6 +98,9 @@ public class ZoneBox extends Ente {
 			}
 			if (!tp.estaActualizado(codAct)) {
 				tp.actualizar();
+				if (this.mundo.isDisposed()) {
+					return; // Salida instantánea si el TP destruyó este mundo
+				}
 				tp.marcarActualizado(codAct);
 			}
 		}
@@ -466,6 +469,18 @@ public class ZoneBox extends Ente {
 
 	public ArrayList<ZonaTP> getZonasTP() {
 		return this.ZONAS_TP;
+	}
+
+	/**
+	 * Purga todas las listas de entidades indexadas en esta celda espacial
+	 * (Zero-GC).
+	 */
+	public void limpiar() {
+		this.CRIATURAS.clear();
+		this.ITEMS.clear();
+		this.OBJETOS.clear();
+		this.COMPLEMENTOS.clear();
+		this.ZONAS_TP.clear();
 	}
 
 	@Override

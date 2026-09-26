@@ -9,7 +9,6 @@ import principal.entes.objetos.fabricables.Cama;
 import principal.entes.objetos.fabricables.Carpa;
 import principal.mapa.Mundo;
 import principal.mapa.mapas.Mapa;
-import principal.mapa.mapas.Mapa1;
 import principal.mapa.mapas.MapaManager;
 import principal.mapa.mapas.Spawn;
 import principal.mapa.persistencia.DeltaMundo;
@@ -20,19 +19,20 @@ import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
 /**
- * Gestor maestro de resurrección con spawn canónico dinámico (Mapa1 -> exterior
+ * Gestor maestro de resurrección con spawn canónico dinámico (mapa1 -> exterior
  * -> Comienzo) y anclaje persistente a camas/carpas (Zero-GC / O(1)).
  * 
- * @version 2.1 (Vanilla Java 8 - Canonical Master Spawn Fallback)
+ * @version 2.2 (Vanilla Java 8 - Dynamic Project Manifest Resolution)
  */
 public class GestorResurreccion {
 
 	public static final String NOMBRE_SPAWN_RESPAWN = "spawn_respawn_jugador";
+	private static final String MUNDO_EXTERIOR_DEFECTO = "exterior";
 
 	// Estado del Anclaje Personalizado
 	private boolean tieneLechoRegistrado = false;
-	private String nombreMapaAncla = Mapa1.NOMBRE_MAPA;
-	private String nombreMundoAncla = Mapa1.EXTERIOR;
+	private String nombreMapaAncla = MapaManager.MAPA_1;
+	private String nombreMundoAncla = MUNDO_EXTERIOR_DEFECTO;
 	private int respawnX = 0;
 	private int respawnY = 0;
 	private boolean anclaEsCamaSolida = false;
@@ -52,7 +52,7 @@ public class GestorResurreccion {
 		}
 
 		final Mundo mundo = cama.getMundo();
-		this.nombreMapaAncla = (mundo.getMapa() != null) ? mundo.getMapa().getNombre() : Mapa1.NOMBRE_MAPA;
+		this.nombreMapaAncla = this.resolverIdMapa(mundo);
 		this.nombreMundoAncla = mundo.getNombreMundo();
 		this.respawnX = cama.getCentroX();
 		this.respawnY = cama.getPosicionYInt() + cama.getAlto() + 6;
@@ -81,7 +81,7 @@ public class GestorResurreccion {
 		}
 
 		final Mundo mundo = carpa.getMundo();
-		this.nombreMapaAncla = (mundo.getMapa() != null) ? mundo.getMapa().getNombre() : Mapa1.NOMBRE_MAPA;
+		this.nombreMapaAncla = this.resolverIdMapa(mundo);
 		this.nombreMundoAncla = mundo.getNombreMundo();
 		this.respawnX = carpa.getCentroX();
 		this.respawnY = carpa.getPosicionYInt() + carpa.getAlto() + 6;
@@ -92,6 +92,13 @@ public class GestorResurreccion {
 
 		Globales.GESTOR_TEXTOS.agregarTexto("Punto de reaparición guardado", carpa.getCentroX(),
 				carpa.getPosicionYInt() - 10, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+	}
+
+	private String resolverIdMapa(final Mundo mundo) {
+		if ((mundo != null) && (mundo.getMapa() != null) && (mundo.getMapa().getManifiesto() != null)) {
+			return mundo.getMapa().getManifiesto().getIdMapa();
+		}
+		return MapaManager.MAPA_1;
 	}
 
 	// =========================================================================
@@ -127,21 +134,22 @@ public class GestorResurreccion {
 			}
 		}
 
-		// 2. Fallback Canónico Obligatorio: Mapa1 -> exterior -> Comienzo
+		// 2. Fallback Canónico Obligatorio: mapa1 -> exterior -> comienzo
 		if (usarSpawnComienzo) {
-			targetMapa = Mapa1.NOMBRE_MAPA;
-			targetMundo = Mapa1.EXTERIOR;
+			targetMapa = MapaManager.MAPA_1;
+			targetMundo = MUNDO_EXTERIOR_DEFECTO;
 		}
 
-		final boolean esMismoMapa = mapaActual.getNombre().equalsIgnoreCase(targetMapa);
+		final String idMapaActual = (mapaActual.getManifiesto() != null) ? mapaActual.getManifiesto().getIdMapa() : "";
+		final boolean esMismoMapa = idMapaActual.equalsIgnoreCase(targetMapa);
 
 		if (esMismoMapa) {
 			// =================================================================
-			// RUTA A: INTRA-MAPA (Mismo archivo .mp, cambio atómico en memoria)
+			// RUTA A: INTRA-MAPA (Mismo proyecto de mapa, swap en memoria)
 			// =================================================================
 			Mundo mundoDestino = mapaActual.getMundo(targetMundo);
 			if (mundoDestino == null) {
-				targetMundo = Mapa1.EXTERIOR;
+				targetMundo = MUNDO_EXTERIOR_DEFECTO;
 				mundoDestino = mapaActual.getMundo(targetMundo);
 				usarSpawnComienzo = true;
 			}
@@ -160,7 +168,7 @@ public class GestorResurreccion {
 
 		} else {
 			// =================================================================
-			// RUTA B: INTER-MAPA (Viaje entre archivos .mp distintos)
+			// RUTA B: INTER-MAPA (Viaje entre proyectos de mapa distintos)
 			// =================================================================
 			MapaManager.guardarMapaEnTemp(mapaActual);
 

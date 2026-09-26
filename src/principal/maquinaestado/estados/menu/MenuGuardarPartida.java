@@ -69,8 +69,9 @@ public class MenuGuardarPartida extends Menu {
 		final int panelX = Constantes.CENTROX - (ANCHO_PANEL / 2);
 
 		// 1. Caja de texto para el nombre de la partida
-		this.ctNombrePartida = new CajaTextoPixel(new Rectangle(panelX + 110, 72, ANCHO_PANEL - 110, 18), "Mi Partida",
-				26, false);
+		this.ctNombrePartida = new CajaTextoPixel(new Rectangle(panelX + 110, 72, ANCHO_PANEL - 110, 18), "Mi_Partida",
+				26, false, true);
+		this.ctNombrePartida.setPermitirEspacios(false);
 		this.componentes.add(this.ctNombrePartida);
 
 		// 2. Slots de guardado

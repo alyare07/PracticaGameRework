@@ -10,7 +10,6 @@ import java.awt.Transparency;
 import java.awt.event.KeyEvent;
 import java.awt.image.VolatileImage;
 import java.io.File;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +38,7 @@ import principal.mapa.escenario.Escenario;
 import principal.mapa.escenario.EscenarioLoader;
 import principal.mapa.escenario.tps.PuertaMapa;
 import principal.mapa.escenario.tps.ZonaTP;
+import principal.mapa.mapas.ManifiestoMapa;
 import principal.mapa.mapas.Spawn;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.EstadoJuego;
@@ -94,7 +94,9 @@ public class EditorMapa implements EstadoJuego {
 	private final Raton RATON = SuperficieDibujo.obtenerSuperficieDibujo().RATON;
 	private final Rectangle areaTileSelected = new Rectangle();
 	private boolean tileApuntadoValido = false;
-
+	private File directorioProyecto;
+	private ManifiestoMapa manifiesto;
+	private String idSubmundoActivo;
 	// Geometría del Studio Layout
 	private static final int ALTO_BARRA_SUP = 18;
 	private static final int ALTO_BARRA_INF = 14;
@@ -109,8 +111,8 @@ public class EditorMapa implements EstadoJuego {
 	private final FloodFillTerreno FLOOD_FILL = new FloodFillTerreno();
 
 	// Modales interactivos
-	private final VentanaModalMundo modalMundo = new VentanaModalMundo();
-	private final VentanaModalTrigger modalTrigger = new VentanaModalTrigger();
+	private final VentanaModalMundo modalMundo = new VentanaModalMundo(this);
+	private final VentanaModalTrigger modalTrigger = new VentanaModalTrigger(this);
 	private final VentanaModalAmbiente modalAmbiente = new VentanaModalAmbiente();
 	private final VentanaModalLuz modalLuz = new VentanaModalLuz();
 	private final VentanaModalSpawn modalSpawn;
@@ -208,6 +210,32 @@ public class EditorMapa implements EstadoJuego {
 
 	private VolatileImage bufferEditor;
 
+	public EditorMapa(final File directorioProyecto, final String idSubmundoInicial, final GestorEstados ge) {
+		this(cargarEscenarioDeSubmundo(directorioProyecto, idSubmundoInicial), ge);
+		this.directorioProyecto = directorioProyecto;
+		this.manifiesto = ManifiestoMapa.cargarDesdeDirectorio(directorioProyecto);
+		this.idSubmundoActivo = idSubmundoInicial;
+	}
+
+	private static Escenario cargarEscenarioDeSubmundo(final File directorioProyecto, final String idSubmundo) {
+		// Purga de seguridad: vacía las luces y zonas globales residuales
+		if (Globales.GESTOR_LUZ != null) {
+			Globales.GESTOR_LUZ.apagarTodasLasLuces();
+		}
+		if (Globales.GESTOR_ZONAS_AMBIENTE != null) {
+			Globales.GESTOR_ZONAS_AMBIENTE.limpiarZonas();
+		}
+
+		final ManifiestoMapa man = ManifiestoMapa.cargarDesdeDirectorio(directorioProyecto);
+		if (man != null) {
+			final File archivoSubmundo = man.resolverArchivoSubmundo(directorioProyecto, idSubmundo);
+			if ((archivoSubmundo != null) && archivoSubmundo.exists()) {
+				return EscenarioLoader.importarEscenario(archivoSubmundo);
+			}
+		}
+		return null;
+	}
+
 	public EditorMapa(final int ladoTile, final int anchoTiles, final int altoTiles, final TipoTerreno tipoInicial,
 			final GestorEstados ge) {
 		this.GE = ge;
@@ -231,7 +259,7 @@ public class EditorMapa implements EstadoJuego {
 		this.asistenteCamara = new AsistenteCamara(0, 0, 0, 0);
 
 		this.modalConfirmarSalir = new VentanaModalConfirmarSalir(() -> {
-			this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
+			this.guardarSubmundoActivo();
 			this.salirAlMenu();
 		}, () -> this.salirAlMenu());
 
@@ -257,12 +285,18 @@ public class EditorMapa implements EstadoJuego {
 
 		this.PALETAS = new GrupoPaleta(viewportW, ALTO_BARRA_SUP, ANCHO_PALETA_LATERAL,
 				Constantes.ALTO_JUEGO - ALTO_BARRA_SUP, this);
+		if (Globales.GESTOR_LUZ != null) {
+			Globales.GESTOR_LUZ.apagarTodasLasLuces();
+		}
+		if (Globales.GESTOR_ZONAS_AMBIENTE != null) {
+			Globales.GESTOR_ZONAS_AMBIENTE.limpiarZonas();
+		}
 		this.MUNDO_EDITOR = (esc != null) ? new MundoEditor(esc) : new MundoEditor(this.TERRENO);
 		this.modalSpawn = new VentanaModalSpawn(this.MUNDO_EDITOR);
 		this.asistenteCamara = new AsistenteCamara(0, 0, 0, 0);
 
 		this.modalConfirmarSalir = new VentanaModalConfirmarSalir(() -> {
-			this.guardarMapa("Mapa_" + LocalDateTime.now().toString().replace(":", "-") + ".mp");
+			this.guardarSubmundoActivo();
 			this.salirAlMenu();
 		}, () -> this.salirAlMenu());
 
@@ -285,7 +319,7 @@ public class EditorMapa implements EstadoJuego {
 		this.barraSuperior
 				.add(new BotonPixel("Mundo", new Rectangle(2, 2, 34, 14), () -> this.modalMundo.abrir(this.metadatos)));
 		this.barraSuperior.add(new BotonPixel("Guardar", new Rectangle(38, 2, 40, 14), () -> {
-			this.guardarMapa("Mapa_" + java.time.LocalDateTime.now().toString().replace(":", "-") + ".mp");
+			this.guardarSubmundoActivo();
 			GestorSonido.reproducir(IDSonido.GOLPE_1);
 		}));
 
@@ -667,7 +701,7 @@ public class EditorMapa implements EstadoJuego {
 
 			// Ctrl + S (Guardado Rápido)
 			if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_S)) {
-				this.guardarMapa("Mapa_" + java.time.LocalDateTime.now().toString().replace(":", "-") + ".mp");
+				this.guardarSubmundoActivo();
 				GestorSonido.reproducir(IDSonido.GOLPE_1);
 				return;
 			}
@@ -2020,6 +2054,27 @@ public class EditorMapa implements EstadoJuego {
 		}
 	}
 
+	public void conmutarSubmundoEnCaliente(final String nuevoIdSubmundo) {
+		if ((nuevoIdSubmundo == null) || (this.directorioProyecto == null)) {
+			return;
+		}
+		this.guardarSubmundoActivo();
+		// Recarga el editor en el nuevo submundo limpiamente a través de GestorEstados
+		this.GE.editorMapa(this.directorioProyecto, nuevoIdSubmundo);
+	}
+
+	public ManifiestoMapa getManifiesto() {
+		return this.manifiesto;
+	}
+
+	public File getDirectorioProyecto() {
+		return this.directorioProyecto;
+	}
+
+	public String getIdSubmundoActivo() {
+		return this.idSubmundoActivo;
+	}
+
 	private void pintarPreviewColocacion(final Graphics2D g) {
 		if (!this.tileApuntadoValido || this.itemPuntero.contieneItem()) {
 			return;
@@ -2195,7 +2250,7 @@ public class EditorMapa implements EstadoJuego {
 		}
 	}
 
-	public void guardarMapa(final String nombre) {
+	public void guardarSubmundoActivo() {
 		this.validarIntegridadEscenario();
 
 		final JSONObject jsonEntes = this.MUNDO_EDITOR.getEntesInJson();
@@ -2210,9 +2265,35 @@ public class EditorMapa implements EstadoJuego {
 				this.MUNDO_EDITOR.getTriggersEnJson(), this.MUNDO_EDITOR.getZonasAmbienteEnJson(),
 				this.MUNDO_EDITOR.getLucesEnJson(), this.metadatos);
 
-		final File carpetaDestino = new File("mundos" + File.separator + nombre);
-		EscenarioLoader.exportarEscenario(esc, carpetaDestino);
-		System.out.println("[EditorMapa] Mapa guardado exitosamente en: " + carpetaDestino.getAbsolutePath());
+		// Resolución de guardado en proyecto o fallback
+		File archivoDestino = null;
+		if ((this.manifiesto != null) && (this.directorioProyecto != null) && (this.idSubmundoActivo != null)) {
+			archivoDestino = this.manifiesto.resolverArchivoSubmundo(this.directorioProyecto, this.idSubmundoActivo);
+		}
+
+		if (archivoDestino == null) {
+			archivoDestino = new File("mapas" + File.separator + "mapa_exportado.wld");
+		}
+
+		EscenarioLoader.exportarEscenario(esc, archivoDestino);
+		Globales.GESTOR_TEXTOS.agregarTextoFijo("Submundo [" + this.idSubmundoActivo + "] guardado",
+				Constantes.CENTROX - 80, 24, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+		System.out.println("[EditorMapa] Submundo guardado exitosamente en: " + archivoDestino.getAbsolutePath());
+	}
+
+	public void conmutarSubmundoSinGuardar(final String nuevoIdSubmundo) {
+		if ((nuevoIdSubmundo == null) || (this.directorioProyecto == null)) {
+			return;
+		}
+		this.GE.editorMapa(this.directorioProyecto, nuevoIdSubmundo);
+	}
+
+	public void redirigirANuevoProyecto() {
+		this.itemPuntero.limpiar();
+		if (Globales.GESTOR_LUZ != null) {
+			Globales.GESTOR_LUZ.restablecerModoExterior();
+		}
+		this.GE.editorMapaNuevoMenu();
 	}
 
 	public ItemPuntero getItemPuntero() {

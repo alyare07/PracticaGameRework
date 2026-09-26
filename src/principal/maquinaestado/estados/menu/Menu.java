@@ -103,8 +103,18 @@ public abstract class Menu implements EstadoJuego {
 			}
 		}
 
-		// 2. Navegación por Teclado (Tiene prioridad si el jugador toca una tecla)
-		this.actualizarNavegacionTeclado();
+		// 2. Navegación por Teclado (Solo si NO hay una caja de texto escribiendo)
+				if (!this.hayCajaTextoActiva()) {
+					this.actualizarNavegacionTeclado();
+				}
+
+				// 3. Actualización de componentes
+				for (int i = 0; i < this.componentes.size(); i++) {
+					final ComponenteMenu c = this.componentes.get(i);
+					if (c.isVisible()) {
+						c.actualizar(raton);
+					}
+				}
 
 		// 3. Actualización de componentes
 		for (int i = 0; i < this.componentes.size(); i++) {
@@ -214,6 +224,17 @@ public abstract class Menu implements EstadoJuego {
 		}
 
 		g.setFont(fontPrevia);
+	}
+
+	public boolean hayCajaTextoActiva() {
+		for (int i = 0; i < this.componentes.size(); i++) {
+			final ComponenteMenu c = this.componentes.get(i);
+			if ((c instanceof principal.maquinaestado.estados.menu.herramientas.CajaTextoPixel)
+					&& ((principal.maquinaestado.estados.menu.herramientas.CajaTextoPixel) c).isActivo()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	protected void pintarGuiaControles(final Graphics2D g) {

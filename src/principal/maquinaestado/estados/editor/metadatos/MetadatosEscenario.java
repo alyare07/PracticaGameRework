@@ -10,15 +10,16 @@ import principal.clima.TipoClima;
 import principal.utilidades.audio.musica.IDMusica;
 
 /**
- * Contenedor maestro de configuración atmosférica y ambiental del mapa.
- * Clasifica los espacios en EXTERIOR, INTERIOR (Casas/Tabernas) y CUEVA
- * (Blackout).
+ * Contenedor maestro de configuración atmosférica, ambiental y narrativa del
+ * submundo. Clasifica los espacios en EXTERIOR, INTERIOR y CUEVA, e incorpora
+ * el Nombre Visible narrativo para HUD, banners cinemáticos y pantallas de
+ * carga.
  * 
- * @version 3.0 (Vanilla Java 8 - Dedicated 3-Tier Environment Architecture)
+ * @version 3.1 (Vanilla Java 8 - Narrative Display Name Support)
  */
 public class MetadatosEscenario implements Serializable {
 
-	private static final long serialVersionUID = 3L;
+	private static final long serialVersionUID = 4L;
 
 	public enum TipoAmbiente {
 		EXTERIOR("Exterior (Ciclo Solar 24h y Clima)"), INTERIOR("Interior (Hogares, Casas, Tabernas)"),
@@ -35,6 +36,7 @@ public class MetadatosEscenario implements Serializable {
 		}
 	}
 
+	private String nombreVisible;
 	private IDMusica musicaFondo;
 	private PerfilClima perfilBioma;
 	private TipoClima climaInicial;
@@ -44,12 +46,19 @@ public class MetadatosEscenario implements Serializable {
 
 	public MetadatosEscenario() {
 		this(IDMusica.FONDO_RELAX, PerfilClima.TEMPLADO_BOSQUE, TipoClima.DESPEJADO, TipoAmbiente.EXTERIOR,
-				TipoIluminacionInterior.HOGARENA, new Color(255, 215, 140, 40));
+				TipoIluminacionInterior.HOGARENA, new Color(255, 215, 140, 40), "Submundo");
 	}
 
 	public MetadatosEscenario(final IDMusica musicaFondo, final PerfilClima perfilBioma, final TipoClima climaInicial,
 			final TipoAmbiente tipoAmbiente, final TipoIluminacionInterior iluminacionInterior,
 			final Color colorLuzPersonalizado) {
+		this(musicaFondo, perfilBioma, climaInicial, tipoAmbiente, iluminacionInterior, colorLuzPersonalizado,
+				"Submundo");
+	}
+
+	public MetadatosEscenario(final IDMusica musicaFondo, final PerfilClima perfilBioma, final TipoClima climaInicial,
+			final TipoAmbiente tipoAmbiente, final TipoIluminacionInterior iluminacionInterior,
+			final Color colorLuzPersonalizado, final String nombreVisible) {
 		this.musicaFondo = (musicaFondo != null) ? musicaFondo : IDMusica.FONDO_FOREST;
 		this.perfilBioma = (perfilBioma != null) ? perfilBioma : PerfilClima.TEMPLADO_BOSQUE;
 		this.climaInicial = (climaInicial != null) ? climaInicial : TipoClima.DESPEJADO;
@@ -58,6 +67,8 @@ public class MetadatosEscenario implements Serializable {
 				: TipoIluminacionInterior.HOGARENA;
 		this.colorLuzPersonalizado = (colorLuzPersonalizado != null) ? colorLuzPersonalizado
 				: new Color(255, 215, 140, 40);
+		this.nombreVisible = ((nombreVisible != null) && !nombreVisible.trim().isEmpty()) ? nombreVisible.trim()
+				: "Submundo";
 	}
 
 	public boolean esExterior() {
@@ -72,22 +83,14 @@ public class MetadatosEscenario implements Serializable {
 		return this.tipoAmbiente == TipoAmbiente.CUEVA;
 	}
 
-	/**
-	 * Retorna true para cualquier espacio cerrado bajo techo (Interiores o Cuevas)
-	 * para evitar que las partículas de clima exterior (lluvia, nieve, tormentas)
-	 * se rendericen.
-	 */
 	public boolean esEspacioInterior() {
 		return this.tipoAmbiente != TipoAmbiente.EXTERIOR;
 	}
 
-	/**
-	 * Resuelve la capa de luz ambiental fija que baña uniformemente todo el mapa.
-	 */
 	public Color resolverColorLuzEfectivo() {
 		switch (this.tipoAmbiente) {
 		case CUEVA:
-			return new Color(0, 0, 0, 255); // Oscuridad absoluta (Blackout completo)
+			return new Color(0, 0, 0, 255);
 
 		case INTERIOR:
 			if ((this.iluminacionInterior == TipoIluminacionInterior.PERSONALIZADA)
@@ -100,17 +103,18 @@ public class MetadatosEscenario implements Serializable {
 
 		case EXTERIOR:
 		default:
-			return null; // El ciclo solar de 24 horas controla la iluminación dinámicamente
+			return null;
 		}
 	}
 
 	// =========================================================================
-	// PERSISTENCIA JSON (SERIALIZACIÓN Y DESERIALIZACIÓN COMPATIBLE)
+	// PERSISTENCIA JSON
 	// =========================================================================
 
 	@SuppressWarnings("unchecked")
 	public JSONObject exportarJSON() {
 		final JSONObject json = new JSONObject();
+		json.put("nombreVisible", this.nombreVisible);
 		json.put("musicaFondo", this.musicaFondo.name());
 		json.put("perfilBioma", this.perfilBioma.name());
 		json.put("climaInicial", this.climaInicial.name());
@@ -127,6 +131,9 @@ public class MetadatosEscenario implements Serializable {
 		if (json == null) {
 			return new MetadatosEscenario();
 		}
+
+		final String nombreVisible = (json.get("nombreVisible") != null) ? json.get("nombreVisible").toString()
+				: "Submundo";
 
 		IDMusica musica = IDMusica.FONDO_FOREST;
 		if (json.get("musicaFondo") != null) {
@@ -157,7 +164,6 @@ public class MetadatosEscenario implements Serializable {
 
 		if (json.get("tipoAmbiente") != null) {
 			final String ambStr = json.get("tipoAmbiente").toString();
-			// Retrocompatibilidad con nombres anteriores
 			if (ambStr.contains("CUEVA")) {
 				ambiente = TipoAmbiente.CUEVA;
 			} else if (ambStr.contains("INTERIOR")) {
@@ -191,12 +197,22 @@ public class MetadatosEscenario implements Serializable {
 		final int b = (json.get("luzB") != null) ? ((Number) json.get("luzB")).intValue() : 140;
 		final int a = (json.get("luzA") != null) ? ((Number) json.get("luzA")).intValue() : 40;
 
-		return new MetadatosEscenario(musica, bioma, clima, ambiente, ilumInterior, new Color(r, g, b, a));
+		return new MetadatosEscenario(musica, bioma, clima, ambiente, ilumInterior, new Color(r, g, b, a),
+				nombreVisible);
 	}
 
 	// =========================================================================
 	// GETTERS & SETTERS
 	// =========================================================================
+
+	public String getNombreVisible() {
+		return (this.nombreVisible != null) ? this.nombreVisible : "";
+	}
+
+	public void setNombreVisible(final String nombreVisible) {
+		this.nombreVisible = ((nombreVisible != null) && !nombreVisible.trim().isEmpty()) ? nombreVisible.trim()
+				: "Submundo";
+	}
 
 	public IDMusica getMusicaFondo() {
 		return this.musicaFondo;

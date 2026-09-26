@@ -178,6 +178,13 @@ public class GestorEstados {
 		this.estadoActual = this.estados[2];
 	}
 
+	public void editorMapa(final java.io.File directorioProyecto, final String idSubmundo) {
+		Globales.estadoJuego = false;
+		Globales.RATON.soltar();
+		this.estados[2] = new EditorMapa(directorioProyecto, idSubmundo, this);
+		this.estadoActual = this.estados[2];
+	}
+
 	public void editorMapa(final Escenario esc) {
 		Globales.estadoJuego = false;
 		Globales.RATON.soltar();

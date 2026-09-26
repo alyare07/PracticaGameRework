@@ -7,7 +7,6 @@ import org.json.simple.JSONObject;
 
 import principal.iluminacion.TipoLuz;
 import principal.mapa.Mundo;
-import principal.mapa.mapas.Mapa1;
 import principal.mapa.mapas.MapaManager;
 import principal.maquinaestado.GestorEstados;
 import principal.maquinaestado.estados.menu.MenuPartida;
@@ -33,7 +32,7 @@ public class GestorPartida implements EstadoJuego {
 		this.GE = ge;
 		this.GJ = new GestorJuego(ge, this);
 		MapaManager.setGestorPartida(this);
-		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, Mapa1.EXTERIOR, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true);
+		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, "exterior", Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true);
 		this.MP = new MenuPartida(ge, this);
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 		Globales.JUGADOR.desvincularLuz();
@@ -106,7 +105,7 @@ public class GestorPartida implements EstadoJuego {
 	}
 
 	public void reiniciar() {
-		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, Mapa1.EXTERIOR, Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true);
+		this.GCJ.cargar(this.GJ, this.GCJ, MapaManager.MAPA_1, "exterior", Mundo.CLAVE_PUNTO_SPAWN_COMIENZO, true);
 		this.estadoActivo = new PantallaCarga(this.GCJ, this.FONDO_CARGA);
 		Globales.CAMARA.reiniciarZoom();
 		Globales.GESTOR_GRUPO.vaciar();

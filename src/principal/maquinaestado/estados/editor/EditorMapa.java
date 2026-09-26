@@ -37,6 +37,7 @@ import principal.mapa.Tile;
 import principal.mapa.escenario.Escenario;
 import principal.mapa.escenario.EscenarioLoader;
 import principal.mapa.escenario.tps.PuertaMapa;
+import principal.mapa.escenario.tps.PuertaMundo;
 import principal.mapa.escenario.tps.ZonaTP;
 import principal.mapa.mapas.ManifiestoMapa;
 import principal.mapa.mapas.Spawn;
@@ -210,11 +211,27 @@ public class EditorMapa implements EstadoJuego {
 
 	private VolatileImage bufferEditor;
 
-	public EditorMapa(final File directorioProyecto, final String idSubmundoInicial, final GestorEstados ge) {
+	public EditorMapa(final File directorioProyecto, final String idSubmundoInicial, final String spawnEnfocar,
+			final GestorEstados ge) {
 		this(cargarEscenarioDeSubmundo(directorioProyecto, idSubmundoInicial), ge);
 		this.directorioProyecto = directorioProyecto;
 		this.manifiesto = ManifiestoMapa.cargarDesdeDirectorio(directorioProyecto);
 		this.idSubmundoActivo = idSubmundoInicial;
+
+		// Si se solicitó enfocar un spawn de llegada (por Ctrl+Clic en puerta),
+		// posicionamos la cámara allí
+		if (spawnEnfocar != null) {
+			final Spawn s = this.MUNDO_EDITOR.getSpawn(spawnEnfocar);
+			if (s != null) {
+				this.x = s.getX();
+				this.y = s.getY();
+				this.asistenteCamara.setPosicion(this.x, this.y);
+			}
+		}
+	}
+
+	public EditorMapa(final File directorioProyecto, final String idSubmundoInicial, final GestorEstados ge) {
+		this(directorioProyecto, idSubmundoInicial, null, ge);
 	}
 
 	private static Escenario cargarEscenarioDeSubmundo(final File directorioProyecto, final String idSubmundo) {
@@ -496,9 +513,13 @@ public class EditorMapa implements EstadoJuego {
 		this.actualizarTileApuntado();
 		this.PALETAS.actualizar(this.RATON);
 
-		// 6. Traslado de Entidades (Shift + Drag) o Edición estándar
+		// 6. Traslado de Entidades o Salto Rápido Ctrl+Clic
 		if (this.actualizarTrasladoEntidades()) {
 			this.MUNDO_EDITOR.actualizar();
+			return;
+		}
+
+		if (this.actualizarSaltoRapidoTrigger()) {
 			return;
 		}
 
@@ -1637,15 +1658,22 @@ public class EditorMapa implements EstadoJuego {
 		final boolean clickDer = this.RATON.presionadoClickDer() || this.RATON.presionadoClickDerUnicaAct();
 
 		if (clickDer && this.tileApuntadoValido) {
-			final int radioBorrado = Math.max(16, this.LADO_TILE);
-			this.AREA_BORRADO_AUX.setBounds(this.AREA_MOUSE_APUNTADO.x - 1, this.AREA_MOUSE_APUNTADO.y - 1, 2, 2);
+			// Calculamos el radio de borrado según el pincel
+			final int radioPx = (this.tamanoPincel * this.LADO_TILE) / 2;
+			final int mouseX = this.AREA_MOUSE_APUNTADO.x;
+			final int mouseY = this.AREA_MOUSE_APUNTADO.y;
+
+			if (this.tamanoPincel == 1) {
+				this.AREA_BORRADO_AUX.setBounds(mouseX - 2, mouseY - 2, 4, 4);
+			} else {
+				this.AREA_BORRADO_AUX.setBounds(mouseX - radioPx, mouseY - radioPx, radioPx * 2, radioPx * 2);
+			}
 
 			boolean elementoBorrado = false;
 
-			// A. Borrar Spawns
-			if (this.verCapaTriggers) {
-				final Spawn spawnBorrado = this.MUNDO_EDITOR.eliminarSpawnEn(this.AREA_MOUSE_APUNTADO.x,
-						this.AREA_MOUSE_APUNTADO.y, radioBorrado);
+			// A. Borrar Spawns (Clic único)
+			if (this.verCapaTriggers && this.RATON.presionadoClickDerUnicaAct()) {
+				final Spawn spawnBorrado = this.MUNDO_EDITOR.eliminarSpawnEn(mouseX, mouseY, Math.max(16, radioPx));
 				if (spawnBorrado != null) {
 					this.HISTORIAL.registrarAccion(new AccionHistorialSpawn(this.MUNDO_EDITOR, spawnBorrado, false));
 					GestorSonido.reproducir(IDSonido.GOLPE_1);
@@ -1653,8 +1681,8 @@ public class EditorMapa implements EstadoJuego {
 				}
 
 				// B. Borrar Triggers / Zonas / Luces
-				final Object triggerBorrado = this.MUNDO_EDITOR.eliminarTriggerOAmbienteEn(this.AREA_MOUSE_APUNTADO.x,
-						this.AREA_MOUSE_APUNTADO.y, radioBorrado);
+				final Object triggerBorrado = this.MUNDO_EDITOR.eliminarTriggerOAmbienteEn(mouseX, mouseY,
+						Math.max(16, radioPx));
 				if (triggerBorrado != null) {
 					this.HISTORIAL
 							.registrarAccion(new AccionHistorialTrigger(this.MUNDO_EDITOR, triggerBorrado, false));
@@ -1663,25 +1691,49 @@ public class EditorMapa implements EstadoJuego {
 				}
 			}
 
-			// C. Borrar Entidades y Objetos
+			// C. Borrado Masivo de Entidades y Objetos (Proporcional al Pincel)
 			if (this.verCapaEntidades) {
 				this.listaEntesABorrar.clear();
+				final double radioCuadrado = radioPx * radioPx;
+
 				this.MUNDO_EDITOR.paraCadaEnteEn(this.AREA_BORRADO_AUX, false, false, new AccionEntidad<Ente>() {
 					@Override
 					public void ejecutar(final Ente ente) {
 						if ((ente != null) && !ente.estaEliminado()) {
+							if ((EditorMapa.this.tamanoPincel > 2) && EditorMapa.this.pincelCircular) {
+								final double dx = ente.getCentroX() - mouseX;
+								final double dy = ente.getCentroY() - mouseY;
+								if (((dx * dx) + (dy * dy)) > radioCuadrado) {
+									return;
+								}
+							}
 							EditorMapa.this.listaEntesABorrar.add(ente);
 						}
 					}
 				});
 
-				for (int i = 0; i < this.listaEntesABorrar.size(); i++) {
-					final Ente e = this.listaEntesABorrar.get(i);
-					this.MUNDO_EDITOR.eliminarEntidad(e);
-					this.HISTORIAL.registrarAccion(new AccionHistorialEntidad(this.MUNDO_EDITOR, e, false));
+				// Eliminación atómica en lote
+				if (!this.listaEntesABorrar.isEmpty()) {
+					// CLONAMOS la lista para que clear() no la vacíe dentro del objeto del
+					// historial
+					final ArrayList<Ente> copiaLote = new ArrayList<Ente>(this.listaEntesABorrar);
+
+					for (int i = 0; i < copiaLote.size(); i++) {
+						this.MUNDO_EDITOR.eliminarEntidad(copiaLote.get(i));
+					}
+
+					if (copiaLote.size() == 1) {
+						this.HISTORIAL.registrarAccion(
+								new AccionHistorialEntidad(this.MUNDO_EDITOR, copiaLote.get(0), false));
+					} else {
+						this.HISTORIAL.registrarAccion(
+								new principal.maquinaestado.estados.editor.historial.AccionHistorialEntidadLote(
+										this.MUNDO_EDITOR, copiaLote, false));
+					}
+
 					elementoBorrado = true;
+					this.listaEntesABorrar.clear(); // Ahora sí vaciamos el buffer temporal
 				}
-				this.listaEntesABorrar.clear();
 			}
 
 			if (elementoBorrado) {
@@ -1718,9 +1770,10 @@ public class EditorMapa implements EstadoJuego {
 		this.asistenteCamara.setPosicion(this.x, this.y);
 	}
 
-	private void verificarBuffer(final Graphics2D g) {
-		final int w = Constantes.ANCHO_JUEGO;
-		final int h = Constantes.ALTO_JUEGO;
+	private void verificarBuffer(final Graphics2D g, final double zoom) {
+		final double factorZoomOut = Math.min(1.0, Math.max(0.2, zoom));
+		final int w = (int) Math.ceil(Constantes.ANCHO_JUEGO / factorZoomOut) + 64;
+		final int h = (int) Math.ceil(Constantes.ALTO_JUEGO / factorZoomOut) + 64;
 
 		if ((this.bufferEditor == null) || (this.bufferEditor.getWidth() != w) || (this.bufferEditor.getHeight() != h)
 				|| (this.bufferEditor.validate(g.getDeviceConfiguration()) == VolatileImage.IMAGE_INCOMPATIBLE)) {
@@ -1734,7 +1787,8 @@ public class EditorMapa implements EstadoJuego {
 
 	@Override
 	public void pintar(final Graphics2D g) {
-		this.verificarBuffer(g);
+		final double z = Math.max(0.2, Globales.CAMARA.getZoom());
+		this.verificarBuffer(g, z);
 
 		final int viewW = this.PALETA_MAPA.width;
 		final int viewH = this.PALETA_MAPA.height;
@@ -1743,16 +1797,25 @@ public class EditorMapa implements EstadoJuego {
 
 		final double centroVX = viewX + (viewW / 2.0);
 		final double centroVY = viewY + (viewH / 2.0);
-		final double z = Math.max(0.2, Globales.CAMARA.getZoom());
 
-		// 1. Renderizado a escala 1:1 en VolatileImage
+		final int anchoBuf = this.bufferEditor.getWidth();
+		final int altoBuf = this.bufferEditor.getHeight();
+		final int centroBufX = anchoBuf / 2;
+		final int centroBufY = altoBuf / 2;
+
+		final int offsetMundoX = centroBufX - Constantes.CENTROX;
+		final int offsetMundoY = centroBufY - Constantes.CENTROY;
+
+		// 1. Renderizado del escenario completo adaptado al Zoom Out en VRAM
 		final Graphics2D gBuf = this.bufferEditor.createGraphics();
 		try {
 			gBuf.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 			gBuf.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
 					RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
-			Render2D.dibujarRectanguloRelleno(gBuf, 0, 0, Constantes.ANCHO_JUEGO, Constantes.ALTO_JUEGO, Color.BLACK);
+			Render2D.dibujarRectanguloRelleno(gBuf, 0, 0, anchoBuf, altoBuf, Color.BLACK);
+
+			gBuf.translate(offsetMundoX, offsetMundoY);
 
 			if (this.verCapaTerreno) {
 				this.TERRENO.pintar(gBuf);
@@ -1786,17 +1849,20 @@ public class EditorMapa implements EstadoJuego {
 			this.pintarPreviewColocacion(gBuf);
 			this.pintarReglaMedicion(gBuf);
 
+			gBuf.translate(-offsetMundoX, -offsetMundoY);
+
 		} finally {
 			gBuf.dispose();
 		}
 
-		// 2. Proyección sobre el Viewport del editor (Recortado sin invadir barras)
+		// 2. Proyección sobre el Viewport del editor (Recortado sin invadir barras ni
+		// paletas)
 		final Graphics2D gView = (Graphics2D) g.create();
 		try {
 			gView.setClip(this.PALETA_MAPA);
 			gView.translate(centroVX, centroVY);
 			gView.scale(z, z);
-			gView.drawImage(this.bufferEditor, -Constantes.CENTROX, -Constantes.CENTROY, null);
+			gView.drawImage(this.bufferEditor, -centroBufX, -centroBufY, null);
 		} finally {
 			gView.dispose();
 		}
@@ -1807,7 +1873,7 @@ public class EditorMapa implements EstadoJuego {
 			this.cofreAbierto.pintarTooltips(g);
 		}
 
-		// 4. Studio Layout: Barra Superior y Barra Inferior de Estado
+		// 4. Studio Layout: Barra Superior, Barra Inferior y Minimapa Radar
 		this.pintarBarraSuperior(g);
 		this.pintarBarraInferiorEstado(g);
 		this.pintarMinimapa(g);
@@ -2055,12 +2121,65 @@ public class EditorMapa implements EstadoJuego {
 	}
 
 	public void conmutarSubmundoEnCaliente(final String nuevoIdSubmundo) {
+		this.conmutarSubmundoEnCaliente(nuevoIdSubmundo, null);
+	}
+
+	public void conmutarSubmundoEnCaliente(final String nuevoIdSubmundo, final String spawnEnfocar) {
 		if ((nuevoIdSubmundo == null) || (this.directorioProyecto == null)) {
 			return;
 		}
 		this.guardarSubmundoActivo();
-		// Recarga el editor en el nuevo submundo limpiamente a través de GestorEstados
-		this.GE.editorMapa(this.directorioProyecto, nuevoIdSubmundo);
+		this.GE.editorMapa(this.directorioProyecto, nuevoIdSubmundo, spawnEnfocar);
+	}
+
+	private void saltarATriggerEnEditor(final String mundoDestino, final String spawnDestino) {
+		if (mundoDestino == null) {
+			return;
+		}
+
+		// Si el destino es este mismo submundo, centramos la cámara directamente en el
+		// Spawn
+		if (mundoDestino.equalsIgnoreCase(this.idSubmundoActivo)) {
+			final Spawn s = this.MUNDO_EDITOR.getSpawn(spawnDestino);
+			if (s != null) {
+				this.x = s.getX();
+				this.y = s.getY();
+				this.asistenteCamara.setPosicion(this.x, this.y);
+				GestorSonido.reproducir(IDSonido.SELECT);
+				Globales.GESTOR_TEXTOS.agregarTextoFijo("Cámara centrada en: " + spawnDestino, Constantes.CENTROX - 80,
+						24, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
+			}
+			return;
+		}
+
+		// Si es otro submundo, conmutamos y le ordenamos enfocar el spawn de llegada
+		GestorSonido.reproducir(IDSonido.SELECT);
+		this.conmutarSubmundoEnCaliente(mundoDestino, spawnDestino);
+	}
+
+	private void saltarATriggerInterMapa(final String rutaMapa, final String mundoDestino, final String spawnDestino) {
+		if (rutaMapa == null) {
+			return;
+		}
+		final String idMapa = new File(rutaMapa).getName().replace(".mp", "").replace(".json", "").toLowerCase();
+
+		// Si es el mismo proyecto activo
+		if ((this.manifiesto != null) && this.manifiesto.getIdMapa().equalsIgnoreCase(idMapa)) {
+			this.saltarATriggerEnEditor(mundoDestino, spawnDestino);
+			return;
+		}
+
+		// Si es otro proyecto de mapa distinto
+		File dirOtroMapa = new File("mapas", idMapa);
+		if (!dirOtroMapa.exists()) {
+			dirOtroMapa = new File("mundos", idMapa);
+		}
+
+		if (dirOtroMapa.exists() && dirOtroMapa.isDirectory()) {
+			this.guardarSubmundoActivo();
+			GestorSonido.reproducir(IDSonido.SELECT);
+			this.GE.editorMapa(dirOtroMapa, mundoDestino, spawnDestino);
+		}
 	}
 
 	public ManifiestoMapa getManifiesto() {
@@ -2089,7 +2208,25 @@ public class EditorMapa implements EstadoJuego {
 					Color.MAGENTA);
 			return;
 		}
+		// Previsualización del área de borrado masivo (Clic Derecho)
+		if (this.RATON.presionadoClickDer() && this.verCapaEntidades && (this.tamanoPincel > 1)) {
+			final int radioPx = (this.tamanoPincel * this.LADO_TILE) / 2;
+			final int cx = (mouseTileX * this.LADO_TILE) + (this.LADO_TILE / 2);
+			final int cy = (mouseTileY * this.LADO_TILE) + (this.LADO_TILE / 2);
 
+			if (this.pincelCircular) {
+				Render2D.dibujarFiguraEllipseRellenoRefCamara(g, cx - radioPx, cy - radioPx, radioPx * 2, radioPx * 2,
+						new Color(255, 40, 40, 70));
+				Render2D.dibujarFiguraEllipseRefCamara(g, cx - radioPx, cy - radioPx, radioPx * 2, radioPx * 2,
+						Color.RED);
+			} else {
+				Render2D.dibujarRectanguloRellenoRefCamara(g, cx - radioPx, cy - radioPx, radioPx * 2, radioPx * 2,
+						new Color(255, 40, 40, 70));
+				Render2D.dibujarRectanguloContornoRefCamara(g, cx - radioPx, cy - radioPx, radioPx * 2, radioPx * 2,
+						Color.RED);
+			}
+			return;
+		}
 		final Paleta paleta = this.PALETAS.getPaletaActual();
 
 		if (paleta instanceof PaletaTile) {
@@ -2279,6 +2416,34 @@ public class EditorMapa implements EstadoJuego {
 		Globales.GESTOR_TEXTOS.agregarTextoFijo("Submundo [" + this.idSubmundoActivo + "] guardado",
 				Constantes.CENTROX - 80, 24, principal.igu.textos.TipoTextoFlotante.ORO_EXP);
 		System.out.println("[EditorMapa] Submundo guardado exitosamente en: " + archivoDestino.getAbsolutePath());
+	}
+
+	private boolean actualizarSaltoRapidoTrigger() {
+		final boolean ctrl = Globales.TECLADO.presionaTeclaEnLista(KeyEvent.VK_CONTROL);
+		if (!ctrl || !this.tileApuntadoValido || !this.RATON.presionadoClickIzqUnicaAct()) {
+			return false;
+		}
+
+		final Rectangle rCheck = new Rectangle(this.AREA_MOUSE_APUNTADO.x - 6, this.AREA_MOUSE_APUNTADO.y - 6, 12, 12);
+		for (final ZonaTP tp : this.MUNDO_EDITOR.getTriggersEditor()) {
+			if (tp.getArea().intersects(rCheck)) {
+				final Object puerta = tp.getPuertaTP();
+
+				// Caso A: PuertaMundo (Mismo Proyecto)
+				if (puerta instanceof PuertaMundo) {
+					final PuertaMundo pm = (PuertaMundo) puerta;
+					this.saltarATriggerEnEditor(pm.getNombreMundoDestino(), pm.getNombreSpawnDestino());
+					return true;
+				}
+				if (puerta instanceof PuertaMapa) {
+					final PuertaMapa pmap = (PuertaMapa) puerta;
+					this.saltarATriggerInterMapa(pmap.getRutaMapaDestino(), pmap.getNombreMundoDestino(),
+							pmap.getNombreSpawnDelMundoDestino());
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public void conmutarSubmundoSinGuardar(final String nuevoIdSubmundo) {

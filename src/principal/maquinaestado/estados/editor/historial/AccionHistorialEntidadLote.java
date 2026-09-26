@@ -7,9 +7,10 @@ import principal.maquinaestado.estados.editor.MundoEditor;
 
 /**
  * Acción de historial compuesta para operaciones en lote (Brocha de dispersión
- * vegetal / rocas). Permite revertir N entidades en un único paso de Deshacer.
+ * y Borrado Masivo). Permite revertir N entidades en un único paso atómico de
+ * Deshacer.
  * 
- * @version 1.0 (Vanilla Java 8 - Atomic Batch Transaction)
+ * @version 2.0 (Vanilla Java 8 - Restoration Safe Batch Transaction)
  */
 public class AccionHistorialEntidadLote implements AccionHistorial {
 
@@ -31,9 +32,14 @@ public class AccionHistorialEntidadLote implements AccionHistorial {
 
 		for (int i = 0; i < this.entes.size(); i++) {
 			final Ente e = this.entes.get(i);
+			if (e == null) {
+				continue;
+			}
+
 			if (this.esCreacion) {
 				this.mundo.eliminarEntidad(e);
 			} else {
+				e.restaurar(); // Reactiva el flag eliminado = false
 				this.mundo.meterEntidad(e);
 			}
 		}
@@ -47,7 +53,12 @@ public class AccionHistorialEntidadLote implements AccionHistorial {
 
 		for (int i = 0; i < this.entes.size(); i++) {
 			final Ente e = this.entes.get(i);
+			if (e == null) {
+				continue;
+			}
+
 			if (this.esCreacion) {
+				e.restaurar(); // Reactiva el flag eliminado = false
 				this.mundo.meterEntidad(e);
 			} else {
 				this.mundo.eliminarEntidad(e);

@@ -40,6 +40,7 @@ public abstract class ArmaAutomatica extends Arma {
 		this.velocidadBala = velocidadBala;
 		this.asignarPrecioAutomatica(codModelo);
 		this.rellenarInfo(this.LISTA_INFO);
+		this.dosManos = true;
 	}
 
 	public ArmaAutomatica(final int x, final int y, final String codModelo, final int damage, final int alcance,
@@ -51,6 +52,7 @@ public abstract class ArmaAutomatica extends Arma {
 		this.velocidadBala = velocidadBala;
 		this.asignarPrecioAutomatica(codModelo);
 		this.rellenarInfo(this.LISTA_INFO);
+		this.dosManos = true;
 	}
 
 	private void asignarPrecioAutomatica(final String cod) {

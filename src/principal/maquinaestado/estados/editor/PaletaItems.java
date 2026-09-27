@@ -29,6 +29,7 @@ import principal.entes.objetos.items.desplegables.KitCama;
 import principal.entes.objetos.items.desplegables.KitCarpa;
 import principal.entes.objetos.items.desplegables.KitFogata;
 import principal.entes.objetos.items.desplegables.KitFogataAzul;
+import principal.entes.objetos.items.equipablesmano.ItemMapa;
 import principal.entes.objetos.items.equipamiento.PiezaEquipo;
 import principal.entes.objetos.items.equipamiento.TipoEquipo;
 import principal.entes.objetos.items.herramientas.Herramienta;
@@ -164,6 +165,8 @@ public class PaletaItems extends Paleta {
 		// 10. MONEDAS
 		this.registrarEntradaItem(ItemMoneda.crearPlata(0, 0, 1), true, cant -> ItemMoneda.crearPlata(0, 0, cant));
 		this.registrarEntradaItem(ItemMoneda.crearOro(0, 0, 1), true, cant -> ItemMoneda.crearOro(0, 0, cant));
+
+		this.registrarEntradaItem(new ItemMapa(), false, cant -> new ItemMapa());
 	}
 
 	@Override

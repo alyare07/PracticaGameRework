@@ -25,8 +25,23 @@ public class SlotManoSecundaria extends SlotEquipamiento {
 		if (i == null) {
 			return true;
 		}
-		// No permite armas de fuego principales en mano secundaria
-		return !(i instanceof Arma);
+		// No admite armas bélicas principales
+		if (i instanceof Arma) {
+			return false;
+		}
+
+		// Bloqueo físico: si el arma principal requiere dos manos, la secundaria queda
+		// clausurada
+		if ((Globales.GESTOR_INVENTARIO != null) && (Globales.GESTOR_INVENTARIO.getInventarioJugador() != null)) {
+			final SlotArma sArma = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotManager().getSlotArma();
+			if ((sArma != null) && sArma.contieneItem()) {
+				final Item itemArma = sArma.getItem();
+				if ((itemArma instanceof Arma) && ((Arma) itemArma).esDosManos()) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	@Override

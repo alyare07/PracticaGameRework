@@ -8,6 +8,7 @@ package principal.recursos;
  * @version 1.0 (Vanilla Java 8)
  */
 public enum TexturaItem {
+	MAPA_MAPA(ClaveHoja.ITEMS_12, 35), MAPA_INV(ClaveHoja.ITEMS_16, 35),
 
 	// --- Pociones ---
 	POCION_ROJA_INV(ClaveHoja.ITEMS_16, 50), POCION_ROJA_MAPA(ClaveHoja.ITEMS_12, 50),
@@ -19,7 +20,6 @@ public enum TexturaItem {
 	ANILLO_PLATA_MAPA(ClaveHoja.ITEMS_12, 6), ANILLO_ORO_INV(ClaveHoja.ITEMS_16, 19),
 	ANILLO_ORO_MAPA(ClaveHoja.ITEMS_12, 19), ESMERALDA_INV(ClaveHoja.ITEMS_16, 28), CORONA_MAPA(ClaveHoja.ITEMS_12, 22),
 	CORONA_INV(ClaveHoja.ITEMS_16, 22), LLAVE_INV(ClaveHoja.ITEMS_16, 37), LLAVE_MAPA(ClaveHoja.ITEMS_16, 37),
-
 	// --- Equipamiento ---
 	BOTAS_CUERO_INV(ClaveHoja.ITEMS_16, 122), BOTAS_CUERO_MAPA(ClaveHoja.ITEMS_12, 122),
 	CASCO_BASE_INV(ClaveHoja.ITEMS_16, 112), CASCO_BASE_MAPA(ClaveHoja.ITEMS_12, 113),

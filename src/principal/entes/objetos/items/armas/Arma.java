@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import principal.entes.criaturas.Criatura;
 import principal.entes.criaturas.Criatura.Direccion;
 import principal.entes.criaturas.jugador.Jugador;
+import principal.entes.objetos.items.EquipableManoPrincipal;
 import principal.entes.objetos.items.Portable;
 import principal.entes.objetos.items.armas.distancia.fuego.municiones.Municion;
 import principal.mapa.Mundo;
@@ -13,7 +14,7 @@ import principal.utilidades.Globales;
 import principal.utilidades.audio.sonido.GestorSonido;
 import principal.utilidades.audio.sonido.IDSonido;
 
-public abstract class Arma extends Portable {
+public abstract class Arma extends Portable implements EquipableManoPrincipal {
 
 	private static final long serialVersionUID = -1515324317822932516L;
 
@@ -29,6 +30,7 @@ public abstract class Arma extends Portable {
 	protected String tipoMunicionRequerida = null;
 	protected boolean recargando = false;
 
+	protected boolean dosManos = false;
 	protected final GestorTiempo GT_CADENCIA = new GestorTiempo();
 	protected final GestorTiempo GT_RECARGA = new GestorTiempo();
 
@@ -163,6 +165,14 @@ public abstract class Arma extends Portable {
 		if ((escenario != null) && (this.radioRuido > 0)) {
 			escenario.emitirPulsoSonido(xOrigen, yOrigen, this.radioRuido, causante);
 		}
+	}
+
+	public boolean esDosManos() {
+		return this.dosManos;
+	}
+
+	public void setDosManos(final boolean dosManos) {
+		this.dosManos = dosManos;
 	}
 
 	public boolean esArmaDistancia() {

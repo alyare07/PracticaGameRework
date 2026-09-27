@@ -85,7 +85,7 @@ public class Mundo {
 	protected int codAct;
 	protected int codPintado;
 	protected principal.clima.EstadoClima estadoClima;
-
+	private final NieblaGuerra nieblaGuerra;
 	public static final String CLAVE_PUNTO_SPAWN_COMIENZO = "comienzo";
 
 	final ArrayList<Ente> LISTA_ENTES_TEMP = new ArrayList<>();
@@ -100,7 +100,9 @@ public class Mundo {
 		this.ESCENARIO = esc;
 		final MetadatosEscenario meta = (esc != null) ? esc.getMetadatos() : new MetadatosEscenario();
 		this.estadoClima = new principal.clima.EstadoClima(meta.getPerfilBioma(), meta.getClimaInicial());
-
+		final int anchoTiles = this.ESCENARIO.getTerreno().getAncho() / Constantes.LADO_TILE;
+		final int altoTiles = this.ESCENARIO.getTerreno().getAlto() / Constantes.LADO_TILE;
+		this.nieblaGuerra = new NieblaGuerra(anchoTiles, altoTiles);
 		if (gc != null) {
 			gc.setDetalleCarga("Generando zonas de indexacion espacial");
 		}
@@ -170,6 +172,9 @@ public class Mundo {
 	public Mundo(final Terreno terrenoSoloParaEDITOR) {
 		this.ESCENARIO = new Escenario(terrenoSoloParaEDITOR, null, null, null, null, null, null, null, null,
 				new MetadatosEscenario());
+		final int anchoTiles = this.ESCENARIO.getTerreno().getAncho() / Constantes.LADO_TILE;
+		final int altoTiles = this.ESCENARIO.getTerreno().getAlto() / Constantes.LADO_TILE;
+		this.nieblaGuerra = new NieblaGuerra(anchoTiles, altoTiles);
 		this.estadoClima = new principal.clima.EstadoClima(PerfilClima.TEMPLADO_BOSQUE, TipoClima.DESPEJADO);
 		this.PUNTOS_SPAWN_JUGADOR.put(CLAVE_PUNTO_SPAWN_COMIENZO,
 				new Spawn(new Point(0, 0), CLAVE_PUNTO_SPAWN_COMIENZO));
@@ -178,6 +183,10 @@ public class Mundo {
 		this.dijkstra = null;
 		this.AESTRELLA_X12X20 = null;
 		this.generarZonas();
+	}
+
+	public NieblaGuerra getNieblaGuerra() {
+		return this.nieblaGuerra;
 	}
 
 	public EstadoClima getEstadoClima() {
@@ -331,6 +340,9 @@ public class Mundo {
 		if (this.disposed) {
 			return; // <-- Si cambió de mundo en actualizarZonas, no procesa partículas ni
 					// proyectiles viejos
+		}
+		if ((this.nieblaGuerra != null) && (Globales.JUGADOR != null)) {
+			this.nieblaGuerra.actualizar(Globales.JUGADOR, this);
 		}
 		this.actualizarParticulas();
 		this.actualizarProyectiles();
@@ -1252,7 +1264,10 @@ public class Mundo {
 		if (this.dijkstra != null) {
 			this.dijkstra.destruir();
 		}
-
+		if (this.nieblaGuerra != null) {
+			// Asegura que no queden referencias retenidas
+			this.nieblaGuerra.degradarVisionPreviaAMemoria();
+		}
 		// 2. Limpiar la grilla de ZoneBox
 		if (this.ZONAS_ARRAY != null) {
 			for (int i = 0; i < this.ZONAS_ARRAY.length; i++) {

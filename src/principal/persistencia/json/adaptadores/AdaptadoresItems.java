@@ -22,14 +22,11 @@ import principal.entes.objetos.items.desplegables.KitCama;
 import principal.entes.objetos.items.desplegables.KitCarpa;
 import principal.entes.objetos.items.desplegables.KitFogata;
 import principal.entes.objetos.items.desplegables.KitFogataAzul;
+import principal.entes.objetos.items.equipablesmano.ItemMapa;
 import principal.entes.objetos.items.equipamiento.PiezaEquipo;
-import principal.entes.objetos.items.equipamiento.TipoAislamiento;
-import principal.entes.objetos.items.equipamiento.TipoEquipo;
 import principal.entes.objetos.items.herramientas.Herramienta;
-import principal.entes.objetos.items.herramientas.TipoHerramienta;
 import principal.entes.objetos.items.materiales.RecursoMaterial;
 import principal.entes.objetos.items.monedas.ItemMoneda;
-import principal.entes.objetos.items.monedas.TipoMoneda;
 import principal.entes.objetos.items.municiones.CajaMunicion;
 import principal.entes.objetos.items.pociones.PocionVidaMenor;
 import principal.mapa.Mundo;
@@ -753,6 +750,66 @@ public final class AdaptadoresItems {
 			final KitCarpa k = KitCarpa.crearDesdeJson(d);
 			k.setMundo(mundo);
 			return k;
+		}
+	}
+
+	public static class AdaptadorItemMapa implements principal.persistencia.json.AdaptadorEntidad<ItemMapa> {
+
+		@Override
+		public String getId() {
+			return "ITEM_MAPA";
+		}
+
+		@Override
+		public Class<ItemMapa> getClaseEntidad() {
+			return ItemMapa.class;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public JSONObject serializar(final ItemMapa item) {
+			final JSONObject json = new JSONObject();
+			json.put("x", Integer.valueOf(item.getPosicionXInt()));
+			json.put("y", Integer.valueOf(item.getPosicionYInt()));
+			return json;
+		}
+
+		@Override
+		public ItemMapa deserializar(final JSONObject d, final Mundo mundo) {
+			final int x = principal.persistencia.json.LectorJSON.getInt(d, "x", 0);
+			final int y = principal.persistencia.json.LectorJSON.getInt(d, "y", 0);
+			return new ItemMapa(x, y);
+		}
+	}
+
+	public static class AdaptadorItemBrujula implements
+			principal.persistencia.json.AdaptadorEntidad<principal.entes.objetos.items.desplegables.ItemBrujula> {
+
+		@Override
+		public String getId() {
+			return "ITEM_BRUJULA";
+		}
+
+		@Override
+		public Class<principal.entes.objetos.items.desplegables.ItemBrujula> getClaseEntidad() {
+			return principal.entes.objetos.items.desplegables.ItemBrujula.class;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public JSONObject serializar(final principal.entes.objetos.items.desplegables.ItemBrujula item) {
+			final JSONObject json = new JSONObject();
+			json.put("x", Integer.valueOf(item.getPosicionXInt()));
+			json.put("y", Integer.valueOf(item.getPosicionYInt()));
+			return json;
+		}
+
+		@Override
+		public principal.entes.objetos.items.desplegables.ItemBrujula deserializar(final JSONObject d,
+				final Mundo mundo) {
+			final int x = principal.persistencia.json.LectorJSON.getInt(d, "x", 0);
+			final int y = principal.persistencia.json.LectorJSON.getInt(d, "y", 0);
+			return new principal.entes.objetos.items.desplegables.ItemBrujula(x, y);
 		}
 	}
 

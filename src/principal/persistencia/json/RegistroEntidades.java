@@ -103,6 +103,8 @@ public final class RegistroEntidades {
 		registrar(new AdaptadoresItems.AdaptadorKitFogataAzul());
 		registrar(new AdaptadoresItems.AdaptadorKitCarpa());
 		registrar(new AdaptadoresItems.AdaptadorKitCama());
+		registrar(new principal.persistencia.json.adaptadores.AdaptadoresItems.AdaptadorItemMapa());
+		registrar(new principal.persistencia.json.adaptadores.AdaptadoresItems.AdaptadorItemBrujula());
 	}
 
 	public static boolean soporta(final Ente entidad) {

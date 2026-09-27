@@ -13,7 +13,6 @@ import java.util.HashSet;
 import org.json.simple.JSONObject;
 
 import principal.animaciones.Animaciones;
-import principal.configuracion.Dificultad;
 import principal.entes.Ente;
 import principal.entes.criaturas.Criatura;
 import principal.entes.efectos.EfectoEstado;
@@ -395,16 +394,11 @@ public class Jugador extends Criatura {
 			Globales.CAMARA.aplicarTemblor(500, 3.5);
 		}
 
-		// En modo Normal: Se pierde un 30% y el 70% cae al suelo donde murió
-		if (Globales.dificultad == Dificultad.NORMAL) {
-			this.soltarItemsPorMuerte(0.30);
-		} else if (Globales.dificultad == Dificultad.DIFICIL) {
-			this.soltarItemsPorMuerte(0.5);
-		} else if ((Globales.dificultad == Dificultad.HARDCORE_RENACIMIENTO)
-				|| (Globales.dificultad == Dificultad.HARDCORE_REAL)) {
-			this.soltarItemsPorMuerte(1);
+		// Consulta semántica limpia: delega la regla a Dificultad
+		final double ratioPerdida = Globales.dificultad.getRatioPerdidaItemsMuerte();
+		if (ratioPerdida > 0.0) {
+			this.soltarItemsPorMuerte(ratioPerdida);
 		}
-		// En modo Fácil: No se suelta nada, conserva todo su inventario intacto
 	}
 
 	private void soltarItemsPorMuerte(final double ratioPerdida) {
@@ -1578,7 +1572,7 @@ public class Jugador extends Criatura {
 	}
 
 	public Arma getArmaEquipada() {
-		return (Arma) Globales.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada();
+		return Globales.GESTOR_INVENTARIO.getInventarioJugador().getArmaEquipada();
 	}
 
 	public void solicitarActualizacionAreaRecoleccionSinRecoger() {

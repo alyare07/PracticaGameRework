@@ -8,7 +8,10 @@ import principal.entes.objetos.items.armas.distancia.fuego.municiones.Municion;
 public class Desarmado extends Arma {
 	private static final long serialVersionUID = 3731254166805799834L;
 
-	public Desarmado() {
+	/** Instancia única compartida para Zero-GC en consultas en caliente */
+	public static final Desarmado INSTANCIA = new Desarmado();
+
+	private Desarmado() {
 		super("", 0, 0, false);
 	}
 
@@ -18,17 +21,13 @@ public class Desarmado extends Arma {
 	}
 
 	@Override
-	protected void rellenarInfo(ArrayList<String> listaInfo) {
-		
+	protected void rellenarInfo(final ArrayList<String> listaInfo) {
+
 	}
 
 	@Override
 	public Objeto copiar() {
-		return new Desarmado();
+		return INSTANCIA;
 	}
-
-	
-
-
 
 }

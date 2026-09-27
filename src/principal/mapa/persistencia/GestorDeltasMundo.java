@@ -57,6 +57,10 @@ public class GestorDeltasMundo {
 		final int diaActual = (Globales.GESTOR_ASTRONOMICO != null) ? Globales.GESTOR_ASTRONOMICO.getDiaActual() : 1;
 
 		delta.setDiaGuardado(diaActual);
+		// Captura atómica de la exploración de niebla de este submundo en Base64
+		if (mundo.getNieblaGuerra() != null) {
+			delta.setNieblaGuerraBase64(mundo.getNieblaGuerra().exportarBase64());
+		}
 		delta.getEstructurasConstruidas().clear();
 		delta.getCofresModificados().clear();
 		delta.getItemsEnSuelo().clear();
@@ -181,6 +185,10 @@ public class GestorDeltasMundo {
 
 		if ((delta.getClimaModificado() != null) && (mundo.getEstadoClima() != null)) {
 			mundo.getEstadoClima().importarJSON(delta.getClimaModificado());
+			// Restauración de la niebla explorada para este submundo
+			if ((mundo.getNieblaGuerra() != null) && (delta.getNieblaGuerraBase64() != null)) {
+				mundo.getNieblaGuerra().importarBase64(delta.getNieblaGuerraBase64());
+			}
 		}
 
 		// FASE 1: Purga de destruidos

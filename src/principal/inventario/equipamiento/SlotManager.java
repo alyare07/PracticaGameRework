@@ -152,9 +152,9 @@ public class SlotManager {
 		}
 	}
 
-	private void desequiparAAlmacen(final Slot slotEquipo) {
+	public boolean desequiparAAlmacen(final Slot slotEquipo) {
 		if ((slotEquipo == null) || !slotEquipo.contieneItem()) {
-			return;
+			return false;
 		}
 
 		for (int i = 0; i < this.LISTA_SLOTS_PRINCIPALES.size(); i++) {
@@ -162,7 +162,7 @@ public class SlotManager {
 			if (!s.contieneItem()) {
 				s.establecerObjeto(slotEquipo.getItem());
 				slotEquipo.eliminarObjeto();
-				return;
+				return true;
 			}
 		}
 
@@ -171,9 +171,24 @@ public class SlotManager {
 			if (!s.contieneItem()) {
 				s.establecerObjeto(slotEquipo.getItem());
 				slotEquipo.eliminarObjeto();
-				return;
+				return true;
 			}
 		}
+		return false;
+	}
+
+	public boolean tieneEspacioLibre() {
+		for (int i = 0; i < this.LISTA_SLOTS_PRINCIPALES.size(); i++) {
+			if (!this.LISTA_SLOTS_PRINCIPALES.get(i).contieneItem()) {
+				return true;
+			}
+		}
+		for (int i = 0; i < this.LISTA_SLOTS_ALMACEN.size(); i++) {
+			if (!this.LISTA_SLOTS_ALMACEN.get(i).contieneItem()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public void activarItemDeSlot(final Slot slot) {
@@ -209,10 +224,19 @@ public class SlotManager {
 			return;
 		}
 
-		if (i instanceof Arma) {
+		if (i instanceof principal.entes.objetos.items.EquipableManoPrincipal) {
 			if (slot == this.slotArma) {
 				this.desequiparArma();
 			} else {
+				// Validación transaccional de armas a dos manos
+				if ((i instanceof Arma) && ((Arma) i).esDosManos() && this.slotManoSecundaria.contieneItem()) {
+					if (!this.tieneEspacioLibre()) {
+						GestorSonido.reproducir(IDSonido.SIN_MUNICION);
+						return;
+					}
+					this.desequiparAAlmacen(this.slotManoSecundaria);
+				}
+
 				final Item armaPrevia = this.slotArma.getItem();
 				this.slotArma.establecerObjeto(i);
 				slot.establecerObjeto(armaPrevia);
@@ -374,17 +398,18 @@ public class SlotManager {
 		this.desequiparAAlmacen(this.slotArma);
 	}
 
-	public Item getArmaEquipada() {
-		if ((this.slotArma != null) && (this.slotArma.getItem() != null)) {
-			return this.slotArma.getItem();
+	public Arma getArmaEquipada() {
+		if (this.slotArma != null) {
+			final Item i = this.slotArma.getItem();
+			if (i instanceof Arma) {
+				return (Arma) i;
+			}
 		}
-		return new Desarmado();
+		return Desarmado.INSTANCIA;
 	}
 
 	public Arma equiparArma(final Arma arma) {
-		final Arma aux = ((this.slotArma != null) && (this.slotArma.getItem() != null)) ? (Arma) this.slotArma.getItem()
-				: new Desarmado();
-
+		final Arma aux = this.getArmaEquipada();
 		if (this.slotArma != null) {
 			this.slotArma.establecerObjeto(arma);
 		}

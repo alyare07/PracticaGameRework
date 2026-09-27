@@ -49,6 +49,7 @@ public enum ClaveHoja {
 	// --- IGU -----
 	IGU_DISCO_CICLO_TIME("/imagenes/igu/disco_ciclo.png", 40, 40),
 	IGU_MARCO_TIME("/imagenes/igu/marco_reloj.png", 44, 44),
+	IGU_ICONOS_MINIMAPA("/imagenes/igu/minimap_icons_8x8.png", 8, 8),
 
 	// Items equipados
 	EQUIPADO_CASCO1("/imagenes/sprites/objetos/equipados/equipado_casco0.png", 32, 32),

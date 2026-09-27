@@ -64,6 +64,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 	private int lastDespY = Integer.MIN_VALUE;
 	private double lastFactorEscalaX = -1.0;
 	private double lastFactorEscalaY = -1.0;
+	private final principal.igu.MinimapaIGU minimapaIGU = new principal.igu.MinimapaIGU();
 
 	public GestorJuego(final GestorEstados ge, final GestorPartida gp) {
 		this.GE = ge;
@@ -146,6 +147,11 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		}
 
 		Globales.MOTOR_IGU.actualizar();
+		// Apertura/Cierre del pergamino cartográfico mediante la tecla M
+		if (Globales.TECLADO.isTeclaPresionadaUnaVez(KeyEvent.VK_M)) {
+			this.minimapaIGU.conmutarPergamino();
+		}
+		this.minimapaIGU.actualizar(this.RATON);
 
 		final Rectangle areaMovimiento = Globales.JUGADOR.getAreaInterseccionMovimiento();
 		if ((areaMovimiento != null) && (this.mapa != null) && (this.mapa.getMundoActual() != null)) {
@@ -396,6 +402,7 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 		if (!Globales.JUGADOR.estaEliminado()) {
 			this.pintarInventarios(g);
 			Globales.MOTOR_IGU.pintar(g);
+			this.minimapaIGU.pintar(g);
 		}
 
 		this.pintarPantallaDerrota(g);
@@ -448,20 +455,9 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 
 			Render2D.dibujarStringConSombra(g, texto, x, y, color, Color.BLACK);
 
-			// 3. Subtítulo explicativo según la dificultad
+			// 3. Subtítulo explicativo según la dificultad (Cero switches o ladders de if)
 			g.setFont(Globales.GESTOR_FUENTES.getFuente(Font.PLAIN, 14f));
-			final String subtitulo;
-			if (Globales.dificultad == Dificultad.FACIL) {
-				subtitulo = "Dificultad Fácil · Inventario y equipo conservados";
-			} else if (Globales.dificultad == Dificultad.DIFICIL) {
-				subtitulo = "Dificultad Dificil · La mitad de tus ítems cayeron en el lugar de tu muerte y el resto desapareció!";
-			} else if (Globales.dificultad == Dificultad.HARDCORE_RENACIMIENTO) {
-				subtitulo = "Dificultad Hardcore - Legado · Este personaje ha muerto para siempre y renaceras como nueva criatura!";
-			} else if (Globales.dificultad == Dificultad.HARDCORE_REAL) {
-				subtitulo = "Dificultad Hardcore - Real · Muerte permanente";
-			} else {// if (Globales.dificultad == Dificultad.NORMAL) {
-				subtitulo = "Dificultad Normal · 70% de tus ítems cayeron en el lugar de tu muerte";
-			}
+			final String subtitulo = Globales.dificultad.getSubtituloMuerte();
 
 			final int anchoSub = Globales.FUNCIONES.MEDIDOR_STRING.medirAnchoPixeles(g, subtitulo);
 			final int xSub = Constantes.CENTROX - (anchoSub / 2);
@@ -682,7 +678,6 @@ public final class GestorJuego implements EstadoJuego, cargaMapa {
 			gc.setPorcentajeCarga(80);
 			gc.setDetalleCarga("Restaurando personaje e inventario");
 		}
-
 		// Restaurar Jugador
 		Globales.JUGADOR.setMundo(mundoActivo);
 		if (saveJson.get("jugador") instanceof JSONObject) {

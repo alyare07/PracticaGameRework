@@ -426,7 +426,7 @@ public class Inventario {
 		return this.SLOT_MANAGER.equiparArma(arma);
 	}
 
-	public Item getArmaEquipada() {
+	public Arma getArmaEquipada() {
 		return this.SLOT_MANAGER.getArmaEquipada();
 	}
 

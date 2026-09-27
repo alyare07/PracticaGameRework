@@ -92,4 +92,101 @@ public enum Dificultad {
 	public boolean isMuerteBorraPartida() {
 		return this.muerteBorraPartida;
 	}
+
+	// =========================================================================
+	// SSOT: MÉTODOS SEMÁNTICOS DE CARTOGRAFÍA Y NAVEGACIÓN (ZERO-GC)
+	// =========================================================================
+
+	/**
+	 * Determina si esta dificultad permite proyectar el mini-radar en el HUD.
+	 */
+	public boolean permiteMinimapaHUD() {
+		return (this == FACIL) || (this == NORMAL);
+	}
+
+	/**
+	 * Determina si el radar del HUD exige tener brújula además del mapa.
+	 */
+	public boolean requiereBrujulaParaHUD() {
+		return this == NORMAL;
+	}
+
+	/**
+	 * Determina si el mapa debe estar físicamente empuñado en una mano para
+	 * funcionar.
+	 */
+	public boolean requiereMapaEnMano() {
+		return this.esHardcore();
+	}
+
+	/**
+	 * Determina si el jugador retiene memoria biológica de lo caminado sin mapa.
+	 */
+	public boolean tieneMemoriaBiologicaCartografica() {
+		return (this == FACIL) || (this == NORMAL);
+	}
+
+	/**
+	 * Determina si se requiere poseer el ítem mapa para consultar el pergamino.
+	 */
+	public boolean requiereItemMapaParaVer() {
+		return this != FACIL;
+	}
+
+	/**
+	 * Determina si el jugador tiene orientación magnética sin necesidad de ítem
+	 * brújula.
+	 */
+	public boolean tieneBrujulaPorDefecto() {
+		return this == FACIL;
+	}
+
+	/**
+	 * Determina si los iconos de POIs pueden verse a través de la niebla no
+	 * explorada.
+	 */
+	public boolean permiteIconosEnOscuridad() {
+		return this == FACIL;
+	}
+
+	// =========================================================================
+	// SSOT: REGLAS DE MUERTE Y CONSECUENCIAS (ZERO-GC)
+	// =========================================================================
+
+	/**
+	 * Retorna el ratio de ítems que caen al suelo al morir (0.0 a 1.0).
+	 */
+	public double getRatioPerdidaItemsMuerte() {
+		switch (this) {
+		case FACIL:
+			return 0.0;
+		case NORMAL:
+			return 0.30;
+		case DIFICIL:
+			return 0.50;
+		case HARDCORE_RENACIMIENTO:
+		case HARDCORE_REAL:
+		default:
+			return 1.00;
+		}
+	}
+
+	/**
+	 * Retorna el subtítulo narrativo explicativo para la pantalla de muerte.
+	 */
+	public String getSubtituloMuerte() {
+		switch (this) {
+		case FACIL:
+			return "Dificultad Fácil · Inventario y equipo conservados";
+		case DIFICIL:
+			return "Dificultad Difícil · La mitad de tus ítems cayeron en el lugar de tu muerte y el resto desapareció";
+		case HARDCORE_RENACIMIENTO:
+			return "Dificultad Hardcore - Legado · Este personaje ha muerto para siempre y renacerás como nuevo pionero";
+		case HARDCORE_REAL:
+			return "Dificultad Hardcore - Real · Muerte permanente";
+		case NORMAL:
+		default:
+			return "Dificultad Normal · 70% de tus ítems cayeron en el lugar de tu muerte";
+		}
+	}
 }

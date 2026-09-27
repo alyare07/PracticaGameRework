@@ -22,7 +22,7 @@ public class DeltaMundo {
 	private final ArrayList<JSONObject> estructurasConstruidas = new ArrayList<JSONObject>();
 	private final HashMap<String, JSONArray> cofresModificados = new HashMap<String, JSONArray>();
 	private final ArrayList<JSONObject> itemsEnSuelo = new ArrayList<JSONObject>();
-
+	private String nieblaGuerraBase64 = null;
 	// Estados de criaturas nativas sobrevivientes (vida remanente y posición
 	// actual)
 	private final HashMap<String, JSONObject> criaturasModificadas = new HashMap<String, JSONObject>();
@@ -64,6 +64,7 @@ public class DeltaMundo {
 		this.criaturasModificadas.clear();
 		this.criaturasDinamicas.clear();
 		this.climaModificado = null;
+		this.nieblaGuerraBase64 = null;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -106,7 +107,9 @@ public class DeltaMundo {
 		if (this.climaModificado != null) {
 			json.put("clima", this.climaModificado);
 		}
-
+		if (this.nieblaGuerraBase64 != null) {
+			json.put("niebla", this.nieblaGuerraBase64);
+		}
 		return json;
 	}
 
@@ -137,7 +140,11 @@ public class DeltaMundo {
 		} else {
 			this.climaModificado = null;
 		}
-
+		if (json.get("niebla") != null) {
+			this.nieblaGuerraBase64 = json.get("niebla").toString();
+		} else {
+			this.nieblaGuerraBase64 = null;
+		}
 		final JSONArray listaDestruidas = (JSONArray) json.get("destruidas");
 		if (listaDestruidas != null) {
 			for (final Object obj : listaDestruidas) {
@@ -227,6 +234,14 @@ public class DeltaMundo {
 
 	public void setDiaGuardado(final int diaGuardado) {
 		this.diaGuardado = diaGuardado;
+	}
+
+	public String getNieblaGuerraBase64() {
+		return this.nieblaGuerraBase64;
+	}
+
+	public void setNieblaGuerraBase64(final String nieblaBase64) {
+		this.nieblaGuerraBase64 = nieblaBase64;
 	}
 
 	public int getDiasParaRegenerar() {

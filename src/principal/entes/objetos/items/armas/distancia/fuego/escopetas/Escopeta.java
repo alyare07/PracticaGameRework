@@ -43,6 +43,7 @@ public abstract class Escopeta extends Arma {
 		this.asignarPrecioEscopeta(codModelo);
 		this.rellenarInfo(this.LISTA_INFO);
 		this.radioRuido = 460;
+		this.dosManos = true;
 	}
 
 	public Escopeta(final int x, final int y, final String codModelo, final int damagePorPerdigon, final int alcance,
@@ -56,6 +57,7 @@ public abstract class Escopeta extends Arma {
 		this.asignarPrecioEscopeta(codModelo);
 		this.rellenarInfo(this.LISTA_INFO);
 		this.radioRuido = 460;
+		this.dosManos = true;
 	}
 
 	private void asignarPrecioEscopeta(final String cod) {

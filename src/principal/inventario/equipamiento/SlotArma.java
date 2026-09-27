@@ -180,24 +180,55 @@ public class SlotArma extends SlotEquipamiento {
 
 	@Override
 	public boolean puedeAceptar(final Item itemAColocar) {
-		return (itemAColocar instanceof Arma);
+		if (!this.validarAdmisionItem(itemAColocar)) {
+			return false;
+		}
+
+		// Si es a 2 manos y la secundaria está ocupada, solo acepta si hay espacio para
+		// desalojar
+		if ((itemAColocar instanceof Arma) && ((Arma) itemAColocar).esDosManos()) {
+			final SlotManager sm = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotManager();
+			final SlotManoSecundaria sec = sm.getSlotManoSecundaria();
+			if ((sec != null) && sec.contieneItem()) {
+				return sm.tieneEspacioLibre();
+			}
+		}
+		return true;
 	}
 
 	@Override
 	public boolean validarAdmisionItem(final Item i) {
-		return (i == null) || (i instanceof Arma);
+		return (i == null) || (i instanceof principal.entes.objetos.items.EquipableManoPrincipal);
 	}
 
 	@Override
 	public void establecerObjeto(final Item obj) {
+		// Desalojo automático de la mano secundaria al soltar un arma de 2 manos
+		if ((obj instanceof Arma) && ((Arma) obj).esDosManos()) {
+			final SlotManager sm = Globales.GESTOR_INVENTARIO.getInventarioJugador().getSlotManager();
+			final SlotManoSecundaria sec = sm.getSlotManoSecundaria();
+			if ((sec != null) && sec.contieneItem()) {
+				sm.desequiparAAlmacen(sec);
+			}
+		}
+
 		super.establecerObjeto(obj);
 		this.actualizarLista();
+
+		// Notificación reactiva inmediata a atributos y luz
+		if (Globales.JUGADOR != null) {
+			Globales.JUGADOR.recalcularAtributos();
+		}
 	}
 
 	@Override
 	public void eliminarObjeto() {
 		super.eliminarObjeto();
 		this.actualizarLista();
+
+		if (Globales.JUGADOR != null) {
+			Globales.JUGADOR.recalcularAtributos();
+		}
 	}
 
 	public HashMap<String, Info> getLista() {
